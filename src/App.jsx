@@ -1,0 +1,141 @@
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+
+// layouts
+import Home from "./pages/Home";
+import SuperAdminLayout from "./layouts/SuperAdminLayout";
+
+import StudentLayout from "./layouts/StudentLayout";
+
+import StudentDashboard from "./pages/student/Dashboard";
+import StudentElections from "./pages/student/Elections";
+import StudentVotePage from "./pages/student/VotePage";
+import StudentReceipt from "./pages/student/Receipt";
+import StudentSetup from "./pages/auth/StudentSetup";
+
+import BoardLayout from "./layouts/BoardLayout";
+
+import BoardDashboard from "./pages/board/Dashboard";
+import BoardElections from "./pages/board/Elections";
+import BoardStudents from "./pages/board/Students";
+import BoardCSVImport from "./pages/board/CSVImport";
+import BoardPositions from "./pages/board/Positions.jsx";
+import BoardCandidates from "./pages/board/Candidates";
+import BoardPartylists from "./pages/board/Partylists";
+import BoardEligibilityRules from "./pages/board/EligibilityRules";
+import BoardVotingMonitor from "./pages/board/VotingMonitor";
+import BoardResults from "./pages/board/Results";
+import BoardReports from "./pages/board/Reports";
+
+// pages (admin)
+import Dashboard from "./pages/superadmin/Dashboard";
+import Organizations from "./pages/superadmin/Organizations";
+import Students from "./pages/superadmin/Students";
+import CSVImport from "./pages/superadmin/CSVImport";
+import Elections from "./pages/superadmin/Elections";
+import Positions from "./pages/superadmin/Positions";
+import Candidates from "./pages/superadmin/Candidates";
+import Partylists from "./pages/superadmin/Partylists";
+import EligibilityRules from "./pages/superadmin/EligibilityRules";
+import VotingMonitor from "./pages/superadmin/VotingMonitor";
+import Results from "./pages/superadmin/Results";
+import BlockchainVerification from "./pages/superadmin/BlockchainVerification";
+import Reports from "./pages/superadmin/Reports";
+import AuditLogs from "./pages/superadmin/AuditLogs";
+import UsersRoles from "./pages/superadmin/UsersRoles";
+import Archives from "./pages/superadmin/ArchivePage";
+import SystemSettings from "./pages/superadmin/SystemSettings";
+
+// login pages
+import AdminLogin from "./pages/auth/AdminLogin";
+import BoardLogin from "./pages/auth/BoardLogin";
+import StudentLogin from "./pages/auth/StudentLogin";
+
+
+// 🔐 PROTECTED ROUTE
+function ProtectedRoute({ children, role }) {
+  const user = JSON.parse(localStorage.getItem("user"));
+
+  if (!user) {
+    return <Navigate to="/admin-login" />;
+  }
+
+  if (role && user.role !== role) {
+    return <Navigate to="/admin-login" />;
+  }
+
+  return children;
+}
+
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+
+        {/* ENTRY ROUTES */}
+        <Route path="/admin-login" element={<AdminLogin />} />
+        <Route path="/board-login" element={<BoardLogin />} />
+        <Route path="/student-login" element={<StudentLogin />} />
+
+        {/* DEFAULT */}
+        <Route path="/" element={<Home />} />
+
+        {/* SUPER ADMIN (PROTECTED) */}
+        <Route
+          path="/super-admin"
+          element={
+            <ProtectedRoute role="super_admin">
+              <SuperAdminLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="dashboard" />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="organizations" element={<Organizations />} />
+          <Route path="students" element={<Students />} />
+          <Route path="csv-import" element={<CSVImport />} />
+          <Route path="elections" element={<Elections />} />
+          <Route path="positions" element={<Positions />} />
+          <Route path="candidates" element={<Candidates />} />
+          <Route path="partylists" element={<Partylists />} />
+          <Route path="eligibility-rules" element={<EligibilityRules />} />
+          <Route path="voting-monitor" element={<VotingMonitor />} />
+          <Route path="results" element={<Results />} />
+          <Route path="blockchain" element={<BlockchainVerification />} />
+          <Route path="reports" element={<Reports />} />
+          <Route path="audit-logs" element={<AuditLogs />} />
+          <Route path="users-roles" element={<UsersRoles />} />
+          <Route path="archives" element={<Archives />} />
+          <Route path="settings" element={<SystemSettings />} />
+        </Route>
+
+        <Route path="/board" element={<BoardLayout />}>
+  <Route index element={<Navigate to="dashboard" />} />
+  <Route path="dashboard" element={<BoardDashboard />} />
+  <Route path="elections" element={<BoardElections />} />
+  <Route path="positions" element={<BoardPositions />} />
+  <Route path="candidates" element={<BoardCandidates />} />
+  <Route path="partylists" element={<BoardPartylists />} />
+  <Route path="eligibility-rules" element={<BoardEligibilityRules />} />
+  <Route path="voting-monitor" element={<BoardVotingMonitor />} />
+  <Route path="results" element={<BoardResults />} />
+  <Route path="reports" element={<BoardReports />} />
+  <Route path="students" element={<BoardStudents />} />
+  <Route path="csv-import" element={<BoardCSVImport />} />
+</Route>
+
+<Route path="/student" element={<StudentLayout />}>
+  <Route index element={<Navigate to="dashboard" />} />
+  <Route path="dashboard" element={<StudentDashboard />} />
+  <Route path="elections" element={<StudentElections />} />
+  <Route path="vote/:electionId" element={<StudentVotePage />} />
+  <Route path="receipt" element={<StudentReceipt />} />
+</Route>
+<Route path="/student-setup" element={<StudentSetup />} />
+
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+export default App;
