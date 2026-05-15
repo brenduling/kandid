@@ -1,0 +1,10 @@
+{
+  "bannerConfig": {
+    "enabled": false,
+    "formattedMessages": [],
+    "minSecondsBetweenDisplays": 18000,
+    "minSecondsBetweenRequests": 86400
+  },
+  "lastDisplayTime": 0,
+  "lastRequestTime": 1778518336047
+}

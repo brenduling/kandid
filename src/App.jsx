@@ -10,7 +10,11 @@ import StudentDashboard from "./pages/student/Dashboard";
 import StudentElections from "./pages/student/Elections";
 import StudentVotePage from "./pages/student/VotePage";
 import StudentReceipt from "./pages/student/Receipt";
+import StudentCampaign from "./pages/student/Campaign";
+import StudentResults from "./pages/student/Results";
+import StudentOfficers from "./pages/student/Officers";
 import StudentSetup from "./pages/auth/StudentSetup";
+import ProfilePage from "./pages/shared/Profile";
 
 import BoardLayout from "./layouts/BoardLayout";
 
@@ -20,6 +24,7 @@ import BoardStudents from "./pages/board/Students";
 import BoardCSVImport from "./pages/board/CSVImport";
 import BoardPositions from "./pages/board/Positions.jsx";
 import BoardCandidates from "./pages/board/Candidates";
+import BoardOfficers from "./pages/board/Officers";
 import BoardPartylists from "./pages/board/Partylists";
 import BoardEligibilityRules from "./pages/board/EligibilityRules";
 import BoardVotingMonitor from "./pages/board/VotingMonitor";
@@ -34,6 +39,7 @@ import CSVImport from "./pages/superadmin/CSVImport";
 import Elections from "./pages/superadmin/Elections";
 import Positions from "./pages/superadmin/Positions";
 import Candidates from "./pages/superadmin/Candidates";
+import Officers from "./pages/superadmin/Officers";
 import Partylists from "./pages/superadmin/Partylists";
 import EligibilityRules from "./pages/superadmin/EligibilityRules";
 import VotingMonitor from "./pages/superadmin/VotingMonitor";
@@ -45,28 +51,15 @@ import UsersRoles from "./pages/superadmin/UsersRoles";
 import Archives from "./pages/superadmin/ArchivePage";
 import SystemSettings from "./pages/superadmin/SystemSettings";
 
+
 // login pages
 import AdminLogin from "./pages/auth/AdminLogin";
 import BoardLogin from "./pages/auth/BoardLogin";
 import StudentLogin from "./pages/auth/StudentLogin";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 
 // 🔐 PROTECTED ROUTE
-function ProtectedRoute({ children, role }) {
-  const user = JSON.parse(localStorage.getItem("user"));
-
-  if (!user) {
-    return <Navigate to="/admin-login" />;
-  }
-
-  if (role && user.role !== role) {
-    return <Navigate to="/admin-login" />;
-  }
-
-  return children;
-}
-
-
 function App() {
   return (
     <BrowserRouter>
@@ -97,6 +90,7 @@ function App() {
           <Route path="elections" element={<Elections />} />
           <Route path="positions" element={<Positions />} />
           <Route path="candidates" element={<Candidates />} />
+          <Route path="officers" element={<Officers />} />
           <Route path="partylists" element={<Partylists />} />
           <Route path="eligibility-rules" element={<EligibilityRules />} />
           <Route path="voting-monitor" element={<VotingMonitor />} />
@@ -107,31 +101,52 @@ function App() {
           <Route path="users-roles" element={<UsersRoles />} />
           <Route path="archives" element={<Archives />} />
           <Route path="settings" element={<SystemSettings />} />
+          <Route path="profile" element={<ProfilePage />} />
         </Route>
 
-        <Route path="/board" element={<BoardLayout />}>
-  <Route index element={<Navigate to="dashboard" />} />
-  <Route path="dashboard" element={<BoardDashboard />} />
-  <Route path="elections" element={<BoardElections />} />
-  <Route path="positions" element={<BoardPositions />} />
-  <Route path="candidates" element={<BoardCandidates />} />
-  <Route path="partylists" element={<BoardPartylists />} />
-  <Route path="eligibility-rules" element={<BoardEligibilityRules />} />
-  <Route path="voting-monitor" element={<BoardVotingMonitor />} />
-  <Route path="results" element={<BoardResults />} />
-  <Route path="reports" element={<BoardReports />} />
-  <Route path="students" element={<BoardStudents />} />
-  <Route path="csv-import" element={<BoardCSVImport />} />
-</Route>
+        <Route
+          path="/board"
+          element={
+            <ProtectedRoute role="electoral_board">
+              <BoardLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="dashboard" />} />
+          <Route path="dashboard" element={<BoardDashboard />} />
+          <Route path="elections" element={<BoardElections />} />
+          <Route path="positions" element={<BoardPositions />} />
+          <Route path="candidates" element={<BoardCandidates />} />
+          <Route path="officers" element={<BoardOfficers />} />
+          <Route path="partylists" element={<BoardPartylists />} />
+          <Route path="eligibility-rules" element={<BoardEligibilityRules />} />
+          <Route path="voting-monitor" element={<BoardVotingMonitor />} />
+          <Route path="results" element={<BoardResults />} />
+          <Route path="reports" element={<BoardReports />} />
+          <Route path="students" element={<BoardStudents />} />
+          <Route path="csv-import" element={<BoardCSVImport />} />
+          <Route path="profile" element={<ProfilePage />} />
+        </Route>
 
-<Route path="/student" element={<StudentLayout />}>
-  <Route index element={<Navigate to="dashboard" />} />
-  <Route path="dashboard" element={<StudentDashboard />} />
-  <Route path="elections" element={<StudentElections />} />
-  <Route path="vote/:electionId" element={<StudentVotePage />} />
-  <Route path="receipt" element={<StudentReceipt />} />
-</Route>
-<Route path="/student-setup" element={<StudentSetup />} />
+        <Route
+          path="/student"
+          element={
+            <ProtectedRoute role="student">
+              <StudentLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="dashboard" />} />
+          <Route path="dashboard" element={<StudentDashboard />} />
+          <Route path="elections" element={<StudentElections />} />
+          <Route path="elections/:electionId/campaign" element={<StudentCampaign />} />
+          <Route path="vote/:electionId" element={<StudentVotePage />} />
+          <Route path="officers" element={<StudentOfficers />} />
+          <Route path="results" element={<StudentResults />} />
+          <Route path="receipt" element={<StudentReceipt />} />
+          <Route path="profile" element={<ProfilePage />} />
+        </Route>
+        <Route path="/student-setup" element={<StudentSetup />} />
 
       </Routes>
     </BrowserRouter>

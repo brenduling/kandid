@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
+import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
 
 function Positions() {
@@ -91,76 +92,58 @@ function Positions() {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="page-head">
         <div>
-          <h1 className="text-3xl font-black">Position Management</h1>
-          <p className="text-gray-500 mt-1">
+          <div className="page-kicker">Ballot Structure</div>
+          <h1 className="page-title">Positions</h1>
+          <p className="page-subtitle">
             Define positions for each election and voting limits.
           </p>
         </div>
 
         <button
           onClick={openCreateForm}
-          className="flex items-center gap-2 bg-[#ff5a1f] text-white px-5 py-3 rounded-xl font-bold hover:bg-[#e24d17]"
+          className="primary-btn self-start lg:self-auto"
         >
           <Plus size={18} />
           Add Position
         </button>
       </div>
 
-      <div className="mt-8 bg-white rounded-2xl shadow-sm overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-[#1d1d1d] text-white">
-            <tr>
-              <th className="px-6 py-4 text-sm">Position</th>
-              <th className="px-6 py-4 text-sm">Election</th>
-              <th className="px-6 py-4 text-sm">Max Votes</th>
-              <th className="px-6 py-4 text-sm text-right">Actions</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {positions.length === 0 ? (
-              <tr>
-                <td colSpan="4" className="px-6 py-10 text-center text-gray-500">
-                  No positions found.
-                </td>
-              </tr>
-            ) : (
-              positions.map((pos) => (
-                <tr key={pos.id} className="border-b last:border-b-0">
-                  <td className="px-6 py-4 font-bold">{pos.name}</td>
-                  <td className="px-6 py-4">
-                    {pos.elections?.title || "Unknown"}
-                  </td>
-                  <td className="px-6 py-4">{pos.max_votes}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => openEditForm(pos)}
-                        className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200"
-                      >
-                        <Pencil size={16} />
-                      </button>
-
-                      <button
-                        onClick={() => handleDelete(pos.id)}
-                        className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-200"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      {positions.length === 0 ? (
+        <div className="empty-state mt-8">No positions found.</div>
+      ) : (
+        <div className="entity-grid">
+          {positions.map((pos) => (
+            <div key={pos.id} className="entity-card lift-card">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#ff7a35]">
+                    {pos.elections?.title || "Unknown election"}
+                  </p>
+                  <h2 className="entity-card-title mt-2">{pos.name}</h2>
+                </div>
+                <span className="status-pill">{pos.max_votes} vote{pos.max_votes > 1 ? "s" : ""}</span>
+              </div>
+              <p className="entity-meta">
+                Limit how many candidates a voter can select for this position.
+              </p>
+              <div className="entity-actions">
+                <button onClick={() => openEditForm(pos)} className="icon-action">
+                  <Pencil size={16} />
+                </button>
+                <button onClick={() => handleDelete(pos.id)} className="icon-action icon-action-danger">
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {formOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl p-6">
+        <PopupOverlay>
+          <div className="modal-card max-w-lg">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-black">
                 {editingPosition ? "Edit Position" : "Add Position"}
@@ -174,14 +157,16 @@ function Positions() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="modal-form-stack">
+              <div>
+                <label className="field-label">Election</label>
               <select
                 required
                 value={form.election_id}
                 onChange={(e) =>
                   setForm({ ...form, election_id: e.target.value })
                 }
-                className="w-full px-4 py-3 border rounded-xl outline-none"
+                className="field-shell w-full"
               >
                 <option value="">Select Election</option>
                 {elections.map((el) => (
@@ -190,7 +175,10 @@ function Positions() {
                   </option>
                 ))}
               </select>
+              </div>
 
+              <div>
+                <label className="field-label">Position Name</label>
               <input
                 required
                 value={form.name}
@@ -198,9 +186,12 @@ function Positions() {
                   setForm({ ...form, name: e.target.value })
                 }
                 placeholder="Position Name (e.g. President)"
-                className="w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-[#ff5a1f]"
+                className="field-shell w-full"
               />
+              </div>
 
+              <div>
+                <label className="field-label">Max Votes</label>
               <input
                 type="number"
                 min="1"
@@ -208,16 +199,17 @@ function Positions() {
                 onChange={(e) =>
                   setForm({ ...form, max_votes: e.target.value })
                 }
-                className="w-full px-4 py-3 border rounded-xl outline-none"
+                className="field-shell w-full"
                 placeholder="Max Votes"
               />
+              </div>
 
-              <button className="w-full bg-[#ff5a1f] text-white py-3 rounded-xl font-bold hover:bg-[#e24d17]">
+              <button className="primary-btn w-full">
                 {editingPosition ? "Save Changes" : "Create Position"}
               </button>
             </form>
           </div>
-        </div>
+        </PopupOverlay>
       )}
     </div>
   );

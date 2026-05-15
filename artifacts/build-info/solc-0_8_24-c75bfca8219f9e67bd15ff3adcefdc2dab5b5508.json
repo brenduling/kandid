@@ -1,0 +1,42 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_24-c75bfca8219f9e67bd15ff3adcefdc2dab5b5508",
+  "solcVersion": "0.8.24",
+  "solcLongVersion": "0.8.24+commit.e11b9ed9",
+  "compilerType": "solc",
+  "userSourceNameMap": {
+    "contracts/KandidVoteRegistry.sol": "project/contracts/KandidVoteRegistry.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "shanghai",
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode.linkReferences",
+            "evm.bytecode.object",
+            "evm.bytecode.opcodes",
+            "evm.bytecode.sourceMap",
+            "evm.deployedBytecode.immutableReferences",
+            "evm.deployedBytecode.linkReferences",
+            "evm.deployedBytecode.object",
+            "evm.deployedBytecode.opcodes",
+            "evm.deployedBytecode.sourceMap",
+            "evm.methodIdentifiers"
+          ]
+        }
+      },
+      "remappings": []
+    },
+    "sources": {
+      "project/contracts/KandidVoteRegistry.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\ncontract KandidVoteRegistry {\n    address public owner;\n\n    struct VoteRecord {\n        bytes32 voteHash;\n        uint256 recordedAt;\n        address recorder;\n    }\n\n    mapping(bytes32 => VoteRecord) private records;\n\n    event VoteHashRecorded(bytes32 indexed voteHash, address indexed recorder, uint256 recordedAt);\n\n    modifier onlyOwner() {\n        require(msg.sender == owner, \"Only owner\");\n        _;\n    }\n\n    constructor() {\n        owner = msg.sender;\n    }\n\n    function recordVoteHash(bytes32 voteHash) external onlyOwner {\n        require(voteHash != bytes32(0), \"Invalid hash\");\n        require(records[voteHash].recordedAt == 0, \"Vote hash already recorded\");\n\n        records[voteHash] = VoteRecord({\n            voteHash: voteHash,\n            recordedAt: block.timestamp,\n            recorder: msg.sender\n        });\n\n        emit VoteHashRecorded(voteHash, msg.sender, block.timestamp);\n    }\n\n    function isVoteHashRecorded(bytes32 voteHash) external view returns (bool) {\n        return records[voteHash].recordedAt != 0;\n    }\n\n    function getVoteRecord(bytes32 voteHash) external view returns (VoteRecord memory) {\n        require(records[voteHash].recordedAt != 0, \"Vote hash not found\");\n        return records[voteHash];\n    }\n\n    function transferOwnership(address nextOwner) external onlyOwner {\n        require(nextOwner != address(0), \"Invalid owner\");\n        owner = nextOwner;\n    }\n}\n"
+      }
+    }
+  }
+}

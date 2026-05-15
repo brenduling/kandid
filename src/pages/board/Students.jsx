@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Plus, Search } from "lucide-react";
+import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
+import { readFileAsDataUrl } from "../../utils/files";
 
 function BoardStudents() {
   const [students, setStudents] = useState([]);
@@ -12,8 +14,11 @@ function BoardStudents() {
     first_name: "",
     last_name: "",
     email: "",
+    photo_url: "",
     program: "",
     year_level: "",
+    precinct_code: "",
+    batch_code: "",
     is_shs: false,
     status: "pending",
   });
@@ -22,8 +27,45 @@ function BoardStudents() {
   const orgId = user?.organization_id;
 
   useEffect(() => {
-    fetchStudents();
-  }, []);
+    let active = true;
+
+    async function loadStudents() {
+      const { data, error } = await supabase
+        .from("student_organizations")
+        .select(`
+          students (
+            id,
+            student_number,
+            first_name,
+            last_name,
+            email,
+            photo_url,
+            program,
+            year_level,
+            is_shs,
+            status,
+            created_at
+          )
+        `)
+        .eq("organization_id", orgId);
+
+      if (!active) return;
+
+      if (error) {
+        console.log(error);
+        return;
+      }
+
+      const list = data.map((item) => item.students).filter(Boolean);
+      setStudents(list);
+    }
+
+    loadStudents();
+
+    return () => {
+      active = false;
+    };
+  }, [orgId]);
 
   async function fetchStudents() {
     const { data, error } = await supabase
@@ -35,10 +77,12 @@ function BoardStudents() {
           first_name,
           last_name,
           email,
+          photo_url,
           program,
           year_level,
           is_shs,
-          status
+          status,
+          created_at
         )
       `)
       .eq("organization_id", orgId);
@@ -60,13 +104,17 @@ function BoardStudents() {
       .insert([
         {
           ...form,
+          photo_url: form.photo_url || null,
           year_level: Number(form.year_level),
+          precinct_code: form.precinct_code || null,
+          batch_code: form.batch_code || null,
         },
       ])
       .select()
       .single();
 
     if (studentError) {
+      console.error("Board student insert failed:", studentError);
       alert(studentError.message);
       return;
     }
@@ -82,6 +130,7 @@ function BoardStudents() {
       ]);
 
     if (orgError) {
+      console.error("Board student organization link failed:", orgError);
       alert(orgError.message);
       return;
     }
@@ -89,6 +138,13 @@ function BoardStudents() {
     alert("Student added successfully.");
     setFormOpen(false);
     fetchStudents();
+  }
+
+  async function handlePhotoUpload(file) {
+    if (!file) return;
+
+    const dataUrl = await readFileAsDataUrl(file);
+    setForm({ ...form, photo_url: dataUrl });
   }
 
   const filteredStudents = students.filter((student) => {
@@ -102,68 +158,91 @@ function BoardStudents() {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="page-head">
         <div>
-          <h1 className="text-3xl font-black">Board Students</h1>
-          <p className="text-gray-500 mt-1">
+          <div className="page-kicker">Organization Members</div>
+          <h1 className="page-title">Board students</h1>
+          <p className="page-subtitle">
             Manage students under your assigned organization.
           </p>
         </div>
 
         <button
           onClick={() => setFormOpen(true)}
-          className="flex items-center gap-2 bg-[#ff5a1f] text-white px-5 py-3 rounded-xl font-bold"
+          className="primary-btn self-start lg:self-auto"
         >
           <Plus size={18} />
           Add Student
         </button>
       </div>
 
-      <div className="mt-8 flex items-center gap-3 bg-white px-4 py-3 rounded-xl shadow-sm w-96">
+      <div className="toolbar-row">
+      <div className="search-shell">
         <Search size={18} className="text-gray-400" />
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="outline-none w-full text-sm"
           placeholder="Search student..."
         />
       </div>
+      </div>
 
-      <div className="mt-6 bg-white rounded-2xl shadow-sm overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-[#1d1d1d] text-white">
+      <div className="table-shell mt-6">
+        <table className="app-table">
+          <thead>
             <tr>
-              <th className="px-6 py-4 text-sm">Student ID</th>
-              <th className="px-6 py-4 text-sm">Name</th>
-              <th className="px-6 py-4 text-sm">Program</th>
-              <th className="px-6 py-4 text-sm">Year</th>
-              <th className="px-6 py-4 text-sm">Status</th>
+              <th>Student ID</th>
+              <th>Name</th>
+              <th>Program</th>
+              <th>Year</th>
+              <th>Status</th>
+              <th>Date Added</th>
             </tr>
           </thead>
 
           <tbody>
             {filteredStudents.length === 0 ? (
               <tr>
-                <td colSpan="5" className="px-6 py-10 text-center text-gray-500">
+                <td colSpan="6" className="px-6 py-10 text-center empty-copy">
                   No students found.
                 </td>
               </tr>
             ) : (
               filteredStudents.map((student) => (
-                <tr key={student.id} className="border-b last:border-b-0">
-                  <td className="px-6 py-4 font-bold">
+                <tr key={student.id}>
+                  <td className="font-bold">
                     {student.student_number}
                   </td>
-                  <td className="px-6 py-4">
-                    {student.first_name} {student.last_name}
-                    <p className="text-xs text-gray-500">{student.email}</p>
+                  <td>
+                    <div className="flex items-center gap-3">
+                      {student.photo_url ? (
+                        <img
+                          src={student.photo_url}
+                          alt={`${student.first_name} ${student.last_name}`}
+                          className="h-10 w-10 rounded-2xl object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[rgba(47,143,131,0.12)] text-xs font-black text-[#2f8f83]">
+                          {`${student.first_name?.[0] || ""}${student.last_name?.[0] || ""}`}
+                        </div>
+                      )}
+                      <div>
+                        {student.first_name} {student.last_name}
+                        <p className="text-xs text-gray-500">{student.email}</p>
+                      </div>
+                    </div>
                   </td>
-                  <td className="px-6 py-4">{student.program}</td>
-                  <td className="px-6 py-4">{student.year_level}</td>
-                  <td className="px-6 py-4">
+                  <td>{student.program}</td>
+                  <td>{student.year_level}</td>
+                  <td>
                     <span className="px-3 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-700">
                       {student.status}
                     </span>
+                  </td>
+                  <td className="text-[#5a5548]">
+                    {student.created_at
+                      ? new Date(student.created_at).toLocaleDateString()
+                      : "-"}
                   </td>
                 </tr>
               ))
@@ -173,32 +252,100 @@ function BoardStudents() {
       </div>
 
       {formOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white w-full max-w-xl rounded-2xl p-6">
-            <h2 className="text-2xl font-black mb-4">Add Student</h2>
-
-            <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
-              <input required placeholder="Student ID" value={form.student_number} onChange={(e) => setForm({ ...form, student_number: e.target.value })} className="px-4 py-3 border rounded-xl" />
-              <input required placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="px-4 py-3 border rounded-xl" />
-              <input required placeholder="First Name" value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} className="px-4 py-3 border rounded-xl" />
-              <input required placeholder="Last Name" value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} className="px-4 py-3 border rounded-xl" />
-              <input required placeholder="Program" value={form.program} onChange={(e) => setForm({ ...form, program: e.target.value })} className="px-4 py-3 border rounded-xl" />
-              <input required type="number" placeholder="Year Level" value={form.year_level} onChange={(e) => setForm({ ...form, year_level: e.target.value })} className="px-4 py-3 border rounded-xl" />
-
-              <button
-                type="button"
-                onClick={() => setFormOpen(false)}
-                className="py-3 rounded-xl font-bold bg-gray-100"
-              >
-                Cancel
+        <PopupOverlay>
+          <div className="popup-sheet popup-sheet-wide">
+            <div className="popup-header">
+              <div className="popup-header-copy">
+                <p className="field-label !mb-3">Student Registry</p>
+                <h2 className="surface-title text-[2rem] font-black tracking-tight">Add student</h2>
+                <p className="surface-copy mt-2 text-sm leading-6">
+                  Add voter details, voting group codes, and profile information in one view.
+                </p>
+              </div>
+              <button type="button" onClick={() => setFormOpen(false)} className="popup-close">
+                <Plus size={16} className="rotate-45" />
               </button>
+            </div>
 
-              <button className="py-3 rounded-xl font-bold bg-[#ff5a1f] text-white">
-                Save Student
-              </button>
+            <form onSubmit={handleSubmit} className="popup-content">
+              <div className="popup-form-grid">
+              <div className="popup-form-grid-compact">
+              <div>
+                <label className="field-label">Student ID</label>
+                <input required placeholder="Student ID" value={form.student_number} onChange={(e) => setForm({ ...form, student_number: e.target.value })} className="field-shell w-full" />
+              </div>
+              <div>
+                <label className="field-label">Email</label>
+                <input required placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="field-shell w-full" />
+              </div>
+              <div>
+                <label className="field-label">First Name</label>
+                <input required placeholder="First Name" value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} className="field-shell w-full" />
+              </div>
+              <div>
+                <label className="field-label">Last Name</label>
+                <input required placeholder="Last Name" value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} className="field-shell w-full" />
+              </div>
+              <div>
+                <label className="field-label">Program</label>
+                <input required placeholder="Program" value={form.program} onChange={(e) => setForm({ ...form, program: e.target.value })} className="field-shell w-full" />
+              </div>
+              <div>
+                <label className="field-label">Precinct Code</label>
+                <input placeholder="Precinct Code optional" value={form.precinct_code} onChange={(e) => setForm({ ...form, precinct_code: e.target.value })} className="field-shell w-full" />
+              </div>
+              <div>
+                <label className="field-label">Batch Code</label>
+                <input placeholder="Batch Code optional" value={form.batch_code} onChange={(e) => setForm({ ...form, batch_code: e.target.value })} className="field-shell w-full" />
+              </div>
+              <div>
+                <label className="field-label">Year Level</label>
+                <input required type="number" placeholder="Year Level" value={form.year_level} onChange={(e) => setForm({ ...form, year_level: e.target.value })} className="field-shell w-full" />
+              </div>
+              </div>
+
+              <div className="space-y-4">
+              <div className="popup-side-panel">
+                <label className="field-label">Photo URL</label>
+                <input placeholder="Photo URL optional" value={form.photo_url} onChange={(e) => setForm({ ...form, photo_url: e.target.value })} className="field-shell w-full" />
+              </div>
+              <div className="popup-side-panel">
+                <p className="mb-3 text-sm font-bold text-[#1d262f]">Student Photo</p>
+                <div className="flex items-center gap-4">
+                  {form.photo_url ? (
+                    <img src={form.photo_url} alt="Student preview" className="h-16 w-16 rounded-2xl object-cover" />
+                  ) : (
+                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[rgba(47,143,131,0.12)] text-xs font-black text-[#2f8f83]">
+                      PHOTO
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handlePhotoUpload(e.target.files?.[0])}
+                    className="text-sm text-[#5a5548]"
+                  />
+                </div>
+              </div>
+              </div>
+              </div>
+
+              <div className="popup-actions">
+                <button
+                  type="button"
+                  onClick={() => setFormOpen(false)}
+                  className="secondary-btn"
+                >
+                  Cancel
+                </button>
+
+                <button className="primary-btn min-w-52">
+                  Save Student
+                </button>
+              </div>
             </form>
           </div>
-        </div>
+        </PopupOverlay>
       )}
     </div>
   );

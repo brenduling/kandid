@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
+import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
+import {
+  createCampaignMaterialsDraft,
+  normalizeCampaignMaterialsInput,
+  parseCampaignMaterials,
+} from "../../utils/candidates";
 
 function Candidates() {
   const [candidates, setCandidates] = useState([]);
@@ -9,13 +15,15 @@ function Candidates() {
   const [partylists, setPartylists] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
   const [editingCandidate, setEditingCandidate] = useState(null);
-
   const [form, setForm] = useState({
     position_id: "",
     student_id: "",
     partylist_id: "",
     photo: "",
     bio: "",
+    platform: "",
+    credentials: "",
+    campaign_materials: createCampaignMaterialsDraft(),
   });
 
   useEffect(() => {
@@ -48,7 +56,6 @@ function Candidates() {
       .order("id", { ascending: true });
 
     if (!error) setCandidates(data || []);
-    if (error) console.log(error);
   }
 
   async function fetchPositions() {
@@ -64,7 +71,6 @@ function Candidates() {
       `);
 
     if (!error) setPositions(data || []);
-    if (error) console.log(error);
   }
 
   async function fetchPartylists() {
@@ -74,7 +80,6 @@ function Candidates() {
       .order("name", { ascending: true });
 
     if (!error) setPartylists(data || []);
-    if (error) console.log(error);
   }
 
   async function fetchStudentsByPosition(positionId) {
@@ -109,16 +114,11 @@ function Candidates() {
       .eq("organization_id", orgId);
 
     if (error) {
-      console.log(error);
       setStudents([]);
       return;
     }
 
-    const eligibleStudents = data
-      .map((item) => item.students)
-      .filter(Boolean);
-
-    setStudents(eligibleStudents);
+    setStudents(data.map((item) => item.students).filter(Boolean));
   }
 
   function openCreateForm() {
@@ -130,6 +130,9 @@ function Candidates() {
       partylist_id: "",
       photo: "",
       bio: "",
+      platform: "",
+      credentials: "",
+      campaign_materials: createCampaignMaterialsDraft(),
     });
     setFormOpen(true);
   }
@@ -142,14 +145,36 @@ function Candidates() {
       partylist_id: candidate.partylist_id || "",
       photo: candidate.photo || "",
       bio: candidate.bio || "",
+      platform: candidate.platform || "",
+      credentials: candidate.credentials || "",
+      campaign_materials: createCampaignMaterialsDraft(
+        candidate.campaign_materials,
+        candidate.campaign_media_urls
+      ),
     });
 
     await fetchStudentsByPosition(candidate.position_id);
     setFormOpen(true);
   }
 
+  function updateMaterial(index, key, value) {
+    const nextMaterials = [...form.campaign_materials];
+    nextMaterials[index] = {
+      ...nextMaterials[index],
+      [key]: value,
+    };
+    setForm({ ...form, campaign_materials: nextMaterials });
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
+
+    const materials = normalizeCampaignMaterialsInput(form.campaign_materials);
+
+    if (materials.length > 3) {
+      alert("Only 1 to 3 campaign materials are allowed per candidate.");
+      return;
+    }
 
     const payload = {
       position_id: Number(form.position_id),
@@ -157,15 +182,22 @@ function Candidates() {
       partylist_id: form.partylist_id ? Number(form.partylist_id) : null,
       photo: form.photo || null,
       bio: form.bio || null,
+      platform: form.platform || null,
+      credentials: form.credentials || null,
+      campaign_materials: materials,
+      campaign_media_urls: materials.map((item) => item.url),
     };
 
-    if (editingCandidate) {
-      await supabase
-        .from("candidates")
-        .update(payload)
-        .eq("id", editingCandidate.id);
-    } else {
-      await supabase.from("candidates").insert([payload]);
+    const query = editingCandidate
+      ? supabase.from("candidates").update(payload).eq("id", editingCandidate.id)
+      : supabase.from("candidates").insert([payload]);
+
+    const { error } = await query;
+
+    if (error) {
+      console.error("Candidate save failed:", error);
+      alert(error.message);
+      return;
     }
 
     setFormOpen(false);
@@ -173,88 +205,94 @@ function Candidates() {
   }
 
   async function handleDelete(id) {
-    const confirmDelete = window.confirm("Delete this candidate?");
-    if (!confirmDelete) return;
+    if (!window.confirm("Delete this candidate?")) return;
 
-    await supabase.from("candidates").delete().eq("id", id);
+    const { error } = await supabase.from("candidates").delete().eq("id", id);
+    if (error) {
+      console.error("Candidate delete failed:", error);
+      alert(error.message || "Failed to delete candidate.");
+      return;
+    }
     fetchCandidates();
   }
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="page-head">
         <div>
-          <h1 className="text-3xl font-black">Candidate Management</h1>
-          <p className="text-gray-500 mt-1">
-            Assign students as candidates for each election position.
+          <div className="page-kicker">Candidate Lineup</div>
+          <h1 className="page-title">Candidate management</h1>
+          <p className="page-subtitle">
+            Assign students as candidates and prepare campaign details.
           </p>
         </div>
 
         <button
           onClick={openCreateForm}
-          className="flex items-center gap-2 bg-[#ff5a1f] text-white px-5 py-3 rounded-xl font-bold hover:bg-[#e24d17]"
+          className="primary-btn self-start lg:self-auto"
         >
           <Plus size={18} />
           Add Candidate
         </button>
       </div>
 
-      <div className="mt-8 bg-white rounded-2xl shadow-sm overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-[#1d1d1d] text-white">
+      <div className="table-shell mt-8">
+        <table className="app-table">
+          <thead>
             <tr>
-              <th className="px-6 py-4 text-sm">Candidate</th>
-              <th className="px-6 py-4 text-sm">Student ID</th>
-              <th className="px-6 py-4 text-sm">Position</th>
-              <th className="px-6 py-4 text-sm">Election</th>
-              <th className="px-6 py-4 text-sm">Partylist</th>
-              <th className="px-6 py-4 text-sm text-right">Actions</th>
+              <th>Candidate</th>
+              <th>Student ID</th>
+              <th>Position</th>
+              <th>Election</th>
+              <th>Partylist</th>
+              <th>Media</th>
+              <th className="text-right">Actions</th>
             </tr>
           </thead>
 
           <tbody>
             {candidates.length === 0 ? (
               <tr>
-                <td colSpan="6" className="px-6 py-10 text-center text-gray-500">
+                <td colSpan="7" className="px-6 py-10 text-center empty-copy">
                   No candidates found.
                 </td>
               </tr>
             ) : (
               candidates.map((candidate) => (
-                <tr key={candidate.id} className="border-b last:border-b-0">
-                  <td className="px-6 py-4 font-bold">
-                    {candidate.students?.first_name}{" "}
-                    {candidate.students?.last_name}
+                <tr key={candidate.id}>
+                  <td className="font-bold">
+                    {candidate.students?.first_name} {candidate.students?.last_name}
                   </td>
-
-                  <td className="px-6 py-4 text-sm text-gray-600">
+                  <td className="text-[#5a5548]">
                     {candidate.students?.student_number}
                   </td>
-
-                  <td className="px-6 py-4">
+                  <td>
                     {candidate.positions?.name || "Unknown"}
                   </td>
-
-                  <td className="px-6 py-4 text-gray-600">
+                  <td className="text-[#5a5548]">
                     {candidate.positions?.elections?.title || "-"}
                   </td>
-
-                  <td className="px-6 py-4">
+                  <td>
                     {candidate.partylists?.name || "Independent"}
                   </td>
-
-                  <td className="px-6 py-4">
+                  <td className="text-[#5a5548]">
+                      {parseCampaignMaterials(
+                        candidate.campaign_materials,
+                        candidate.campaign_media_urls
+                      ).length}
+                  </td>
+                  <td>
                     <div className="flex justify-end gap-2">
                       <button
                         onClick={() => openEditForm(candidate)}
-                        className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200"
+                        className="icon-action"
                       >
                         <Pencil size={16} />
                       </button>
 
                       <button
                         onClick={() => handleDelete(candidate.id)}
-                        className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-200"
+                        className="icon-action icon-action-danger"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -268,22 +306,24 @@ function Candidates() {
       </div>
 
       {formOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white w-full max-w-xl rounded-2xl shadow-xl p-6">
-            <div className="flex items-center justify-between mb-6">
+        <PopupOverlay>
+          <div className="modal-card max-w-3xl">
+            <div className="mb-6 flex items-center justify-between">
               <h2 className="text-2xl font-black">
                 {editingCandidate ? "Edit Candidate" : "Add Candidate"}
               </h2>
 
               <button
                 onClick={() => setFormOpen(false)}
-                className="p-2 rounded-lg hover:bg-gray-100"
+                className="icon-action"
               >
                 <X size={20} />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="modal-form-stack">
+              <div>
+                <label className="field-label">Position</label>
               <select
                 required
                 value={form.position_id}
@@ -298,24 +338,25 @@ function Candidates() {
 
                   fetchStudentsByPosition(selectedPositionId);
                 }}
-                className="w-full px-4 py-3 border rounded-xl outline-none"
+                className="field-shell w-full"
               >
                 <option value="">Select Position First</option>
                 {positions.map((position) => (
                   <option key={position.id} value={position.id}>
-                    {position.name} — {position.elections?.title}
+                    {position.name} - {position.elections?.title}
                   </option>
                 ))}
               </select>
+              </div>
 
+              <div>
+                <label className="field-label">Eligible Student</label>
               <select
                 required
                 value={form.student_id}
-                onChange={(e) =>
-                  setForm({ ...form, student_id: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, student_id: e.target.value })}
                 disabled={!form.position_id}
-                className="w-full px-4 py-3 border rounded-xl outline-none disabled:bg-gray-100"
+                className="field-shell w-full disabled:opacity-60"
               >
                 <option value="">
                   {form.position_id
@@ -325,18 +366,20 @@ function Candidates() {
 
                 {students.map((student) => (
                   <option key={student.id} value={student.id}>
-                    {student.last_name}, {student.first_name} —{" "}
-                    {student.student_number}
+                    {student.last_name}, {student.first_name} - {student.student_number}
                   </option>
                 ))}
               </select>
+              </div>
 
+              <div>
+                <label className="field-label">Partylist</label>
               <select
                 value={form.partylist_id}
                 onChange={(e) =>
                   setForm({ ...form, partylist_id: e.target.value })
                 }
-                className="w-full px-4 py-3 border rounded-xl outline-none"
+                className="field-shell w-full"
               >
                 <option value="">Independent / No Partylist</option>
                 {partylists.map((partylist) => (
@@ -345,30 +388,110 @@ function Candidates() {
                   </option>
                 ))}
               </select>
+              </div>
 
+              <div>
+                <label className="field-label">Photo URL</label>
               <input
                 value={form.photo}
-                onChange={(e) =>
-                  setForm({ ...form, photo: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, photo: e.target.value })}
                 placeholder="Photo URL optional"
-                className="w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-[#ff5a1f]"
+                className="field-shell w-full"
               />
+              </div>
 
+              <div>
+                <label className="field-label">Platform</label>
+              <textarea
+                value={form.platform}
+                onChange={(e) => setForm({ ...form, platform: e.target.value })}
+                placeholder="Candidate platform"
+                className="field-shell min-h-[120px] w-full"
+                rows="3"
+              />
+              </div>
+
+              <div>
+                <label className="field-label">Credentials</label>
+              <textarea
+                value={form.credentials}
+                onChange={(e) =>
+                  setForm({ ...form, credentials: e.target.value })
+                }
+                placeholder="Credentials and achievements"
+                className="field-shell min-h-[120px] w-full"
+                rows="3"
+              />
+              </div>
+
+              <div>
+                <label className="field-label">Bio</label>
               <textarea
                 value={form.bio}
                 onChange={(e) => setForm({ ...form, bio: e.target.value })}
-                placeholder="Candidate bio / credentials"
-                className="w-full px-4 py-3 border rounded-xl outline-none"
-                rows="4"
+                placeholder="Candidate bio"
+                className="field-shell min-h-[120px] w-full"
+                rows="3"
               />
+              </div>
 
-              <button className="w-full bg-[#ff5a1f] text-white py-3 rounded-xl font-bold hover:bg-[#e24d17]">
+              <div className="upload-shell">
+                <p className="text-sm font-bold text-[#1d262f]">Campaign Materials</p>
+                <p className="mt-1 text-xs text-[#5a5548]">
+                  Add up to 3 downloadable or viewable materials per candidate.
+                </p>
+
+                <div className="mt-3 space-y-3">
+                  {form.campaign_materials.map((material, index) => (
+                    <div key={index} className="modal-form-grid rounded-xl border border-[rgba(255,115,22,0.12)] bg-white/45 p-4">
+                      <input
+                        value={material.label}
+                        onChange={(e) =>
+                          updateMaterial(index, "label", e.target.value)
+                        }
+                        placeholder={`Material title ${index + 1}`}
+                        className="field-shell"
+                      />
+                      <select
+                        value={material.type}
+                        onChange={(e) =>
+                          updateMaterial(index, "type", e.target.value)
+                        }
+                        className="field-shell"
+                      >
+                        <option value="link">Link</option>
+                        <option value="document">Document</option>
+                        <option value="media">Media</option>
+                      </select>
+                      <input
+                        value={material.url}
+                        onChange={(e) =>
+                          updateMaterial(index, "url", e.target.value)
+                        }
+                        placeholder="https://..."
+                        className="field-shell md:col-span-2"
+                      />
+                      <label className="md:col-span-2 flex items-center gap-3 rounded-xl bg-white/60 px-4 py-3 text-sm font-semibold text-[#1d262f]">
+                        <input
+                          type="checkbox"
+                          checked={material.downloadable}
+                          onChange={(e) =>
+                            updateMaterial(index, "downloadable", e.target.checked)
+                          }
+                        />
+                        Allow student download
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <button className="primary-btn w-full">
                 {editingCandidate ? "Save Changes" : "Add Candidate"}
               </button>
             </form>
           </div>
-        </div>
+        </PopupOverlay>
       )}
     </div>
   );

@@ -1,61 +1,104 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import {
+  CheckCircle2,
+  LockKeyhole,
+  MapPin,
+  QrCode,
+  ShieldCheck,
+  Vote,
+} from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
+import { hashVoteRecord } from "../../utils/blockchain";
+import { formatLocalDateTime, getElectionPhase } from "../../utils/elections";
+import {
+  distanceBetweenMeters,
+  doesTokenMatchStudent,
+  getVotingAccessModeLabel,
+  isTokenExpired,
+} from "../../utils/votingAccess";
 
 function StudentVotePage() {
   const { electionId } = useParams();
   const navigate = useNavigate();
-
   const user = JSON.parse(localStorage.getItem("user"));
 
   const [election, setElection] = useState(null);
+  const [studentProfile, setStudentProfile] = useState(null);
   const [positions, setPositions] = useState([]);
   const [candidates, setCandidates] = useState([]);
   const [selectedVotes, setSelectedVotes] = useState({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [accessCode, setAccessCode] = useState("");
+  const [accessGranted, setAccessGranted] = useState(false);
+  const [accessMessage, setAccessMessage] = useState("");
+  const [verifyingAccess, setVerifyingAccess] = useState(false);
 
   useEffect(() => {
-    fetchBallot();
-  }, []);
+    let active = true;
 
-  async function fetchBallot() {
-    setLoading(true);
+    async function loadBallot() {
+      setLoading(true);
 
-    const { data: electionData } = await supabase
-      .from("elections")
-      .select("*, organizations(name)")
-      .eq("id", electionId)
-      .single();
+      const [{ data: electionData }, { data: studentData }, { data: positionData }] =
+        await Promise.all([
+          supabase
+            .from("elections")
+            .select("*, organizations(name)")
+            .eq("id", electionId)
+            .single(),
+          supabase
+            .from("students")
+            .select("id, program, year_level, precinct_code, batch_code, is_shs")
+            .eq("id", user.id)
+            .single(),
+          supabase
+            .from("positions")
+            .select("*")
+            .eq("election_id", electionId)
+            .order("id", { ascending: true }),
+        ]);
 
-    const { data: positionData } = await supabase
-      .from("positions")
-      .select("*")
-      .eq("election_id", electionId)
-      .order("id", { ascending: true });
+      const positionIds = positionData?.map((position) => position.id) || [];
 
-    const positionIds = positionData?.map((p) => p.id) || [];
+      let candidateData = [];
 
-    let candidateData = [];
+      if (positionIds.length > 0) {
+        const { data } = await supabase
+          .from("candidates")
+          .select(`
+            *,
+            students(first_name, last_name, student_number),
+            partylists(name, logo_url)
+          `)
+          .in("position_id", positionIds);
 
-    if (positionIds.length > 0) {
-      const { data } = await supabase
-        .from("candidates")
-        .select(`
-          *,
-          students(first_name, last_name, student_number),
-          partylists(name)
-        `)
-        .in("position_id", positionIds);
+        candidateData = data || [];
+      }
 
-      candidateData = data || [];
+      if (!active) return;
+
+      setElection(electionData);
+      setStudentProfile(studentData);
+      setPositions(positionData || []);
+      setCandidates(candidateData);
+      if ((electionData?.voting_access_mode || "anywhere") === "anywhere") {
+        setAccessGranted(true);
+        setAccessMessage("Voting access is open anywhere for this election.");
+      } else {
+        setAccessGranted(false);
+        setAccessMessage("");
+      }
+      setLoading(false);
     }
 
-    setElection(electionData);
-    setPositions(positionData || []);
-    setCandidates(candidateData);
-    setLoading(false);
-  }
+    loadBallot();
+
+    return () => {
+      active = false;
+    };
+  }, [electionId, user.id]);
 
   function handleSelect(position, candidateId) {
     setSelectedVotes({
@@ -76,7 +119,109 @@ function StudentVotePage() {
         candidate_id: null,
         is_abstain: true,
       },
-    });
+      });
+  }
+
+  async function handleVerifyAccessCode() {
+    const normalizedCode = accessCode.trim().toUpperCase();
+    if (!normalizedCode) {
+      setAccessMessage("Enter the QR access code provided by your election officer.");
+      return;
+    }
+
+    setVerifyingAccess(true);
+    setAccessMessage("");
+
+    const { data, error } = await supabase
+      .from("election_access_tokens")
+      .select("*")
+      .eq("election_id", Number(electionId))
+      .eq("token", normalizedCode)
+      .maybeSingle();
+
+    if (error) {
+      setAccessMessage(error.message || "Failed to validate access code.");
+      setVerifyingAccess(false);
+      return;
+    }
+
+    if (!data || !data.is_active) {
+      setAccessMessage("This access code is invalid or inactive.");
+      setVerifyingAccess(false);
+      return;
+    }
+
+    if (isTokenExpired(data)) {
+      setAccessMessage("This access code has already expired.");
+      setVerifyingAccess(false);
+      return;
+    }
+
+    if (!doesTokenMatchStudent(data, studentProfile)) {
+      setAccessMessage(
+        "This QR access code is not assigned to your precinct or batch.",
+      );
+      setVerifyingAccess(false);
+      return;
+    }
+
+    setAccessGranted(true);
+    setAccessMessage("Access granted. You can now continue to the ballot.");
+    setVerifyingAccess(false);
+  }
+
+  function handleVerifyLocation() {
+    if (!navigator.geolocation) {
+      setAccessMessage("This device does not support location verification.");
+      return;
+    }
+
+    if (
+      election.geo_lat == null ||
+      election.geo_lng == null ||
+      election.geo_radius_meters == null
+    ) {
+      setAccessMessage("This election does not have a valid location range yet.");
+      return;
+    }
+
+    setVerifyingAccess(true);
+    setAccessMessage("Checking your location...");
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const distance = distanceBetweenMeters(
+          Number(position.coords.latitude),
+          Number(position.coords.longitude),
+          Number(election.geo_lat),
+          Number(election.geo_lng),
+        );
+
+        if (distance <= Number(election.geo_radius_meters)) {
+          setAccessGranted(true);
+          setAccessMessage(
+            `Access granted. You are within ${Math.round(distance)} meters of the voting area.`,
+          );
+        } else {
+          setAccessMessage(
+            `You are outside the allowed voting range. Current distance: ${Math.round(distance)} meters.`,
+          );
+        }
+
+        setVerifyingAccess(false);
+      },
+      (error) => {
+        setAccessMessage(
+          error.message || "Unable to get your current location.",
+        );
+        setVerifyingAccess(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0,
+      },
+    );
   }
 
   async function handleSubmitVotes() {
@@ -95,20 +240,27 @@ function StudentVotePage() {
 
     setSubmitting(true);
 
-    const voteRows = Object.values(selectedVotes).map((vote) => {
-      const rawHash = `${user.id}-${electionId}-${vote.position_id}-${vote.candidate_id || "abstain"}-${Date.now()}`;
-      const voteHash = btoa(rawHash);
+    const submittedAt = new Date().toISOString();
 
-      return {
+    const voteRows = await Promise.all(
+      Object.values(selectedVotes).map(async (vote) => ({
         student_id: user.id,
         election_id: Number(electionId),
         position_id: vote.position_id,
         candidate_id: vote.candidate_id,
         is_abstain: vote.is_abstain,
-        vote_hash: voteHash,
+        vote_timestamp: submittedAt,
+        vote_hash: await hashVoteRecord({
+          studentId: user.id,
+          electionId,
+          positionId: vote.position_id,
+          candidateId: vote.candidate_id,
+          isAbstain: vote.is_abstain,
+          submittedAt,
+        }),
         blockchain_tx_id: null,
-      };
-    });
+      })),
+    );
 
     const { error } = await supabase.from("votes").insert(voteRows);
 
@@ -122,29 +274,291 @@ function StudentVotePage() {
     navigate("/student/receipt");
   }
 
+  const completedSelections = Object.keys(selectedVotes).length;
+  const accessMode = election?.voting_access_mode || "anywhere";
+
   if (loading) {
-    return <p className="text-gray-500">Loading ballot...</p>;
+    return <div className="glass-panel rounded-[28px] p-8 text-gray-500">Loading ballot...</div>;
   }
 
   if (!election) {
-    return <p className="text-red-600 font-bold">Election not found.</p>;
+    return <div className="empty-state font-bold text-red-600">Election not found.</div>;
+  }
+
+  const phase = getElectionPhase(election);
+
+  if (phase !== "voting") {
+    return (
+      <div className="soft-card">
+        <h1 className="text-2xl font-black">Voting not available</h1>
+        <p className="mt-2 text-gray-500">
+          This election is currently in the <span className="font-bold">{phase}</span>{" "}
+          phase.
+        </p>
+        <p className="mt-2 text-sm text-gray-500">
+          Voting starts: {formatLocalDateTime(election.start_date)}
+        </p>
+        <div className="mt-6 flex gap-3">
+          <button
+            onClick={() => navigate("/student/elections")}
+            className="secondary-btn"
+          >
+            Back to Elections
+          </button>
+          {phase === "campaign" ? (
+            <button
+              onClick={() =>
+                navigate(`/student/elections/${election.id}/campaign`)
+              }
+              className="primary-btn"
+            >
+              Open Campaign Module
+            </button>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
+  if (!accessGranted) {
+    return (
+      <div className="section-grid mt-0 grid-cols-1 xl:grid-cols-[1.05fr_0.95fr]">
+        <div className="soft-card">
+          <div className="secure-badge">
+            <ShieldCheck size={14} />
+            Ballot Access Control
+          </div>
+          <p className="mt-4 text-sm font-bold uppercase tracking-[0.18em] text-[#d35a25]">
+            {election.organizations?.name}
+          </p>
+          <h1 className="mt-2 text-3xl font-black">{election.title}</h1>
+          <p className="mt-4 text-gray-500">
+            This ballot uses a controlled voting access rule. Verify your access
+            before the ballot opens on this device.
+          </p>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+            <div className="info-row !block">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8b6e5c]">
+                Access Mode
+              </p>
+              <p className="mt-2 text-sm font-black text-[#1d262f]">
+                {getVotingAccessModeLabel(accessMode)}
+              </p>
+            </div>
+            <div className="info-row !block">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8b6e5c]">
+                Precinct
+              </p>
+              <p className="mt-2 text-sm font-black text-[#1d262f]">
+                {studentProfile?.precinct_code || "Not assigned"}
+              </p>
+            </div>
+            <div className="info-row !block">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8b6e5c]">
+                Batch
+              </p>
+              <p className="mt-2 text-sm font-black text-[#1d262f]">
+                {studentProfile?.batch_code || "Not assigned"}
+              </p>
+            </div>
+          </div>
+
+          {accessMode === "location_range" ? (
+            <div className="mt-6 rounded-3xl border border-[rgba(24,54,49,0.08)] bg-[rgba(255,255,255,0.78)] p-5">
+              <div className="flex items-start gap-3">
+                <div className="rounded-2xl bg-[rgba(17,128,106,0.12)] p-3 text-[#11806a]">
+                  <MapPin size={20} />
+                </div>
+                <div>
+                  <p className="text-sm font-black text-[#102220]">
+                    Location-based voting
+                  </p>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {election.location_label
+                      ? `Allowed area: ${election.location_label}.`
+                      : "This election only allows voting inside the approved area."}{" "}
+                    Maximum range: {election.geo_radius_meters || 0} meters.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleVerifyLocation}
+                disabled={verifyingAccess}
+                className="primary-btn mt-5"
+              >
+                {verifyingAccess ? "Verifying location..." : "Verify My Location"}
+              </button>
+            </div>
+          ) : (
+            <div className="mt-6 rounded-3xl border border-[rgba(24,54,49,0.08)] bg-[rgba(255,255,255,0.78)] p-5">
+              <div className="flex items-start gap-3">
+                <div className="rounded-2xl bg-[rgba(17,128,106,0.12)] p-3 text-[#11806a]">
+                  <QrCode size={20} />
+                </div>
+                <div>
+                  <p className="text-sm font-black text-[#102220]">
+                    QR or access code required
+                  </p>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Enter the code from your election officer or precinct QR
+                    gate. The system will match it against your assigned
+                    student record.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                <input
+                  value={accessCode}
+                  onChange={(event) => setAccessCode(event.target.value.toUpperCase())}
+                  placeholder="Enter access code"
+                  className="field-shell w-full"
+                />
+                <button
+                  type="button"
+                  onClick={handleVerifyAccessCode}
+                  disabled={verifyingAccess}
+                  className="primary-btn min-w-[180px] justify-center"
+                >
+                  {verifyingAccess ? "Checking..." : "Unlock Ballot"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {accessMessage ? (
+            <div
+              className={`mt-4 rounded-2xl px-4 py-3 text-sm ${
+                accessGranted
+                  ? "bg-[rgba(17,128,106,0.12)] text-[#0f6a57]"
+                  : "bg-[rgba(211,90,37,0.12)] text-[#b54d1f]"
+              }`}
+            >
+              {accessMessage}
+            </div>
+          ) : null}
+
+          <button
+            onClick={() => navigate("/student/elections")}
+            className="secondary-btn mt-5"
+          >
+            Back to Elections
+          </button>
+        </div>
+
+        <div className="trust-card">
+          <div className="flex items-center gap-3">
+            <div className="rounded-2xl bg-white/10 p-3 text-[#9ce7dd]">
+              <LockKeyhole size={22} />
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">
+                Controlled Entry
+              </p>
+              <h2 className="mt-1 text-2xl font-black">Election access rules</h2>
+            </div>
+          </div>
+
+          <div className="mt-6 space-y-3">
+            {[
+              "Anywhere mode opens the ballot immediately without extra checks.",
+              "QR modes can be scoped to a general code, a precinct, or a batch token.",
+              "Location mode uses your device position and the approved voting radius.",
+            ].map((item) => (
+              <div key={item} className="flex gap-3 rounded-2xl bg-white/7 px-4 py-3">
+                <CheckCircle2 size={18} className="mt-0.5 text-[#9ce7dd]" />
+                <p className="text-sm leading-6 text-white/72">{item}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div>
-      <div className="bg-white p-6 rounded-2xl shadow-sm">
-        <p className="text-sm font-bold text-[#ff5a1f]">
-          {election.organizations?.name}
-        </p>
-        <h1 className="text-3xl font-black mt-1">{election.title}</h1>
-        <p className="text-gray-500 mt-2">
-          Select your preferred candidate for each position. You may also abstain.
-        </p>
+      <div className="section-grid mt-0 grid-cols-1 xl:grid-cols-[1.1fr_0.9fr]">
+        <div className="soft-card">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="secure-badge">
+                <ShieldCheck size={14} />
+                Secure Ballot
+              </div>
+              <p className="mt-4 text-sm font-bold uppercase tracking-[0.18em] text-[#d35a25]">
+                {election.organizations?.name}
+              </p>
+              <h1 className="mt-2 text-3xl font-black">{election.title}</h1>
+            </div>
+            <div className="hidden h-14 w-14 items-center justify-center rounded-2xl bg-[rgba(232,108,47,0.12)] text-[#d35a25] sm:flex">
+              <Vote size={24} />
+            </div>
+          </div>
+
+          <p className="mt-4 text-gray-500">
+            Select your preferred candidate for each position. Every submitted
+            ballot generates a receipt with a verification hash.
+          </p>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+            <div className="info-row !block">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8b6e5c]">
+                Positions
+              </p>
+              <p className="mt-2 text-2xl font-black text-[#1d262f]">{positions.length}</p>
+            </div>
+            <div className="info-row !block">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8b6e5c]">
+                Selected
+              </p>
+              <p className="mt-2 text-2xl font-black text-[#1d262f]">{completedSelections}</p>
+            </div>
+            <div className="info-row !block">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8b6e5c]">
+                Voting Ends
+              </p>
+              <p className="mt-2 text-sm font-bold text-[#1d262f]">
+                {formatLocalDateTime(election.end_date)}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="trust-card">
+          <div className="flex items-center gap-3">
+            <div className="rounded-2xl bg-white/10 p-3 text-[#9ce7dd]">
+              <LockKeyhole size={22} />
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">
+                Voting Safety
+              </p>
+              <h2 className="mt-1 text-2xl font-black">Protected ballot flow</h2>
+            </div>
+          </div>
+
+          <div className="mt-6 space-y-3">
+            {[
+              "One complete selection is required for every position before submission.",
+              "Submitted votes cannot be edited after confirmation.",
+              "A receipt page stores your verification hash after a successful ballot.",
+            ].map((item) => (
+              <div key={item} className="flex gap-3 rounded-2xl bg-white/7 px-4 py-3">
+                <CheckCircle2 size={18} className="mt-0.5 text-[#9ce7dd]" />
+                <p className="text-sm leading-6 text-white/72">{item}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="mt-8 space-y-6">
         {positions.length === 0 ? (
-          <div className="bg-white p-8 rounded-2xl text-gray-500">
+          <div className="empty-state">
             No positions found for this election.
           </div>
         ) : (
@@ -154,16 +568,13 @@ function StudentVotePage() {
             );
 
             return (
-              <div
-                key={position.id}
-                className="bg-white p-6 rounded-2xl shadow-sm"
-              >
+              <div key={position.id} className="soft-card">
                 <h2 className="text-xl font-black">{position.name}</h2>
-                <p className="text-sm text-gray-500 mb-4">
+                <p className="mb-4 text-sm text-gray-500">
                   Choose one candidate or abstain.
                 </p>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-4 xl:grid-cols-2">
                   {positionCandidates.map((candidate) => {
                     const selected =
                       selectedVotes[position.id]?.candidate_id === candidate.id;
@@ -172,34 +583,40 @@ function StudentVotePage() {
                       <button
                         key={candidate.id}
                         onClick={() => handleSelect(position, candidate.id)}
-                        className={`text-left p-4 rounded-xl border transition ${
+                        className={`ballot-choice ${
                           selected
-                            ? "border-[#ff5a1f] bg-orange-50"
-                            : "border-gray-200 hover:bg-gray-50"
+                            ? "ballot-choice-active"
+                            : "hover:bg-white"
                         }`}
                       >
                         <p className="font-black">
-                          {candidate.students?.first_name}{" "}
-                          {candidate.students?.last_name}
+                          {candidate.students?.first_name} {candidate.students?.last_name}
                         </p>
-                        <p className="text-xs text-gray-500">
-                          {candidate.partylists?.name || "Independent"}
-                        </p>
-                        {candidate.bio && (
-                          <p className="text-sm text-gray-600 mt-2">
-                            {candidate.bio}
+                        <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
+                          {candidate.partylists?.logo_url ? (
+                            <img
+                              src={candidate.partylists.logo_url}
+                              alt={`${candidate.partylists.name} logo`}
+                              className="h-6 w-6 rounded-lg object-cover"
+                            />
+                          ) : null}
+                          <span>{candidate.partylists?.name || "Independent"}</span>
+                        </div>
+                        {candidate.credentials || candidate.bio ? (
+                          <p className="mt-2 text-sm text-gray-600">
+                            {candidate.credentials || candidate.bio}
                           </p>
-                        )}
+                        ) : null}
                       </button>
                     );
                   })}
 
                   <button
                     onClick={() => handleAbstain(position)}
-                    className={`text-left p-4 rounded-xl border transition ${
+                    className={`ballot-choice ${
                       selectedVotes[position.id]?.is_abstain
-                        ? "border-gray-800 bg-gray-100"
-                        : "border-gray-200 hover:bg-gray-50"
+                        ? "border-[#1d262f] bg-[rgba(29,38,47,0.08)]"
+                        : "hover:bg-white"
                     }`}
                   >
                     <p className="font-black">Abstain</p>
@@ -219,7 +636,7 @@ function StudentVotePage() {
           <button
             disabled={submitting}
             onClick={handleSubmitVotes}
-            className="bg-[#ff5a1f] text-white px-8 py-4 rounded-xl font-black hover:bg-[#e24d17] disabled:opacity-60"
+            className="primary-btn px-8 py-4 disabled:opacity-60"
           >
             {submitting ? "Submitting..." : "Submit Ballot"}
           </button>

@@ -13,7 +13,7 @@ const links = [
   { name: "Blockchain", path: "/super-admin/blockchain-verification" },
   { name: "Reports", path: "/super-admin/reports" },
   { name: "Audit Logs", path: "/super-admin/audit-logs" },
-  { name: "Users & Roles", path: "/super-admin/users-roles" },
+  { name: "Electoral Board Access", path: "/super-admin/users-roles" },
   { name: "Archives", path: "/super-admin/archives" },
   { name: "Settings", path: "/super-admin/system-settings" },
 ];

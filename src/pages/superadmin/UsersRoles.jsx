@@ -1,5 +1,13 @@
 import { useEffect, useState } from "react";
-import { Plus, Pencil, Trash2, X, UserCog } from "lucide-react";
+import {
+  Building2,
+  KeyRound,
+  Pencil,
+  ShieldCheck,
+  Trash2,
+  UserCog,
+  X,
+} from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 
 function UsersRoles() {
@@ -7,6 +15,7 @@ function UsersRoles() {
   const [organizations, setOrganizations] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const [form, setForm] = useState({
     full_name: "",
@@ -34,7 +43,6 @@ function UsersRoles() {
       .order("id", { ascending: true });
 
     if (!error) setUsers(data || []);
-    if (error) console.log(error);
   }
 
   async function fetchOrganizations() {
@@ -44,19 +52,22 @@ function UsersRoles() {
       .order("name", { ascending: true });
 
     if (!error) setOrganizations(data || []);
-    if (error) console.log(error);
   }
 
-  function openCreate() {
-    setEditing(null);
+  function resetForm(role = "electoral_board") {
     setForm({
       full_name: "",
       email: "",
       password: "",
-      role: "electoral_board",
+      role,
       organization_id: "",
       status: "active",
     });
+  }
+
+  function openCreate(role = "electoral_board") {
+    setEditing(null);
+    resetForm(role);
     setFormOpen(true);
   }
 
@@ -75,246 +86,412 @@ function UsersRoles() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    setSubmitting(true);
 
     const payload = {
-      full_name: form.full_name,
-      email: form.email,
+      full_name: form.full_name.trim(),
+      email: form.email.trim().toLowerCase(),
       password: form.password,
       role: form.role,
       organization_id:
         form.role === "super_admin"
           ? null
           : form.organization_id
-          ? Number(form.organization_id)
-          : null,
+            ? Number(form.organization_id)
+            : null,
       status: form.status,
     };
 
     if (editing) {
-      await supabase
+      const result = await supabase
         .from("admin_users")
         .update(payload)
         .eq("id", editing.id);
+
+      if (result.error) {
+        setSubmitting(false);
+        alert(result.error.message || "Failed to save access account.");
+        return;
+      }
     } else {
-      await supabase.from("admin_users").insert([payload]);
+      const result = await supabase.from("admin_users").insert([payload]);
+
+      if (result.error) {
+        setSubmitting(false);
+        alert(result.error.message || "Failed to save access account.");
+        return;
+      }
     }
+
+    setSubmitting(false);
 
     setFormOpen(false);
     fetchUsers();
   }
 
   async function handleDelete(id) {
-    if (!window.confirm("Delete this account?")) return;
+    if (!window.confirm("Delete this access account?")) return;
 
     await supabase.from("admin_users").delete().eq("id", id);
     fetchUsers();
   }
 
-  const roleCards = ["super_admin", "electoral_board"];
+  const superAdminCount = users.filter((user) => user.role === "super_admin").length;
+  const boardUsers = users.filter((user) => user.role === "electoral_board");
+  const activeBoardCount = boardUsers.filter((user) => user.status === "active").length;
+  const unassignedBoards = boardUsers.filter((user) => !user.organization_id).length;
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="page-head">
         <div>
-          <h1 className="text-3xl font-black">Users and Roles</h1>
-          <p className="text-gray-500 mt-1">
-            Manage Super Admin and Electoral Board accounts.
+          <div className="page-kicker">Access Control</div>
+          <h1 className="page-title">
+            Users and
+            <span className="page-title-accent"> board access</span>
+          </h1>
+          <p className="page-subtitle">
+            Register electoral board accounts for specific organizations and keep
+            super admin access separate from organization-level operations.
           </p>
         </div>
 
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 bg-[#ff5a1f] text-white px-5 py-3 rounded-xl font-bold hover:bg-[#e24d17]"
-        >
-          <Plus size={18} />
-          Add User
-        </button>
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+          <button onClick={() => openCreate("electoral_board")} className="primary-btn">
+            <ShieldCheck size={18} />
+            Add Electoral Board Access
+          </button>
+          <button onClick={() => openCreate("super_admin")} className="secondary-btn">
+            <UserCog size={18} />
+            Add Super Admin
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-6 mt-8">
-        {roleCards.map((role) => (
-          <div key={role} className="bg-white p-6 rounded-2xl shadow-sm">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-500 capitalize">
-                {role.replaceAll("_", " ")}
+      <div className="section-grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
+        <div className="metric-card lift-card">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#55726b]">
+                Super Admins
               </p>
-              <UserCog size={20} className="text-[#ff5a1f]" />
+              <h2 className="mt-4 text-4xl font-black">{superAdminCount}</h2>
             </div>
-
-            <h2 className="text-3xl font-black mt-2">
-              {users.filter((user) => user.role === role).length}
-            </h2>
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[rgba(17,128,106,0.12)] text-[#11806a]">
+              <UserCog size={22} />
+            </div>
           </div>
-        ))}
+        </div>
+
+        <div className="metric-card lift-card">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#55726b]">
+                Board Accounts
+              </p>
+              <h2 className="mt-4 text-4xl font-black">{boardUsers.length}</h2>
+            </div>
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[rgba(25,162,140,0.12)] text-[#11806a]">
+              <ShieldCheck size={22} />
+            </div>
+          </div>
+        </div>
+
+        <div className="metric-card lift-card">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#55726b]">
+                Active Boards
+              </p>
+              <h2 className="mt-4 text-4xl font-black">{activeBoardCount}</h2>
+            </div>
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[rgba(54,147,111,0.12)] text-[#36936f]">
+              <KeyRound size={22} />
+            </div>
+          </div>
+        </div>
+
+        <div className="metric-card lift-card">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#55726b]">
+                Unassigned Boards
+              </p>
+              <h2 className="mt-4 text-4xl font-black">{unassignedBoards}</h2>
+            </div>
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[rgba(208,199,109,0.16)] text-[#9b8a29]">
+              <Building2 size={22} />
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="mt-8 bg-white rounded-2xl shadow-sm overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-[#1d1d1d] text-white">
-            <tr>
-              <th className="px-6 py-4 text-sm">Name</th>
-              <th className="px-6 py-4 text-sm">Email</th>
-              <th className="px-6 py-4 text-sm">Role</th>
-              <th className="px-6 py-4 text-sm">Organization</th>
-              <th className="px-6 py-4 text-sm">Status</th>
-              <th className="px-6 py-4 text-sm text-right">Actions</th>
-            </tr>
-          </thead>
+      <div className="section-grid grid-cols-1 xl:grid-cols-[0.9fr_1.1fr]">
+        <div className="trust-card">
+          <div className="flex items-center gap-3">
+            <div className="rounded-2xl bg-white/10 p-3 text-[#9ce7dd]">
+              <ShieldCheck size={22} />
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">
+                Electoral Board Access
+              </p>
+              <h2 className="mt-1 text-2xl font-black">Assign one board to one org</h2>
+            </div>
+          </div>
 
-          <tbody>
-            {users.length === 0 ? (
-              <tr>
-                <td colSpan="6" className="px-6 py-10 text-center text-gray-500">
-                  No users found.
-                </td>
-              </tr>
-            ) : (
-              users.map((user) => (
-                <tr key={user.id} className="border-b last:border-b-0">
-                  <td className="px-6 py-4 font-bold">{user.full_name}</td>
-                  <td className="px-6 py-4 text-gray-600">{user.email}</td>
+          <div className="mt-6 space-y-3">
+            {[
+              "Each electoral board account can be linked to a specific organization.",
+              "That account logs in through the board portal and only manages its assigned organization.",
+              "Use disabled status to revoke access without deleting the record.",
+            ].map((item) => (
+              <div key={item} className="rounded-2xl bg-white/8 px-4 py-3 text-sm leading-6 text-white/74">
+                {item}
+              </div>
+            ))}
+          </div>
+        </div>
 
-                  <td className="px-6 py-4">
-                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-700 capitalize">
-                      {user.role?.replaceAll("_", " ")}
-                    </span>
-                  </td>
+        <div className="soft-card">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#55726b]">
+                Access Checklist
+              </p>
+              <h3 className="mt-2 text-2xl font-black">Before you create an account</h3>
+            </div>
+            <span className="status-pill">Smart Setup</span>
+          </div>
 
-                  <td className="px-6 py-4">
-                    {user.role === "super_admin"
-                      ? "All Organizations"
-                      : user.organizations?.name || "Unassigned"}
-                  </td>
+          <div className="mt-6 space-y-3">
+            {[
+              ["Organization", "Choose the organization the board member will manage."],
+              ["Email Address", "Use a valid email format for the board login credential."],
+              ["Temporary Password", "Set a starter password that the board can use immediately."],
+              ["Status", "Keep it active for live use or disabled to hold the access record."],
+            ].map(([title, copy]) => (
+              <div key={title} className="info-row !items-start">
+                <div>
+                  <p className="text-sm font-bold text-[#102220]">{title}</p>
+                  <p className="mt-1 text-xs leading-5 text-[#5e726d]">{copy}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
 
-                  <td className="px-6 py-4">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-bold ${
-                        user.status === "active"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-red-100 text-red-700"
-                      }`}
-                    >
-                      {user.status}
-                    </span>
-                  </td>
+      <div className="section-grid grid-cols-1">
+        <div className="table-shell">
+          <div className="border-b border-[rgba(104,86,72,0.08)] px-6 py-5">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#55726b]">
+              Access Accounts
+            </p>
+            <h3 className="mt-2 text-xl font-black">Super admin and electoral board logins</h3>
+          </div>
 
-                  <td className="px-6 py-4">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => openEdit(user)}
-                        className="p-2 bg-gray-100 rounded-lg hover:bg-gray-200"
-                      >
-                        <Pencil size={16} />
-                      </button>
-
-                      <button
-                        onClick={() => handleDelete(user.id)}
-                        className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="table-head text-white">
+                <tr>
+                  <th className="px-6 py-4">Name</th>
+                  <th className="px-6 py-4">Email</th>
+                  <th className="px-6 py-4">Role</th>
+                  <th className="px-6 py-4">Organization</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+                {users.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="px-6 py-10 text-center text-gray-500">
+                      No access accounts found.
+                    </td>
+                  </tr>
+                ) : (
+                  users.map((user) => (
+                    <tr key={user.id} className="border-b border-[rgba(104,86,72,0.08)] last:border-b-0">
+                      <td className="px-6 py-4 font-bold">{user.full_name}</td>
+                      <td className="px-6 py-4 text-[#5e726d]">{user.email}</td>
+                      <td className="px-6 py-4">
+                        <span className="status-pill capitalize">
+                          {user.role?.replaceAll("_", " ")}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {user.role === "super_admin"
+                          ? "All Organizations"
+                          : user.organizations?.name || "Unassigned"}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`inline-flex rounded-full px-3 py-1 text-xs font-bold uppercase ${
+                            user.status === "active"
+                              ? "bg-[rgba(54,147,111,0.14)] text-[#25704f]"
+                              : "bg-[rgba(203,79,88,0.14)] text-[#a23846]"
+                          }`}
+                        >
+                          {user.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => openEdit(user)}
+                            className="secondary-btn !w-auto !px-3 !py-2 text-sm"
+                          >
+                            <Pencil size={15} />
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(user.id)}
+                            className="danger-btn !w-auto !px-3 !py-2 text-sm"
+                          >
+                            <Trash2 size={15} />
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       {formOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white w-full max-w-xl rounded-2xl shadow-xl p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-black">
-                {editing ? "Edit User" : "Add User"}
-              </h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="glass-panel-strong w-full max-w-xl rounded-[30px] p-6">
+            <div className="mb-6 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#55726b]">
+                  {form.role === "electoral_board" ? "Board Access" : "System Access"}
+                </p>
+                <h2 className="mt-2 text-2xl font-black">
+                  {editing
+                    ? "Edit access account"
+                    : form.role === "electoral_board"
+                      ? "Register electoral board"
+                      : "Create super admin"}
+                </h2>
+              </div>
 
               <button
                 onClick={() => setFormOpen(false)}
-                className="p-2 rounded-lg hover:bg-gray-100"
+                className="rounded-2xl bg-white/70 p-2 hover:bg-white"
               >
                 <X size={20} />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <input
-                required
-                value={form.full_name}
-                onChange={(e) =>
-                  setForm({ ...form, full_name: e.target.value })
-                }
-                placeholder="Full Name"
-                className="w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-[#ff5a1f]"
-              />
+            <form onSubmit={handleSubmit} className="grid gap-4">
+              <div>
+                <label className="field-label">Full Name</label>
+                <input
+                  required
+                  value={form.full_name}
+                  onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+                  placeholder="Board officer full name"
+                  className="field-shell w-full"
+                />
+              </div>
 
-              <input
-                required
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                placeholder="Email"
-                className="w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-[#ff5a1f]"
-              />
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="field-label">Email</label>
+                  <input
+                    required
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    placeholder="board@organization.com"
+                    className="field-shell w-full"
+                  />
+                </div>
+                <div>
+                  <label className="field-label">Temporary Password</label>
+                  <input
+                    required
+                    type="password"
+                    value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    placeholder="Set initial password"
+                    className="field-shell w-full"
+                  />
+                </div>
+              </div>
 
-              <input
-                required
-                type="password"
-                value={form.password}
-                onChange={(e) =>
-                  setForm({ ...form, password: e.target.value })
-                }
-                placeholder="Temporary Password"
-                className="w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-[#ff5a1f]"
-              />
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="field-label">Role</label>
+                  <select
+                    value={form.role}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        role: e.target.value,
+                        organization_id: e.target.value === "super_admin" ? "" : form.organization_id,
+                      })
+                    }
+                    className="field-shell w-full"
+                  >
+                    <option value="super_admin">Super Admin</option>
+                    <option value="electoral_board">Electoral Board</option>
+                  </select>
+                </div>
 
-              <select
-                value={form.role}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    role: e.target.value,
-                    organization_id:
-                      e.target.value === "super_admin"
-                        ? ""
-                        : form.organization_id,
-                  })
-                }
-                className="w-full px-4 py-3 border rounded-xl outline-none"
-              >
-                <option value="super_admin">Super Admin</option>
-                <option value="electoral_board">Electoral Board</option>
-              </select>
+                <div>
+                  <label className="field-label">Status</label>
+                  <select
+                    value={form.status}
+                    onChange={(e) => setForm({ ...form, status: e.target.value })}
+                    className="field-shell w-full"
+                  >
+                    <option value="active">Active</option>
+                    <option value="disabled">Disabled</option>
+                  </select>
+                </div>
+              </div>
 
-              {form.role === "electoral_board" && (
-                <select
-                  value={form.organization_id}
-                  onChange={(e) =>
-                    setForm({ ...form, organization_id: e.target.value })
-                  }
-                  className="w-full px-4 py-3 border rounded-xl outline-none"
-                >
-                  <option value="">Assign Organization</option>
-                  {organizations.map((org) => (
-                    <option key={org.id} value={org.id}>
-                      {org.name}
-                    </option>
-                  ))}
-                </select>
+              {form.role === "electoral_board" ? (
+                <div>
+                  <label className="field-label">Assigned Organization</label>
+                  <select
+                    required
+                    value={form.organization_id}
+                    onChange={(e) => setForm({ ...form, organization_id: e.target.value })}
+                    className="field-shell w-full"
+                  >
+                    <option value="">Select organization for this board account</option>
+                    {organizations.map((org) => (
+                      <option key={org.id} value={org.id}>
+                        {org.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div className="app-panel">
+                  <p className="text-sm font-bold text-[#102220]">Organization Scope</p>
+                  <p className="mt-1 text-xs leading-5 text-[#5e726d]">
+                    Super admin accounts are not limited to one organization and can access the
+                    full control workspace.
+                  </p>
+                </div>
               )}
 
-              <select
-                value={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.value })}
-                className="w-full px-4 py-3 border rounded-xl outline-none"
-              >
-                <option value="active">Active</option>
-                <option value="disabled">Disabled</option>
-              </select>
-
-              <button className="w-full bg-[#ff5a1f] text-white py-3 rounded-xl font-bold hover:bg-[#e24d17]">
-                {editing ? "Save Changes" : "Create User"}
+              <button disabled={submitting} className="primary-btn mt-2">
+                {submitting
+                  ? "Saving access..."
+                  : editing
+                    ? "Save Access Changes"
+                    : form.role === "electoral_board"
+                      ? "Create Electoral Board Account"
+                      : "Create Super Admin Account"}
               </button>
             </form>
           </div>

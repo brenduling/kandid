@@ -26,64 +26,66 @@ function AuditLogs() {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="page-head">
         <div>
-          <h1 className="text-3xl font-black">Audit Logs</h1>
-          <p className="text-gray-500 mt-1">
+          <div className="page-kicker">Security Ledger</div>
+          <h1 className="page-title">Audit logs</h1>
+          <p className="page-subtitle">
             Track important system and administrator activities.
           </p>
         </div>
 
         <button
           onClick={fetchLogs}
-          className="flex items-center gap-2 bg-[#ff5a1f] text-white px-5 py-3 rounded-xl font-bold hover:bg-[#e24d17]"
+          className="primary-btn self-start lg:self-auto"
         >
           <RefreshCw size={18} />
           Refresh
         </button>
       </div>
 
-      <div className="mt-8 flex items-center gap-3 bg-white px-4 py-3 rounded-xl shadow-sm w-96">
+      <div className="toolbar-row">
+      <div className="search-shell">
         <Search size={18} className="text-gray-400" />
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="outline-none w-full text-sm"
           placeholder="Search logs..."
         />
       </div>
+      </div>
 
-      <div className="mt-6 bg-white rounded-2xl shadow-sm overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-[#1d1d1d] text-white">
+      <div className="table-shell mt-6">
+        <table className="app-table">
+          <thead>
             <tr>
-              <th className="px-6 py-4 text-sm">Log ID</th>
-              <th className="px-6 py-4 text-sm">User ID</th>
-              <th className="px-6 py-4 text-sm">Action</th>
-              <th className="px-6 py-4 text-sm">Timestamp</th>
-              <th className="px-6 py-4 text-sm">Status</th>
+              <th>Log ID</th>
+              <th>User ID</th>
+              <th>Action</th>
+              <th>Timestamp</th>
+              <th>Status</th>
             </tr>
           </thead>
 
           <tbody>
             {filteredLogs.length === 0 ? (
               <tr>
-                <td colSpan="5" className="px-6 py-10 text-center text-gray-500">
+                <td colSpan="5" className="px-6 py-10 text-center empty-copy">
                   No audit logs found.
                 </td>
               </tr>
             ) : (
               filteredLogs.map((log) => (
-                <tr key={log.id} className="border-b last:border-b-0">
-                  <td className="px-6 py-4 font-bold">#{log.id}</td>
-                  <td className="px-6 py-4">{log.user_id || "System"}</td>
-                  <td className="px-6 py-4">{log.action}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
+                <tr key={log.id}>
+                  <td className="font-bold">#{log.id}</td>
+                  <td>{log.user_id || "System"}</td>
+                  <td>{log.action}</td>
+                  <td className="text-[#5a5548]">
                     {log.timestamp
                       ? new Date(log.timestamp).toLocaleString()
                       : "-"}
                   </td>
-                  <td className="px-6 py-4">
+                  <td>
                     <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">
                       <ShieldCheck size={13} />
                       Recorded

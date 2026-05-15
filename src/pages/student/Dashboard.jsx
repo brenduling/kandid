@@ -1,111 +1,140 @@
 import { useEffect, useState } from "react";
-import { Vote, CheckCircle } from "lucide-react";
+import { Eye, Vote } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useNavigate } from "react-router-dom";
+import {
+  canStudentViewResults,
+  formatLocalDateTime,
+  getElectionPhase,
+} from "../../utils/elections";
 
 function StudentDashboard() {
   const [elections, setElections] = useState([]);
-  const [votedMap, setVotedMap] = useState({});
   const [loading, setLoading] = useState(true);
 
   const user = JSON.parse(localStorage.getItem("user"));
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchDashboard();
-  }, []);
+    let active = true;
 
-  async function fetchDashboard() {
-    setLoading(true);
+    async function loadDashboard() {
+      setLoading(true);
 
-    if (!user) return;
+      const { data: studentOrgs } = await supabase
+        .from("student_organizations")
+        .select("organization_id")
+        .eq("student_id", user.id);
 
-    // 1. Get elections (we will refine eligibility later)
-    const { data: electionData } = await supabase
-      .from("elections")
-      .select("*")
-      .eq("status", "active");
+      const organizationIds =
+        studentOrgs?.map((item) => item.organization_id) || [];
 
-    setElections(electionData || []);
+      if (organizationIds.length === 0) {
+        if (active) {
+          setElections([]);
+          setLoading(false);
+        }
+        return;
+      }
 
-    // 2. Get votes of this student
-    const { data: voteData } = await supabase
-      .from("votes")
-      .select("election_id")
-      .eq("student_id", user.id);
+      const { data: electionData } = await supabase
+        .from("elections")
+        .select("*, organizations(name)")
+        .in("organization_id", organizationIds)
+        .neq("status", "archived")
+        .order("start_date", { ascending: true });
 
-    const voted = {};
-    voteData?.forEach((v) => {
-      voted[v.election_id] = true;
-    });
+      if (!active) return;
 
-    setVotedMap(voted);
+      setElections(electionData || []);
+      setLoading(false);
+    }
 
-    setLoading(false);
-  }
+    loadDashboard();
+
+    return () => {
+      active = false;
+    };
+  }, [user.id]);
 
   return (
     <div>
-      <div>
-        <h1 className="text-3xl font-black">Welcome</h1>
-        <p className="text-gray-500 mt-1">
-          Participate in your organization elections.
+      <div className="page-head">
+        <div>
+        <div className="page-kicker">Student Overview</div>
+        <h1 className="page-title">Welcome back</h1>
+        <p className="page-subtitle">
+          Review campaign periods, vote on time, and check results when available.
         </p>
+        </div>
       </div>
 
       {loading ? (
-        <p className="mt-10 text-gray-500">Loading...</p>
+        <div className="glass-panel mt-8 rounded-[28px] p-8 text-gray-500">Loading...</div>
       ) : (
-        <div className="grid grid-cols-3 gap-6 mt-8">
+        <div className="section-grid grid-cols-1 xl:grid-cols-3">
           {elections.length === 0 ? (
-            <p className="text-gray-500 col-span-3">
-              No active elections available.
-            </p>
+            <div className="empty-state col-span-3">No elections available.</div>
           ) : (
             elections.map((election) => {
-              const hasVoted = votedMap[election.id];
+              const phase = getElectionPhase(election);
 
               return (
                 <div
                   key={election.id}
-                  className="bg-white p-6 rounded-2xl shadow-sm flex flex-col justify-between"
+                  className="glass-panel-strong lift-card flex flex-col justify-between rounded-[28px] p-6"
                 >
                   <div>
-                    <h2 className="text-xl font-black">
-                      {election.title}
-                    </h2>
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#ff7a35]">
+                          {election.organizations?.name || "Organization"}
+                        </p>
+                        <h2 className="mt-2 text-xl font-black text-[#1d262f]">{election.title}</h2>
+                      </div>
+                      <span className="status-pill">
+                        {phase}
+                      </span>
+                    </div>
 
-                    <p className="text-sm text-gray-500 mt-2">
-                      {election.start_date
-                        ? new Date(
-                            election.start_date
-                          ).toLocaleString()
-                        : "-"}{" "}
-                      —{" "}
-                      {election.end_date
-                        ? new Date(
-                            election.end_date
-                          ).toLocaleString()
-                        : "-"}
+                    <p className="mt-4 text-sm text-[#5a5548]">
+                      Voting starts: {formatLocalDateTime(election.start_date)}
                     </p>
                   </div>
 
                   <div className="mt-6">
-                    {hasVoted ? (
-                      <div className="flex items-center gap-2 text-green-600 font-bold">
-                        <CheckCircle size={18} />
-                        Already Voted
-                      </div>
-                    ) : (
+                    {phase === "campaign" ? (
                       <button
                         onClick={() =>
-                          navigate(`/student/vote/${election.id}`)
+                          navigate(`/student/elections/${election.id}/campaign`)
                         }
-                        className="w-full flex items-center justify-center gap-2 bg-[#ff5a1f] text-white py-3 rounded-xl font-bold hover:bg-[#e24d17]"
+                        className="secondary-btn w-full"
+                      >
+                        <Eye size={18} />
+                        Open Campaign Module
+                      </button>
+                    ) : phase === "voting" ? (
+                      <button
+                        onClick={() => navigate(`/student/vote/${election.id}`)}
+                        className="primary-btn w-full"
                       >
                         <Vote size={18} />
                         Vote Now
                       </button>
+                    ) : canStudentViewResults(election) ? (
+                      <button
+                        onClick={() =>
+                          navigate(`/student/results?election=${election.id}`)
+                        }
+                        className="primary-btn w-full"
+                      >
+                        <Eye size={18} />
+                        View Results
+                      </button>
+                    ) : (
+                        <div className="rounded-2xl bg-white/50 px-4 py-3 text-sm font-semibold text-[#5a5548]">
+                          Waiting for the next phase.
+                        </div>
                     )}
                   </div>
                 </div>

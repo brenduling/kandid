@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
+import { buildElectionAnalytics } from "../../utils/results";
 
 function BoardResults() {
   const [votes, setVotes] = useState([]);
@@ -11,15 +12,71 @@ function BoardResults() {
   const orgId = user?.organization_id;
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    let active = true;
+
+    async function loadData() {
+      if (!orgId) return;
+
+      const { data: orgElections } = await supabase
+        .from("elections")
+        .select("id, title, organization_id, organizations(name)")
+        .eq("organization_id", orgId);
+
+      const electionIds = orgElections?.map((e) => e.id) || [];
+
+      if (!active) return;
+      setElections(orgElections || []);
+
+      if (electionIds.length === 0) {
+        setVotes([]);
+        return;
+      }
+
+      const { data: voteData, error } = await supabase
+        .from("votes")
+        .select(`
+          *,
+          students (
+            program,
+            year_level
+          ),
+          candidates (
+            id,
+            students (
+              first_name,
+              last_name
+            )
+          ),
+          positions (
+            id,
+            name
+          ),
+          elections (
+            id,
+            title
+          )
+        `)
+        .in("election_id", electionIds);
+
+      if (!active) return;
+
+      if (!error) setVotes(voteData || []);
+      if (error) console.log(error);
+    }
+
+    loadData();
+
+    return () => {
+      active = false;
+    };
+  }, [orgId]);
 
   async function fetchData() {
     if (!orgId) return;
 
     const { data: orgElections } = await supabase
       .from("elections")
-      .select("id, title")
+      .select("id, title, organization_id, organizations(name)")
       .eq("organization_id", orgId);
 
     const electionIds = orgElections?.map((e) => e.id) || [];
@@ -35,6 +92,10 @@ function BoardResults() {
       .from("votes")
       .select(`
         *,
+        students (
+          program,
+          year_level
+        ),
         candidates (
           id,
           students (
@@ -60,35 +121,10 @@ function BoardResults() {
   const filteredVotes = selectedElection
     ? votes.filter((vote) => vote.election_id === Number(selectedElection))
     : [];
-
-  const grouped = {};
-
-  filteredVotes.forEach((vote) => {
-    if (!grouped[vote.position_id]) {
-      grouped[vote.position_id] = {
-        position: vote.positions?.name,
-        candidates: {},
-        abstain: 0,
-      };
-    }
-
-    if (vote.is_abstain) {
-      grouped[vote.position_id].abstain++;
-    } else if (vote.candidate_id) {
-      const candidateId = vote.candidate_id;
-
-      if (!grouped[vote.position_id].candidates[candidateId]) {
-        grouped[vote.position_id].candidates[candidateId] = {
-          name: `${vote.candidates?.students?.first_name || ""} ${
-            vote.candidates?.students?.last_name || ""
-          }`,
-          votes: 0,
-        };
-      }
-
-      grouped[vote.position_id].candidates[candidateId].votes++;
-    }
-  });
+  const activeElection = elections.find(
+    (election) => election.id === Number(selectedElection)
+  );
+  const analytics = buildElectionAnalytics(filteredVotes, activeElection);
 
   return (
     <div>
@@ -129,12 +165,63 @@ function BoardResults() {
           <div className="bg-white p-8 rounded-2xl shadow-sm text-gray-500">
             Select an election to view results.
           </div>
-        ) : Object.keys(grouped).length === 0 ? (
+        ) : Object.keys(analytics.groupedResults).length === 0 ? (
           <div className="bg-white p-8 rounded-2xl shadow-sm text-gray-500">
             No results yet.
           </div>
         ) : (
-          Object.values(grouped).map((group, index) => {
+          <>
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+              {[
+                ["Vote Entries", analytics.totalVoteEntries],
+                ["Unique Voters", analytics.totalUniqueVoters],
+                ["Abstain Count", analytics.totalAbstains],
+              ].map(([label, value]) => (
+                <div key={label} className="metric-card lift-card">
+                  <p className="text-sm font-semibold text-gray-500">{label}</p>
+                  <h2 className="mt-4 text-5xl font-black tracking-tight">{value}</h2>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+              <div className="soft-card">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8b6e5c]">
+                      {analytics.allocationLabel}
+                    </p>
+                    <h3 className="mt-2 text-2xl font-black">Voter distribution</h3>
+                  </div>
+                  <span className="status-pill">{analytics.organizationName}</span>
+                </div>
+
+                <div className="mt-6 space-y-4">
+                  {analytics.allocationItems.map((item) => (
+                    <div key={item.label} className="info-row">
+                      <div>
+                        <p className="text-sm font-bold text-[#1d262f]">{item.label}</p>
+                        <p className="mt-1 text-xs text-gray-500">{item.percentage}% of voters</p>
+                      </div>
+                      <span className="text-lg font-black text-[#d35a25]">{item.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="glass-panel-dark rounded-[30px] p-7 text-white">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">
+                  Historical Tracking
+                </p>
+                <h3 className="mt-3 text-3xl font-black">Previous and current elections</h3>
+                <p className="mt-4 text-sm leading-7 text-white/65">
+                  Choose any election from your organization to review exact counts,
+                  turnout, and program or year-level allocation, including older cycles.
+                </p>
+              </div>
+            </div>
+
+            {Object.values(analytics.groupedResults).map((group, index) => {
             const sortedCandidates = Object.values(group.candidates).sort(
               (a, b) => b.votes - a.votes
             );
@@ -182,7 +269,8 @@ function BoardResults() {
                 </table>
               </div>
             );
-          })
+            })}
+          </>
         )}
       </div>
     </div>

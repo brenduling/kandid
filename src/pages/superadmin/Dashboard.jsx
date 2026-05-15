@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import {
+  BarChart3,
   Building2,
+  CheckCircle,
+  Clock,
+  RefreshCw,
+  ShieldCheck,
   Users,
   Vote,
-  CheckCircle,
-  BarChart3,
-  ShieldCheck,
-  RefreshCw,
-  Clock,
 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 
@@ -20,7 +20,7 @@ function Dashboard() {
     votes: 0,
     verifiedVotes: 0,
   });
-
+  const [programStats, setProgramStats] = useState([]);
   const [recentElections, setRecentElections] = useState([]);
   const [recentLogs, setRecentLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,24 +35,22 @@ function Dashboard() {
     const { count: orgCount } = await supabase
       .from("organizations")
       .select("*", { count: "exact", head: true });
-
     const { count: studentCount } = await supabase
       .from("students")
       .select("*", { count: "exact", head: true });
-
+    const { data: studentPrograms } = await supabase
+      .from("students")
+      .select("program");
     const { count: electionCount } = await supabase
       .from("elections")
       .select("*", { count: "exact", head: true });
-
     const { count: activeElectionCount } = await supabase
       .from("elections")
       .select("*", { count: "exact", head: true })
       .eq("status", "active");
-
     const { count: voteCount } = await supabase
       .from("votes")
       .select("*", { count: "exact", head: true });
-
     const { count: verifiedVoteCount } = await supabase
       .from("votes")
       .select("*", { count: "exact", head: true })
@@ -60,12 +58,7 @@ function Dashboard() {
 
     const { data: electionsData } = await supabase
       .from("elections")
-      .select(`
-        *,
-        organizations (
-          name
-        )
-      `)
+      .select("*, organizations(name)")
       .order("created_at", { ascending: false })
       .limit(5);
 
@@ -83,7 +76,25 @@ function Dashboard() {
       votes: voteCount || 0,
       verifiedVotes: verifiedVoteCount || 0,
     });
-
+    const programCounts = (studentPrograms || []).reduce((accumulator, student) => {
+      const key = student.program || "Unassigned";
+      accumulator[key] = (accumulator[key] || 0) + 1;
+      return accumulator;
+    }, {});
+    const totalPrograms = Object.values(programCounts).reduce(
+      (sum, count) => sum + count,
+      0,
+    );
+    const normalizedPrograms = Object.entries(programCounts)
+      .map(([program, count]) => ({
+        program,
+        count,
+        percent:
+          totalPrograms > 0 ? Math.max(8, Math.round((count / totalPrograms) * 100)) : 0,
+      }))
+      .sort((left, right) => right.count - left.count)
+      .slice(0, 10);
+    setProgramStats(normalizedPrograms);
     setRecentElections(electionsData || []);
     setRecentLogs(logsData || []);
     setLoading(false);
@@ -93,205 +104,237 @@ function Dashboard() {
     stats.students > 0
       ? ((stats.votes / stats.students) * 100).toFixed(1)
       : 0;
+  const verificationRate =
+    stats.votes > 0
+      ? Math.round((stats.verifiedVotes / stats.votes) * 100)
+      : 0;
+  const activeElectionShare =
+    stats.elections > 0
+      ? Math.round((stats.activeElections / stats.elections) * 100)
+      : 0;
 
   const cards = [
-    {
-      title: "Organizations",
-      value: stats.organizations,
-      icon: Building2,
-      bg: "bg-orange-100",
-      text: "text-orange-700",
-    },
-    {
-      title: "Students",
-      value: stats.students,
-      icon: Users,
-      bg: "bg-blue-100",
-      text: "text-blue-700",
-    },
-    {
-      title: "Total Elections",
-      value: stats.elections,
-      icon: Vote,
-      bg: "bg-purple-100",
-      text: "text-purple-700",
-    },
-    {
-      title: "Active Elections",
-      value: stats.activeElections,
-      icon: CheckCircle,
-      bg: "bg-green-100",
-      text: "text-green-700",
-    },
-    {
-      title: "Votes Cast",
-      value: stats.votes,
-      icon: BarChart3,
-      bg: "bg-yellow-100",
-      text: "text-yellow-700",
-    },
-    {
-      title: "Blockchain Verified",
-      value: stats.verifiedVotes,
-      icon: ShieldCheck,
-      bg: "bg-emerald-100",
-      text: "text-emerald-700",
-    },
+    { title: "Organizations", value: stats.organizations, icon: Building2, tone: "text-[#2563eb] bg-[rgba(37,99,235,0.12)]" },
+    { title: "Students", value: stats.students, icon: Users, tone: "text-[#0891b2] bg-[rgba(34,211,238,0.14)]" },
+    { title: "Total Elections", value: stats.elections, icon: Vote, tone: "text-[#5b63d3] bg-[rgba(99,102,241,0.14)]" },
+    { title: "Active Elections", value: stats.activeElections, icon: CheckCircle, tone: "text-[#059669] bg-[rgba(16,185,129,0.14)]" },
+    { title: "Vote Casts", value: stats.votes, icon: BarChart3, tone: "text-[#d97706] bg-[rgba(248,217,107,0.18)]" },
+    { title: "Blockchain Verified", value: stats.verifiedVotes, icon: ShieldCheck, tone: "text-[#2563eb] bg-[rgba(37,99,235,0.12)]" },
   ];
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="page-head">
         <div>
-          <h1 className="text-3xl font-black text-gray-800">
-            Super Admin Dashboard
+          <div className="page-kicker">System Overview</div>
+          <h1 className="page-title">
+            Super admin
+            <span className="page-title-accent"> command center</span>
           </h1>
-          <p className="text-gray-500 mt-1">
-            Overview of the entire KANDID voting system.
+          <p className="page-subtitle">
+            Monitor institutional election health, participation, and audit
+            activity from a cleaner oversight dashboard.
           </p>
         </div>
 
-        <button
-          onClick={fetchDashboardData}
-          className="flex items-center gap-2 bg-[#ff5a1f] text-white px-5 py-3 rounded-xl font-bold hover:bg-[#e24d17]"
-        >
+        <button onClick={fetchDashboardData} className="primary-btn self-start lg:self-auto">
           <RefreshCw size={18} />
-          Refresh
+          Refresh Dashboard
         </button>
       </div>
 
       {loading ? (
-        <div className="mt-10 text-gray-500">Loading dashboard...</div>
+        <div className="glass-panel mt-8 rounded-[28px] p-8 text-gray-500">
+          Loading dashboard...
+        </div>
       ) : (
         <>
-          <div className="grid grid-cols-3 gap-6 mt-8">
-            {cards.map((card) => {
-              const Icon = card.icon;
-
-              return (
-                <div
-                  key={card.title}
-                  className="bg-white p-6 rounded-2xl shadow-sm"
-                >
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-gray-500">{card.title}</p>
-
-                    <div
-                      className={`w-11 h-11 rounded-xl ${card.bg} ${card.text} flex items-center justify-center`}
-                    >
-                      <Icon size={22} />
-                    </div>
-                  </div>
-
-                  <h2 className="text-4xl font-black mt-4">{card.value}</h2>
+          <div className="section-grid grid-cols-1 xl:grid-cols-[1.08fr_1fr]">
+            <div className="graph-card">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-[#f97316]">Turnout Snapshot</p>
+                  <h2 className="mt-2 text-5xl font-black tracking-tight text-[#1d262f]">
+                    {turnout}%
+                  </h2>
                 </div>
-              );
-            })}
-          </div>
+                <span className="rounded-full border border-[rgba(37,99,235,0.14)] bg-[rgba(37,99,235,0.06)] px-3 py-1 text-xs font-bold text-[#2563eb]">
+                  2026-2027
+                </span>
+              </div>
 
-          <div className="grid grid-cols-3 gap-6 mt-8">
-            <div className="bg-[#1d1d1d] text-white p-6 rounded-2xl shadow-sm col-span-1">
-              <p className="text-white/60 text-sm">Overall Turnout</p>
-              <h2 className="text-5xl font-black mt-3">{turnout}%</h2>
-              <p className="text-white/50 text-sm mt-3">
-                Based on total votes cast compared to total registered students.
-              </p>
+              <div className="mt-8">
+                <div className="flex h-[280px] items-end gap-2 overflow-hidden rounded-[24px] bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(241,245,255,0.92))] px-4 pb-10 pt-6">
+                  {(programStats.length > 0 ? programStats : [{ program: "No Data", count: 0, percent: 12 }]).map((item) => (
+                    <div key={item.program} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-3">
+                      <div
+                        className="w-full rounded-t-[10px] bg-[linear-gradient(180deg,#f59e0b,#d97706)] shadow-[0_8px_18px_rgba(217,119,6,0.2)]"
+                        style={{ height: `${Math.max(item.percent * 2, 24)}px` }}
+                      />
+                      <p className="w-full truncate text-center text-[10px] font-medium uppercase tracking-[0.08em] text-[#7a8498]">
+                        {item.program}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
 
-            <div className="bg-white p-6 rounded-2xl shadow-sm col-span-2">
-              <h3 className="text-lg font-black mb-4">System Health</h3>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-2">
+              {cards.map((card) => {
+                const Icon = card.icon;
 
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b pb-3">
-                  <span className="text-gray-600">Database Connection</span>
-                  <span className="font-bold text-green-600">Online</span>
-                </div>
+                return (
+                  <div key={card.title} className="metric-card lift-card flex min-h-[156px] flex-col justify-between">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="max-w-[10rem] text-sm font-semibold text-[#f97316]">
+                        {card.title}
+                      </p>
+                      <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${card.tone}`}>
+                        <Icon size={20} />
+                      </div>
+                    </div>
+                    <h2 className="mt-6 text-right text-5xl font-black tracking-tight text-[#1d262f]">
+                      {card.value}
+                    </h2>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
-                <div className="flex items-center justify-between border-b pb-3">
-                  <span className="text-gray-600">Voting Module</span>
-                  <span className="font-bold text-green-600">Ready</span>
+          <div className="section-grid grid-cols-1 xl:grid-cols-2">
+            <div className="graph-card">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8ba4c7]">
+                    System Graph
+                  </p>
+                  <h3 className="mt-2 text-2xl font-black text-[#1d262f]">Election Activity Mix</h3>
                 </div>
+                <span className="status-pill">Live</span>
+              </div>
 
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Blockchain Records</span>
-                  <span className="font-bold text-orange-600">
-                    {stats.verifiedVotes}/{stats.votes} Verified
-                  </span>
+              <div className="mt-6 space-y-4">
+                {[
+                  ["Active election share", activeElectionShare, `${stats.activeElections}/${stats.elections || 0}`, "chart-fill"],
+                  ["Turnout against students", Math.min(Number(turnout), 100), `${stats.votes}/${stats.students || 0}`, "chart-fill-blue"],
+                  ["Blockchain verification", verificationRate, `${stats.verifiedVotes}/${stats.votes || 0}`, "chart-fill-gold"],
+                ].map(([label, value, note, tone]) => (
+                  <div key={label} className="graph-row">
+                    <div className="mb-3 flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-bold text-[#102220]">{label}</p>
+                        <p className="mt-1 text-xs uppercase tracking-[0.14em] text-[#6a817b]">
+                          {note}
+                        </p>
+                      </div>
+                      <span className="text-lg font-black text-[#102220]">{value}%</span>
+                    </div>
+
+                    <div className="chart-track">
+                      <div className={tone} style={{ width: `${value}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="graph-card">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8ba4c7]">
+                    Participation Graph
+                  </p>
+                  <h3 className="mt-2 text-2xl font-black text-[#1d262f]">Voting Funnel</h3>
                 </div>
+                <span className="status-pill">Colored View</span>
+              </div>
+
+              <div className="mt-6 space-y-4">
+                {[
+                  ["Registered Students", stats.students, 100, "chart-fill-dark"],
+                  [
+                    "Vote Entries",
+                    stats.votes,
+                    stats.students > 0 ? Math.min(Math.round((stats.votes / stats.students) * 100), 100) : 0,
+                    "chart-fill",
+                  ],
+                  [
+                    "Verified Records",
+                    stats.verifiedVotes,
+                    verificationRate,
+                    "chart-fill-gold",
+                  ],
+                ].map(([label, value, percent, tone]) => (
+                  <div key={label} className="graph-row">
+                    <div className="mb-3 flex items-center justify-between">
+                      <p className="text-sm font-bold text-[#102220]">{label}</p>
+                      <p className="text-sm font-bold text-[#7ddff3]">{value}</p>
+                    </div>
+                    <div className="chart-track">
+                      <div className={tone} style={{ width: `${percent}%` }} />
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-6 mt-8">
-            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-              <div className="p-6 border-b">
-                <h3 className="text-lg font-black">Recent Elections</h3>
-                <p className="text-sm text-gray-500">
-                  Latest elections created in the system.
+          <div className="section-grid grid-cols-1 xl:grid-cols-2">
+            <div className="table-shell">
+              <div className="border-b border-[rgba(104,86,72,0.1)] px-6 py-5">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8ba4c7]">
+                  Recent Elections
                 </p>
+                <h3 className="mt-2 text-xl font-black text-[#1d262f]">Latest created elections</h3>
               </div>
 
               <div>
                 {recentElections.length === 0 ? (
-                  <p className="p-6 text-gray-500 text-sm">
-                    No elections found.
-                  </p>
+                  <p className="p-6 text-sm text-gray-500">No elections found.</p>
                 ) : (
                   recentElections.map((election) => (
                     <div
                       key={election.id}
-                      className="px-6 py-4 border-b last:border-b-0 flex items-center justify-between"
+                      className="flex items-center justify-between border-b border-[rgba(104,86,72,0.08)] px-6 py-4 last:border-b-0"
                     >
                       <div>
-                        <p className="font-bold">{election.title}</p>
-                        <p className="text-xs text-gray-500">
-                          {election.organizations?.name || "Unknown Organization"}
+                        <p className="font-bold text-[#1d262f]">{election.title}</p>
+                        <p className="mt-1 text-xs text-gray-500">
+                          Organization: {election.organizations?.name || "Unknown"}
                         </p>
                       </div>
-
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-bold ${
-                          election.status === "active"
-                            ? "bg-green-100 text-green-700"
-                            : election.status === "closed"
-                            ? "bg-gray-100 text-gray-700"
-                            : "bg-orange-100 text-orange-700"
-                        }`}
-                      >
-                        {election.status}
-                      </span>
+                      <span className="status-pill">{election.status}</span>
                     </div>
                   ))
                 )}
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-              <div className="p-6 border-b">
-                <h3 className="text-lg font-black">Recent Activities</h3>
-                <p className="text-sm text-gray-500">
-                  Latest system audit logs.
+            <div className="table-shell">
+              <div className="border-b border-[rgba(104,86,72,0.1)] px-6 py-5">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8ba4c7]">
+                  Audit Activity
                 </p>
+                <h3 className="mt-2 text-xl font-black text-[#1d262f]">Latest system actions</h3>
               </div>
 
               <div>
                 {recentLogs.length === 0 ? (
-                  <p className="p-6 text-gray-500 text-sm">
-                    No recent activities yet.
-                  </p>
+                  <p className="p-6 text-sm text-gray-500">No recent activities yet.</p>
                 ) : (
                   recentLogs.map((log) => (
                     <div
                       key={log.id}
-                      className="px-6 py-4 border-b last:border-b-0 flex gap-3"
+                      className="flex gap-4 border-b border-[rgba(104,86,72,0.08)] px-6 py-4 last:border-b-0"
                     >
-                      <div className="w-9 h-9 rounded-xl bg-orange-100 text-[#ff5a1f] flex items-center justify-center">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[rgba(17,128,106,0.12)] text-[#11806a]">
                         <Clock size={16} />
                       </div>
-
                       <div>
-                        <p className="font-semibold text-sm">{log.action}</p>
-                        <p className="text-xs text-gray-500">
+                        <p className="font-semibold text-sm text-[#1d262f]">{log.action}</p>
+                        <p className="mt-1 text-xs text-gray-500">
                           {log.timestamp
                             ? new Date(log.timestamp).toLocaleString()
                             : "-"}

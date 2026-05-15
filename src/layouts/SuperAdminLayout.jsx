@@ -1,113 +1,166 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { useState } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
-  LayoutDashboard,
-  Building2,
-  Users,
-  FileUp,
-  Vote,
-  ListChecks,
-  UserCheck,
-  ShieldCheck,
-  BarChart3,
-  ScrollText,
-  Settings,
-  Archive,
-  UserCog,
-  Blocks,
-  ClipboardList,
-  Flag,
-  Gavel,
-  Bell,
-  Search,
+  ChevronDown,
   LogOut,
+  Search,
 } from "lucide-react";
+import { clearStoredUser, getStoredUser } from "../utils/auth";
+import NotificationCenter from "../components/NotificationCenter";
+import MobileNav from "../components/MobileNav";
+import { getProfileRoute } from "../utils/profile";
+import {
+  flattenMenuGroups,
+  superAdminMenuGroups,
+} from "../config/navigation";
 
-const menuItems = [
-  { name: "Dashboard", path: "/super-admin/dashboard", icon: LayoutDashboard },
-  { name: "Organizations", path: "/super-admin/organizations", icon: Building2 },
-  { name: "Students", path: "/super-admin/students", icon: Users },
-  { name: "CSV Import", path: "/super-admin/csv-import", icon: FileUp },
-  { name: "Elections", path: "/super-admin/elections", icon: Vote },
-  { name: "Positions", path: "/super-admin/positions", icon: ListChecks },
-  { name: "Candidates", path: "/super-admin/candidates", icon: UserCheck },
-  { name: "Partylists", path: "/super-admin/partylists", icon: Flag },
-  { name: "Eligibility Rules", path: "/super-admin/eligibility-rules", icon: Gavel },
-  { name: "Voting Monitor", path: "/super-admin/voting-monitor", icon: BarChart3 },
-  { name: "Results", path: "/super-admin/results", icon: ClipboardList },
-  { name: "Blockchain", path: "/super-admin/blockchain", icon: Blocks },
-  { name: "Reports", path: "/super-admin/reports", icon: ScrollText },
-  { name: "Audit Logs", path: "/super-admin/audit-logs", icon: ShieldCheck },
-  { name: "Users & Roles", path: "/super-admin/users-roles", icon: UserCog },
-  { name: "Archives", path: "/super-admin/archives", icon: Archive },
-  { name: "System Settings", path: "/super-admin/settings", icon: Settings },
-];
+const mobileMenuItems = flattenMenuGroups(superAdminMenuGroups);
 
 function SuperAdminLayout() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const user = getStoredUser();
+  const [openGroups, setOpenGroups] = useState(() =>
+    Object.fromEntries(superAdminMenuGroups.map((group) => [group.label, true])),
+  );
+
+  function handleLogout() {
+    clearStoredUser();
+    navigate("/admin-login", { replace: true });
+  }
+
+  function toggleGroup(label) {
+    setOpenGroups((current) => ({
+      ...current,
+      [label]: !current[label],
+    }));
+  }
+
   return (
-    <div className="min-h-screen bg-[#f6f3ef] flex">
-      <aside className="w-72 bg-[#1d1d1d] text-white flex flex-col">
-        <div className="px-6 py-6 border-b border-white/10">
-          <h1 className="text-xl font-black text-[#ff5a1f]">KANDID</h1>
-          <p className="text-xs text-white/50 mt-1">Super Admin Console</p>
-        </div>
+    <div className="app-shell relative overflow-hidden">
+      <div className="ambient-orb left-[-120px] top-16 h-96 w-96 bg-[rgba(17,128,106,0.16)]" />
+      <div className="ambient-orb bottom-8 right-[-90px] h-80 w-80 bg-[rgba(25,162,140,0.14)]" />
 
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
+      <div className="shell-layout">
+        <aside className="glass-panel-dark shell-sidebar shell-sidebar-collapsible">
+          <div className="sidebar-brand-block border-b border-white/10 pb-5">
+            <div className="flex items-center justify-center gap-3 lg:justify-start">
+              <div className="menu-brand-badge">K</div>
+              <div className="sidebar-reveal min-w-0">
+                <p className="menu-brand-title">KANDID</p>
+                <p className="menu-brand-copy">Admin</p>
+              </div>
+            </div>
+            <div className="sidebar-brand-copy">
+              <p className="mt-4 menu-brand-copy">System-wide control for elections, users, and oversight.</p>
+            </div>
+          </div>
 
-            return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition ${
-                    isActive
-                      ? "bg-[#ff5a1f] text-white"
-                      : "text-white/70 hover:bg-white/10 hover:text-white"
-                  }`
-                }
-              >
-                <Icon size={18} />
-                {item.name}
-              </NavLink>
-            );
-          })}
-        </nav>
+          <nav className="sidebar-nav-scroll">
+            {superAdminMenuGroups.map((group, groupIndex) => {
+              const isGroupOpen =
+                openGroups[group.label] ??
+                group.items.some((item) => location.pathname.startsWith(item.path));
 
-        <div className="p-4 border-t border-white/10">
-          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-white/70 hover:bg-white/10">
+              return (
+                <div
+                  key={group.label}
+                  className={`sidebar-group ${groupIndex > 0 ? "sidebar-group-separator" : ""}`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleGroup(group.label)}
+                    className="nav-section-trigger"
+                  >
+                    <span className="sidebar-reveal">{group.label}</span>
+                    <ChevronDown
+                      size={15}
+                      className={`nav-section-trigger-chevron transition-transform ${isGroupOpen ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                  <div className="nav-section-body" data-open={isGroupOpen}>
+                    <div className="nav-section-inner mt-3 space-y-2">
+                      {group.items.map((item, itemIndex) => {
+                        const Icon = item.icon;
+
+                        return (
+                          <NavLink
+                            key={item.path}
+                            to={item.path}
+                            className={({ isActive }) =>
+                              `fade-up nav-item ${isActive ? "nav-item-active" : ""}`
+                            }
+                            style={{
+                              animationDelay: `${groupIndex * 110 + itemIndex * 28}ms`,
+                            }}
+                          >
+                            <span className="nav-item-icon">
+                              <Icon size={18} />
+                            </span>
+                            <span className="sidebar-reveal min-w-0">{item.name}</span>
+                          </NavLink>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </nav>
+
+          <button
+            onClick={handleLogout}
+            className="sidebar-logout-btn"
+          >
             <LogOut size={18} />
-            Logout
+            <span className="sidebar-reveal">Logout</span>
           </button>
-        </div>
-      </aside>
+        </aside>
 
-      <main className="flex-1 flex flex-col">
-        <header className="h-16 bg-white border-b flex items-center justify-between px-8">
-          <div className="flex items-center gap-3 bg-[#f6f3ef] px-4 py-2 rounded-full w-96">
-            <Search size={18} className="text-gray-400" />
-            <input
-              className="bg-transparent outline-none text-sm w-full"
-              placeholder="Search anything..."
-            />
-          </div>
-
-          <div className="flex items-center gap-5">
-            <Bell size={20} className="text-gray-600" />
-            <div className="text-right">
-              <p className="text-sm font-bold">Super Admin</p>
-              <p className="text-xs text-gray-500">System Administrator</p>
+        <main className="workspace-main">
+          <header className="glass-panel shell-header fade-up">
+            <div className="glass-panel-strong shell-search lg:max-w-xl">
+              <Search size={18} className="text-gray-400" />
+              <input
+                placeholder="Search users, organizations, elections, logs..."
+              />
             </div>
-            <div className="w-10 h-10 rounded-full bg-[#ff5a1f] text-white flex items-center justify-center font-bold">
-              SA
-            </div>
-          </div>
-        </header>
 
-        <section className="flex-1 p-8 overflow-y-auto">
-          <Outlet />
-        </section>
-      </main>
+            <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
+              <NotificationCenter user={user} />
+
+              <button
+                onClick={() => navigate(getProfileRoute(user?.role))}
+                className="glass-panel-strong shell-profile-chip"
+              >
+                {user?.photo_url ? (
+                  <img
+                    src={user.photo_url}
+                    alt="Admin profile"
+                    className="h-12 w-12 rounded-2xl object-cover"
+                  />
+                ) : (
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[rgba(17,128,106,0.12)] text-sm font-black text-[#11806a]">
+                    SA
+                  </div>
+                )}
+                <div className="min-w-0 text-left">
+                  <p className="truncate text-sm font-bold text-[#18212b]">
+                    {user?.full_name || "Super Admin"}
+                  </p>
+                  <p className="surface-subcopy truncate text-xs">System Administrator</p>
+                </div>
+              </button>
+            </div>
+          </header>
+
+          <section className="content-stack">
+            <Outlet />
+          </section>
+        </main>
+      </div>
+
+      <MobileNav items={mobileMenuItems} />
     </div>
   );
 }

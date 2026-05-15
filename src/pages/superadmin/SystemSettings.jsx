@@ -6,18 +6,26 @@ function SystemSettings() {
   const [settings, setSettings] = useState(null);
 
   useEffect(() => {
-    fetchSettings();
+    let active = true;
+
+    async function loadSettings() {
+      const { data } = await supabase
+        .from("system_settings")
+        .select("*")
+        .eq("id", 1)
+        .single();
+
+      if (active) {
+        setSettings(data);
+      }
+    }
+
+    loadSettings();
+
+    return () => {
+      active = false;
+    };
   }, []);
-
-  async function fetchSettings() {
-    const { data } = await supabase
-      .from("system_settings")
-      .select("*")
-      .eq("id", 1)
-      .single();
-
-    setSettings(data);
-  }
 
   async function handleSave() {
     const { error } = await supabase
@@ -33,30 +41,35 @@ function SystemSettings() {
     alert("Settings saved!");
   }
 
-  if (!settings) return <div>Loading...</div>;
+  if (!settings) {
+    return (
+      <div className="glass-panel rounded-[28px] p-8 surface-subcopy">
+        Loading settings...
+      </div>
+    );
+  }
 
   return (
     <div>
-      <h1 className="text-3xl font-black">System Settings</h1>
-      <p className="text-gray-500 mt-1">
+      <h1 className="page-title">System Settings</h1>
+      <p className="page-subtitle mt-1">
         Configure system-wide behavior and defaults.
       </p>
 
-      <div className="mt-8 bg-white p-6 rounded-2xl shadow-sm space-y-6 max-w-xl">
-        
+      <div className="glass-panel mt-8 max-w-xl rounded-[28px] p-6 shadow-sm space-y-6">
         <div>
-          <label className="text-sm font-bold">System Name</label>
+          <label className="field-label !mb-2 !tracking-[0.12em] !normal-case">System Name</label>
           <input
             value={settings.system_name}
             onChange={(e) =>
               setSettings({ ...settings, system_name: e.target.value })
             }
-            className="w-full mt-2 px-4 py-3 border rounded-xl"
+            className="field-shell w-full"
           />
         </div>
 
         <div>
-          <label className="text-sm font-bold">
+          <label className="field-label !mb-2 !tracking-[0.12em] !normal-case">
             Default Election Duration (days)
           </label>
           <input
@@ -68,11 +81,11 @@ function SystemSettings() {
                 default_election_duration: Number(e.target.value),
               })
             }
-            className="w-full mt-2 px-4 py-3 border rounded-xl"
+            className="field-shell w-full"
           />
         </div>
 
-        <div className="flex items-center gap-3">
+        <label className="toggle-surface">
           <input
             type="checkbox"
             checked={settings.allow_multiple_votes}
@@ -83,12 +96,10 @@ function SystemSettings() {
               })
             }
           />
-          <label className="font-semibold">
-            Allow multiple votes per position
-          </label>
-        </div>
+          Allow multiple votes per position
+        </label>
 
-        <div className="flex items-center gap-3">
+        <label className="toggle-surface">
           <input
             type="checkbox"
             checked={settings.allow_abstain}
@@ -99,12 +110,10 @@ function SystemSettings() {
               })
             }
           />
-          <label className="font-semibold">
-            Allow abstain option
-          </label>
-        </div>
+          Allow abstain option
+        </label>
 
-        <div className="flex items-center gap-3">
+        <label className="toggle-surface !text-red-700">
           <input
             type="checkbox"
             checked={settings.maintenance_mode}
@@ -115,14 +124,12 @@ function SystemSettings() {
               })
             }
           />
-          <label className="font-semibold text-red-600">
-            Enable Maintenance Mode
-          </label>
-        </div>
+          Enable maintenance mode
+        </label>
 
         <button
           onClick={handleSave}
-          className="w-full bg-[#ff5a1f] text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2"
+          className="primary-btn w-full justify-center"
         >
           <Save size={18} />
           Save Settings

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
+import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
 
 function BoardEligibilityRules() {
@@ -126,97 +127,60 @@ function BoardEligibilityRules() {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="page-head">
         <div>
-          <h1 className="text-3xl font-black">Board Eligibility Rules</h1>
-          <p className="text-gray-500 mt-1">
+          <div className="page-kicker">Voting Access</div>
+          <h1 className="page-title">Board eligibility rules</h1>
+          <p className="page-subtitle">
             Define who can vote in your organization&apos;s elections.
           </p>
         </div>
 
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 bg-[#ff5a1f] text-white px-5 py-3 rounded-xl font-bold hover:bg-[#e24d17]"
+          className="primary-btn self-start lg:self-auto"
         >
           <Plus size={18} />
           Add Rule
         </button>
       </div>
 
-      <div className="mt-8 bg-white rounded-2xl shadow-sm overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-[#1d1d1d] text-white">
-            <tr>
-              <th className="px-6 py-4 text-sm">Election</th>
-              <th className="px-6 py-4 text-sm">Program</th>
-              <th className="px-6 py-4 text-sm">Year Level</th>
-              <th className="px-6 py-4 text-sm">SHS Allowed</th>
-              <th className="px-6 py-4 text-sm text-right">Actions</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {rules.length === 0 ? (
-              <tr>
-                <td colSpan="5" className="px-6 py-10 text-center text-gray-500">
-                  No eligibility rules found.
-                </td>
-              </tr>
-            ) : (
-              rules.map((rule) => (
-                <tr key={rule.id} className="border-b last:border-b-0">
-                  <td className="px-6 py-4 font-bold">
-                    {rule.elections?.title || "Unknown Election"}
-                  </td>
-
-                  <td className="px-6 py-4">
-                    {rule.program || "All Programs"}
-                  </td>
-
-                  <td className="px-6 py-4">
-                    {rule.min_year_level || "-"} to{" "}
-                    {rule.max_year_level || "-"}
-                  </td>
-
-                  <td className="px-6 py-4">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-bold ${
-                        rule.allow_shs
-                          ? "bg-green-100 text-green-700"
-                          : "bg-red-100 text-red-700"
-                      }`}
-                    >
-                      {rule.allow_shs ? "Yes" : "No"}
-                    </span>
-                  </td>
-
-                  <td className="px-6 py-4">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => openEdit(rule)}
-                        className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200"
-                      >
-                        <Pencil size={16} />
-                      </button>
-
-                      <button
-                        onClick={() => handleDelete(rule.id)}
-                        className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-200"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      {rules.length === 0 ? (
+        <div className="empty-state mt-8">No eligibility rules found.</div>
+      ) : (
+        <div className="entity-grid">
+          {rules.map((rule) => (
+            <div key={rule.id} className="entity-card lift-card">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#ff7a35]">
+                    {rule.elections?.title || "Unknown election"}
+                  </p>
+                  <h2 className="entity-card-title mt-2">{rule.program || "All programs"}</h2>
+                </div>
+                <span className={`status-pill ${rule.allow_shs ? "" : "!bg-red-100 !text-red-700"}`}>
+                  {rule.allow_shs ? "SHS on" : "SHS off"}
+                </span>
+              </div>
+              <p className="entity-meta">
+                Year level: {rule.min_year_level || "-"} to {rule.max_year_level || "-"}.
+              </p>
+              <div className="entity-actions">
+                <button onClick={() => openEdit(rule)} className="icon-action">
+                  <Pencil size={16} />
+                </button>
+                <button onClick={() => handleDelete(rule.id)} className="icon-action icon-action-danger">
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {formOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl p-6">
+        <PopupOverlay>
+          <div className="modal-card max-w-lg">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-black">
                 {editing ? "Edit Eligibility Rule" : "Add Eligibility Rule"}
@@ -230,14 +194,16 @@ function BoardEligibilityRules() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="modal-form-stack">
+              <div>
+                <label className="field-label">Election</label>
               <select
                 required
                 value={form.election_id}
                 onChange={(e) =>
                   setForm({ ...form, election_id: e.target.value })
                 }
-                className="w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-[#ff5a1f]"
+                className="field-shell w-full"
               >
                 <option value="">Select Election</option>
                 {elections.map((election) => (
@@ -246,17 +212,21 @@ function BoardEligibilityRules() {
                   </option>
                 ))}
               </select>
+              </div>
 
+              <div>
+                <label className="field-label">Program</label>
               <input
                 value={form.program}
                 onChange={(e) =>
                   setForm({ ...form, program: e.target.value })
                 }
                 placeholder="Program e.g. BSIT (leave blank for all)"
-                className="w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-[#ff5a1f]"
+                className="field-shell w-full"
               />
+              </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="modal-form-grid">
                 <input
                   type="number"
                   min="1"
@@ -265,7 +235,7 @@ function BoardEligibilityRules() {
                     setForm({ ...form, min_year_level: e.target.value })
                   }
                   placeholder="Min Year Level"
-                  className="px-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-[#ff5a1f]"
+                  className="field-shell"
                 />
 
                 <input
@@ -276,11 +246,11 @@ function BoardEligibilityRules() {
                     setForm({ ...form, max_year_level: e.target.value })
                   }
                   placeholder="Max Year Level"
-                  className="px-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-[#ff5a1f]"
+                  className="field-shell"
                 />
               </div>
 
-              <label className="flex items-center gap-3 px-4 py-3 border rounded-xl">
+              <label className="flex items-center gap-3 rounded-2xl border border-[rgba(255,115,22,0.14)] bg-white/45 px-4 py-3">
                 <input
                   type="checkbox"
                   checked={form.allow_shs}
@@ -293,12 +263,12 @@ function BoardEligibilityRules() {
                 </span>
               </label>
 
-              <button className="w-full bg-[#ff5a1f] text-white py-3 rounded-xl font-bold hover:bg-[#e24d17]">
+              <button className="primary-btn w-full">
                 {editing ? "Save Changes" : "Create Rule"}
               </button>
             </form>
           </div>
-        </div>
+        </PopupOverlay>
       )}
     </div>
   );

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
+import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
+import { readFileAsDataUrl } from "../../utils/files";
 
 function BoardPartylists() {
   const [partylists, setPartylists] = useState([]);
@@ -12,6 +14,7 @@ function BoardPartylists() {
     election_id: "",
     name: "",
     description: "",
+    logo_url: "",
   });
 
   const user = JSON.parse(localStorage.getItem("user"));
@@ -67,6 +70,7 @@ function BoardPartylists() {
       election_id: "",
       name: "",
       description: "",
+      logo_url: "",
     });
     setFormOpen(true);
   }
@@ -77,8 +81,16 @@ function BoardPartylists() {
       election_id: item.election_id,
       name: item.name,
       description: item.description || "",
+      logo_url: item.logo_url || "",
     });
     setFormOpen(true);
+  }
+
+  async function handleLogoUpload(file) {
+    if (!file) return;
+
+    const dataUrl = await readFileAsDataUrl(file);
+    setForm({ ...form, logo_url: dataUrl });
   }
 
   async function handleSubmit(e) {
@@ -88,6 +100,7 @@ function BoardPartylists() {
       election_id: Number(form.election_id),
       name: form.name,
       description: form.description,
+      logo_url: form.logo_url || null,
     };
 
     if (editing) {
@@ -112,58 +125,75 @@ function BoardPartylists() {
 
   return (
     <div>
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-black">Board Partylists</h1>
+      <div className="page-head">
+        <div>
+          <div className="page-kicker">Organization Groups</div>
+          <h1 className="page-title">Board partylists</h1>
+          <p className="page-subtitle">
+            Manage partylists for elections under your organization.
+          </p>
+        </div>
 
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 bg-[#ff5a1f] text-white px-5 py-3 rounded-xl font-bold"
-        >
+        <button onClick={openCreate} className="primary-btn self-start lg:self-auto">
           <Plus size={18} />
           Add Partylist
         </button>
       </div>
 
-      <div className="mt-8 bg-white rounded-2xl shadow-sm overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-[#1d1d1d] text-white">
+      <div className="table-shell mt-8">
+        <table className="app-table">
+          <thead>
             <tr>
-              <th className="px-6 py-4">Name</th>
-              <th className="px-6 py-4">Election</th>
-              <th className="px-6 py-4">Description</th>
-              <th className="px-6 py-4 text-right">Actions</th>
+              <th>Logo</th>
+              <th>Name</th>
+              <th>Election</th>
+              <th>Description</th>
+              <th className="text-right">Actions</th>
             </tr>
           </thead>
 
           <tbody>
             {partylists.length === 0 ? (
               <tr>
-                <td colSpan="4" className="p-6 text-center text-gray-500">
+                <td colSpan="5" className="p-6 text-center empty-copy">
                   No partylists yet.
                 </td>
               </tr>
             ) : (
               partylists.map((p) => (
-                <tr key={p.id} className="border-b">
-                  <td className="px-6 py-4 font-bold">{p.name}</td>
-                  <td className="px-6 py-4 text-sm">
+                <tr key={p.id}>
+                  <td>
+                    {p.logo_url ? (
+                      <img
+                        src={p.logo_url}
+                        alt={`${p.name} logo`}
+                        className="h-12 w-12 rounded-2xl object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[rgba(17,128,106,0.12)] text-xs font-black text-[#11806a]">
+                        LOGO
+                      </div>
+                    )}
+                  </td>
+                  <td className="font-bold">{p.name}</td>
+                  <td>
                     {p.elections?.title}
                   </td>
-                  <td className="px-6 py-4 text-sm">
+                  <td className="text-[#5a5548]">
                     {p.description || "-"}
                   </td>
 
-                  <td className="px-6 py-4 text-right">
+                  <td>
                     <button
                       onClick={() => openEdit(p)}
-                      className="p-2 mr-2 bg-gray-100 rounded"
+                      className="icon-action mr-2"
                     >
                       <Pencil size={16} />
                     </button>
 
                     <button
                       onClick={() => handleDelete(p.id)}
-                      className="p-2 bg-red-100 text-red-600 rounded"
+                      className="icon-action icon-action-danger"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -176,8 +206,8 @@ function BoardPartylists() {
       </div>
 
       {formOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-2xl w-full max-w-md">
+        <PopupOverlay>
+          <div className="modal-card w-full max-w-md">
             <div className="flex justify-between mb-4">
               <h2 className="text-xl font-black">
                 {editing ? "Edit Partylist" : "Add Partylist"}
@@ -188,14 +218,16 @@ function BoardPartylists() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="modal-form-stack">
+              <div>
+                <label className="field-label">Election</label>
               <select
                 required
                 value={form.election_id}
                 onChange={(e) =>
                   setForm({ ...form, election_id: e.target.value })
                 }
-                className="w-full p-3 border rounded-xl"
+                className="field-shell w-full"
               >
                 <option value="">Select Election</option>
                 {elections.map((e) => (
@@ -204,7 +236,10 @@ function BoardPartylists() {
                   </option>
                 ))}
               </select>
+              </div>
 
+              <div>
+                <label className="field-label">Partylist Name</label>
               <input
                 required
                 placeholder="Partylist Name"
@@ -212,24 +247,63 @@ function BoardPartylists() {
                 onChange={(e) =>
                   setForm({ ...form, name: e.target.value })
                 }
-                className="w-full p-3 border rounded-xl"
+                className="field-shell w-full"
               />
+              </div>
 
+              <div>
+                <label className="field-label">Description</label>
               <textarea
                 placeholder="Description"
                 value={form.description}
                 onChange={(e) =>
                   setForm({ ...form, description: e.target.value })
                 }
-                className="w-full p-3 border rounded-xl"
+                className="field-shell min-h-[140px] w-full"
               />
+              </div>
 
-              <button className="w-full bg-[#ff5a1f] text-white py-3 rounded-xl font-bold">
+              <div>
+                <label className="field-label">Logo URL</label>
+              <input
+                placeholder="Partylist logo URL optional"
+                value={form.logo_url}
+                onChange={(e) =>
+                  setForm({ ...form, logo_url: e.target.value })
+                }
+                className="field-shell w-full"
+              />
+              </div>
+
+              <div className="upload-shell">
+                <p className="mb-3 text-sm font-bold text-[#1d262f]">Partylist Logo</p>
+                <div className="flex items-center gap-4">
+                  {form.logo_url ? (
+                    <img
+                      src={form.logo_url}
+                      alt="Partylist logo preview"
+                      className="h-16 w-16 rounded-2xl object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[rgba(17,128,106,0.12)] text-xs font-black text-[#11806a]">
+                      LOGO
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleLogoUpload(e.target.files?.[0])}
+                    className="text-sm text-[#5a5548]"
+                  />
+                </div>
+              </div>
+
+              <button className="primary-btn w-full">
                 Save
               </button>
             </form>
           </div>
-        </div>
+        </PopupOverlay>
       )}
     </div>
   );
