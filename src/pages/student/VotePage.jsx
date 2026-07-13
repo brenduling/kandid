@@ -9,7 +9,6 @@ import {
   Vote,
 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
-import { hashVoteRecord } from "../../utils/blockchain";
 import { formatLocalDateTime, getElectionPhase } from "../../utils/elections";
 import {
   distanceBetweenMeters,
@@ -17,6 +16,7 @@ import {
   getVotingAccessModeLabel,
   isTokenExpired,
 } from "../../utils/votingAccess";
+import { hasStudentVotedInElection, submitBallot } from "../../utils/voting";
 
 function StudentVotePage() {
   const { electionId } = useParams();
@@ -34,6 +34,7 @@ function StudentVotePage() {
   const [accessGranted, setAccessGranted] = useState(false);
   const [accessMessage, setAccessMessage] = useState("");
   const [verifyingAccess, setVerifyingAccess] = useState(false);
+  const [alreadyVoted, setAlreadyVoted] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -41,7 +42,12 @@ function StudentVotePage() {
     async function loadBallot() {
       setLoading(true);
 
-      const [{ data: electionData }, { data: studentData }, { data: positionData }] =
+      const [
+        { data: electionData },
+        { data: studentData },
+        { data: positionData },
+        voteCheck,
+      ] =
         await Promise.all([
           supabase
             .from("elections")
@@ -58,6 +64,7 @@ function StudentVotePage() {
             .select("*")
             .eq("election_id", electionId)
             .order("id", { ascending: true }),
+          hasStudentVotedInElection(user.id, electionId),
         ]);
 
       const positionIds = positionData?.map((position) => position.id) || [];
@@ -83,6 +90,7 @@ function StudentVotePage() {
       setStudentProfile(studentData);
       setPositions(positionData || []);
       setCandidates(candidateData);
+      setAlreadyVoted(Boolean(voteCheck?.hasVoted));
       if ((electionData?.voting_access_mode || "anywhere") === "anywhere") {
         setAccessGranted(true);
         setAccessMessage("Voting access is open anywhere for this election.");
@@ -239,32 +247,16 @@ function StudentVotePage() {
     }
 
     setSubmitting(true);
-
-    const submittedAt = new Date().toISOString();
-
-    const voteRows = await Promise.all(
-      Object.values(selectedVotes).map(async (vote) => ({
-        student_id: user.id,
-        election_id: Number(electionId),
-        position_id: vote.position_id,
-        candidate_id: vote.candidate_id,
-        is_abstain: vote.is_abstain,
-        vote_timestamp: submittedAt,
-        vote_hash: await hashVoteRecord({
-          studentId: user.id,
-          electionId,
-          positionId: vote.position_id,
-          candidateId: vote.candidate_id,
-          isAbstain: vote.is_abstain,
-          submittedAt,
-        }),
-        blockchain_tx_id: null,
-      })),
-    );
-
-    const { error } = await supabase.from("votes").insert(voteRows);
+    const { error, alreadyVoted: voteLocked } = await submitBallot({
+      studentId: user.id,
+      electionId,
+      selectedVotes,
+    });
 
     if (error) {
+      if (voteLocked) {
+        setAlreadyVoted(true);
+      }
       alert(error.message);
       setSubmitting(false);
       return;
@@ -315,6 +307,32 @@ function StudentVotePage() {
               Open Campaign Module
             </button>
           ) : null}
+        </div>
+      </div>
+    );
+  }
+
+  if (alreadyVoted) {
+    return (
+      <div className="soft-card">
+        <h1 className="text-2xl font-black">Vote already recorded</h1>
+        <p className="mt-2 text-gray-500">
+          This election already has a submitted ballot linked to your student account.
+          Mobile and kiosk voting use the same verification record, so a second ballot is blocked automatically.
+        </p>
+        <div className="mt-6 flex gap-3">
+          <button
+            onClick={() => navigate("/student/elections")}
+            className="secondary-btn"
+          >
+            Back to Elections
+          </button>
+          <button
+            onClick={() => navigate("/student/receipt")}
+            className="primary-btn"
+          >
+            Open Receipts
+          </button>
         </div>
       </div>
     );

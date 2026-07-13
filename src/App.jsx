@@ -15,6 +15,7 @@ import StudentResults from "./pages/student/Results";
 import StudentOfficers from "./pages/student/Officers";
 import StudentSetup from "./pages/auth/StudentSetup";
 import ProfilePage from "./pages/shared/Profile";
+import KioskVoting from "./pages/shared/KioskVoting";
 
 import BoardLayout from "./layouts/BoardLayout";
 
@@ -96,6 +97,7 @@ function App() {
           <Route path="voting-monitor" element={<VotingMonitor />} />
           <Route path="results" element={<Results />} />
           <Route path="blockchain" element={<BlockchainVerification />} />
+          <Route path="kiosk" element={<KioskVoting />} />
           <Route path="reports" element={<Reports />} />
           <Route path="audit-logs" element={<AuditLogs />} />
           <Route path="users-roles" element={<UsersRoles />} />
@@ -122,6 +124,7 @@ function App() {
           <Route path="eligibility-rules" element={<BoardEligibilityRules />} />
           <Route path="voting-monitor" element={<BoardVotingMonitor />} />
           <Route path="results" element={<BoardResults />} />
+          <Route path="kiosk" element={<KioskVoting />} />
           <Route path="reports" element={<BoardReports />} />
           <Route path="students" element={<BoardStudents />} />
           <Route path="csv-import" element={<BoardCSVImport />} />

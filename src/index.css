@@ -1167,3 +1167,251 @@ a:active {
     transform: translateY(0);
   }
 }
+
+/* ==========================================
+   Super Admin Light Theme & Palette overrides
+   ========================================== */
+
+.super-admin-theme {
+  color-scheme: light !important;
+  --bg-base: #f8fafc !important;
+  --bg-tint: #f1f5f9 !important;
+  --surface: #ffffff !important;
+  --surface-strong: #ffffff !important;
+  --surface-dark: #0f172a !important;
+  --line-soft: #e2e8f0 !important;
+  --line-strong: #cbd5e1 !important;
+  --text-main: #0f172a !important;
+  --text-soft: #64748b !important;
+  --brand: #c2410c !important; /* Terracotta Orange */
+  --brand-deep: #9a3412 !important;
+  --brand-mist: rgba(194, 65, 12, 0.08) !important;
+  --teal: #ca8a04 !important;
+  --teal-deep: #854d0e !important;
+  --emerald: #10b981 !important;
+  --indigo: #6366f1 !important;
+  --gold: #ca8a04 !important;
+  --danger: #ef4444 !important;
+}
+
+/* Hide or mute background orbs for Super Admin */
+.super-admin-theme .ambient-orb {
+  opacity: 0.02 !important;
+}
+
+/* App shell background */
+.super-admin-theme.app-shell {
+  background: #f8fafc !important;
+}
+
+/* Sidebar structure overrides */
+.super-admin-theme .shell-sidebar {
+  background: #18181b !important; /* Solid dark zinc/charcoal background */
+  border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+}
+
+.super-admin-theme .shell-sidebar.sidebar-collapsed {
+  width: 6.15rem !important;
+  min-width: 6.15rem !important;
+}
+
+.super-admin-theme .shell-sidebar.sidebar-collapsed .sidebar-reveal {
+  max-width: 0 !important;
+  opacity: 0 !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  transform: translateX(-8px) !important;
+  display: inline-block !important;
+}
+
+.super-admin-theme .shell-sidebar.sidebar-collapsed .sidebar-brand-copy {
+  max-height: 0 !important;
+  opacity: 0 !important;
+  overflow: hidden !important;
+  transform: translateY(-4px) !important;
+}
+
+.super-admin-theme .shell-sidebar.sidebar-collapsed .nav-item {
+  justify-content: center !important;
+  padding-left: 0.7rem !important;
+  padding-right: 0.7rem !important;
+}
+
+.super-admin-theme .shell-sidebar.sidebar-collapsed .nav-section-trigger {
+  max-height: 0 !important;
+  opacity: 0 !important;
+  overflow: hidden !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin: 0 !important;
+  pointer-events: none !important;
+}
+
+.super-admin-theme .shell-sidebar.sidebar-collapsed .nav-section-trigger-chevron {
+  opacity: 0 !important;
+  transform: scale(0.8) !important;
+}
+
+.super-admin-theme .shell-sidebar.sidebar-collapsed .nav-section-body {
+  grid-template-rows: 1fr !important;
+  opacity: 1 !important;
+}
+
+/* Expanded sidebar */
+.super-admin-theme .shell-sidebar.sidebar-expanded {
+  width: 18.1rem !important;
+  min-width: 18.1rem !important;
+}
+
+.super-admin-theme .shell-sidebar.sidebar-expanded .sidebar-reveal {
+  max-width: 240px !important;
+  opacity: 1 !important;
+  transform: translateX(0) !important;
+  display: inline-block !important;
+}
+
+.super-admin-theme .shell-sidebar.sidebar-expanded .sidebar-brand-copy {
+  max-height: 140px !important;
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+}
+
+.super-admin-theme .shell-sidebar.sidebar-expanded .nav-item {
+  justify-content: flex-start !important;
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+}
+
+.super-admin-theme .shell-sidebar.sidebar-expanded .nav-section-trigger {
+  max-height: 3rem !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  justify-content: space-between !important;
+  padding-left: 0.5rem !important;
+  padding-right: 0.5rem !important;
+}
+
+.super-admin-theme .shell-sidebar.sidebar-expanded .nav-section-trigger-chevron {
+  opacity: 1 !important;
+  transform: scale(1) !important;
+}
+
+/* Active and Hover Item overrides */
+.super-admin-theme .nav-item-active {
+  background: linear-gradient(135deg, var(--brand), var(--brand-deep)) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 8px 16px rgba(194, 65, 12, 0.2) !important;
+}
+
+.super-admin-theme .nav-item:hover:not(.nav-item-active) {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+
+/* Card overrides */
+.super-admin-theme .graph-card,
+.super-admin-theme .metric-card,
+.super-admin-theme .soft-card,
+.super-admin-theme .table-shell,
+.super-admin-theme .app-panel,
+.super-admin-theme .form-card,
+.super-admin-theme .data-card,
+.super-admin-theme .glass-panel {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05) !important;
+  color: #0f172a !important;
+}
+
+/* Header & Search UI overrides */
+.super-admin-theme .shell-header {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05) !important;
+}
+
+.super-admin-theme .shell-search,
+.super-admin-theme .shell-profile-chip {
+  background: #f1f5f9 !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: none !important;
+}
+
+.super-admin-theme .shell-search input {
+  color: #0f172a !important;
+}
+
+.super-admin-theme .shell-search input::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Table light mode styling */
+.super-admin-theme .app-table thead {
+  background: #f8fafc !important;
+  color: #64748b !important;
+}
+
+.super-admin-theme .app-table th {
+  color: #64748b !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+.super-admin-theme .app-table td {
+  border-bottom: 1px solid #f1f5f9 !important;
+  color: #334155 !important;
+}
+
+.super-admin-theme .app-table tbody tr:hover {
+  background: #f8fafc !important;
+}
+
+/* Buttons */
+.super-admin-theme .primary-btn {
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-deep) 100%) !important;
+  border-color: rgba(194, 65, 12, 0.24) !important;
+  box-shadow: 0 8px 16px rgba(194, 65, 12, 0.2) !important;
+}
+
+.super-admin-theme .primary-btn:hover {
+  box-shadow: 0 12px 20px rgba(194, 65, 12, 0.3) !important;
+}
+
+.super-admin-theme .page-kicker {
+  color: var(--brand) !important;
+  background: var(--brand-mist) !important;
+  border-color: rgba(194, 65, 12, 0.2) !important;
+}
+
+.super-admin-theme .page-title-accent {
+  color: var(--brand) !important;
+}
+
+.super-admin-theme .page-title {
+  color: #0f172a !important;
+}
+
+.super-admin-theme .page-subtitle {
+  color: #64748b !important;
+}
+
+/* Status pills and helper badges */
+.super-admin-theme .status-pill {
+  background: var(--brand-mist) !important;
+  color: var(--brand) !important;
+}
+
+/* Mobile navigation bar */
+.super-admin-theme .mobile-nav {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05) !important;
+}
+
+.super-admin-theme .mobile-nav a.active {
+  background: var(--brand-mist) !important;
+  color: var(--brand) !important;
+}
+

@@ -4,6 +4,8 @@ import {
   ChevronDown,
   LogOut,
   Search,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { clearStoredUser, getStoredUser } from "../utils/auth";
 import NotificationCenter from "../components/NotificationCenter";
@@ -23,6 +25,15 @@ function SuperAdminLayout() {
   const [openGroups, setOpenGroups] = useState(() =>
     Object.fromEntries(superAdminMenuGroups.map((group) => [group.label, true])),
   );
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    return localStorage.getItem("super-admin-sidebar-collapsed") === "true";
+  });
+
+  const toggleSidebar = () => {
+    const nextState = !isCollapsed;
+    setIsCollapsed(nextState);
+    localStorage.setItem("super-admin-sidebar-collapsed", String(nextState));
+  };
 
   function handleLogout() {
     clearStoredUser();
@@ -37,22 +48,35 @@ function SuperAdminLayout() {
   }
 
   return (
-    <div className="app-shell relative overflow-hidden">
+    <div className="super-admin-theme app-shell relative overflow-hidden">
       <div className="ambient-orb left-[-120px] top-16 h-96 w-96 bg-[rgba(17,128,106,0.16)]" />
       <div className="ambient-orb bottom-8 right-[-90px] h-80 w-80 bg-[rgba(25,162,140,0.14)]" />
 
       <div className="shell-layout">
-        <aside className="glass-panel-dark shell-sidebar shell-sidebar-collapsible">
+        <aside className={`glass-panel-dark shell-sidebar ${isCollapsed ? "sidebar-collapsed" : "sidebar-expanded"}`}>
           <div className="sidebar-brand-block border-b border-white/10 pb-5">
-            <div className="flex items-center justify-center gap-3 lg:justify-start">
-              <div className="menu-brand-badge">K</div>
-              <div className="sidebar-reveal min-w-0">
-                <p className="menu-brand-title">KANDID</p>
-                <p className="menu-brand-copy">Admin</p>
+            <div className="flex flex-col items-center gap-3 lg:flex-row lg:justify-between w-full">
+              <div className="flex items-center gap-3">
+                <div className="menu-brand-badge flex items-center justify-center">
+                  <svg viewBox="0 0 24 24" width="28" height="28" className="w-7 h-7">
+                    <polygon points="12,2 22,7 12,12 2,7" fill="#ff7b35" />
+                    <polygon points="2,7 12,12 12,22 2,17" fill="#e24d17" />
+                    <polygon points="12,12 22,7 22,17 12,22" fill="#c2410c" />
+                  </svg>
+                </div>
+                <div className="sidebar-reveal min-w-0">
+                  <p className="menu-brand-title">KANDID</p>
+                  <p className="menu-brand-copy">Super Admin Portal</p>
+                </div>
               </div>
-            </div>
-            <div className="sidebar-brand-copy">
-              <p className="mt-4 menu-brand-copy">System-wide control for elections, users, and oversight.</p>
+
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                className="hidden lg:flex h-8 w-8 items-center justify-center rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition"
+              >
+                {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+              </button>
             </div>
           </div>
 
@@ -76,7 +100,7 @@ function SuperAdminLayout() {
                     <ChevronDown
                       size={15}
                       className={`nav-section-trigger-chevron transition-transform ${isGroupOpen ? "rotate-180" : ""}`}
-                    />
+                    /> 
                   </button>
                   <div className="nav-section-body" data-open={isGroupOpen}>
                     <div className="nav-section-inner mt-3 space-y-2">
