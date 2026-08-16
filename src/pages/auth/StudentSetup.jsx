@@ -1,18 +1,25 @@
 import { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Eye, Home, Mail, UserRound } from "lucide-react";
+import StudentAuthShell from "../../components/StudentAuthShell";
 import { supabase } from "../../lib/supabaseClient";
 
 function StudentSetup() {
-  const [studentNumber, setStudentNumber] = useState("");
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [studentNumber, setStudentNumber] = useState(
+    location.state?.studentNumber || "",
+  );
   const [student, setStudent] = useState(null);
-
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-
   const [loading, setLoading] = useState(false);
+  const [notFound, setNotFound] = useState(false);
 
-  async function handleCheckStudent(e) {
-    e.preventDefault();
+  async function handleCheckStudent(event) {
+    event.preventDefault();
     setLoading(true);
+    setNotFound(false);
 
     const { data, error } = await supabase
       .from("students")
@@ -21,14 +28,13 @@ function StudentSetup() {
       .single();
 
     if (error || !data) {
-      alert("Student ID not found. Please contact the Electoral Board.");
+      setNotFound(true);
       setLoading(false);
       return;
     }
 
     if (data.status === "active") {
-      alert("Your account is already activated. Please login.");
-      window.location.href = "/student-login";
+      navigate("/student-login", { replace: true });
       return;
     }
 
@@ -42,8 +48,8 @@ function StudentSetup() {
     setLoading(false);
   }
 
-  async function handleCompleteSetup(e) {
-    e.preventDefault();
+  async function handleCompleteSetup(event) {
+    event.preventDefault();
 
     if (password.length < 6) {
       alert("Password must be at least 6 characters.");
@@ -59,10 +65,7 @@ function StudentSetup() {
 
     const { error } = await supabase
       .from("students")
-      .update({
-        password: password,
-        status: "active",
-      })
+      .update({ password, status: "active" })
       .eq("id", student.id);
 
     if (error) {
@@ -71,154 +74,141 @@ function StudentSetup() {
       return;
     }
 
-    alert("Account setup complete. You can now login.");
-    window.location.href = "/student-login";
+    navigate("/student-login", { replace: true });
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f6f3ef] px-4">
-      <div className="bg-white p-8 rounded-2xl shadow-sm w-full max-w-md">
-        <h1 className="text-2xl font-black text-center text-[#ff5a1f]">
-          KANDID
-        </h1>
-
-        <p className="text-center text-gray-500 text-sm mt-1 mb-6">
-          Student Account Setup
-        </p>
-
+    <StudentAuthShell>
+      <div className="student-auth-card student-setup-card">
         {!student ? (
-          <form onSubmit={handleCheckStudent} className="space-y-4">
-            <div>
-              <label className="text-sm font-bold">Student ID Number</label>
-              <input
-                required
-                value={studentNumber}
-                onChange={(e) => setStudentNumber(e.target.value)}
-                placeholder="Enter your student ID"
-                className="w-full mt-1 px-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-[#ff5a1f]"
-              />
+          <form onSubmit={handleCheckStudent}>
+            <h2>Student Login</h2>
+            <p className="student-auth-subcopy">
+              Welcome back. Please enter your credentials to securely access
+              your student organization dashboard.
+            </p>
+
+            <div className="student-auth-fields">
+              <label>
+                <span>Student ID Number</span>
+                <input
+                  required
+                  value={studentNumber}
+                  onChange={(event) => setStudentNumber(event.target.value)}
+                  placeholder="e.g. 12345"
+                />
+              </label>
+
+              <button disabled={loading} className="student-auth-submit">
+                {loading ? "Verifying..." : "Verify Student ID"}
+              </button>
+            </div>
+
+            <div className="student-auth-divider">
+              <span />
+              <p>NEW USER</p>
+              <span />
             </div>
 
             <button
-              disabled={loading}
-              className="w-full bg-[#ff5a1f] text-white py-3 rounded-xl font-bold hover:bg-[#e24d17] disabled:opacity-60"
+              type="button"
+              onClick={() => navigate("/student-login")}
+              className="student-auth-setup-link"
             >
-              {loading ? "Checking..." : "Verify Student ID"}
+              <span className="student-auth-setup-icon">
+                <Home size={16} />
+              </span>
+              Already set up? <strong>Return to login</strong>
             </button>
 
-            <button
-              type="button"
-              onClick={() => (window.location.href = "/student-login")}
-              className="w-full text-sm text-gray-500 hover:underline"
-            >
-              Already set up? Login here
-            </button>
+            {notFound ? (
+              <p className="mt-5 text-center text-sm font-bold text-[#d34222]">
+                Student ID not found. Please see Electoral Board.
+              </p>
+            ) : null}
           </form>
         ) : (
-          <form onSubmit={handleCompleteSetup} className="space-y-4">
-            <div className="bg-orange-50 border border-orange-100 rounded-xl p-4">
-              <p className="text-sm text-gray-500">Verified Student</p>
-              <h2 className="text-lg font-black">
-                {student.first_name} {student.last_name}
-              </h2>
-              <p className="text-sm text-gray-600">
-                {student.student_number}
-              </p>
+          <form onSubmit={handleCompleteSetup}>
+            <h2 className="text-center">Student Set up</h2>
+
+            <div className="student-verified-id">
+              <strong>{student.student_number}</strong>
+              <span>Verified Student</span>
             </div>
 
-            <div>
-              <label className="text-sm font-bold">First Name</label>
-              <input
-                readOnly
-                value={student.first_name || ""}
-                className="w-full mt-1 px-4 py-3 border rounded-xl bg-gray-100 text-gray-600"
-              />
+            <div className="student-setup-grid">
+              <label>
+                <span>Last Name</span>
+                <div className="student-auth-password">
+                  <input readOnly value={student.last_name || ""} />
+                  <UserRound size={14} />
+                </div>
+              </label>
+
+              <label>
+                <span>First Name</span>
+                <div className="student-auth-password">
+                  <input readOnly value={student.first_name || ""} />
+                  <UserRound size={14} />
+                </div>
+              </label>
             </div>
 
-            <div>
-              <label className="text-sm font-bold">Last Name</label>
-              <input
-                readOnly
-                value={student.last_name || ""}
-                className="w-full mt-1 px-4 py-3 border rounded-xl bg-gray-100 text-gray-600"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-bold">Email</label>
-              <input
-                readOnly
-                value={student.email || ""}
-                className="w-full mt-1 px-4 py-3 border rounded-xl bg-gray-100 text-gray-600"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-sm font-bold">Program</label>
-                <input
-                  readOnly
-                  value={student.program || ""}
-                  className="w-full mt-1 px-4 py-3 border rounded-xl bg-gray-100 text-gray-600"
-                />
+            <label className="student-setup-label">
+              <span>Email Address *</span>
+              <div className="student-auth-password">
+                <input readOnly value={student.email || ""} />
+                <Mail size={14} />
               </div>
+            </label>
 
-              <div>
-                <label className="text-sm font-bold">Year Level</label>
+            <div className="student-setup-grid">
+              <label>
+                <span>Program</span>
+                <input readOnly value={student.program || ""} />
+              </label>
+
+              <label>
+                <span>Year Level</span>
+                <input readOnly value={student.year_level || ""} />
+              </label>
+            </div>
+
+            <label className="student-setup-label">
+              <span>Create Password</span>
+              <div className="student-auth-password">
                 <input
-                  readOnly
-                  value={student.year_level || ""}
-                  className="w-full mt-1 px-4 py-3 border rounded-xl bg-gray-100 text-gray-600"
+                  required
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="e.g. brendulinmaharliakatibapa"
                 />
+                <Eye size={14} />
               </div>
-            </div>
+            </label>
 
-            <div>
-              <label className="text-sm font-bold">Create Password</label>
-              <input
-                required
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Create password"
-                className="w-full mt-1 px-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-[#ff5a1f]"
-              />
-            </div>
+            <label className="student-setup-label">
+              <span>Confirm Password</span>
+              <div className="student-auth-password">
+                <input
+                  required
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  placeholder="e.g. brendulinmaharliakatibapa"
+                />
+                <Eye size={14} />
+              </div>
+            </label>
 
-            <div>
-              <label className="text-sm font-bold">Confirm Password</label>
-              <input
-                required
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm password"
-                className="w-full mt-1 px-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-[#ff5a1f]"
-              />
-            </div>
-
-            <button
-              disabled={loading}
-              className="w-full bg-[#ff5a1f] text-white py-3 rounded-xl font-bold hover:bg-[#e24d17] disabled:opacity-60"
-            >
-              {loading ? "Saving..." : "Complete Setup"}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setStudent(null);
-                setPassword("");
-                setConfirmPassword("");
-              }}
-              className="w-full text-sm text-gray-500 hover:underline"
-            >
-              Use another Student ID
+            <button disabled={loading} className="student-auth-submit mt-6">
+              {loading ? "Saving..." : "Complete Set Up"}
             </button>
           </form>
         )}
       </div>
-    </div>
+    </StudentAuthShell>
   );
 }
 

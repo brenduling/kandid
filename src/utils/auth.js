@@ -24,7 +24,7 @@ export function getDefaultRouteForUser(user) {
 
 export function getLoginRouteForRole(role) {
   if (role === "super_admin") return "/admin-login";
-  if (role === "electoral_board") return "/board-login";
+  if (role === "electoral_board") return "/eb-login";
   if (role === "student") return "/student-login";
   return "/admin-login";
 }

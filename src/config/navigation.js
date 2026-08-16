@@ -92,10 +92,8 @@ export const boardMenuGroups = [
 ];
 
 export const studentMenuItems = [
-  { name: "Dashboard", path: "/student/dashboard", icon: LayoutDashboard },
-  { name: "Vote", path: "/student/elections", icon: Vote },
-  { name: "Officers", path: "/student/officers", icon: Users },
-  { name: "Results", path: "/student/results", icon: Trophy },
+  { name: "Home", path: "/student/dashboard", icon: LayoutDashboard },
+  { name: "Election Overview", path: "/student/elections", icon: Building2 },
   { name: "Receipts", path: "/student/receipt", icon: FileText },
 ];
 

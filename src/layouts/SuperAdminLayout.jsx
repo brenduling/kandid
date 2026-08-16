@@ -11,12 +11,10 @@ import { clearStoredUser, getStoredUser } from "../utils/auth";
 import NotificationCenter from "../components/NotificationCenter";
 import MobileNav from "../components/MobileNav";
 import { getProfileRoute } from "../utils/profile";
+import logo from "../assets/kandidlogo.png";
 import {
-  flattenMenuGroups,
   superAdminMenuGroups,
 } from "../config/navigation";
-
-const mobileMenuItems = flattenMenuGroups(superAdminMenuGroups);
 
 function SuperAdminLayout() {
   const navigate = useNavigate();
@@ -57,13 +55,13 @@ function SuperAdminLayout() {
           <div className="sidebar-brand-block border-b border-white/10 pb-5">
             <div className="flex flex-col items-center gap-3 lg:flex-row lg:justify-between w-full">
               <div className="flex items-center gap-3">
-                <div className="menu-brand-badge flex items-center justify-center">
-                  <svg viewBox="0 0 24 24" width="28" height="28" className="w-7 h-7">
-                    <polygon points="12,2 22,7 12,12 2,7" fill="#ff7b35" />
-                    <polygon points="2,7 12,12 12,22 2,17" fill="#e24d17" />
-                    <polygon points="12,12 22,7 22,17 12,22" fill="#c2410c" />
-                  </svg>
-                </div>
+                
+                  <img
+                      src={logo}
+                      alt="KANDID Logo"
+                      className="h-12 w-12 object-contain"
+                    />     
+             
                 <div className="sidebar-reveal min-w-0">
                   <p className="menu-brand-title">KANDID</p>
                   <p className="menu-brand-copy">Super Admin Portal</p>
@@ -184,7 +182,7 @@ function SuperAdminLayout() {
         </main>
       </div>
 
-      <MobileNav items={mobileMenuItems} />
+      <MobileNav groups={superAdminMenuGroups} onLogout={handleLogout} />
     </div>
   );
 }

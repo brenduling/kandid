@@ -68,6 +68,7 @@ function App() {
 
         {/* ENTRY ROUTES */}
         <Route path="/admin-login" element={<AdminLogin />} />
+        <Route path="/eb-login" element={<BoardLogin />} />
         <Route path="/board-login" element={<BoardLogin />} />
         <Route path="/student-login" element={<StudentLogin />} />
 

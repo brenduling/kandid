@@ -1,6 +1,4 @@
-import { useNavigate } from "react-router-dom";
 import {
-  ArrowRight,
   Binary,
   CheckCircle2,
   GraduationCap,
@@ -11,8 +9,6 @@ import {
 } from "lucide-react";
 
 function Home() {
-  const navigate = useNavigate();
-
   return (
     <div className="app-shell relative flex min-h-screen items-center overflow-hidden px-6 py-10">
       <div className="ambient-orb left-[-110px] top-20 h-96 w-96 bg-[rgba(17,128,106,0.18)]" />
@@ -37,22 +33,15 @@ function Home() {
             glass dashboard that feels institutional, secure, and production-ready.
           </p>
 
-          <div className="mt-8 flex flex-wrap gap-4">
-            <button
-              onClick={() => navigate("/student-login")}
-              className="primary-btn"
-            >
-              <GraduationCap size={18} />
-              Enter as Student
-            </button>
-
-            <button
-              onClick={() => navigate("/board-login")}
-              className="secondary-btn"
-            >
-              <ShieldCheck size={18} />
-              Enter as Electoral Board
-            </button>
+          <div className="mt-8 max-w-2xl rounded-[28px] border border-white/10 bg-white/5 px-5 py-4">
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-white/48">
+              Direct Portal Access
+            </p>
+            <p className="mt-2 text-sm leading-6 text-white/70">
+              Use the login link provided by your organization. Student and
+              Electoral Board accounts now enter through separate role-specific
+              URLs.
+            </p>
           </div>
 
           <div className="mt-6 flex flex-wrap gap-3">
@@ -155,13 +144,10 @@ function Home() {
               after submission.
             </p>
 
-            <button
-              onClick={() => navigate("/student-setup")}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl border border-[rgba(34,211,238,0.18)] bg-[rgba(37,99,235,0.12)] px-5 py-4 text-sm font-bold text-[#8fe9f7]"
-            >
-              Set up student account
-              <ArrowRight size={16} />
-            </button>
+            <p className="surface-muted mt-6 rounded-2xl border border-[rgba(34,211,238,0.12)] bg-white/35 px-5 py-4 text-sm font-bold">
+              Students should open the student portal link assigned by their
+              organization.
+            </p>
           </div>
 
           <div className="glass-panel-dark rounded-[34px] p-7 text-white">

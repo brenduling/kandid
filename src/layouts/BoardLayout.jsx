@@ -10,6 +10,7 @@ import NotificationCenter from "../components/NotificationCenter";
 import MobileNav from "../components/MobileNav";
 import { getProfileRoute } from "../utils/profile";
 import { boardMenuGroups, flattenMenuGroups } from "../config/navigation";
+import logo from "../assets/kandidlogo.png";
 
 const mobileMenuItems = flattenMenuGroups(boardMenuGroups);
 
@@ -23,7 +24,7 @@ function BoardLayout() {
 
   useEffect(() => {
     if (!user || user.role !== "electoral_board") {
-      navigate("/board-login");
+      navigate("/eb-login");
     }
   }, [navigate, user]);
 
@@ -31,7 +32,7 @@ function BoardLayout() {
     if (!window.confirm("Are you sure you want to logout?")) return;
 
     clearStoredUser();
-    navigate("/board-login", { replace: true });
+    navigate("/eb-login", { replace: true });
   }
 
   function toggleGroup(label) {
@@ -42,22 +43,28 @@ function BoardLayout() {
   }
 
   return (
-    <div className="app-shell relative overflow-hidden">
-      <div className="ambient-orb left-[-100px] top-32 h-80 w-80 bg-[rgba(25,162,140,0.16)]" />
-      <div className="ambient-orb bottom-12 right-[-80px] h-72 w-72 bg-[rgba(17,128,106,0.12)]" />
+    <div className="app-shell relative overflow-hidden">  {/*sidebar wrapper*/}
+      <div className="ambient-orb left-[-100px] top-32 h-80 w-80 bg-[rgba(25,162,140,0.16)]" /> {/*questionnable?*/}
+      <div className="ambient-orb bottom-12 right-[-80px] h-72 w-72 bg-[rgba(17,128,106,0.12)]" />  {/*questionnable?*/}
 
       <div className="shell-layout">
-        <aside className="glass-panel-dark shell-sidebar shell-sidebar-collapsible">
-          <div className="sidebar-brand-block border-b border-white/10 pb-5">
+        <aside className="glass-panel-dark shell-sidebar shell-sidebar-collapsible"> {/*allow collapsing of sidebar*/}
+          <div className="sidebar-brand-block border-b border-white/10 pb-5">  {/*displays at the top of the sidebar means fixed*/}
             <div className="flex items-center justify-center gap-3 lg:justify-start">
-              <div className="menu-brand-badge">K</div>
+              
+  <img
+    src={logo}
+    alt="KANDID Logo"
+    className="h-12 w-12 object-contain"
+  />                                                                      {/*added logo image here (July 15, 2026) */}
+
               <div className="sidebar-reveal min-w-0">
                 <p className="menu-brand-title">KANDID</p>
-                <p className="menu-brand-copy">Board</p>
+                <p className="menu-brand-copy">Electoral Board</p>
               </div>
             </div>
             <div className="sidebar-brand-copy">
-              <p className="mt-4 menu-brand-copy">Election setup, candidates, and monitoring for your organization.</p>
+              <p className="mt-4 menu-brand-copy">Set up Elections and Monitor the Organization.</p>
             </div>
           </div>
 
@@ -122,8 +129,13 @@ function BoardLayout() {
           </button>
         </aside>
 
-        <main className="workspace-main">
-          <header className="glass-panel shell-header fade-up">
+
+{/*main content area*/}
+
+        <main className="workspace-main"> 
+
+          {/*header area*/}
+          <header className="glass-panel shell-header fade-up"> 
             <div className="glass-panel-strong shell-search lg:max-w-xl">
               <Search size={18} className="text-gray-400" />
               <input
