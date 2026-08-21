@@ -91,7 +91,6 @@ a:active {
   background: rgba(34, 211, 238, 0.18);
 }
 
-@layer components {
  .app-shell {
   @apply min-h-screen;
   background: #2F3131;
@@ -651,6 +650,200 @@ a:active {
     color: #1d262f;
   }
 
+  .table-head {
+    background: linear-gradient(135deg, rgba(5, 11, 23, 0.98), rgba(15, 35, 72, 0.92));
+  }
+
+  .app-table {
+    @apply w-full min-w-full text-left;
+    border-collapse: separate;
+    border-spacing: 0;
+    color: #1d262f;
+  }
+
+  .app-table thead {
+    background: linear-gradient(135deg, rgba(8, 10, 14, 0.98), rgba(24, 26, 33, 0.96));
+    color: #f7f5ef;
+  }
+
+  .app-table th {
+    @apply px-6 py-4 text-xs font-bold uppercase tracking-[0.18em];
+    color: rgba(247, 245, 239, 0.8);
+  }
+
+  .app-table td {
+    @apply px-6 py-4 align-top text-sm;
+    border-bottom: 1px solid rgba(255, 115, 22, 0.08);
+  }
+
+  .app-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .app-table tbody tr {
+    transition:
+      background-color 180ms ease,
+      transform 180ms ease;
+  }
+
+  .app-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.18);
+  }
+
+  .toolbar-row {
+    @apply mt-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between;
+  }
+
+  .search-shell {
+    @apply flex items-center gap-3 rounded-2xl px-4 py-3;
+    width: min(100%, 26rem);
+    background: rgba(216, 204, 160, 0.92);
+    border: 1px solid rgba(255, 115, 22, 0.12);
+    box-shadow: var(--shadow-soft);
+  }
+
+  .search-shell input {
+    @apply w-full bg-transparent text-sm outline-none;
+    color: #1d262f;
+  }
+
+  .search-shell input::placeholder {
+    color: rgba(29, 38, 47, 0.56);
+  }
+
+  .icon-action {
+    @apply flex h-10 w-10 items-center justify-center rounded-xl;
+    background: rgba(255, 255, 255, 0.72);
+    color: #1d1d1d;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+  }
+
+  .icon-action:hover {
+    background: rgba(255, 255, 255, 0.95);
+  }
+
+  .icon-action-danger {
+    background: rgba(248, 113, 113, 0.16);
+    color: #b91c1c;
+  }
+
+  .icon-action-danger:hover {
+    background: rgba(248, 113, 113, 0.26);
+  }
+
+  .upload-shell {
+    @apply rounded-[24px] border p-4;
+    border-color: rgba(255, 115, 22, 0.14);
+    background: rgba(255, 255, 255, 0.36);
+  }
+
+  .empty-copy {
+    @apply text-sm font-semibold;
+    color: rgba(29, 38, 47, 0.52);
+  }
+
+  .metric-card {
+    @apply rounded-[28px] p-5;
+    background: rgba(216, 204, 160, 0.96);
+    border: 1px solid rgba(255, 115, 22, 0.12);
+    box-shadow: var(--shadow-soft);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    color: #1d262f;
+  }
+
+  .soft-card {
+    @apply rounded-[28px] p-5;
+    background: rgba(216, 204, 160, 0.96);
+    border: 1px solid rgba(255, 115, 22, 0.1);
+    box-shadow: var(--shadow-soft);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    color: #1d262f;
+  }
+
+  .trust-card {
+    @apply rounded-[30px] p-5;
+    background:
+      linear-gradient(135deg, rgba(5, 6, 8, 0.98), rgba(15, 16, 20, 0.94)),
+      radial-gradient(circle at top right, rgba(255, 115, 22, 0.12), transparent 36%);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: var(--shadow-float);
+    color: white;
+  }
+
+  .secure-badge {
+    @apply inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.18em];
+    background: rgba(255, 115, 22, 0.1);
+    color: #ff7a35;
+    border: 1px solid rgba(255, 115, 22, 0.2);
+  }
+
+  .ballot-choice {
+    @apply rounded-[24px] border p-5 text-left;
+    border-color: rgba(255, 115, 22, 0.12);
+    background: rgba(216, 204, 160, 0.98);
+    box-shadow: var(--shadow-soft);
+    transition:
+      transform 180ms ease,
+      box-shadow 180ms ease,
+      border-color 180ms ease,
+      background-color 180ms ease;
+  }
+
+  .ballot-choice:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-float);
+  }
+
+  .ballot-choice-active {
+    border-color: rgba(255, 115, 22, 0.28);
+    background: linear-gradient(135deg, rgba(255, 115, 22, 0.14), rgba(223, 210, 168, 0.98));
+  }
+
+  .info-row {
+    @apply flex items-center justify-between rounded-2xl border px-4 py-3.5;
+    border-color: rgba(255, 115, 22, 0.1);
+    background: rgba(223, 210, 168, 0.84);
+  }
+
+  .empty-state {
+    @apply rounded-[28px] p-7 text-sm;
+    background: rgba(216, 204, 160, 0.94);
+    border: 1px solid rgba(255, 115, 22, 0.08);
+    color: var(--text-soft);
+    box-shadow: var(--shadow-soft);
+  }
+
+  .lift-card {
+    transition:
+      transform 220ms ease,
+      box-shadow 220ms ease,
+      border-color 220ms ease;
+  }
+
+  .lift-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-float);
+    border-color: rgba(255, 115, 22, 0.18);
+  }
+
+  .section-grid {
+    @apply mt-8 grid gap-6;
+  }
+
+  .entity-grid {
+    @apply mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-3;
+  }
+
+  .entity-card {
+    @apply rounded-[28px] p-5;
+    background: rgba(216, 204, 160, 0.96);
+    border: 1px solid rgba(255, 115, 22, 0.12);
+    box-shadow: var(--shadow-soft);
+    color: #1d262f;
+  }
+
   .entity-card-title {
     @apply text-xl font-black tracking-tight;
     color: #1d262f;
@@ -666,7 +859,59 @@ a:active {
   }
 
   .fade-up {
-    animation: fadeUp 460ms ease both;
+    animation: fadeUp 200ms ease both;
+  }
+
+  /* Page transition animations */
+  @keyframes pageFadeInScale {
+    0% {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  @keyframes pageFadeOutScale {
+    0% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+  }
+  .page-enter {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  .page-enter-active {
+    animation: pageFadeInScale 300ms ease forwards;
+  }
+  .page-exit {
+    opacity: 1;
+    transform: scale(1);
+  }
+  .page-exit-active {
+    animation: pageFadeOutScale 300ms ease forwards;
+  }
+
+  /* Splash screen animation */
+  @keyframes splashFadeIn {
+    0% { opacity: 0; transform: scale(0.9); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  .splash-screen {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-base);
+    animation: splashFadeIn 300ms ease forwards;
+    z-index: 9999;
   }
 
   .mobile-nav {
@@ -1127,7 +1372,6 @@ a:active {
   .modal-card .text-gray-400 {
     color: #847b69;
   }
-}
 
 .student-auth-screen {
   min-height: 100vh;

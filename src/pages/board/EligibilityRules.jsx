@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
 import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
+import { usePrompt } from "../../context/PromptContext";
 
 function BoardEligibilityRules() {
+  const prompt = usePrompt();
   const [rules, setRules] = useState([]);
   const [elections, setElections] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
@@ -106,12 +108,22 @@ function BoardEligibilityRules() {
     };
 
     if (editing) {
-      await supabase
+      const { error } = await supabase
         .from("eligibility_rules")
         .update(payload)
         .eq("id", editing.id);
+      if (error) {
+        prompt.error(error.message || "Failed to update eligibility rule.");
+        return;
+      }
+      prompt.success("Eligibility rule updated.");
     } else {
-      await supabase.from("eligibility_rules").insert([payload]);
+      const { error } = await supabase.from("eligibility_rules").insert([payload]);
+      if (error) {
+        prompt.error(error.message || "Failed to create eligibility rule.");
+        return;
+      }
+      prompt.success("Eligibility rule created.");
     }
 
     setFormOpen(false);
@@ -119,9 +131,20 @@ function BoardEligibilityRules() {
   }
 
   async function handleDelete(id) {
-    if (!window.confirm("Delete this eligibility rule?")) return;
+    const ok = await prompt.confirm({
+      title: "Delete Eligibility Rule?",
+      message: "Are you sure you want to delete this eligibility rule?",
+      type: "danger",
+      confirmText: "Delete Rule",
+    });
+    if (!ok) return;
 
-    await supabase.from("eligibility_rules").delete().eq("id", id);
+    const { error } = await supabase.from("eligibility_rules").delete().eq("id", id);
+    if (error) {
+      prompt.error(error.message || "Failed to delete rule.");
+      return;
+    }
+    prompt.success("Eligibility rule deleted.");
     fetchRules();
   }
 

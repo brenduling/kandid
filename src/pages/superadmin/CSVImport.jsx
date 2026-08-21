@@ -114,8 +114,11 @@ function CSVImport() {
         (org) => org.name.toUpperCase() === programOrgName.toUpperCase(),
       );
 
-      if (!student.is_shs && witsgOrg) {
-        memberships.push({
+      // Ensure each imported student is linked to both the WITSG organization and their program organization.
+      const orgLinks = [];
+
+      if (witsgOrg) {
+        orgLinks.push({
           student_id: student.id,
           organization_id: witsgOrg.id,
           role: "member",
@@ -123,11 +126,18 @@ function CSVImport() {
       }
 
       if (programOrg) {
-        memberships.push({
-          student_id: student.id,
-          organization_id: programOrg.id,
-          role: "member",
-        });
+        // Avoid duplicate if program organization is WITSG
+        if (!orgLinks.some((link) => link.organization_id === programOrg.id)) {
+          orgLinks.push({
+            student_id: student.id,
+            organization_id: programOrg.id,
+            role: "member",
+          });
+        }
+      }
+
+      if (orgLinks.length > 0) {
+        memberships.push(...orgLinks);
       }
     });
 

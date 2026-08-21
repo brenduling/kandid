@@ -7,8 +7,10 @@ import {
   normalizeCampaignMaterialsInput,
   parseCampaignMaterials,
 } from "../../utils/candidates";
+import { usePrompt } from "../../context/PromptContext";
 
 function Candidates() {
+  const prompt = usePrompt();
   const [candidates, setCandidates] = useState([]);
   const [positions, setPositions] = useState([]);
   const [students, setStudents] = useState([]);
@@ -172,7 +174,11 @@ function Candidates() {
     const materials = normalizeCampaignMaterialsInput(form.campaign_materials);
 
     if (materials.length > 3) {
-      alert("Only 1 to 3 campaign materials are allowed per candidate.");
+      await prompt.alert({
+        title: "Campaign Limit",
+        message: "Only 1 to 3 campaign materials are allowed per candidate.",
+        type: "warning",
+      });
       return;
     }
 
@@ -196,23 +202,31 @@ function Candidates() {
 
     if (error) {
       console.error("Candidate save failed:", error);
-      alert(error.message);
+      prompt.error(error.message || "Failed to save candidate.");
       return;
     }
 
+    prompt.success(editingCandidate ? "Candidate updated." : "Candidate created.");
     setFormOpen(false);
     fetchCandidates();
   }
 
   async function handleDelete(id) {
-    if (!window.confirm("Delete this candidate?")) return;
+    const ok = await prompt.confirm({
+      title: "Delete Candidate?",
+      message: "Are you sure you want to remove this candidate?",
+      type: "danger",
+      confirmText: "Delete",
+    });
+    if (!ok) return;
 
     const { error } = await supabase.from("candidates").delete().eq("id", id);
     if (error) {
       console.error("Candidate delete failed:", error);
-      alert(error.message || "Failed to delete candidate.");
+      prompt.error(error.message || "Failed to delete candidate.");
       return;
     }
+    prompt.success("Candidate deleted.");
     fetchCandidates();
   }
 

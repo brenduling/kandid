@@ -10,13 +10,25 @@ import {
   TOKEN_SCOPE_TYPES,
   VOTING_ACCESS_MODES,
 } from "../../utils/votingAccess";
+import { usePrompt } from "../../context/PromptContext";
 
 function Elections() {
+  const prompt = usePrompt();
   const [elections, setElections] = useState([]);
   const [organizations, setOrganizations] = useState([]);
   const [accessTokens, setAccessTokens] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
   const [editingElection, setEditingElection] = useState(null);
+
+  // Position management for the selected election
+  const [positions, setPositions] = useState([]);
+  const [positionsOpen, setPositionsOpen] = useState(false);
+  const [selectedElection, setSelectedElection] = useState(null);
+  const [editingPosition, setEditingPosition] = useState(null);
+  const [positionForm, setPositionForm] = useState({
+    name: "",
+    max_votes: 1,
+  });
   const [tokenForm, setTokenForm] = useState({
     scope_type: "general",
     scope_value: "",
@@ -64,6 +76,154 @@ function Elections() {
       .order("id", { ascending: true });
 
     if (!error) setElections(data || []);
+  }
+
+  async function fetchPositions(electionId) {
+    const { data, error } = await supabase
+      .from("positions")
+      .select("*")
+      .eq("election_id", electionId)
+      .order("id", { ascending: true });
+
+    if (error) {
+      console.error("Failed to load positions:", error);
+      prompt.error(error.message || "Failed to load positions.");
+      return;
+    }
+
+    setPositions(data || []);
+  }
+
+  async function openPositions(election) {
+    setSelectedElection(election);
+    setEditingPosition(null);
+    setPositionForm({
+      name: "",
+      max_votes: 1,
+    });
+    setPositionsOpen(true);
+    await fetchPositions(election.id);
+  }
+
+  function closePositions() {
+    setPositionsOpen(false);
+    setSelectedElection(null);
+    setPositions([]);
+    setEditingPosition(null);
+    setPositionForm({
+      name: "",
+      max_votes: 1,
+    });
+  }
+
+  function openCreatePositionForm() {
+    setEditingPosition(null);
+    setPositionForm({
+      name: "",
+      max_votes: 1,
+    });
+  }
+
+  function openEditPositionForm(position) {
+    setEditingPosition(position);
+    setPositionForm({
+      name: position.name || "",
+      max_votes: position.max_votes || 1,
+    });
+  }
+
+  async function handlePositionSubmit(e) {
+    e.preventDefault();
+
+    if (!selectedElection) {
+      prompt.error("No election selected.");
+      return;
+    }
+
+    const name = positionForm.name.trim();
+    const maxVotes = Number(positionForm.max_votes);
+
+    if (!name) {
+      prompt.error("Position name is required.");
+      return;
+    }
+
+    if (!Number.isInteger(maxVotes) || maxVotes < 1) {
+      prompt.error("Maximum votes must be at least 1.");
+      return;
+    }
+
+    const payload = {
+      election_id: selectedElection.id,
+      name,
+      max_votes: maxVotes,
+    };
+
+    if (editingPosition) {
+      const { error } = await supabase
+        .from("positions")
+        .update({
+          name: payload.name,
+          max_votes: payload.max_votes,
+        })
+        .eq("id", editingPosition.id);
+
+      if (error) {
+        console.error("Position update failed:", error);
+        prompt.error(error.message || "Failed to update position.");
+        return;
+      }
+
+      prompt.success("Position updated.");
+    } else {
+      const { error } = await supabase
+        .from("positions")
+        .insert([payload]);
+
+      if (error) {
+        console.error("Position creation failed:", error);
+        prompt.error(error.message || "Failed to create position.");
+        return;
+      }
+
+      prompt.success("Position created.");
+    }
+
+    setEditingPosition(null);
+    setPositionForm({
+      name: "",
+      max_votes: 1,
+    });
+
+    await fetchPositions(selectedElection.id);
+  }
+
+  async function handleDeletePosition(position) {
+    const confirmDelete = await prompt.confirm({
+      title: "Delete Position?",
+      message: `Are you sure you want to delete "${position.name}"? If candidates are connected to this position, the database may prevent deletion.`,
+      type: "danger",
+      confirmText: "Delete Position",
+    });
+
+    if (!confirmDelete) return;
+
+    const { error } = await supabase
+      .from("positions")
+      .delete()
+      .eq("id", position.id);
+
+    if (error) {
+      console.error("Position deletion failed:", error);
+      prompt.error(
+        error.message ||
+        "This position cannot be deleted because it is being used by another record."
+      );
+      return;
+    }
+
+    prompt.success("Position deleted.");
+    await fetchPositions(selectedElection.id);
   }
 
   function openCreateForm() {
@@ -164,10 +324,11 @@ function Elections() {
     const error = result?.error;
     if (error) {
       console.error("Election save failed:", error);
-      alert(error.message || "Failed to save election.");
+      prompt.error(error.message || "Failed to save election.");
       return;
     }
 
+    prompt.success(editingElection ? "Election updated." : "Election created.");
     setFormOpen(false);
     fetchElections();
   }
@@ -189,10 +350,11 @@ function Elections() {
     const { error } = await supabase.from("election_access_tokens").insert([payload]);
 
     if (error) {
-      alert(error.message || "Failed to create access token.");
+      prompt.error(error.message || "Failed to create access token.");
       return;
     }
 
+    prompt.success("Access token created.");
     await fetchAccessTokens(editingElection.id);
     setTokenForm({
       scope_type: "general",
@@ -208,18 +370,29 @@ function Elections() {
       .eq("id", tokenRow.id);
 
     if (error) {
-      alert(error.message || "Failed to update token.");
+      prompt.error(error.message || "Failed to update token.");
       return;
     }
 
+    prompt.info(`Token ${!tokenRow.is_active ? "activated" : "deactivated"}.`);
     await fetchAccessTokens(editingElection.id);
   }
 
   async function handleDelete(id) {
-    const confirmDelete = window.confirm("Delete this election?");
+    const confirmDelete = await prompt.confirm({
+      title: "Delete Election?",
+      message: "Are you sure you want to delete this election? Associated ballots and candidates may be affected.",
+      type: "danger",
+      confirmText: "Delete Election",
+    });
     if (!confirmDelete) return;
 
-    await supabase.from("elections").delete().eq("id", id);
+    const { error } = await supabase.from("elections").delete().eq("id", id);
+    if (error) {
+      prompt.error(error.message || "Failed to delete election.");
+      return;
+    }
+    prompt.success("Election deleted.");
     fetchElections();
   }
 
@@ -272,7 +445,18 @@ function Elections() {
             ) : (
               elections.map((election) => (
                 <tr key={election.id} className="border-b last:border-b-0">
-                  <td className="px-6 py-4 font-bold">{election.title}</td>
+                  <td className="px-6 py-4 font-bold">
+                    <button
+                      type="button"
+                      onClick={() => openPositions(election)}
+                      className="text-left font-black transition-colors hover:text-[#ff5a1f]"
+                    >
+                      {election.title}
+                      <span className="mt-1 block text-xs font-normal text-gray-400">
+                        Click to manage positions
+                      </span>
+                    </button>
+                  </td>
                   <td className="px-6 py-4">
                     {election.organizations?.name || "Unknown"}
                   </td>
@@ -323,6 +507,183 @@ function Elections() {
           </tbody>
         </table>
       </div>
+
+      {positionsOpen && selectedElection && (
+        <PopupOverlay>
+          <div className="modal-card max-w-4xl">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <p className="field-label">Ballot Structure</p>
+                <h2 className="text-2xl font-black">
+                  {selectedElection.title}
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Manage the positions available for this election.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closePositions}
+                className="p-2 rounded-lg hover:bg-gray-100"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-black">
+                    {editingPosition ? "Edit Position" : "Add Position"}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    Define the position and maximum number of candidates a voter may select.
+                  </p>
+                </div>
+
+                {editingPosition && (
+                  <button
+                    type="button"
+                    onClick={openCreatePositionForm}
+                    className="secondary-btn"
+                  >
+                    Cancel Edit
+                  </button>
+                )}
+              </div>
+
+              <form
+                onSubmit={handlePositionSubmit}
+                className="mt-4 grid gap-4 md:grid-cols-[1fr_180px_auto]"
+              >
+                <div>
+                  <label className="field-label">Position Name</label>
+                  <input
+                    required
+                    value={positionForm.name}
+                    onChange={(e) =>
+                      setPositionForm({
+                        ...positionForm,
+                        name: e.target.value,
+                      })
+                    }
+                    placeholder="e.g. President"
+                    className="field-shell w-full"
+                  />
+                </div>
+
+                <div>
+                  <label className="field-label">Max Votes</label>
+                  <input
+                    required
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={positionForm.max_votes}
+                    onChange={(e) =>
+                      setPositionForm({
+                        ...positionForm,
+                        max_votes: e.target.value,
+                      })
+                    }
+                    className="field-shell w-full"
+                  />
+                </div>
+
+                <div className="flex items-end">
+                  <button type="submit" className="primary-btn w-full">
+                    {editingPosition ? "Save Changes" : "Add Position"}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <div className="mt-6">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-black">Available Positions</h3>
+                  <p className="text-sm text-gray-500">
+                    {positions.length} position{positions.length !== 1 ? "s" : ""} configured.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={openCreatePositionForm}
+                  className="secondary-btn"
+                >
+                  <Plus size={16} />
+                  Add Position
+                </button>
+              </div>
+
+              {positions.length === 0 ? (
+                <div className="empty-state">
+                  No positions configured for this election yet.
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+                  {positions.map((position) => (
+                    <div
+                      key={position.id}
+                      className="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between"
+                    >
+                      <div>
+                        <h4 className="text-lg font-black">
+                          {position.name}
+                        </h4>
+                        <p className="mt-1 text-sm text-gray-500">
+                          Voter can select up to{" "}
+                          <span className="font-bold text-gray-800">
+                            {position.max_votes}
+                          </span>{" "}
+                          candidate{position.max_votes !== 1 ? "s" : ""}.
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-700">
+                          {position.max_votes} vote
+                          {position.max_votes !== 1 ? "s" : ""}
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={() => openEditPositionForm(position)}
+                          className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200"
+                          title="Edit position"
+                        >
+                          <Pencil size={16} />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeletePosition(position)}
+                          className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-200"
+                          title="Delete position"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={closePositions}
+                className="secondary-btn"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </PopupOverlay>
+      )}
 
       {formOpen && (
         <PopupOverlay>

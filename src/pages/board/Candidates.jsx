@@ -7,8 +7,10 @@ import {
   normalizeCampaignMaterialsInput,
   parseCampaignMaterials,
 } from "../../utils/candidates";
+import { usePrompt } from "../../context/PromptContext";
 
 function BoardCandidates() {
+  const prompt = usePrompt();
   const [candidates, setCandidates] = useState([]);
   const [positions, setPositions] = useState([]);
   const [students, setStudents] = useState([]);
@@ -244,7 +246,11 @@ function BoardCandidates() {
     const materials = normalizeCampaignMaterialsInput(form.campaign_materials);
 
     if (materials.length > 3) {
-      alert("Only 1 to 3 campaign materials are allowed per candidate.");
+      await prompt.alert({
+        title: "Campaign Limit",
+        message: "Only 1 to 3 campaign materials are allowed per candidate.",
+        type: "warning",
+      });
       return;
     }
 
@@ -267,18 +273,30 @@ function BoardCandidates() {
     const { error } = await query;
 
     if (error) {
-      alert(error.message);
+      prompt.error(error.message);
       return;
     }
 
+    prompt.success(editingCandidate ? "Candidate updated." : "Candidate created.");
     setFormOpen(false);
     refreshCandidates();
   }
 
   async function handleDelete(id) {
-    if (!window.confirm("Delete this candidate?")) return;
+    const ok = await prompt.confirm({
+      title: "Delete Candidate?",
+      message: "Are you sure you want to remove this candidate?",
+      type: "danger",
+      confirmText: "Delete",
+    });
+    if (!ok) return;
 
-    await supabase.from("candidates").delete().eq("id", id);
+    const { error } = await supabase.from("candidates").delete().eq("id", id);
+    if (error) {
+      prompt.error(error.message || "Failed to delete candidate.");
+      return;
+    }
+    prompt.success("Candidate deleted.");
     refreshCandidates();
   }
 

@@ -7,10 +7,12 @@ import logo from "../assets/kandidlogo.png";
 import { clearStoredUser, getStoredUser } from "../utils/auth";
 import { getProfileRoute } from "../utils/profile";
 import { studentMenuItems } from "../config/navigation";
+import { usePrompt } from "../context/PromptContext";
 
 function StudentLayout() {
   const navigate = useNavigate();
   const user = getStoredUser();
+  const prompt = usePrompt();
 
   useEffect(() => {
     if (!user || user.role !== "student") {
@@ -18,8 +20,14 @@ function StudentLayout() {
     }
   }, [navigate, user]);
 
-  function handleLogout() {
-    if (!window.confirm("Logout?")) return;
+  async function handleLogout() {
+    const ok = await prompt.confirm({
+      title: "Logout Confirmation",
+      message: "Are you sure you want to sign out of the Student Portal?",
+      type: "warning",
+      confirmText: "Logout",
+    });
+    if (!ok) return;
 
     clearStoredUser();
     navigate("/student-login", { replace: true });

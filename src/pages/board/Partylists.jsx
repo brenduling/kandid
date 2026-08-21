@@ -3,8 +3,10 @@ import { Plus, Pencil, Trash2, X } from "lucide-react";
 import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
 import { readFileAsDataUrl } from "../../utils/files";
+import { usePrompt } from "../../context/PromptContext";
 
 function BoardPartylists() {
+  const prompt = usePrompt();
   const [partylists, setPartylists] = useState([]);
   const [elections, setElections] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
@@ -104,12 +106,22 @@ function BoardPartylists() {
     };
 
     if (editing) {
-      await supabase
+      const { error } = await supabase
         .from("partylists")
         .update(payload)
         .eq("id", editing.id);
+      if (error) {
+        prompt.error(error.message || "Failed to update partylist.");
+        return;
+      }
+      prompt.success("Partylist updated.");
     } else {
-      await supabase.from("partylists").insert([payload]);
+      const { error } = await supabase.from("partylists").insert([payload]);
+      if (error) {
+        prompt.error(error.message || "Failed to create partylist.");
+        return;
+      }
+      prompt.success("Partylist created.");
     }
 
     setFormOpen(false);
@@ -117,9 +129,20 @@ function BoardPartylists() {
   }
 
   async function handleDelete(id) {
-    if (!window.confirm("Delete this partylist?")) return;
+    const ok = await prompt.confirm({
+      title: "Delete Partylist?",
+      message: "Are you sure you want to delete this partylist?",
+      type: "danger",
+      confirmText: "Delete",
+    });
+    if (!ok) return;
 
-    await supabase.from("partylists").delete().eq("id", id);
+    const { error } = await supabase.from("partylists").delete().eq("id", id);
+    if (error) {
+      prompt.error(error.message || "Failed to delete partylist.");
+      return;
+    }
+    prompt.success("Partylist deleted.");
     fetchPartylists();
   }
 

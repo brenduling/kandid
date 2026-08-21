@@ -9,15 +9,16 @@ import { clearStoredUser, getStoredUser } from "../utils/auth";
 import NotificationCenter from "../components/NotificationCenter";
 import MobileNav from "../components/MobileNav";
 import { getProfileRoute } from "../utils/profile";
-import { boardMenuGroups, flattenMenuGroups } from "../config/navigation";
+import { boardMenuGroups } from "../config/navigation";
 import logo from "../assets/kandidlogo.png";
-
-const mobileMenuItems = flattenMenuGroups(boardMenuGroups);
+import TransitionWrapper from "../components/TransitionWrapper";
+import { usePrompt } from "../context/PromptContext";
 
 function BoardLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const user = getStoredUser();
+  const prompt = usePrompt();
   const [openGroups, setOpenGroups] = useState(() =>
     Object.fromEntries(boardMenuGroups.map((group) => [group.label, true])),
   );
@@ -28,8 +29,14 @@ function BoardLayout() {
     }
   }, [navigate, user]);
 
-  function handleLogout() {
-    if (!window.confirm("Are you sure you want to logout?")) return;
+  async function handleLogout() {
+    const ok = await prompt.confirm({
+      title: "Logout Confirmation",
+      message: "Are you sure you want to sign out of your Electoral Board account?",
+      type: "warning",
+      confirmText: "Logout",
+    });
+    if (!ok) return;
 
     clearStoredUser();
     navigate("/eb-login", { replace: true });
@@ -43,20 +50,19 @@ function BoardLayout() {
   }
 
   return (
-    <div className="app-shell relative overflow-hidden">  {/*sidebar wrapper*/}
-      <div className="ambient-orb left-[-100px] top-32 h-80 w-80 bg-[rgba(25,162,140,0.16)]" /> {/*questionnable?*/}
-      <div className="ambient-orb bottom-12 right-[-80px] h-72 w-72 bg-[rgba(17,128,106,0.12)]" />  {/*questionnable?*/}
+    <div className="app-shell relative overflow-hidden">
+      <div className="ambient-orb left-[-100px] top-32 h-80 w-80 bg-[rgba(25,162,140,0.16)]" />
+      <div className="ambient-orb bottom-12 right-[-80px] h-72 w-72 bg-[rgba(17,128,106,0.12)]" />
 
       <div className="shell-layout">
-        <aside className="glass-panel-dark shell-sidebar shell-sidebar-collapsible"> {/*allow collapsing of sidebar*/}
-          <div className="sidebar-brand-block border-b border-white/10 pb-5">  {/*displays at the top of the sidebar means fixed*/}
+        <aside className="glass-panel-dark shell-sidebar shell-sidebar-collapsible">
+          <div className="sidebar-brand-block border-b border-white/10 pb-5">
             <div className="flex items-center justify-center gap-3 lg:justify-start">
-              
-  <img
-    src={logo}
-    alt="KANDID Logo"
-    className="h-12 w-12 object-contain"
-  />                                                                      {/*added logo image here (July 15, 2026) */}
+              <img
+                src={logo}
+                alt="KANDID Logo"
+                className="h-12 w-12 object-contain"
+              />
 
               <div className="sidebar-reveal min-w-0">
                 <p className="menu-brand-title">KANDID</p>
@@ -129,13 +135,10 @@ function BoardLayout() {
           </button>
         </aside>
 
-
-{/*main content area*/}
-
-        <main className="workspace-main"> 
-
-          {/*header area*/}
-          <header className="glass-panel shell-header fade-up"> 
+        {/* Main content area */}
+        <main className="workspace-main">
+          {/* Header area */}
+          <header className="glass-panel shell-header fade-up">
             <div className="glass-panel-strong shell-search lg:max-w-xl">
               <Search size={18} className="text-gray-400" />
               <input
@@ -174,12 +177,14 @@ function BoardLayout() {
           </header>
 
           <section className="content-stack">
-            <Outlet />
+            <TransitionWrapper>
+              <Outlet />
+            </TransitionWrapper>
           </section>
         </main>
       </div>
 
-      <MobileNav items={mobileMenuItems} />
+      <MobileNav groups={boardMenuGroups} onLogout={handleLogout} />
     </div>
   );
 }

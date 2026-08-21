@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
 import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
+import { usePrompt } from "../../context/PromptContext";
 
 const emptyForm = {
   student_id: "",
@@ -16,6 +17,7 @@ const emptyForm = {
 };
 
 function BoardOfficers() {
+  const prompt = usePrompt();
   const [officers, setOfficers] = useState([]);
   const [students, setStudents] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
@@ -131,7 +133,11 @@ function BoardOfficers() {
     };
 
     if (!payload.student_id && !payload.officer_name) {
-      alert("Select a student or enter an officer name.");
+      await prompt.alert({
+        title: "Missing Information",
+        message: "Select a student or enter an officer name.",
+        type: "warning",
+      });
       return;
     }
 
@@ -142,18 +148,30 @@ function BoardOfficers() {
     const { error } = await query;
 
     if (error) {
-      alert(error.message);
+      prompt.error(error.message);
       return;
     }
 
+    prompt.success(editingOfficer ? "Officer updated." : "Officer created.");
     setFormOpen(false);
     refreshOfficers();
   }
 
   async function handleDelete(id) {
-    if (!window.confirm("Delete this officer entry?")) return;
+    const ok = await prompt.confirm({
+      title: "Delete Officer Entry?",
+      message: "Are you sure you want to delete this officer entry?",
+      type: "danger",
+      confirmText: "Delete",
+    });
+    if (!ok) return;
 
-    await supabase.from("officers").delete().eq("id", id);
+    const { error } = await supabase.from("officers").delete().eq("id", id);
+    if (error) {
+      prompt.error(error.message || "Failed to delete officer.");
+      return;
+    }
+    prompt.success("Officer deleted.");
     refreshOfficers();
   }
 

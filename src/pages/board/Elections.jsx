@@ -10,8 +10,10 @@ import {
   TOKEN_SCOPE_TYPES,
   VOTING_ACCESS_MODES,
 } from "../../utils/votingAccess";
+import { usePrompt } from "../../context/PromptContext";
 
 function BoardElections() {
+  const prompt = usePrompt();
   const [elections, setElections] = useState([]);
   const [accessTokens, setAccessTokens] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
@@ -171,10 +173,11 @@ function BoardElections() {
     const { error } = await supabase.from("election_access_tokens").insert([payload]);
 
     if (error) {
-      alert(error.message || "Failed to create access token.");
+      prompt.error(error.message || "Failed to create access token.");
       return;
     }
 
+    prompt.success("Access token created.");
     await fetchAccessTokens(editing.id);
     setTokenForm({
       scope_type: "general",
@@ -190,17 +193,29 @@ function BoardElections() {
       .eq("id", tokenRow.id);
 
     if (error) {
-      alert(error.message || "Failed to update token.");
+      prompt.error(error.message || "Failed to update token.");
       return;
     }
 
+    prompt.info(`Token ${!tokenRow.is_active ? "activated" : "deactivated"}.`);
     await fetchAccessTokens(editing.id);
   }
 
   async function handleDelete(id) {
-    if (!window.confirm("Delete this election?")) return;
+    const ok = await prompt.confirm({
+      title: "Delete Election?",
+      message: "Are you sure you want to delete this election?",
+      type: "danger",
+      confirmText: "Delete Election",
+    });
+    if (!ok) return;
 
-    await supabase.from("elections").delete().eq("id", id);
+    const { error } = await supabase.from("elections").delete().eq("id", id);
+    if (error) {
+      prompt.error(error.message || "Failed to delete election.");
+      return;
+    }
+    prompt.success("Election deleted.");
     refreshElections();
   }
 

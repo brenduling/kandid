@@ -17,11 +17,13 @@ import {
   isTokenExpired,
 } from "../../utils/votingAccess";
 import { hasStudentVotedInElection, submitBallot } from "../../utils/voting";
+import { usePrompt } from "../../context/PromptContext";
 
 function StudentVotePage() {
   const { electionId } = useParams();
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
+  const prompt = usePrompt();
 
   const [election, setElection] = useState(null);
   const [studentProfile, setStudentProfile] = useState(null);
@@ -49,49 +51,35 @@ function StudentVotePage() {
         voteCheck,
       ] =
         await Promise.all([
-          supabase
-            .from("elections")
-            .select("*, organizations(name)")
-            .eq("id", electionId)
-            .single(),
-          supabase
-            .from("students")
-            .select("id, program, year_level, precinct_code, batch_code, is_shs")
-            .eq("id", user.id)
-            .single(),
+          supabase.from("elections").select("*").eq("id", electionId).single(),
+          supabase.from("students").select("*, organizations(*)").eq("id", user.id).single(),
           supabase
             .from("positions")
             .select("*")
             .eq("election_id", electionId)
-            .order("id", { ascending: true }),
+            .order("order_index", { ascending: true }),
           hasStudentVotedInElection(user.id, electionId),
         ]);
-
-      const positionIds = positionData?.map((position) => position.id) || [];
-
-      let candidateData = [];
-
-      if (positionIds.length > 0) {
-        const { data } = await supabase
-          .from("candidates")
-          .select(`
-            *,
-            students(first_name, last_name, student_number),
-            partylists(name, logo_url)
-          `)
-          .in("position_id", positionIds);
-
-        candidateData = data || [];
-      }
 
       if (!active) return;
 
       setElection(electionData);
       setStudentProfile(studentData);
-      setPositions(positionData || []);
-      setCandidates(candidateData);
       setAlreadyVoted(Boolean(voteCheck?.hasVoted));
-      if ((electionData?.voting_access_mode || "anywhere") === "anywhere") {
+
+      if (positionData?.length) {
+        setPositions(positionData);
+        const { data: candData } = await supabase
+          .from("candidates")
+          .select("*, partylists(*)")
+          .eq("election_id", electionId);
+
+        if (active) {
+          setCandidates(candData || []);
+        }
+      }
+
+      if (electionData?.voting_access_mode === "anywhere") {
         setAccessGranted(true);
         setAccessMessage("Voting access is open anywhere for this election.");
       } else {
@@ -127,7 +115,7 @@ function StudentVotePage() {
         candidate_id: null,
         is_abstain: true,
       },
-      });
+    });
   }
 
   async function handleVerifyAccessCode() {
@@ -238,13 +226,22 @@ function StudentVotePage() {
     );
 
     if (missingPosition) {
-      alert(`Please select a vote or abstain for ${missingPosition.name}.`);
+      await prompt.alert({
+        title: "Incomplete Ballot",
+        message: `Please select a vote or abstain for ${missingPosition.name}.`,
+        type: "warning",
+      });
       return;
     }
 
-    if (!window.confirm("Submit your votes? This action cannot be undone.")) {
-      return;
-    }
+    const ok = await prompt.confirm({
+      title: "Submit Ballot?",
+      message: "Are you ready to submit your official ballot? Once submitted, your vote is cryptographically secured and cannot be altered or re-cast.",
+      type: "primary",
+      confirmText: "Submit Official Vote",
+    });
+
+    if (!ok) return;
 
     setSubmitting(true);
     const { error, alreadyVoted: voteLocked } = await submitBallot({
@@ -257,12 +254,16 @@ function StudentVotePage() {
       if (voteLocked) {
         setAlreadyVoted(true);
       }
-      alert(error.message);
+      await prompt.alert({
+        title: "Submission Error",
+        message: error.message || "Failed to submit vote. Please try again.",
+        type: "error",
+      });
       setSubmitting(false);
       return;
     }
 
-    alert("Vote submitted successfully.");
+    prompt.success("Vote submitted and verified successfully!");
     navigate("/student/receipt");
   }
 

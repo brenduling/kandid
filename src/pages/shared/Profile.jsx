@@ -3,8 +3,10 @@ import { ImagePlus, LoaderCircle, Save } from "lucide-react";
 import { fetchCurrentUserProfile, updateCurrentUserProfile } from "../../utils/profile";
 import { getStoredUser } from "../../utils/auth";
 import { readFileAsDataUrl } from "../../utils/files";
+import { usePrompt } from "../../context/PromptContext";
 
 function ProfilePage() {
+  const prompt = usePrompt();
   const [user, setUser] = useState(getStoredUser());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -112,7 +114,7 @@ function ProfilePage() {
     setUser(data);
     setForm((current) => ({ ...current, password: "" }));
     setSaving(false);
-    window.alert("Profile updated.");
+    prompt.success("Profile updated successfully.");
   }
 
   async function handleInstallApp() {

@@ -8,9 +8,11 @@ import {
 import { supabase } from "../../lib/supabaseClient";
 import { formatLocalDateTime, getElectionPhase } from "../../utils/elections";
 import { hasStudentVotedInElection, submitBallot } from "../../utils/voting";
+import { usePrompt } from "../../context/PromptContext";
 
 function KioskVoting() {
   const user = JSON.parse(localStorage.getItem("user"));
+  const prompt = usePrompt();
   const [nowTick, setNowTick] = useState(0);
   const [elections, setElections] = useState([]);
   const [selectedElectionId, setSelectedElectionId] = useState("");
@@ -279,7 +281,14 @@ function KioskVoting() {
       return;
     }
 
-    if (!window.confirm(`Submit the kiosk ballot for ${verifiedStudent.first_name} ${verifiedStudent.last_name}?`)) {
+    const ok = await prompt.confirm({
+      title: "Submit Kiosk Ballot?",
+      message: `Submit the official kiosk ballot for ${verifiedStudent.first_name} ${verifiedStudent.last_name}? This action cannot be reversed.`,
+      type: "primary",
+      confirmText: "Submit Ballot",
+    });
+
+    if (!ok) {
       return;
     }
 

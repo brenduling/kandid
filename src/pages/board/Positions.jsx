@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
 import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
+import { usePrompt } from "../../context/PromptContext";
 
 function BoardPositions() {
+  const prompt = usePrompt();
   const [positions, setPositions] = useState([]);
   const [elections, setElections] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
@@ -95,9 +97,19 @@ function BoardPositions() {
     };
 
     if (editing) {
-      await supabase.from("positions").update(payload).eq("id", editing.id);
+      const { error } = await supabase.from("positions").update(payload).eq("id", editing.id);
+      if (error) {
+        prompt.error(error.message || "Failed to update position.");
+        return;
+      }
+      prompt.success("Position updated.");
     } else {
-      await supabase.from("positions").insert([payload]);
+      const { error } = await supabase.from("positions").insert([payload]);
+      if (error) {
+        prompt.error(error.message || "Failed to create position.");
+        return;
+      }
+      prompt.success("Position created.");
     }
 
     setFormOpen(false);
@@ -105,9 +117,20 @@ function BoardPositions() {
   }
 
   async function handleDelete(id) {
-    if (!window.confirm("Delete this position?")) return;
+    const ok = await prompt.confirm({
+      title: "Delete Position?",
+      message: "Are you sure you want to delete this position? Associated candidates will also be deleted.",
+      type: "danger",
+      confirmText: "Delete Position",
+    });
+    if (!ok) return;
 
-    await supabase.from("positions").delete().eq("id", id);
+    const { error } = await supabase.from("positions").delete().eq("id", id);
+    if (error) {
+      prompt.error(error.message || "Failed to delete position.");
+      return;
+    }
+    prompt.success("Position deleted.");
     fetchPositions();
   }
 

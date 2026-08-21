@@ -12,14 +12,15 @@ import NotificationCenter from "../components/NotificationCenter";
 import MobileNav from "../components/MobileNav";
 import { getProfileRoute } from "../utils/profile";
 import logo from "../assets/kandidlogo.png";
-import {
-  superAdminMenuGroups,
-} from "../config/navigation";
+import TransitionWrapper from "../components/TransitionWrapper";
+import { superAdminMenuGroups } from "../config/navigation";
+import { usePrompt } from "../context/PromptContext";
 
 function SuperAdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const user = getStoredUser();
+  const prompt = usePrompt();
   const [openGroups, setOpenGroups] = useState(() =>
     Object.fromEntries(superAdminMenuGroups.map((group) => [group.label, true])),
   );
@@ -33,7 +34,15 @@ function SuperAdminLayout() {
     localStorage.setItem("super-admin-sidebar-collapsed", String(nextState));
   };
 
-  function handleLogout() {
+  async function handleLogout() {
+    const ok = await prompt.confirm({
+      title: "Logout Confirmation",
+      message: "Are you sure you want to sign out of the Super Admin Portal?",
+      type: "warning",
+      confirmText: "Logout",
+    });
+    if (!ok) return;
+
     clearStoredUser();
     navigate("/admin-login", { replace: true });
   }
@@ -55,13 +64,12 @@ function SuperAdminLayout() {
           <div className="sidebar-brand-block border-b border-white/10 pb-5">
             <div className="flex flex-col items-center gap-3 lg:flex-row lg:justify-between w-full">
               <div className="flex items-center gap-3">
-                
-                  <img
-                      src={logo}
-                      alt="KANDID Logo"
-                      className="h-12 w-12 object-contain"
-                    />     
-             
+                <img
+                  src={logo}
+                  alt="KANDID Logo"
+                  className="h-12 w-12 object-contain"
+                />
+
                 <div className="sidebar-reveal min-w-0">
                   <p className="menu-brand-title">KANDID</p>
                   <p className="menu-brand-copy">Super Admin Portal</p>
@@ -98,7 +106,7 @@ function SuperAdminLayout() {
                     <ChevronDown
                       size={15}
                       className={`nav-section-trigger-chevron transition-transform ${isGroupOpen ? "rotate-180" : ""}`}
-                    /> 
+                    />
                   </button>
                   <div className="nav-section-body" data-open={isGroupOpen}>
                     <div className="nav-section-inner mt-3 space-y-2">
@@ -177,7 +185,9 @@ function SuperAdminLayout() {
           </header>
 
           <section className="content-stack">
-            <Outlet />
+            <TransitionWrapper>
+              <Outlet />
+            </TransitionWrapper>
           </section>
         </main>
       </div>

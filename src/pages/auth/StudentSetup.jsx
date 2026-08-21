@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Eye, Home, Mail, UserRound } from "lucide-react";
 import StudentAuthShell from "../../components/StudentAuthShell";
@@ -7,6 +7,7 @@ import { supabase } from "../../lib/supabaseClient";
 function StudentSetup() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [organizations, setOrganizations] = useState([]);
   const [studentNumber, setStudentNumber] = useState(
     location.state?.studentNumber || "",
   );
@@ -16,6 +17,73 @@ function StudentSetup() {
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
+  useEffect(() => {
+    // Fetch organizations for linking purposes
+    async function fetchOrgs() {
+      const { data, error } = await supabase
+        .from("organizations")
+        .select("id, name");
+      if (!error) setOrganizations(data || []);
+    }
+    fetchOrgs();
+  }, []);
+
+  async function handleCompleteSetup(event) {
+    event.preventDefault();
+
+    if (password.length < 6) {
+      alert("Password must be at least 6 characters.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      alert("Passwords do not match.");
+      return;
+    }
+
+    setLoading(true);
+
+    const { error } = await supabase
+      .from("students")
+      .update({ password, status: "active" })
+      .eq("id", student.id);
+
+    if (error) {
+      alert(error.message);
+      setLoading(false);
+      return;
+    }
+
+    // After activation, ensure student has WITSG and program organization links
+    const witsgOrg = organizations.find((org) => org.name.toUpperCase() === "WITSG");
+    const programOrgMap = {
+      BSIT: "PSITS",
+      BSA: "JPIA",
+      BSBA: "JMA",
+      SHS: "SHS",
+      BSHM: "JEHMS",
+    };
+    const programKey = student.program?.toUpperCase();
+    const programOrgName = programOrgMap[programKey] || student.program;
+    const programOrg = organizations.find((org) => org.name.toUpperCase() === programOrgName?.toUpperCase());
+
+    const orgLinks = [];
+    if (witsgOrg) {
+      orgLinks.push({ student_id: student.id, organization_id: witsgOrg.id, role: "member" });
+    }
+    if (programOrg && !orgLinks.some((l) => l.organization_id === programOrg.id)) {
+      orgLinks.push({ student_id: student.id, organization_id: programOrg.id, role: "member" });
+    }
+    if (orgLinks.length > 0) {
+      const { error: linkError } = await supabase.from("student_organizations").insert(orgLinks);
+      if (linkError) {
+        console.error("Failed to link student to organizations:", linkError);
+        alert(linkError.message || "Failed to associate student with organizations.");
+      }
+    }
+
+    navigate("/student-login", { replace: true });
+  }
   async function handleCheckStudent(event) {
     event.preventDefault();
     setLoading(true);
@@ -48,34 +116,7 @@ function StudentSetup() {
     setLoading(false);
   }
 
-  async function handleCompleteSetup(event) {
-    event.preventDefault();
 
-    if (password.length < 6) {
-      alert("Password must be at least 6 characters.");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      alert("Passwords do not match.");
-      return;
-    }
-
-    setLoading(true);
-
-    const { error } = await supabase
-      .from("students")
-      .update({ password, status: "active" })
-      .eq("id", student.id);
-
-    if (error) {
-      alert(error.message);
-      setLoading(false);
-      return;
-    }
-
-    navigate("/student-login", { replace: true });
-  }
 
   return (
     <StudentAuthShell>
