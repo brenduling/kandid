@@ -1,11 +1,36 @@
+import { registerSW } from "virtual:pwa-register";
+
 export function registerServiceWorker() {
-  if (!("serviceWorker" in navigator) || import.meta.env.DEV) {
+  if (import.meta.env.DEV) {
     return;
   }
 
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch((error) => {
-      console.error("Service worker registration failed:", error);
-    });
+  return registerSW({
+    immediate: true,
+
+    onNeedRefresh() {
+      window.dispatchEvent(
+        new CustomEvent("kandid-pwa-update")
+      );
+    },
+
+    onOfflineReady() {
+      console.log("KANDID is ready for offline use.");
+    },
+
+    onRegisteredSW(swUrl, registration) {
+      console.log("KANDID service worker registered:", swUrl);
+
+      if (registration) {
+        console.log("KANDID PWA update system active.");
+      }
+    },
+
+    onRegisterError(error) {
+      console.error(
+        "KANDID service worker registration failed:",
+        error
+      );
+    },
   });
 }
