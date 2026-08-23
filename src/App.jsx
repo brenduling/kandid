@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
 
 // layouts
 import Home from "./pages/Home";
@@ -56,6 +57,7 @@ import SystemSettings from "./pages/superadmin/SystemSettings";
 import AdminLogin from "./pages/auth/AdminLogin";
 import BoardLogin from "./pages/auth/BoardLogin";
 import StudentLogin from "./pages/auth/StudentLogin";
+
 import ProtectedRoute from "./components/ProtectedRoute";
 import { PromptProvider } from "./context/PromptContext";
 
@@ -63,15 +65,38 @@ function App() {
   return (
     <BrowserRouter>
       <PromptProvider>
+
+        {/* GLOBAL PWA UPDATE NOTIFICATION */}
+        <PWAUpdatePrompt />
+
         <Routes>
+
           {/* ENTRY ROUTES */}
-          <Route path="/admin-login" element={<AdminLogin />} />
-          <Route path="/eb-login" element={<BoardLogin />} />
-          <Route path="/board-login" element={<BoardLogin />} />
-          <Route path="/student-login" element={<StudentLogin />} />
+          <Route
+            path="/admin-login"
+            element={<AdminLogin />}
+          />
+
+          <Route
+            path="/eb-login"
+            element={<BoardLogin />}
+          />
+
+          <Route
+            path="/board-login"
+            element={<BoardLogin />}
+          />
+
+          <Route
+            path="/student-login"
+            element={<StudentLogin />}
+          />
 
           {/* DEFAULT */}
-          <Route path="/" element={<Home />} />
+          <Route
+            path="/"
+            element={<Home />}
+          />
 
           {/* SUPER ADMIN (PROTECTED) */}
           <Route
@@ -82,27 +107,110 @@ function App() {
               </ProtectedRoute>
             }
           >
-            <Route index element={<Navigate to="dashboard" />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="organizations" element={<Organizations />} />
-            <Route path="students" element={<Students />} />
-            <Route path="csv-import" element={<CSVImport />} />
-            <Route path="elections" element={<Elections />} />
-            <Route path="positions" element={<Positions />} />
-            <Route path="candidates" element={<Candidates />} />
-            <Route path="officers" element={<Officers />} />
-            <Route path="partylists" element={<Partylists />} />
-            <Route path="eligibility-rules" element={<EligibilityRules />} />
-            <Route path="voting-monitor" element={<VotingMonitor />} />
-            <Route path="results" element={<Results />} />
-            <Route path="blockchain" element={<BlockchainVerification />} />
-            <Route path="kiosk" element={<KioskVoting />} />
-            <Route path="reports" element={<Reports />} />
-            <Route path="audit-logs" element={<AuditLogs />} />
-            <Route path="users-roles" element={<UsersRoles />} />
-            <Route path="archives" element={<Archives />} />
-            <Route path="settings" element={<SystemSettings />} />
-            <Route path="profile" element={<ProfilePage />} />
+            <Route
+              index
+              element={<Navigate to="dashboard" replace />}
+            />
+
+            <Route
+              path="dashboard"
+              element={<Dashboard />}
+            />
+
+            <Route
+              path="organizations"
+              element={<Organizations />}
+            />
+
+            <Route
+              path="students"
+              element={<Students />}
+            />
+
+            <Route
+              path="csv-import"
+              element={<CSVImport />}
+            />
+
+            <Route
+              path="elections"
+              element={<Elections />}
+            />
+
+            <Route
+              path="positions"
+              element={<Positions />}
+            />
+
+            <Route
+              path="candidates"
+              element={<Candidates />}
+            />
+
+            <Route
+              path="officers"
+              element={<Officers />}
+            />
+
+            <Route
+              path="partylists"
+              element={<Partylists />}
+            />
+
+            <Route
+              path="eligibility-rules"
+              element={<EligibilityRules />}
+            />
+
+            <Route
+              path="voting-monitor"
+              element={<VotingMonitor />}
+            />
+
+            <Route
+              path="results"
+              element={<Results />}
+            />
+
+            <Route
+              path="blockchain"
+              element={<BlockchainVerification />}
+            />
+
+            <Route
+              path="kiosk"
+              element={<KioskVoting />}
+            />
+
+            <Route
+              path="reports"
+              element={<Reports />}
+            />
+
+            <Route
+              path="audit-logs"
+              element={<AuditLogs />}
+            />
+
+            <Route
+              path="users-roles"
+              element={<UsersRoles />}
+            />
+
+            <Route
+              path="archives"
+              element={<Archives />}
+            />
+
+            <Route
+              path="settings"
+              element={<SystemSettings />}
+            />
+
+            <Route
+              path="profile"
+              element={<ProfilePage />}
+            />
           </Route>
 
           {/* ELECTORAL BOARD (PROTECTED) */}
@@ -114,21 +222,80 @@ function App() {
               </ProtectedRoute>
             }
           >
-            <Route index element={<Navigate to="dashboard" />} />
-            <Route path="dashboard" element={<BoardDashboard />} />
-            <Route path="elections" element={<BoardElections />} />
-            <Route path="positions" element={<BoardPositions />} />
-            <Route path="candidates" element={<BoardCandidates />} />
-            <Route path="officers" element={<BoardOfficers />} />
-            <Route path="partylists" element={<BoardPartylists />} />
-            <Route path="eligibility-rules" element={<BoardEligibilityRules />} />
-            <Route path="voting-monitor" element={<BoardVotingMonitor />} />
-            <Route path="results" element={<BoardResults />} />
-            <Route path="kiosk" element={<KioskVoting />} />
-            <Route path="reports" element={<BoardReports />} />
-            <Route path="students" element={<BoardStudents />} />
-            <Route path="csv-import" element={<BoardCSVImport />} />
-            <Route path="profile" element={<ProfilePage />} />
+            <Route
+              index
+              element={<Navigate to="dashboard" replace />}
+            />
+
+            <Route
+              path="dashboard"
+              element={<BoardDashboard />}
+            />
+
+            <Route
+              path="elections"
+              element={<BoardElections />}
+            />
+
+            <Route
+              path="positions"
+              element={<BoardPositions />}
+            />
+
+            <Route
+              path="candidates"
+              element={<BoardCandidates />}
+            />
+
+            <Route
+              path="officers"
+              element={<BoardOfficers />}
+            />
+
+            <Route
+              path="partylists"
+              element={<BoardPartylists />}
+            />
+
+            <Route
+              path="eligibility-rules"
+              element={<BoardEligibilityRules />}
+            />
+
+            <Route
+              path="voting-monitor"
+              element={<BoardVotingMonitor />}
+            />
+
+            <Route
+              path="results"
+              element={<BoardResults />}
+            />
+
+            <Route
+              path="kiosk"
+              element={<KioskVoting />}
+            />
+
+            <Route
+              path="reports"
+              element={<BoardReports />}
+            />
+
+            <Route
+              path="students"
+              element={<BoardStudents />}
+            />
+
+            <Route
+              path="csv-import"
+              element={<BoardCSVImport />}
+            />
+
+            <Route
+              path="profile"
+              element={<ProfilePage />}
+            />
           </Route>
 
           {/* STUDENT (PROTECTED) */}
@@ -140,137 +307,63 @@ function App() {
               </ProtectedRoute>
             }
           >
-            <Route index element={<Navigate to="dashboard" />} />
-            <Route path="dashboard" element={<StudentDashboard />} />
-            <Route path="elections" element={<StudentElections />} />
-            <Route path="elections/:electionId/campaign" element={<StudentCampaign />} />
-            <Route path="vote/:electionId" element={<StudentVotePage />} />
-            <Route path="officers" element={<StudentOfficers />} />
-            <Route path="results" element={<StudentResults />} />
-            <Route path="receipt" element={<StudentReceipt />} />
-            <Route path="profile" element={<ProfilePage />} />
+            <Route
+              index
+              element={<Navigate to="dashboard" replace />}
+            />
+
+            <Route
+              path="dashboard"
+              element={<StudentDashboard />}
+            />
+
+            <Route
+              path="elections"
+              element={<StudentElections />}
+            />
+
+            <Route
+              path="elections/:electionId/campaign"
+              element={<StudentCampaign />}
+            />
+
+            <Route
+              path="vote/:electionId"
+              element={<StudentVotePage />}
+            />
+
+            <Route
+              path="officers"
+              element={<StudentOfficers />}
+            />
+
+            <Route
+              path="results"
+              element={<StudentResults />}
+            />
+
+            <Route
+              path="receipt"
+              element={<StudentReceipt />}
+            />
+
+            <Route
+              path="profile"
+              element={<ProfilePage />}
+            />
           </Route>
-          <Route path="/student-setup" element={<StudentSetup />} />
+
+          {/* STUDENT SETUP */}
+          <Route
+            path="/student-setup"
+            element={<StudentSetup />}
+          />
+
         </Routes>
+
       </PromptProvider>
     </BrowserRouter>
   );
-  function App() {
-    return (
-      <BrowserRouter>
-        <PromptProvider>
-          <Routes>
-            {/* ENTRY ROUTES */}
-            <Route path="/admin-login" element={<AdminLogin />} />
-            <Route path="/eb-login" element={<BoardLogin />} />
-            <Route path="/board-login" element={<BoardLogin />} />
-            <Route path="/student-login" element={<StudentLogin />} />
-
-            {/* DEFAULT */}
-            <Route path="/" element={<Home />} />
-
-            {/* SUPER ADMIN (PROTECTED) */}
-            <Route
-              path="/super-admin"
-              element={
-                <ProtectedRoute role="super_admin">
-                  <SuperAdminLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<Navigate to="dashboard" />} />
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route path="organizations" element={<Organizations />} />
-              <Route path="students" element={<Students />} />
-              <Route path="csv-import" element={<CSVImport />} />
-              <Route path="elections" element={<Elections />} />
-              <Route path="positions" element={<Positions />} />
-              <Route path="candidates" element={<Candidates />} />
-              <Route path="officers" element={<Officers />} />
-              <Route path="partylists" element={<Partylists />} />
-              <Route path="eligibility-rules" element={<EligibilityRules />} />
-              <Route path="voting-monitor" element={<VotingMonitor />} />
-              <Route path="results" element={<Results />} />
-              <Route path="blockchain" element={<BlockchainVerification />} />
-              <Route path="kiosk" element={<KioskVoting />} />
-              <Route path="reports" element={<Reports />} />
-              <Route path="audit-logs" element={<AuditLogs />} />
-              <Route path="users-roles" element={<UsersRoles />} />
-              <Route path="archives" element={<Archives />} />
-              <Route path="settings" element={<SystemSettings />} />
-              <Route path="profile" element={<ProfilePage />} />
-            </Route>
-
-            {/* ELECTORAL BOARD (PROTECTED) */}
-            <Route
-              path="/board"
-              element={
-                <ProtectedRoute role="electoral_board">
-                  <BoardLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<Navigate to="dashboard" />} />
-              <Route path="dashboard" element={<BoardDashboard />} />
-              <Route path="elections" element={<BoardElections />} />
-              <Route path="positions" element={<BoardPositions />} />
-              <Route path="candidates" element={<BoardCandidates />} />
-              <Route path="officers" element={<BoardOfficers />} />
-              <Route path="partylists" element={<BoardPartylists />} />
-              <Route
-                path="eligibility-rules"
-                element={<BoardEligibilityRules />}
-              />
-              <Route
-                path="voting-monitor"
-                element={<BoardVotingMonitor />}
-              />
-              <Route path="results" element={<BoardResults />} />
-              <Route path="kiosk" element={<KioskVoting />} />
-              <Route path="reports" element={<BoardReports />} />
-              <Route path="students" element={<BoardStudents />} />
-              <Route path="csv-import" element={<BoardCSVImport />} />
-              <Route path="profile" element={<ProfilePage />} />
-            </Route>
-
-            {/* STUDENT (PROTECTED) */}
-            <Route
-              path="/student"
-              element={
-                <ProtectedRoute role="student">
-                  <StudentLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<Navigate to="dashboard" />} />
-              <Route path="dashboard" element={<StudentDashboard />} />
-              <Route path="elections" element={<StudentElections />} />
-              <Route
-                path="elections/:electionId/campaign"
-                element={<StudentCampaign />}
-              />
-              <Route
-                path="vote/:electionId"
-                element={<StudentVotePage />}
-              />
-              <Route path="officers" element={<StudentOfficers />} />
-              <Route path="results" element={<StudentResults />} />
-              <Route path="receipt" element={<StudentReceipt />} />
-              <Route path="profile" element={<ProfilePage />} />
-            </Route>
-
-            <Route path="/student-setup" element={<StudentSetup />} />
-          </Routes>
-
-          {/* PWA UPDATE PROMPT */}
-          <ReloadPrompt />
-        </PromptProvider>
-      </BrowserRouter>
-    );
-  }
-
 }
-
-
 
 export default App;

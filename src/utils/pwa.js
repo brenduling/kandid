@@ -1,16 +1,18 @@
 import { registerSW } from "virtual:pwa-register";
 
+let updateSW = null;
+
 export function registerServiceWorker() {
   if (import.meta.env.DEV) {
-    return;
+    return null;
   }
 
-  return registerSW({
+  updateSW = registerSW({
     immediate: true,
 
     onNeedRefresh() {
       window.dispatchEvent(
-        new CustomEvent("kandid-pwa-update")
+        new CustomEvent("kandid-pwa-update-available")
       );
     },
 
@@ -19,10 +21,25 @@ export function registerServiceWorker() {
     },
 
     onRegisteredSW(swUrl, registration) {
-      console.log("KANDID service worker registered:", swUrl);
+      console.log(
+        "KANDID service worker registered:",
+        swUrl
+      );
 
       if (registration) {
-        console.log("KANDID PWA update system active.");
+        console.log(
+          "KANDID PWA update system active."
+        );
+
+        // Check for a new deployed version every 60 seconds
+        setInterval(() => {
+          registration.update().catch((error) => {
+            console.error(
+              "KANDID PWA update check failed:",
+              error
+            );
+          });
+        }, 60 * 1000);
       }
     },
 
@@ -33,4 +50,17 @@ export function registerServiceWorker() {
       );
     },
   });
+
+  return updateSW;
+}
+
+export async function updateKandidPWA() {
+  if (!updateSW) {
+    console.warn(
+      "KANDID PWA update function is not ready."
+    );
+    return;
+  }
+
+  await updateSW(true);
 }
