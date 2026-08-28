@@ -72,8 +72,7 @@ async function buildStudentNotifications(user) {
         start_date,
         end_date,
         status,
-        results_visibility,
-        result_release_date,
+        student_result_visibility,
         organizations(name)
       `)
       .in("organization_id", organizationIds)

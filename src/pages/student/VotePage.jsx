@@ -17,7 +17,7 @@ import {
   isTokenExpired,
 } from "../../utils/votingAccess";
 import { hasStudentVotedInElection, submitBallot } from "../../utils/voting";
-import { getEligibleStudentOrganizationIds } from "../../utils/organizationAccess";
+import { getStudentElectionOrganizationIds } from "../../utils/organizationAccess";
 import { usePrompt } from "../../context/PromptContext";
 
 function StudentVotePage() {
@@ -89,7 +89,7 @@ function StudentVotePage() {
 
       if (!active) return;
 
-      const eligibleOrganizationIds = await getEligibleStudentOrganizationIds(
+      const eligibleOrganizationIds = await getStudentElectionOrganizationIds(
         studentData || user,
       );
 

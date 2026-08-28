@@ -1,13 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BarChart3, CalendarDays, CheckCircle, Clock3, Info, MapPin, Vote } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { KandidInlineLoader } from "../../components/KandidLoader";
 import { supabase } from "../../lib/supabaseClient";
 import {
   canStudentViewResults,
   formatLocalDateTime,
   getElectionPhase,
 } from "../../utils/elections";
-import { getEligibleStudentOrganizationIds } from "../../utils/organizationAccess";
+import { getStudentElectionOrganizationIds } from "../../utils/organizationAccess";
 
 function friendlyPhase(phase) {
   if (phase === "campaign") return "Campaign Period";
@@ -20,22 +21,54 @@ function StudentElections() {
   const [elections, setElections] = useState([]);
   const [votes, setVotes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
   const user = JSON.parse(localStorage.getItem("user"));
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const searchQuery = (searchParams.get("q") || "").trim().toLowerCase();
 
   useEffect(() => {
     let active = true;
 
     async function loadElections() {
       setLoading(true);
+      setLoadError("");
 
-      const [organizationIds, { data: voteData }] = await Promise.all([
-        getEligibleStudentOrganizationIds(user),
+      const [organizationIds, voteResponse] = await Promise.all([
+        getStudentElectionOrganizationIds(user),
         supabase
           .from("votes")
-          .select("election_id")
+          .select(`
+            election_id,
+            elections (
+              id,
+              title,
+              organization_id,
+              campaign_start,
+              campaign_end,
+              start_date,
+              end_date,
+              status,
+              student_result_visibility,
+              organizations(name)
+            )
+          `)
           .eq("student_id", user.id),
       ]);
+
+      if (voteResponse.error) {
+        console.error("Failed to load student voting status:", voteResponse.error);
+        if (active) {
+          setLoadError(voteResponse.error.message || "Unable to load your voting status.");
+          setElections([]);
+          setVotes([]);
+          setLoading(false);
+        }
+        return;
+      }
+
+      const voteData = voteResponse.data || [];
 
       const votedElectionIds = [
         ...new Set(
@@ -63,9 +96,7 @@ function StudentElections() {
         start_date,
         end_date,
         status,
-        venue,
-        results_visibility,
-        result_release_date,
+        student_result_visibility,
         organizations(name)
       `;
 
@@ -99,10 +130,35 @@ function StudentElections() {
 
       const electionMap = new Map();
 
-      electionResponses.forEach(({ data }) => {
+      const electionErrors = [];
+
+      electionResponses.forEach(({ data, error }) => {
+        if (error) {
+          console.error("Failed to load student election overview:", error);
+          electionErrors.push(error);
+        }
+
         (data || []).forEach((election) => {
           electionMap.set(election.id, election);
         });
+      });
+
+      if (electionErrors.length > 0) {
+        setLoadError(
+          electionErrors[0].message ||
+            "Unable to load elections for your account.",
+        );
+        setElections([]);
+        setVotes(voteData || []);
+        setLoading(false);
+        return;
+      }
+
+      (voteData || []).forEach((voteRow) => {
+        const election = voteRow.elections;
+        if (election && election.status !== "archived") {
+          electionMap.set(election.id, election);
+        }
       });
 
       setElections(
@@ -121,7 +177,7 @@ function StudentElections() {
     return () => {
       active = false;
     };
-  }, [user.id]);
+  }, [user.id, reloadKey]);
 
   function hasVoted(electionId) {
     return votes.some((voteRow) => voteRow.election_id === electionId);
@@ -180,6 +236,24 @@ function StudentElections() {
     );
   }
 
+  const filteredElections = useMemo(() => {
+    if (!searchQuery) return elections;
+
+    return elections.filter((election) => {
+      const values = [
+        election.title,
+        election.organizations?.name,
+        election.status,
+        friendlyPhase(getElectionPhase(election)),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return values.includes(searchQuery);
+    });
+  }, [elections, searchQuery]);
+
   return (
     <div>
       <div className="student-module-banner">
@@ -193,12 +267,32 @@ function StudentElections() {
       </div>
 
       {loading ? (
-        <div className="student-empty-card">Loading elections...</div>
-      ) : elections.length === 0 ? (
-        <div className="student-empty-card">No elections available for your account.</div>
+        <div className="student-empty-card">
+          <KandidInlineLoader message="Loading elections..." />
+        </div>
+      ) : loadError ? (
+        <div className="student-empty-card">
+          <div className="space-y-3">
+            <p className="font-bold text-rose-600">Unable to load elections.</p>
+            <p className="text-sm text-gray-500">{loadError}</p>
+            <button
+              type="button"
+              onClick={() => setReloadKey((current) => current + 1)}
+              className="student-outline-btn"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      ) : filteredElections.length === 0 ? (
+        <div className="student-empty-card">
+          {searchQuery
+            ? "No elections match your search."
+            : "No elections available for your account."}
+        </div>
       ) : (
         <div className="student-election-grid">
-          {elections.map((election) => {
+          {filteredElections.map((election) => {
             const phase = getElectionPhase(election);
 
             return (

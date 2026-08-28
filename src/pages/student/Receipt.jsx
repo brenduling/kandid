@@ -1,16 +1,31 @@
-import { useEffect, useState } from "react";
-import { ExternalLink, RefreshCw, ShieldCheck } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ExternalLink, ReceiptText, RefreshCw, ShieldCheck } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { getBlockchainExplorerTxUrl } from "../../utils/blockchain";
+import { KandidInlineLoader } from "../../components/KandidLoader";
+
+function getReceiptGroupKey(vote) {
+  return vote.election_id || vote.elections?.title || vote.id;
+}
+
+function getBlockchainStatus(vote) {
+  if (vote.blockchain_tx_id) return "Verified";
+  return "Pending";
+}
 
 function StudentReceipt() {
   const [votes, setVotes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const user = JSON.parse(localStorage.getItem("user"));
 
   useEffect(() => {
     let active = true;
 
     async function loadVotes() {
+      setLoading(true);
+      setLoadError("");
+
       const { data, error } = await supabase
         .from("votes")
         .select(`
@@ -30,8 +45,16 @@ function StudentReceipt() {
 
       if (!active) return;
 
-      if (!error) setVotes(data || []);
-      if (error) console.log(error);
+      if (error) {
+        console.error("Failed to load student receipts:", error);
+        setLoadError(error.message || "Unable to load vote receipts.");
+        setVotes([]);
+        setLoading(false);
+        return;
+      }
+
+      setVotes(data || []);
+      setLoading(false);
     }
 
     loadVotes();
@@ -42,6 +65,9 @@ function StudentReceipt() {
   }, [user.id]);
 
   async function fetchVotes() {
+    setLoading(true);
+    setLoadError("");
+
     const { data, error } = await supabase
       .from("votes")
       .select(`
@@ -59,9 +85,46 @@ function StudentReceipt() {
       .eq("student_id", user.id)
       .order("vote_timestamp", { ascending: false });
 
-    if (!error) setVotes(data || []);
-    if (error) console.log(error);
+    if (error) {
+      console.error("Failed to refresh student receipts:", error);
+      setLoadError(error.message || "Unable to load vote receipts.");
+      setVotes([]);
+      setLoading(false);
+      return;
+    }
+
+    setVotes(data || []);
+    setLoading(false);
   }
+
+  const receiptGroups = useMemo(() => {
+    const groups = new Map();
+
+    votes.forEach((vote) => {
+      const key = getReceiptGroupKey(vote);
+      const current = groups.get(key) || {
+        key,
+        organizationName: vote.elections?.organizations?.name || "Organization",
+        electionTitle: vote.elections?.title || "Election",
+        submittedAt: vote.vote_timestamp,
+        votes: [],
+      };
+
+      current.votes.push(vote);
+
+      if (
+        vote.vote_timestamp &&
+        (!current.submittedAt ||
+          new Date(vote.vote_timestamp) > new Date(current.submittedAt))
+      ) {
+        current.submittedAt = vote.vote_timestamp;
+      }
+
+      groups.set(key, current);
+    });
+
+    return [...groups.values()];
+  }, [votes]);
 
   return (
     <div>
@@ -86,89 +149,131 @@ function StudentReceipt() {
         </button>
       </div>
 
-      <div className="mt-8 space-y-4">
-        {votes.length === 0 ? (
+      <div className="mt-8 space-y-6">
+        {loading ? (
+          <div className="glass-panel rounded-[28px] p-8">
+            <KandidInlineLoader message="Loading receipts..." />
+          </div>
+        ) : loadError ? (
+          <div className="glass-panel rounded-[28px] p-8">
+            <div className="space-y-3">
+              <p className="font-bold text-rose-600">Unable to load receipts.</p>
+              <p className="text-sm text-gray-500">{loadError}</p>
+              <button type="button" onClick={fetchVotes} className="secondary-btn">
+                Retry
+              </button>
+            </div>
+          </div>
+        ) : receiptGroups.length === 0 ? (
           <div className="glass-panel rounded-[28px] p-8 text-gray-500">
             No vote records found.
           </div>
         ) : (
-          votes.map((vote, index) => (
-            <div
-              key={vote.id}
-              className="glass-panel-strong fade-up rounded-[28px] border p-6"
+          receiptGroups.map((receipt, index) => (
+            <section
+              key={receipt.key}
+              className="student-receipt-paper fade-up"
               style={{ animationDelay: `${index * 35}ms` }}
             >
-              <div className="flex items-start justify-between">
+              <div className="student-receipt-brand">
+                <div className="student-receipt-mark">
+                  <ReceiptText size={22} />
+                </div>
+                <p>KANDID Receipt</p>
+              </div>
+
+              <div className="student-receipt-title">
+                <p>{receipt.organizationName}</p>
+                <h2>{receipt.electionTitle}</h2>
+              </div>
+
+              <div className="student-receipt-divider" />
+
+              <div className="student-receipt-meta">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#d35a25]">
-                    {vote.elections?.organizations?.name || "Organization"}
-                  </p>
+                  <span>Election ID</span>
+                  <strong>{receipt.key}</strong>
+                </div>
+                <div>
+                  <span>Submitted On</span>
+                  <strong>
+                    {receipt.submittedAt
+                      ? new Date(receipt.submittedAt).toLocaleString()
+                      : "-"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Receipt Rows</span>
+                  <strong>{receipt.votes.length}</strong>
+                </div>
+              </div>
 
-                  <h2 className="mt-2 text-2xl font-black">
-                    {vote.elections?.title}
-                  </h2>
+              <div className="student-receipt-divider" />
 
-                  <div className="mt-4 grid gap-3 md:grid-cols-2">
-                    <div className="rounded-2xl bg-white/40 p-4">
-                      <p className="field-label !mb-1">Position</p>
-                      <p className="text-sm font-semibold text-[#1d262f]">
-                        {vote.positions?.name || "-"}
-                      </p>
+              <div className="student-receipt-grid" role="table" aria-label="Vote receipt rows">
+                <div className="student-receipt-grid-head" role="row">
+                  <span role="columnheader">Position</span>
+                  <span role="columnheader">Vote Hash</span>
+                  <span role="columnheader">Blockchain Status</span>
+                </div>
+
+                {receipt.votes.map((vote) => (
+                  <div key={vote.id} className="student-receipt-row" role="row">
+                    <div role="cell">
+                      <span>Position</span>
+                      <strong>{vote.positions?.name || "-"}</strong>
+                      {vote.is_abstain ? <em>Abstained</em> : <em>Submitted</em>}
                     </div>
-                    <div className="rounded-2xl bg-white/40 p-4">
-                      <p className="field-label !mb-1">Submitted On</p>
-                      <p className="text-sm font-semibold text-[#1d262f]">
-                        {vote.vote_timestamp
-                          ? new Date(vote.vote_timestamp).toLocaleString()
-                          : "-"}
-                      </p>
+
+                    <div role="cell">
+                      <span>Vote Hash</span>
+                      <code>{vote.vote_hash || "Pending hash"}</code>
+                    </div>
+
+                    <div role="cell">
+                      <span>Blockchain Status</span>
+                      <strong
+                        className={
+                          vote.blockchain_tx_id
+                            ? "student-receipt-status verified"
+                            : "student-receipt-status pending"
+                        }
+                      >
+                        <ShieldCheck size={15} />
+                        {getBlockchainStatus(vote)}
+                      </strong>
                     </div>
                   </div>
+                ))}
+              </div>
+
+              <div className="student-receipt-divider" />
+
+              <div className="student-receipt-verification">
+                <div>
+                  <span>Overall Verification</span>
+                  <strong>
+                    {receipt.votes.every((vote) => vote.blockchain_tx_id)
+                      ? "All rows recorded on Sepolia"
+                      : "Some rows are pending on-chain record"}
+                  </strong>
                 </div>
 
-                <span
-                  className={`status-pill ${
-                    vote.is_abstain
-                      ? "!bg-[rgba(29,38,47,0.08)] !text-gray-700"
-                      : "!bg-[rgba(54,147,111,0.12)] !text-green-700"
-                  }`}
-                >
-                  {vote.is_abstain ? "Abstained" : "Submitted"}
-                </span>
+                {receipt.votes
+                  .filter((vote) => vote.blockchain_tx_id)
+                  .map((vote) => (
+                    <a
+                      key={vote.id}
+                      href={getBlockchainExplorerTxUrl(vote.blockchain_tx_id)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <ExternalLink size={15} />
+                      View transaction for {vote.positions?.name || "position"}
+                    </a>
+                  ))}
               </div>
-
-              <div className="mt-5 rounded-2xl bg-white/50 p-4">
-                <div className="flex items-center gap-2 text-sm font-bold text-gray-700">
-                  <ShieldCheck size={16} className="text-green-600" />
-                  Verification Hash
-                </div>
-
-                <p className="mt-2 text-xs font-mono text-gray-600 break-all">
-                  {vote.vote_hash || "Pending hash"}
-                </p>
-              </div>
-
-              <div className="mt-3 text-xs text-gray-500">
-                Blockchain Status:{" "}
-                {vote.blockchain_tx_id ? (
-                  <span className="font-bold text-green-600">Recorded on Sepolia</span>
-                ) : (
-                  <span className="font-bold text-orange-600">Pending on-chain record</span>
-                )}
-              </div>
-
-              {vote.blockchain_tx_id ? (
-                <a
-                  href={getBlockchainExplorerTxUrl(vote.blockchain_tx_id)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-3 inline-flex items-center gap-2 text-sm font-bold text-[#11806a] hover:underline"
-                >
-                  <ExternalLink size={15} />
-                  View Sepolia transaction
-                </a>
-              ) : null}
-            </div>
+            </section>
           ))
         )}
       </div>

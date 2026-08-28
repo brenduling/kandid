@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, Pencil, Trash2, X, QrCode, Power } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { KandidButtonLoader, KandidInlineLoader } from "../../components/KandidLoader";
 import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
 import { formatLocalDateTime, getElectionPhase } from "../../utils/elections";
@@ -14,10 +16,14 @@ import { usePrompt } from "../../context/PromptContext";
 
 function BoardElections() {
   const prompt = usePrompt();
+  const [searchParams] = useSearchParams();
   const [elections, setElections] = useState([]);
   const [accessTokens, setAccessTokens] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [tokenForm, setTokenForm] = useState({
     scope_type: "general",
     scope_value: "",
@@ -39,14 +45,23 @@ function BoardElections() {
 
   const user = JSON.parse(localStorage.getItem("user"));
   const orgId = user?.organization_id;
+  const searchQuery = (searchParams.get("q") || "").trim().toLowerCase();
 
   useEffect(() => {
     let active = true;
 
     async function loadElections() {
-      if (!orgId) return;
+      if (!orgId) {
+        setLoadError("No organization is assigned to this Electoral Board account.");
+        setElections([]);
+        setLoading(false);
+        return;
+      }
 
-      const { data } = await supabase
+      setLoading(true);
+      setLoadError("");
+
+      const { data, error } = await supabase
         .from("elections")
         .select("*")
         .eq("organization_id", orgId)
@@ -54,7 +69,16 @@ function BoardElections() {
 
       if (!active) return;
 
+      if (error) {
+        console.error("Failed to load board elections:", error);
+        setLoadError(error.message || "Unable to load elections.");
+        setElections([]);
+        setLoading(false);
+        return;
+      }
+
       setElections(data || []);
+      setLoading(false);
     }
 
     loadElections();
@@ -65,15 +89,32 @@ function BoardElections() {
   }, [orgId]);
 
   async function refreshElections() {
-    if (!orgId) return;
+    if (!orgId) {
+      setLoadError("No organization is assigned to this Electoral Board account.");
+      setElections([]);
+      setLoading(false);
+      return;
+    }
 
-    const { data } = await supabase
+    setLoading(true);
+    setLoadError("");
+
+    const { data, error } = await supabase
       .from("elections")
       .select("*")
       .eq("organization_id", orgId)
       .order("created_at", { ascending: false });
 
+    if (error) {
+      console.error("Failed to refresh board elections:", error);
+      setLoadError(error.message || "Unable to load elections.");
+      setElections([]);
+      setLoading(false);
+      return;
+    }
+
     setElections(data || []);
+    setLoading(false);
   }
 
   function openCreate() {
@@ -135,6 +176,15 @@ function BoardElections() {
   async function handleSubmit(e) {
     e.preventDefault();
 
+    if (submitting) return;
+
+    if (!orgId) {
+      prompt.error("No organization is assigned to this Electoral Board account.");
+      return;
+    }
+
+    setSubmitting(true);
+
     const payload = {
       ...form,
       campaign_start: form.campaign_start || null,
@@ -146,14 +196,25 @@ function BoardElections() {
         form.geo_radius_meters === "" ? null : Number(form.geo_radius_meters),
     };
 
+    let result;
+
     if (editing) {
-      await supabase.from("elections").update(payload).eq("id", editing.id);
+      result = await supabase.from("elections").update(payload).eq("id", editing.id);
     } else {
-      await supabase.from("elections").insert([payload]);
+      result = await supabase.from("elections").insert([payload]);
     }
 
+    if (result.error) {
+      console.error("Board election save failed:", result.error);
+      prompt.error(result.error.message || "Failed to save election.");
+      setSubmitting(false);
+      return;
+    }
+
+    prompt.success(editing ? "Election updated." : "Election created.");
     setFormOpen(false);
-    refreshElections();
+    setSubmitting(false);
+    await refreshElections();
   }
 
   async function handleCreateAccessToken() {
@@ -219,14 +280,38 @@ function BoardElections() {
     refreshElections();
   }
 
+  const filteredElections = useMemo(() => {
+    if (!searchQuery) return elections;
+
+    return elections.filter((election) => {
+      const values = [
+        election.title,
+        election.status,
+        getElectionPhase(election),
+        getVotingAccessModeLabel(election.voting_access_mode),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return values.includes(searchQuery);
+    });
+  }, [elections, searchQuery]);
+
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-black">Board Elections</h1>
+      <div className="page-head">
+        <div>
+          <div className="page-kicker">Election Setup</div>
+          <h1 className="page-title">Board Elections</h1>
+          <p className="page-subtitle">
+            Create and manage elections for your assigned organization.
+          </p>
+        </div>
 
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 rounded-xl bg-[#ff5a1f] px-5 py-3 font-bold text-white"
+          className="primary-btn self-start lg:self-auto"
         >
           <Plus size={18} />
           Create Election
@@ -249,14 +334,32 @@ function BoardElections() {
           </thead>
 
           <tbody>
-            {elections.length === 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan="8" className="p-6 text-center">
+                  <KandidInlineLoader message="Loading elections..." />
+                </td>
+              </tr>
+            ) : loadError ? (
+              <tr>
+                <td colSpan="8" className="p-6 text-center">
+                  <div className="mx-auto max-w-md space-y-3">
+                    <p className="font-bold text-rose-600">Unable to load elections.</p>
+                    <p className="text-sm text-gray-500">{loadError}</p>
+                    <button type="button" onClick={refreshElections} className="secondary-btn">
+                      Retry
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ) : filteredElections.length === 0 ? (
               <tr>
                 <td colSpan="8" className="p-6 text-center text-gray-500">
-                  No elections yet.
+                  {searchQuery ? "No elections match your search." : "No elections yet."}
                 </td>
               </tr>
             ) : (
-              elections.map((election) => (
+              filteredElections.map((election) => (
                 <tr key={election.id} className="border-b">
                   <td className="px-6 py-4 font-bold">{election.title}</td>
                   <td className="px-6 py-4 text-sm">
@@ -313,7 +416,7 @@ function BoardElections() {
                 {editing ? "Edit Election" : "Create Election"}
               </h2>
 
-              <button onClick={() => setFormOpen(false)}>
+              <button type="button" onClick={() => setFormOpen(false)} className="popup-close">
                 <X />
               </button>
             </div>
@@ -466,8 +569,8 @@ function BoardElections() {
                 </div>
               ) : null}
 
-              <button className="w-full rounded-xl bg-[#ff5a1f] py-3 font-bold text-white">
-                Save
+              <button className="primary-btn w-full" disabled={submitting}>
+                {submitting ? <KandidButtonLoader label="Saving..." /> : "Save"}
               </button>
             </form>
           </div>

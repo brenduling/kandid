@@ -110,7 +110,7 @@ function BoardVotingMonitor() {
         </select>
       </div>
 
-      <div className="grid grid-cols-4 gap-6 mt-6">
+      <div className="grid grid-cols-1 gap-4 mt-6 sm:grid-cols-2 xl:grid-cols-4 xl:gap-6">
         <div className="metric-card">
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-500">Total Votes</p>

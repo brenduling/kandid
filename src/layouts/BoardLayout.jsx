@@ -3,9 +3,9 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   ChevronDown,
   LogOut,
-  Search,
 } from "lucide-react";
 import { clearStoredUser, getStoredUser } from "../utils/auth";
+import GlobalSearch from "../components/GlobalSearch";
 import NotificationCenter from "../components/NotificationCenter";
 import MobileNav from "../components/MobileNav";
 import { getProfileRoute } from "../utils/profile";
@@ -138,15 +138,14 @@ function BoardLayout() {
         {/* Main content area */}
         <main className="workspace-main">
           {/* Header area */}
-          <header className="glass-panel shell-header fade-up">
-            <div className="glass-panel-strong shell-search lg:max-w-xl">
-              <Search size={18} className="text-gray-400" />
-              <input
-                placeholder="Search elections, candidates, reports..."
-              />
-            </div>
+          <header className="glass-panel shell-header kandid-header fade-up">
+            <GlobalSearch
+              user={user}
+              className="glass-panel-strong shell-search lg:max-w-xl"
+              placeholder="Search elections, candidates, reports..."
+            />
 
-            <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
+            <div className="kandid-header-actions flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
               <NotificationCenter user={user} />
 
               <button
@@ -160,7 +159,7 @@ function BoardLayout() {
                     className="h-12 w-12 rounded-2xl object-cover"
                   />
                 ) : (
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[rgba(17,128,106,0.12)] text-sm font-black text-[#11806a]">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[rgba(239,78,35,0.1)] text-sm font-black text-[#ef4e23]">
                     EB
                   </div>
                 )}

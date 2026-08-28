@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Plus,
   Pencil,
@@ -7,6 +7,7 @@ import {
   Users,
   Building2,
 } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
 import { readFileAsDataUrl } from "../../utils/files";
@@ -21,8 +22,10 @@ import { usePrompt } from "../../context/PromptContext";
 
 function Organizations() {
   const prompt = usePrompt();
+  const [searchParams] = useSearchParams();
 
   const [organizations, setOrganizations] = useState([]);
+  const [search, setSearch] = useState("");
   const [programs, setPrograms] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
   const [editingOrg, setEditingOrg] = useState(null);
@@ -47,6 +50,10 @@ function Organizations() {
     fetchOrganizations();
     loadPrograms();
   }, []);
+
+  useEffect(() => {
+    setSearch(searchParams.get("q") || "");
+  }, [searchParams]);
 
   async function loadPrograms() {
     const data = await getPrograms();
@@ -516,6 +523,30 @@ function Organizations() {
       : "bg-emerald-100 text-emerald-700 border border-emerald-200";
   }
 
+  const filteredOrganizations = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return organizations;
+
+    return organizations.filter((org) => {
+      const coveredPrograms = (org.organization_programs || [])
+        .map((link) => link.programs)
+        .filter(Boolean)
+        .map((program) => `${program.code || ""} ${program.name || ""}`)
+        .join(" ");
+
+      return [
+        org.name,
+        org.description,
+        getOrganizationTypeLabel(org),
+        coveredPrograms,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(query);
+    });
+  }, [organizations, search]);
+
   return (
     <div>
       {/* PAGE HEADER */}
@@ -545,13 +576,13 @@ function Organizations() {
       </div>
 
       {/* ORGANIZATION CARDS */}
-      {organizations.length === 0 ? (
+      {filteredOrganizations.length === 0 ? (
         <div className="empty-state mt-8">
-          No organizations found.
+          {search ? "No organizations match your search." : "No organizations found."}
         </div>
       ) : (
         <div className="section-grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-          {organizations.map((org) => {
+          {filteredOrganizations.map((org) => {
             const studentCount =
               organizationCounts[org.id] ?? 0;
 

@@ -12,7 +12,7 @@ function ReloadPrompt() {
     }
 
     return (
-        <div className="fixed bottom-6 right-6 z-[9999] w-[360px] rounded-2xl bg-[#111827] p-5 text-white shadow-2xl">
+        <div className="fixed inset-x-4 bottom-4 z-[9999] rounded-2xl bg-[#111827] p-5 text-white shadow-2xl sm:left-auto sm:right-6 sm:bottom-6 sm:w-[360px]">
             <div className="flex items-start gap-3">
                 <div className="rounded-xl bg-white/10 p-3">
                     <RefreshCw size={20} />

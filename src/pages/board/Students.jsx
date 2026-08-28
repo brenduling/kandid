@@ -1,14 +1,22 @@
 import { useEffect, useState } from "react";
 import { Plus, Search } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { KandidButtonLoader, KandidInlineLoader } from "../../components/KandidLoader";
 import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
+import { usePrompt } from "../../context/PromptContext";
 import { readFileAsDataUrl } from "../../utils/files";
 import { syncStudentOrganizationMemberships } from "../../utils/organizationAccess";
 
 function BoardStudents() {
+  const prompt = usePrompt();
+  const [searchParams] = useSearchParams();
   const [students, setStudents] = useState([]);
   const [search, setSearch] = useState("");
   const [formOpen, setFormOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const [form, setForm] = useState({
     student_number: "",
@@ -28,9 +36,24 @@ function BoardStudents() {
   const orgId = user?.organization_id;
 
   useEffect(() => {
+    const query = searchParams.get("q") || "";
+    setSearch(query);
+  }, [searchParams]);
+
+  useEffect(() => {
     let active = true;
 
     async function loadStudents() {
+      if (!orgId) {
+        setLoadError("No organization is assigned to this Electoral Board account.");
+        setStudents([]);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setLoadError("");
+
       const { data, error } = await supabase
         .from("student_organizations")
         .select(`
@@ -53,12 +76,16 @@ function BoardStudents() {
       if (!active) return;
 
       if (error) {
-        console.log(error);
+        console.error("Failed to load board students:", error);
+        setLoadError(error.message || "Unable to load students.");
+        setStudents([]);
+        setLoading(false);
         return;
       }
 
       const list = data.map((item) => item.students).filter(Boolean);
       setStudents(list);
+      setLoading(false);
     }
 
     loadStudents();
@@ -69,6 +96,16 @@ function BoardStudents() {
   }, [orgId]);
 
   async function fetchStudents() {
+    if (!orgId) {
+      setLoadError("No organization is assigned to this Electoral Board account.");
+      setStudents([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setLoadError("");
+
     const { data, error } = await supabase
       .from("student_organizations")
       .select(`
@@ -89,16 +126,29 @@ function BoardStudents() {
       .eq("organization_id", orgId);
 
     if (error) {
-      console.log(error);
+      console.error("Failed to refresh board students:", error);
+      setLoadError(error.message || "Unable to load students.");
+      setStudents([]);
+      setLoading(false);
       return;
     }
 
     const list = data.map((item) => item.students).filter(Boolean);
     setStudents(list);
+    setLoading(false);
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
+
+    if (submitting) return;
+
+    if (!orgId) {
+      prompt.error("No organization is assigned to this Electoral Board account.");
+      return;
+    }
+
+    setSubmitting(true);
 
     const { data: insertedStudent, error: studentError } = await supabase
       .from("students")
@@ -116,7 +166,8 @@ function BoardStudents() {
 
     if (studentError) {
       console.error("Board student insert failed:", studentError);
-      alert(studentError.message);
+      prompt.error(studentError.message || "Failed to add student.");
+      setSubmitting(false);
       return;
     }
 
@@ -128,13 +179,15 @@ function BoardStudents() {
 
     if (orgError) {
       console.error("Board student organization link failed:", orgError);
-      alert(orgError.message);
+      prompt.error(orgError.message || "Failed to link student to this organization.");
+      setSubmitting(false);
       return;
     }
 
-    alert("Student added successfully.");
+    prompt.success("Student added and linked to your organization.");
     setFormOpen(false);
-    fetchStudents();
+    setSubmitting(false);
+    await fetchStudents();
   }
 
   async function handlePhotoUpload(file) {
@@ -198,7 +251,25 @@ function BoardStudents() {
           </thead>
 
           <tbody>
-            {filteredStudents.length === 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan="6" className="px-6 py-10 text-center">
+                  <KandidInlineLoader message="Loading students..." />
+                </td>
+              </tr>
+            ) : loadError ? (
+              <tr>
+                <td colSpan="6" className="px-6 py-10 text-center">
+                  <div className="mx-auto max-w-md space-y-3">
+                    <p className="font-bold text-rose-600">Unable to load students.</p>
+                    <p className="text-sm text-gray-500">{loadError}</p>
+                    <button type="button" onClick={fetchStudents} className="secondary-btn">
+                      Retry
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ) : filteredStudents.length === 0 ? (
               <tr>
                 <td colSpan="6" className="px-6 py-10 text-center empty-copy">
                   No students found.
@@ -336,8 +407,8 @@ function BoardStudents() {
                   Cancel
                 </button>
 
-                <button className="primary-btn min-w-52">
-                  Save Student
+                <button className="primary-btn min-w-52" disabled={submitting}>
+                  {submitting ? <KandidButtonLoader label="Saving..." /> : "Save Student"}
                 </button>
               </div>
             </form>

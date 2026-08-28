@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { canStudentViewResults } from "../../utils/elections";
-import { getEligibleStudentOrganizationIds } from "../../utils/organizationAccess";
+import { getStudentElectionOrganizationIds } from "../../utils/organizationAccess";
 import { buildElectionAnalytics } from "../../utils/results";
 
 function StudentResults() {
@@ -19,7 +19,7 @@ function StudentResults() {
     let active = true;
 
     async function loadResults() {
-      const organizationIds = await getEligibleStudentOrganizationIds(user);
+      const organizationIds = await getStudentElectionOrganizationIds(user);
 
       if (organizationIds.length === 0) return;
 

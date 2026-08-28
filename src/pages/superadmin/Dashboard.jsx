@@ -233,7 +233,7 @@ function Dashboard() {
             </div>
 
             {/* 2x2 Grid of Metrics (Right Column) */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {[
                 {
                   title: "ORGANIZATIONS",
@@ -270,7 +270,7 @@ function Dashboard() {
                         <Icon size={18} />
                       </div>
                     </div>
-                    <h3 className="mt-6 text-5xl font-black text-slate-900 leading-none">
+                    <h3 className="mt-6 text-4xl font-black text-slate-900 leading-none sm:text-5xl">
                       {card.value}
                     </h3>
                   </div>

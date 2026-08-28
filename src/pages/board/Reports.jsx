@@ -172,7 +172,7 @@ function BoardReports() {
         </p>
       </div>
 
-      <div className="grid grid-cols-4 gap-6 mt-8">
+      <div className="grid grid-cols-1 gap-4 mt-8 sm:grid-cols-2 xl:grid-cols-4 xl:gap-6">
         <div className="metric-card">
           <p className="text-sm text-gray-500">Elections</p>
           <h2 className="text-3xl font-black mt-2">{elections.length}</h2>
@@ -194,14 +194,14 @@ function BoardReports() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-6 mt-8">
+      <div className="grid grid-cols-1 gap-4 mt-8 xl:grid-cols-2 xl:gap-6">
         {reports.map((report) => {
           const Icon = report.icon;
 
           return (
             <div
               key={report.title}
-              className="metric-card flex items-center justify-between"
+              className="metric-card flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
             >
               <div className="flex gap-4">
                 <div className="w-12 h-12 rounded-xl bg-[rgba(194,65,12,0.08)] text-[#ff5a1f] flex items-center justify-center">
@@ -218,7 +218,7 @@ function BoardReports() {
 
               <button
                 onClick={report.action}
-                className="primary-btn"
+                className="primary-btn w-full sm:w-auto"
               >
                 <Download size={16} />
                 Export

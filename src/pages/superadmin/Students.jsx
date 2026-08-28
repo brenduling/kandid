@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Pencil, Trash2, X, Search } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
 import { readFileAsDataUrl } from "../../utils/files";
@@ -8,6 +9,7 @@ import { usePrompt } from "../../context/PromptContext";
 
 function Students() {
   const prompt = usePrompt();
+  const [searchParams] = useSearchParams();
 
   const [students, setStudents] = useState([]);
   const [organizations, setOrganizations] = useState([]);
@@ -38,6 +40,10 @@ function Students() {
     fetchStudents();
     fetchOrganizations();
   }, []);
+
+  useEffect(() => {
+    setSearch(searchParams.get("q") || "");
+  }, [searchParams]);
 
   async function fetchStudents() {
     const { data, error } = await supabase

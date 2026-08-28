@@ -3,9 +3,9 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   ChevronDown,
   LogOut,
-  Search,
 } from "lucide-react";
 
+import GlobalSearch from "../components/GlobalSearch";
 import MobileNav from "../components/MobileNav";
 import NotificationCenter from "../components/NotificationCenter";
 
@@ -156,20 +156,15 @@ function StudentLayout() {
         {/* ====================================================
             TOP BAR
             ==================================================== */}
-        <header className="student-topbar">
+        <header className="student-topbar kandid-header">
           {/* SEARCH */}
-          <div className="student-search">
-            <Search size={15} />
-
-            <input
-              type="search"
-              placeholder="Search users, organizations, elections, logs..."
-              aria-label="Search"
-            />
-          </div>
+          <GlobalSearch
+            user={user}
+            className="student-search"
+          />
 
           {/* ACTIONS */}
-          <div className="student-topbar-actions">
+          <div className="student-topbar-actions kandid-header-actions">
             <NotificationCenter
               user={user}
             />

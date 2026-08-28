@@ -1,0 +1,1 @@
+var e=`/assets/kandidlogo-udvpLJX7.png`;export{e as t};

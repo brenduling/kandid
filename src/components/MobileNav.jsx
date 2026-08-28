@@ -44,7 +44,7 @@ function MobileNav({ items, groups, onLogout }) {
                     onClick={() => setOpenGroup(null)}
                     className={({ isActive }) =>
                       `mobile-nav-panel-link ${isActive
-                        ? "bg-[rgba(194,65,12,0.12)] text-[#c2410c]"
+                        ? "bg-[rgba(239,78,35,0.1)] text-[#ef4e23]"
                         : "text-[#334155]"
                       }`
                     }
@@ -74,7 +74,7 @@ function MobileNav({ items, groups, onLogout }) {
                   )
                 }
                 className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-1.5 py-2 text-[10px] font-bold tracking-[0.02em] ${isActive
-                    ? "bg-[rgba(194,65,12,0.12)] text-[#c2410c]"
+                    ? "bg-[rgba(239,78,35,0.1)] text-[#ef4e23]"
                     : "text-gray-500"
                   }`}
               >
@@ -112,7 +112,7 @@ function MobileNav({ items, groups, onLogout }) {
             to={item.path}
             className={({ isActive }) =>
               `flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl px-2 py-2 text-[10px] font-bold tracking-[0.04em] ${isActive
-                ? "bg-[rgba(17,128,106,0.14)] text-[#11806a]"
+                ? "bg-[rgba(239,78,35,0.1)] text-[#ef4e23]"
                 : "text-gray-500"
               }`
             }

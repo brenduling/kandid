@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
+import { KandidRouteLoader } from "./components/KandidLoader";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import { PromptProvider } from "./context/PromptContext";
@@ -20,6 +21,7 @@ const StudentOfficers = lazy(() => import("./pages/student/Officers"));
 const StudentSetup = lazy(() => import("./pages/auth/StudentSetup"));
 const ProfilePage = lazy(() => import("./pages/shared/Profile"));
 const KioskVoting = lazy(() => import("./pages/shared/KioskVoting"));
+const SearchPage = lazy(() => import("./pages/shared/SearchPage"));
 
 const BoardDashboard = lazy(() => import("./pages/board/Dashboard"));
 const BoardElections = lazy(() => import("./pages/board/Elections"));
@@ -58,11 +60,7 @@ const BoardLogin = lazy(() => import("./pages/auth/BoardLogin"));
 const StudentLogin = lazy(() => import("./pages/auth/StudentLogin"));
 
 function RouteFallback() {
-  return (
-    <div className="min-h-screen bg-[#f8faf9] px-6 py-8 text-sm font-semibold text-[#55726b]">
-      Loading...
-    </div>
-  );
+  return <KandidRouteLoader message="Opening your workspace..." />;
 }
 
 function App() {
@@ -125,6 +123,11 @@ function App() {
             <Route
               path="organizations"
               element={<Organizations />}
+            />
+
+            <Route
+              path="search"
+              element={<SearchPage />}
             />
 
             <Route
@@ -243,6 +246,11 @@ function App() {
             />
 
             <Route
+              path="search"
+              element={<SearchPage />}
+            />
+
+            <Route
               path="positions"
               element={<BoardPositions />}
             />
@@ -325,6 +333,11 @@ function App() {
             <Route
               path="elections"
               element={<StudentElections />}
+            />
+
+            <Route
+              path="search"
+              element={<SearchPage />}
             />
 
             <Route

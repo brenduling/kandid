@@ -100,10 +100,13 @@ function NotificationCenter({ user }) {
     };
   }, [open]);
 
-  const unreadCount = useMemo(
-    () => notifications.filter((item) => !readIds.includes(item.id)).length,
-    [notifications, readIds],
-  );
+  const unreadNotifications = useMemo(() => {
+    const readSet = new Set(readIds.map(String));
+    return notifications.filter((item) => !readSet.has(String(item.id)));
+  }, [notifications, readIds]);
+
+  const unreadCount = unreadNotifications.length;
+  const showUnreadBadge = unreadCount > 0 && !loading;
 
   function handleOpen() {
     setOpen((current) => !current);
@@ -112,7 +115,7 @@ function NotificationCenter({ user }) {
   function handleNavigate(item) {
     if (!user) return;
     markNotificationRead(user, item.id);
-    setReadIds(getReadNotifications(user));
+    setReadIds((current) => [...new Set([...current.map(String), String(item.id)])]);
     setOpen(false);
     if (item.href) {
       navigate(item.href);
@@ -122,16 +125,16 @@ function NotificationCenter({ user }) {
   function handleMarkAllRead() {
     if (!user) return;
     markAllNotificationsRead(user, notifications);
-    setReadIds(getReadNotifications(user));
+    setReadIds(notifications.map((item) => String(item.id)));
   }
 
   const panel = open
     ? createPortal(
         <>
-          <div className="fixed inset-0 z-40 bg-black/10 backdrop-blur-[1px] sm:bg-transparent sm:backdrop-blur-0" />
+          <div className="notification-backdrop fixed inset-0 z-40 bg-black/10 sm:bg-transparent" />
           <div
             ref={panelRef}
-            className="glass-panel-strong fixed z-50 rounded-[28px] p-4 shadow-[0_24px_60px_rgba(7,17,16,0.2)]"
+            className="notification-panel glass-panel-strong fixed z-50 rounded-[28px] p-4 shadow-[0_24px_60px_rgba(7,17,16,0.2)]"
             style={{
               top: panelPosition.top,
               right: panelPosition.right,
@@ -190,7 +193,7 @@ function NotificationCenter({ user }) {
                       onClick={() => handleNavigate(item)}
                       className={`w-full rounded-[24px] border p-4 text-left ${
                         unread
-                          ? "border-[rgba(17,128,106,0.18)] bg-[rgba(17,128,106,0.08)]"
+                          ? "border-[rgba(239,78,35,0.18)] bg-[rgba(239,78,35,0.08)]"
                           : "border-black/5 bg-white/50"
                       }`}
                     >
@@ -230,8 +233,8 @@ function NotificationCenter({ user }) {
           aria-expanded={open}
         >
           <Bell size={18} />
-          {unreadCount > 0 ? (
-            <span className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#11806a] px-1 text-[10px] font-black text-white">
+          {showUnreadBadge ? (
+            <span className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#ef4e23] px-1 text-[10px] font-black text-white">
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           ) : null}

@@ -15,7 +15,7 @@ function SuperAdminDashboard() {
         description="System-wide overview of KANDID voting operations."
       />
 
-      <div className="grid grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 gap-4 mb-8 sm:grid-cols-2 xl:grid-cols-4 xl:gap-6">
         {stats.map((stat) => (
           <div key={stat.label} className="bg-white p-6 rounded-2xl shadow-sm border">
             <p className="text-sm text-gray-500">{stat.label}</p>
@@ -26,7 +26,7 @@ function SuperAdminDashboard() {
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-6">
         <div className="bg-white p-6 rounded-2xl shadow-sm border">
           <h3 className="font-bold text-xl mb-4">Recent Activities</h3>
           <div className="space-y-4 text-sm text-gray-600">

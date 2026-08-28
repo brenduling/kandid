@@ -1,0 +1,1 @@
+var e=new Map;function t(t,n=300*1e3){let r=e.get(t);return r?Date.now()-r.timestamp>n?(e.delete(t),null):r.value:null}function n(t,n){return e.set(t,{value:n,timestamp:Date.now()}),n}function r(t){e.delete(t)}function i(){e.clear()}export{n as i,i as n,t as r,r as t};

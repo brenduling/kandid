@@ -1,0 +1,16 @@
+import{n as e,s as t,t as n}from"./jsx-runtime-2UHhqg_S.js";import{n as r,r as i,t as a}from"./StudentAuthShell-DyaVi2OA.js";import{S as o,_ as s,a as c,o as l}from"./index-D83JNacz.js";import{t as u}from"./supabaseClient-dWtquuww.js";var d=t(e(),1),f=n();function p(){let[e,t]=(0,d.useState)(``),[n,p]=(0,d.useState)(``),[m,h]=(0,d.useState)(!1),[g,_]=(0,d.useState)(!1),v=o();(0,d.useEffect)(()=>{let e=l();e?.role===`student`&&v(c(e),{replace:!0})},[v]);async function y(t){t.preventDefault(),h(!0),_(!1);let{data:r,error:i}=await u.from(`students`).select(`
+        id,
+        student_number,
+        first_name,
+        last_name,
+        email,
+        password,
+        photo_url,
+        program,
+        year_level,
+        precinct_code,
+        batch_code,
+        is_shs,
+        status,
+        created_at
+      `).eq(`student_number`,e).single();if(i||!r){_(!0),h(!1);return}if(r.status===`pending`){v(`/student-setup`,{replace:!0,state:{studentNumber:e}}),h(!1);return}if(r.status===`disabled`){alert(`Your account is disabled.`),h(!1);return}if(r.password!==n){alert(`Incorrect password.`),h(!1);return}localStorage.setItem(`user`,JSON.stringify({...r,role:`student`})),v(`/student/dashboard`,{replace:!0}),h(!1)}return(0,f.jsxs)(a,{children:[(0,f.jsxs)(`div`,{className:`student-auth-card`,children:[(0,f.jsxs)(`form`,{onSubmit:y,className:g?`student-auth-blur`:``,children:[(0,f.jsx)(`h2`,{children:`Student Login`}),(0,f.jsx)(`p`,{className:`student-auth-subcopy`,children:`Only registered students with active organization-linked accounts can access the portal.`}),(0,f.jsxs)(`div`,{className:`student-auth-fields`,children:[(0,f.jsxs)(`label`,{children:[(0,f.jsx)(`span`,{children:`Student ID Number`}),(0,f.jsx)(`input`,{required:!0,value:e,onChange:e=>t(e.target.value),placeholder:`e.g. 12345`})]}),(0,f.jsxs)(`label`,{children:[(0,f.jsxs)(`span`,{className:`flex items-center justify-between gap-3`,children:[`Password`,(0,f.jsx)(`small`,{children:`Primary access only?`})]}),(0,f.jsxs)(`div`,{className:`student-auth-password`,children:[(0,f.jsx)(`input`,{required:!0,type:`password`,value:n,onChange:e=>p(e.target.value),placeholder:`Enter your secure access code`}),(0,f.jsx)(i,{size:15})]})]}),(0,f.jsx)(`button`,{disabled:m,className:`student-auth-submit`,children:m?`Authenticating...`:`Authenticate Student Identity`})]}),(0,f.jsxs)(`div`,{className:`student-auth-divider`,children:[(0,f.jsx)(`span`,{}),(0,f.jsx)(`p`,{children:`OR`}),(0,f.jsx)(`span`,{})]}),(0,f.jsxs)(`button`,{type:`button`,onClick:()=>v(`/student-setup`),className:`student-auth-setup-link`,children:[(0,f.jsx)(`span`,{className:`student-auth-setup-icon`,children:(0,f.jsx)(r,{size:16})}),`First time here? `,(0,f.jsx)(`strong`,{children:`Complete account setup`})]})]}),g?(0,f.jsxs)(`div`,{className:`student-auth-error`,children:[(0,f.jsx)(`div`,{className:`student-auth-error-icon`,children:(0,f.jsx)(s,{size:20})}),(0,f.jsx)(`h3`,{children:`Student ID not Found!`}),(0,f.jsx)(`p`,{children:`Please see Electoral Board.`}),(0,f.jsx)(`button`,{type:`button`,onClick:()=>_(!1),children:`Back to Search`})]}):null]}),(0,f.jsxs)(`footer`,{className:`student-auth-footer`,children:[(0,f.jsx)(`span`,{children:`Blockchain secured`}),(0,f.jsx)(`span`,{children:`End-to-end encrypted`})]})]})}export{p as default};

@@ -3,7 +3,7 @@ import { ArrowLeft, BarChart3, ChevronRight, UserRound, UsersRound, Vote } from 
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { formatLocalDateTime, getElectionPhase } from "../../utils/elections";
-import { getEligibleStudentOrganizationIds } from "../../utils/organizationAccess";
+import { getStudentElectionOrganizationIds } from "../../utils/organizationAccess";
 
 function StudentCampaign() {
   const { electionId } = useParams();
@@ -40,7 +40,7 @@ function StudentCampaign() {
           `)
           .eq("id", electionId)
           .single(),
-        getEligibleStudentOrganizationIds(user),
+        getStudentElectionOrganizationIds(user),
       ]);
 
       if (!eligibleOrganizationIds.includes(electionData?.organization_id)) {

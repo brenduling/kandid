@@ -280,6 +280,65 @@ export async function getEligibleStudentOrganizationIds(student) {
   return organizations.map((organization) => organization.id);
 }
 
+export async function getStudentElectionOrganizationIds(student) {
+  if (!student?.id) return [];
+
+  let studentProfile = student;
+
+  if (!studentProfile.program) {
+    const { data, error } = await supabase
+      .from("students")
+      .select("id, program")
+      .eq("id", student.id)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Failed to load student program:", error);
+    } else if (data) {
+      studentProfile = { ...studentProfile, ...data };
+    }
+  }
+
+  const [
+    eligibleOrganizationIds,
+    { data: directMemberships, error: membershipError },
+    organizations,
+  ] = await Promise.all([
+    getEligibleStudentOrganizationIds(studentProfile),
+    supabase
+      .from("student_organizations")
+      .select("organization_id")
+      .eq("student_id", studentProfile.id),
+    getOrganizationCatalog(),
+  ]);
+
+  if (membershipError) {
+    console.error("Failed to load direct student organization memberships:", membershipError);
+  }
+
+  const directOrganizationIds = (directMemberships || [])
+    .map((membership) => membership.organization_id)
+    .filter(Boolean);
+
+  const programCoveredOrganizationIds = (organizations || [])
+    .filter((organization) =>
+      isOrganizationEligibleForStudent(organization, studentProfile),
+    )
+    .map((organization) => organization.id);
+
+  return [
+    ...new Set(
+      [
+        ...eligibleOrganizationIds,
+        ...directOrganizationIds,
+        ...programCoveredOrganizationIds,
+      ]
+        .map((id) => Number(id))
+        .filter(Boolean),
+    ),
+  ];
+}
+
 export async function syncStudentOrganizationMemberships({
   studentId,
   program,
