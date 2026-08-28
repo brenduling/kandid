@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Bell, CheckCheck, ChevronRight, LoaderCircle, X } from "lucide-react";
+import { Bell, CheckCheck, ChevronRight, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { KandidInlineLoader } from "./KandidLoader";
 import {
   fetchNotificationsForUser,
   getReadNotifications,
@@ -176,8 +177,7 @@ function NotificationCenter({ user }) {
             <div className="mt-3 max-h-[calc(min(70vh,40rem)-5rem)] space-y-3 overflow-y-auto pr-1">
               {loading ? (
                 <div className="surface-subcopy flex items-center gap-2 rounded-2xl bg-white/50 px-4 py-4 text-sm">
-                  <LoaderCircle size={16} className="animate-spin" />
-                  Loading notifications...
+                  <KandidInlineLoader message="Loading notifications..." />
                 </div>
               ) : notifications.length === 0 ? (
                 <div className="surface-subcopy rounded-2xl bg-white/50 px-4 py-4 text-sm">

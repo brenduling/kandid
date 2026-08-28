@@ -26,6 +26,7 @@ function Organizations() {
 
   const [organizations, setOrganizations] = useState([]);
   const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("all");
   const [programs, setPrograms] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
   const [editingOrg, setEditingOrg] = useState(null);
@@ -524,10 +525,18 @@ function Organizations() {
   }
 
   const filteredOrganizations = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return organizations;
+    let filtered = organizations;
 
-    return organizations.filter((org) => {
+    if (filter !== "all") {
+      filtered = filtered.filter(
+        (org) => org.organization_type === filter
+      );
+    }
+
+    const query = search.trim().toLowerCase();
+    if (!query) return filtered;
+
+    return filtered.filter((org) => {
       const coveredPrograms = (org.organization_programs || [])
         .map((link) => link.programs)
         .filter(Boolean)
@@ -545,7 +554,7 @@ function Organizations() {
         .toLowerCase()
         .includes(query);
     });
-  }, [organizations, search]);
+  }, [organizations, search, filter]);
 
   return (
     <div>
@@ -573,6 +582,27 @@ function Organizations() {
           <Plus size={18} />
           Add
         </button>
+      </div>
+
+      {/* FILTER CHIPS */}
+      <div className="mb-6 flex flex-wrap items-center gap-2">
+        {["all", "departmental", "non_departmental"].map((type) => (
+          <button
+            key={type}
+            onClick={() => setFilter(type)}
+            className={`rounded-full px-4 py-1.5 text-xs font-black uppercase tracking-[0.12em] transition-colors ${
+              filter === type
+                ? "bg-[#18212b] text-white shadow-sm"
+                : "bg-black/5 text-[#556987] hover:bg-black/10"
+            }`}
+          >
+            {type === "all"
+              ? "All Organizations"
+              : type === "departmental"
+              ? "Departmental"
+              : "Non-Departmental"}
+          </button>
+        ))}
       </div>
 
       {/* ORGANIZATION CARDS */}

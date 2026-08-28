@@ -13,6 +13,10 @@ export default defineConfig({
 
       includeAssets: [
         "kandidlogo.png",
+        "kandid-icon-192.png",
+        "kandid-icon-512.png",
+        "kandid-maskable-512.png",
+        "apple-touch-icon.png",
       ],
 
       workbox: {
@@ -22,28 +26,37 @@ export default defineConfig({
       manifest: {
         name: "Kandid",
         short_name: "Kandid",
-        description: "Centralized Election Management System",
+        description: "Student election management with organization access, voting, receipts, results, and administration.",
 
-        theme_color: "#111827",
-        background_color: "#ffffff",
+        theme_color: "#ef4e23",
+        background_color: "#fbf7ef",
 
         display: "standalone",
+        display_override: ["standalone", "minimal-ui"],
+        orientation: "portrait-primary",
 
         start_url: "/",
         scope: "/",
+        categories: ["education", "productivity"],
 
         icons: [
           {
-            src: "/kandidlogo.png",
+            src: "/kandid-icon-192.png",
             sizes: "192x192",
             type: "image/png",
             purpose: "any",
           },
           {
-            src: "/kandidlogo.png",
+            src: "/kandid-icon-512.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "any",
+          },
+          {
+            src: "/kandid-maskable-512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
           },
         ],
       },

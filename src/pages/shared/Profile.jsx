@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import { ImagePlus, LoaderCircle, Save } from "lucide-react";
+import { ImagePlus, Save } from "lucide-react";
+import { KandidButtonLoader, KandidInlineLoader } from "../../components/KandidLoader";
 import { fetchCurrentUserProfile, updateCurrentUserProfile } from "../../utils/profile";
 import { getStoredUser } from "../../utils/auth";
 import { readFileAsDataUrl } from "../../utils/files";
+import { promptKandidInstall, usePWAInstallState } from "../../utils/pwaInstall";
 import { usePrompt } from "../../context/PromptContext";
 import { supabase } from "../../lib/supabaseClient";
 import {
@@ -19,15 +21,12 @@ function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const pwaInstall = usePWAInstallState();
   const [programs, setPrograms] = useState([]);
   const [boardOrganization, setBoardOrganization] = useState(null);
   const [selectedProgramIds, setSelectedProgramIds] = useState([]);
   const [newProgram, setNewProgram] = useState("");
   const [coverageSaving, setCoverageSaving] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(
-    window.matchMedia("(display-mode: standalone)").matches,
-  );
   const [form, setForm] = useState({
     full_name: "",
     first_name: "",
@@ -92,26 +91,6 @@ function ProfilePage() {
     };
   }, []);
 
-  useEffect(() => {
-    function handleBeforeInstallPrompt(event) {
-      event.preventDefault();
-      setDeferredPrompt(event);
-    }
-
-    function handleInstalled() {
-      setIsInstalled(true);
-      setDeferredPrompt(null);
-    }
-
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-    window.addEventListener("appinstalled", handleInstalled);
-
-    return () => {
-      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-      window.removeEventListener("appinstalled", handleInstalled);
-    };
-  }, []);
-
   async function handlePhotoUpload(file) {
     if (!file) return;
     const dataUrl = await readFileAsDataUrl(file);
@@ -152,10 +131,7 @@ function ProfilePage() {
   }
 
   async function handleInstallApp() {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    await deferredPrompt.userChoice;
-    setDeferredPrompt(null);
+    await promptKandidInstall();
   }
 
   function toggleProgram(programId) {
@@ -282,10 +258,7 @@ function ProfilePage() {
 
       {loading ? (
         <div className="glass-panel mt-8 rounded-[28px] p-8 text-gray-500">
-          <span className="inline-flex items-center gap-2">
-            <LoaderCircle size={16} className="animate-spin" />
-            Loading profile...
-          </span>
+          <KandidInlineLoader message="Loading profile..." />
         </div>
       ) : (
         <div className="section-grid grid-cols-1 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.2fr)]">
@@ -437,11 +410,15 @@ function ProfilePage() {
             <div className="mt-4 rounded-[24px] bg-white/50 p-4">
               <p className="field-label !mb-1">App Install</p>
               <p className="text-sm font-semibold text-[#1d262f]">
-                {isInstalled
+                {pwaInstall.installed || pwaInstall.standalone
                   ? "Installed in app mode on this device."
-                  : "You can install KANDID for a cleaner mobile experience."}
+                  : pwaInstall.shouldGuideIOS
+                    ? "On iPhone or iPad, install KANDID from Share, then Add to Home Screen."
+                    : pwaInstall.canInstall
+                      ? "You can install KANDID for a cleaner mobile experience."
+                      : "Use a supported browser install option when it is available on this device."}
               </p>
-              {!isInstalled && deferredPrompt ? (
+              {pwaInstall.canInstall ? (
                 <button
                   type="button"
                   onClick={handleInstallApp}
@@ -571,10 +548,7 @@ function ProfilePage() {
                 className="primary-btn w-full disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {saving ? (
-                  <>
-                    <LoaderCircle size={18} className="animate-spin" />
-                    Saving Profile...
-                  </>
+                  <KandidButtonLoader label="Saving profile..." />
                 ) : (
                   <>
                     <Save size={18} />

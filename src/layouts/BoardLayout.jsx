@@ -6,10 +6,12 @@ import {
 } from "lucide-react";
 import { clearStoredUser, getStoredUser } from "../utils/auth";
 import GlobalSearch from "../components/GlobalSearch";
-import NotificationCenter from "../components/NotificationCenter";
 import MobileNav from "../components/MobileNav";
+import MobileHeader from "../components/MobileHeader";
+import MobileMenu from "../components/MobileMenu";
+import NotificationCenter from "../components/NotificationCenter";
 import { getProfileRoute } from "../utils/profile";
-import { boardMenuGroups } from "../config/navigation";
+import { boardMenuGroups, boardPrimaryNav } from "../config/navigation";
 import logo from "../assets/kandidlogo.png";
 import TransitionWrapper from "../components/TransitionWrapper";
 import { usePrompt } from "../context/PromptContext";
@@ -22,6 +24,7 @@ function BoardLayout() {
   const [openGroups, setOpenGroups] = useState(() =>
     Object.fromEntries(boardMenuGroups.map((group) => [group.label, true])),
   );
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (!user || user.role !== "electoral_board") {
@@ -39,7 +42,7 @@ function BoardLayout() {
     if (!ok) return;
 
     clearStoredUser();
-    navigate("/eb-login", { replace: true });
+    navigate("/board-portal", { replace: true });
   }
 
   function toggleGroup(label) {
@@ -105,6 +108,8 @@ function BoardLayout() {
                           <NavLink
                             key={item.path}
                             to={item.path}
+                            aria-label={item.name}
+                            data-tooltip={item.name}
                             className={({ isActive }) =>
                               `fade-up nav-item ${isActive ? "nav-item-active" : ""}`
                             }
@@ -129,6 +134,8 @@ function BoardLayout() {
           <button
             onClick={handleLogout}
             className="sidebar-logout-btn"
+            aria-label="Logout"
+            data-tooltip="Logout"
           >
             <LogOut size={18} />
             <span className="sidebar-reveal">Logout</span>
@@ -138,14 +145,14 @@ function BoardLayout() {
         {/* Main content area */}
         <main className="workspace-main">
           {/* Header area */}
-          <header className="glass-panel shell-header kandid-header fade-up">
+          <header className="glass-panel shell-header kandid-header hidden lg:flex fade-up">
             <GlobalSearch
               user={user}
               className="glass-panel-strong shell-search lg:max-w-xl"
               placeholder="Search elections, candidates, reports..."
             />
 
-            <div className="kandid-header-actions flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
+            <div className="kandid-header-actions hidden w-full items-center justify-between gap-3 sm:w-auto sm:justify-end lg:flex">
               <NotificationCenter user={user} />
 
               <button
@@ -175,7 +182,7 @@ function BoardLayout() {
             </div>
           </header>
 
-          <section className="content-stack">
+          <section className="content-stack pb-24 pt-20 lg:pb-8 lg:pt-8">
             <TransitionWrapper>
               <Outlet />
             </TransitionWrapper>
@@ -183,7 +190,23 @@ function BoardLayout() {
         </main>
       </div>
 
-      <MobileNav groups={boardMenuGroups} onLogout={handleLogout} />
+      <MobileHeader
+        user={user}
+        onMenuClick={() => setIsMobileMenuOpen(true)}
+      />
+
+      <MobileMenu
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+        menuGroups={boardMenuGroups}
+        user={user}
+        onLogout={handleLogout}
+        title="Electoral Board"
+      />
+
+      <MobileNav
+        primaryItems={boardPrimaryNav}
+      />
     </div>
   );
 }

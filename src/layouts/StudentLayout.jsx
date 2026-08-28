@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   ChevronDown,
@@ -7,7 +7,10 @@ import {
 
 import GlobalSearch from "../components/GlobalSearch";
 import MobileNav from "../components/MobileNav";
+import MobileHeader from "../components/MobileHeader";
+import MobileMenu from "../components/MobileMenu";
 import NotificationCenter from "../components/NotificationCenter";
+
 
 import logo from "../assets/kandidlogo.png";
 
@@ -22,6 +25,7 @@ import {
 
 import {
   studentMenuItems,
+  studentPrimaryNav,
 } from "../config/navigation";
 
 import {
@@ -30,6 +34,7 @@ import {
 
 function StudentLayout() {
   const navigate = useNavigate();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   /*
    * Keep the stored user stable for the lifetime
@@ -80,7 +85,7 @@ function StudentLayout() {
     clearStoredUser();
 
     navigate(
-      "/student-login",
+      "/",
       {
         replace: true,
       }
@@ -92,7 +97,7 @@ function StudentLayout() {
       {/* ======================================================
           DESKTOP SIDEBAR
           ====================================================== */}
-      <aside className="student-sidebar">
+      <aside className="student-sidebar shell-sidebar-collapsible">
         {/* BRAND */}
         <div className="student-sidebar-brand">
           <img
@@ -120,6 +125,8 @@ function StudentLayout() {
               <NavLink
                 key={item.path}
                 to={item.path}
+                aria-label={item.name}
+                data-tooltip={item.name}
                 className={({ isActive }) =>
                   `student-sidebar-link ${isActive
                     ? "student-sidebar-link-active"
@@ -127,9 +134,11 @@ function StudentLayout() {
                   }`
                 }
               >
-                <Icon size={16} />
+                <span className="nav-item-icon">
+                  <Icon size={18} />
+                </span>
 
-                <span>
+                <span className="sidebar-reveal">
                   {item.name}
                 </span>
               </NavLink>
@@ -142,10 +151,16 @@ function StudentLayout() {
           type="button"
           onClick={handleLogout}
           className="student-sidebar-logout"
+          aria-label="Logout"
+          data-tooltip="Logout"
         >
-          <LogOut size={16} />
+          <span className="nav-item-icon">
+            <LogOut size={18} />
+          </span>
 
-          Logout
+          <span className="sidebar-reveal">
+            Logout
+          </span>
         </button>
       </aside>
 
@@ -156,7 +171,7 @@ function StudentLayout() {
         {/* ====================================================
             TOP BAR
             ==================================================== */}
-        <header className="student-topbar kandid-header">
+        <header className="student-topbar kandid-header hidden lg:flex">
           {/* SEARCH */}
           <GlobalSearch
             user={user}
@@ -164,7 +179,7 @@ function StudentLayout() {
           />
 
           {/* ACTIONS */}
-          <div className="student-topbar-actions kandid-header-actions">
+          <div className="student-topbar-actions kandid-header-actions hidden lg:flex">
             <NotificationCenter
               user={user}
             />
@@ -222,19 +237,37 @@ function StudentLayout() {
         {/* ====================================================
             PAGE CONTENT
             ==================================================== */}
-        <section className="student-content">
+        <section className="student-content pb-24 pt-20 lg:pb-8 lg:pt-8">
           <Outlet />
         </section>
       </main>
 
       {/* ======================================================
-          MOBILE NAVIGATION
+          MOBILE HEADER
+          ====================================================== */}
+      <MobileHeader
+        user={user}
+        onMenuClick={() => setIsMobileMenuOpen(true)}
+      />
+
+      {/* ======================================================
+          MOBILE MENU (DRAWER)
+          ====================================================== */}
+      <MobileMenu
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+        menuGroups={studentMenuItems}
+        user={user}
+        onLogout={handleLogout}
+        title="Student Portal"
+      />
+
+      {/* ======================================================
+          MOBILE NAVIGATION (BOTTOM)
           ====================================================== */}
       <MobileNav
-        items={studentMenuItems}
+        primaryItems={studentPrimaryNav}
         onLogout={handleLogout}
-        organizationLogo={logo}
-        organizationName="KANDID"
       />
     </div>
   );

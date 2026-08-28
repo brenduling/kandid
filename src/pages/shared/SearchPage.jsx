@@ -4,8 +4,10 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { KandidInlineLoader, KandidSkeleton } from "../../components/KandidLoader";
 import {
   findSearchResult,
+  getOfficerYearOptions,
   getRoleSearchCategories,
   normalizeSearchInput,
+  saveSearchHistory,
   SEARCH_MIN_LENGTH,
   searchCategoryMeta,
   searchKandid,
@@ -65,6 +67,12 @@ function DetailPanel({ result, onBack, onRelated }) {
   }
 
   const visibleFields = (result.fields || []).filter(([, value]) => value !== null && value !== undefined && value !== "");
+  const sections = (result.sections || [])
+    .map((section) => ({
+      ...section,
+      fields: (section.fields || []).filter(([, value]) => value !== null && value !== undefined && value !== ""),
+    }))
+    .filter((section) => section.fields.length > 0);
 
   return (
     <aside className="search-detail-panel">
@@ -82,7 +90,23 @@ function DetailPanel({ result, onBack, onRelated }) {
         </div>
       </div>
 
-      {visibleFields.length > 0 ? (
+      {sections.length > 0 ? (
+        <div className="search-detail-sections">
+          {sections.map((section) => (
+            <section key={section.title}>
+              <h3>{section.title}</h3>
+              <dl className="search-detail-list">
+                {section.fields.map(([label, value]) => (
+                  <div key={label}>
+                    <dt>{label}</dt>
+                    <dd>{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          ))}
+        </div>
+      ) : visibleFields.length > 0 ? (
         <dl className="search-detail-list">
           {visibleFields.map(([label, value]) => (
             <div key={label}>
@@ -124,8 +148,10 @@ function SearchPage({ user }) {
   const q = searchParams.get("q") || "";
   const type = searchParams.get("type") || "all";
   const selectedId = searchParams.get("id") || "";
+  const year = searchParams.get("year") || "";
   const query = normalizeSearchInput(q);
   const categories = getRoleSearchCategories(activeUser?.role);
+  const activeType = type === "all" || categories.includes(type) ? type : "all";
   const [searchData, setSearchData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -143,7 +169,7 @@ function SearchPage({ user }) {
     setLoading(true);
     setError("");
 
-    searchKandid(activeUser, query, { perCategoryLimit: 24 })
+    searchKandid(activeUser, query, { perCategoryLimit: 24, year })
       .then((data) => {
         if (!active) return;
         setSearchData(data);
@@ -161,9 +187,14 @@ function SearchPage({ user }) {
     return () => {
       active = false;
     };
-  }, [activeUser, query]);
+  }, [activeUser, query, year]);
 
-  const activeType = type === "all" || categories.includes(type) ? type : "all";
+  useEffect(() => {
+    if (query.length >= SEARCH_MIN_LENGTH) {
+      saveSearchHistory(activeUser?.role, q.trim(), activeType);
+    }
+  }, [activeType, activeUser?.role, q, query.length]);
+
   const selectedResult = useMemo(
     () => findSearchResult(searchData, activeType === "all" ? searchParams.get("type") : activeType, selectedId),
     [activeType, searchData, searchParams, selectedId],
@@ -209,6 +240,19 @@ function SearchPage({ user }) {
     setSearchParams(params);
   }
 
+  function setOfficerYear(nextYear) {
+    const params = new URLSearchParams(searchParams);
+    const cleanedYear = nextYear.trim();
+    if (cleanedYear) {
+      params.set("year", cleanedYear);
+      params.set("type", "officers");
+    } else {
+      params.delete("year");
+    }
+    params.delete("id");
+    setSearchParams(params);
+  }
+
   function openResult(result) {
     const params = new URLSearchParams(searchParams);
     params.set("type", result.category);
@@ -222,6 +266,9 @@ function SearchPage({ user }) {
     if (activeType === "all") params.delete("type");
     setSearchParams(params);
   }
+
+  const officerYearOptions = getOfficerYearOptions(searchData);
+  const showYearFilter = activeType === "officers" || normalizeSearchInput(q).includes("officer");
 
   return (
     <div className="search-page">
@@ -259,6 +306,30 @@ function SearchPage({ user }) {
           </button>
         ))}
       </div>
+
+      {showYearFilter ? (
+        <div className="search-year-filter">
+          <label>
+            <span>Officer Year / Term</span>
+            <input
+              list="officer-year-options"
+              value={year}
+              onChange={(event) => setOfficerYear(event.target.value)}
+              placeholder="Type 2025 or 2025-2026"
+            />
+            <datalist id="officer-year-options">
+              {officerYearOptions.map((option) => (
+                <option key={option} value={option} />
+              ))}
+            </datalist>
+          </label>
+          {year ? (
+            <button type="button" onClick={() => setOfficerYear("")}>
+              Clear Year
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="search-workspace">
         <main className="search-results-panel">

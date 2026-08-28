@@ -6,6 +6,7 @@ import {
   FileText,
   Search,
   ShieldCheck,
+  X,
   UserCheck,
   Users,
   Vote,
@@ -15,7 +16,11 @@ import { KandidInlineLoader } from "./KandidLoader";
 import {
   getRoleSearchCategories,
   getRoleSearchPath,
+  getSearchHistory,
+  clearSearchHistory,
   normalizeSearchInput,
+  removeSearchHistoryItem,
+  saveSearchHistory,
   SEARCH_MIN_LENGTH,
   searchCategoryMeta,
   searchKandid,
@@ -23,6 +28,7 @@ import {
 
 const roleQuickActions = {
   student: [
+    { label: "Programs", type: "programs", icon: Building2 },
     { label: "Elections", type: "elections", icon: Vote },
     { label: "Organizations", type: "organizations", icon: Building2 },
     { label: "People", type: "officers", icon: Users },
@@ -30,6 +36,7 @@ const roleQuickActions = {
     { label: "Receipts", path: "/student/receipt", icon: FileText },
   ],
   electoral_board: [
+    { label: "Programs", type: "programs", icon: Building2 },
     { label: "Elections", type: "elections", icon: Vote },
     { label: "Students", type: "students", icon: Users },
     { label: "Candidates", type: "candidates", icon: UserCheck },
@@ -37,6 +44,7 @@ const roleQuickActions = {
     { label: "Reports", type: "reports", icon: FileText },
   ],
   super_admin: [
+    { label: "Programs", type: "programs", icon: Building2 },
     { label: "Elections", type: "elections", icon: Vote },
     { label: "Organizations", type: "organizations", icon: Building2 },
     { label: "Students", type: "students", icon: Users },
@@ -67,12 +75,29 @@ function GlobalSearch({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [searchData, setSearchData] = useState(null);
+  const [history, setHistory] = useState(() => getSearchHistory(user?.role));
   const [activeIndex, setActiveIndex] = useState(-1);
   const wrapperRef = useRef(null);
 
   const cleanedQuery = normalizeSearchInput(query);
   const quickActions = roleQuickActions[user?.role] || [];
   const roleCategories = getRoleSearchCategories(user?.role);
+
+  useEffect(() => {
+    setHistory(getSearchHistory(user?.role));
+
+    function handleHistoryUpdated(event) {
+      if (!event.detail?.role || event.detail.role === user?.role) {
+        setHistory(getSearchHistory(user?.role));
+      }
+    }
+
+    window.addEventListener("kandid-search-history-updated", handleHistoryUpdated);
+
+    return () => {
+      window.removeEventListener("kandid-search-history-updated", handleHistoryUpdated);
+    };
+  }, [user?.role]);
 
   useEffect(() => {
     function handlePointerDown(event) {
@@ -148,13 +173,29 @@ function GlobalSearch({
       setOpen(true);
       return;
     }
+    saveSearchHistory(user?.role, trimmed, category);
     setOpen(false);
     navigate(buildSearchHref(user?.role, trimmed, category));
   }
 
   function openResult(result) {
+    if (query.trim()) {
+      saveSearchHistory(user?.role, query.trim(), result.category);
+    }
     setOpen(false);
     navigate(result.href);
+  }
+
+  function replayHistory(item) {
+    setQuery(item.query);
+    saveSearchHistory(user?.role, item.query, item.category || "all");
+    setOpen(false);
+    navigate(buildSearchHref(user?.role, item.query, item.category || "all"));
+  }
+
+  function removeHistory(event, item) {
+    event.stopPropagation();
+    removeSearchHistoryItem(user?.role, item.query, item.category || "all");
   }
 
   function handleSubmit(event) {
@@ -241,12 +282,43 @@ function GlobalSearch({
           </div>
 
           <div className="global-search-section">
-            <p>{cleanedQuery ? "Live suggestions" : "Start with at least 2 characters"}</p>
+            <p>{cleanedQuery ? "Live suggestions" : "Recent Searches"}</p>
 
             {cleanedQuery.length < SEARCH_MIN_LENGTH ? (
-              <div className="global-search-empty">
-                Search organizations, elections, people, candidates, results, and reports allowed for your account.
-              </div>
+              history.length > 0 ? (
+                <div className="global-search-history">
+                  <div className="global-search-history-head">
+                    <span>Recent Searches</span>
+                    <button type="button" onClick={() => clearSearchHistory(user?.role)}>
+                      Clear all
+                    </button>
+                  </div>
+                  {history.map((item) => (
+                    <div
+                      key={`${item.query}-${item.category || "all"}`}
+                      className="global-search-history-item"
+                    >
+                      <button type="button" onClick={() => replayHistory(item)}>
+                        <Search size={14} />
+                        <strong>{item.query}</strong>
+                        <small>{searchCategoryMeta[item.category]?.label || "All"}</small>
+                      </button>
+                      <button
+                        type="button"
+                        className="global-search-history-remove"
+                        aria-label={`Remove ${item.query} from recent searches`}
+                        onClick={(event) => removeHistory(event, item)}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="global-search-empty">
+                  No search history yet. Search organizations, programs, elections, people, candidates, results, and reports allowed for your account.
+                </div>
+              )
             ) : loading ? (
               <KandidInlineLoader message="Searching..." />
             ) : error && !searchData ? (

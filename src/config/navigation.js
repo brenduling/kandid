@@ -93,10 +93,34 @@ export const boardMenuGroups = [
 
 export const studentMenuItems = [
   { name: "Home", path: "/student/dashboard", icon: LayoutDashboard },
-  { name: "Election Overview", path: "/student/elections", icon: Building2 },
+  { name: "Elections", path: "/student/elections", icon: Vote },
+  { name: "Results", path: "/student/results", icon: Trophy },
+  { name: "Officers", path: "/student/officers", icon: BadgeCheck },
   { name: "Receipts", path: "/student/receipt", icon: FileText },
+  { name: "Settings", path: "/student/profile", icon: Settings2 },
 ];
 
 export function flattenMenuGroups(menuGroups) {
   return menuGroups.flatMap((group) => group.items);
 }
+
+export const superAdminPrimaryNav = [
+  { name: "Home", path: "/super-admin/dashboard", icon: LayoutDashboard },
+  { name: "Orgs", path: "/super-admin/organizations", icon: Building2 },
+  { name: "Students", path: "/super-admin/students", icon: Users },
+  { name: "Elections", path: "/super-admin/elections", icon: Vote },
+];
+
+export const boardPrimaryNav = [
+  { name: "Home", path: "/board/dashboard", icon: LayoutDashboard },
+  { name: "Elections", path: "/board/elections", icon: Vote },
+  { name: "Students", path: "/board/students", icon: Users },
+  { name: "Monitor", path: "/board/voting-monitor", icon: BarChart3 },
+];
+
+export const studentPrimaryNav = [
+  { name: "Home", path: "/student/dashboard", icon: LayoutDashboard },
+  { name: "Elections", path: "/student/elections", icon: Vote },
+  { name: "Receipt", path: "/student/receipt", icon: FileText },
+  { name: "Settings", path: "/student/profile", icon: Settings2 },
+];

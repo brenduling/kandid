@@ -3,17 +3,17 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   ChevronDown,
   LogOut,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
 import { clearStoredUser, getStoredUser } from "../utils/auth";
 import GlobalSearch from "../components/GlobalSearch";
 import NotificationCenter from "../components/NotificationCenter";
 import MobileNav from "../components/MobileNav";
+import MobileHeader from "../components/MobileHeader";
+import MobileMenu from "../components/MobileMenu";
 import { getProfileRoute } from "../utils/profile";
 import logo from "../assets/kandidlogo.png";
 import TransitionWrapper from "../components/TransitionWrapper";
-import { superAdminMenuGroups } from "../config/navigation";
+import { superAdminMenuGroups, superAdminPrimaryNav } from "../config/navigation";
 import { usePrompt } from "../context/PromptContext";
 
 function SuperAdminLayout() {
@@ -24,16 +24,7 @@ function SuperAdminLayout() {
   const [openGroups, setOpenGroups] = useState(() =>
     Object.fromEntries(superAdminMenuGroups.map((group) => [group.label, true])),
   );
-  const [isCollapsed, setIsCollapsed] = useState(() => {
-    return localStorage.getItem("super-admin-sidebar-collapsed") === "true";
-  });
-
-  const toggleSidebar = () => {
-    const nextState = !isCollapsed;
-    setIsCollapsed(nextState);
-    localStorage.setItem("super-admin-sidebar-collapsed", String(nextState));
-  };
-
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   async function handleLogout() {
     const ok = await prompt.confirm({
       title: "Logout Confirmation",
@@ -44,7 +35,7 @@ function SuperAdminLayout() {
     if (!ok) return;
 
     clearStoredUser();
-    navigate("/admin-login", { replace: true });
+    navigate("/admin", { replace: true });
   }
 
   function toggleGroup(label) {
@@ -60,9 +51,9 @@ function SuperAdminLayout() {
       <div className="ambient-orb bottom-8 right-[-90px] h-80 w-80 bg-[rgba(25,162,140,0.14)]" />
 
       <div className="shell-layout">
-        <aside className={`glass-panel-dark shell-sidebar ${isCollapsed ? "sidebar-collapsed" : "sidebar-expanded"}`}>
+        <aside className="glass-panel-dark shell-sidebar shell-sidebar-collapsible">
           <div className="sidebar-brand-block border-b border-white/10 pb-5">
-            <div className="flex flex-col items-center gap-3 lg:flex-row lg:justify-between w-full">
+            <div className="flex items-center justify-center gap-3 lg:justify-start">
               <div className="flex items-center gap-3">
                 <img
                   src={logo}
@@ -75,14 +66,6 @@ function SuperAdminLayout() {
                   <p className="menu-brand-copy">Super Admin Portal</p>
                 </div>
               </div>
-
-              <button
-                type="button"
-                onClick={toggleSidebar}
-                className="hidden lg:flex h-8 w-8 items-center justify-center rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition"
-              >
-                {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-              </button>
             </div>
           </div>
 
@@ -117,6 +100,8 @@ function SuperAdminLayout() {
                           <NavLink
                             key={item.path}
                             to={item.path}
+                            aria-label={item.name}
+                            data-tooltip={item.name}
                             className={({ isActive }) =>
                               `fade-up nav-item ${isActive ? "nav-item-active" : ""}`
                             }
@@ -141,6 +126,8 @@ function SuperAdminLayout() {
           <button
             onClick={handleLogout}
             className="sidebar-logout-btn"
+            aria-label="Logout"
+            data-tooltip="Logout"
           >
             <LogOut size={18} />
             <span className="sidebar-reveal">Logout</span>
@@ -148,13 +135,13 @@ function SuperAdminLayout() {
         </aside>
 
         <main className="workspace-main">
-          <header className="glass-panel shell-header kandid-header fade-up">
+          <header className="glass-panel shell-header kandid-header hidden lg:flex fade-up">
             <GlobalSearch
               user={user}
               className="glass-panel-strong shell-search lg:max-w-xl"
             />
 
-            <div className="kandid-header-actions flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
+            <div className="kandid-header-actions hidden w-full items-center justify-between gap-3 sm:w-auto sm:justify-end lg:flex">
               <NotificationCenter user={user} />
 
               <button
@@ -182,7 +169,7 @@ function SuperAdminLayout() {
             </div>
           </header>
 
-          <section className="content-stack">
+          <section className="content-stack pb-24 pt-20 lg:pb-8 lg:pt-8">
             <TransitionWrapper>
               <Outlet />
             </TransitionWrapper>
@@ -190,7 +177,23 @@ function SuperAdminLayout() {
         </main>
       </div>
 
-      <MobileNav groups={superAdminMenuGroups} onLogout={handleLogout} />
+      <MobileHeader
+        user={user}
+        onMenuClick={() => setIsMobileMenuOpen(true)}
+      />
+
+      <MobileMenu
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+        menuGroups={superAdminMenuGroups}
+        user={user}
+        onLogout={handleLogout}
+        title="Super Admin"
+      />
+
+      <MobileNav
+        primaryItems={superAdminPrimaryNav}
+      />
     </div>
   );
 }

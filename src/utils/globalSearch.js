@@ -31,6 +31,7 @@ export const searchCategoryMeta = {
   results: { label: "Results", icon: BarChart3 },
   reports: { label: "Reports", icon: FileText },
   audit_logs: { label: "Audit Logs", icon: ShieldCheck },
+  programs: { label: "Programs", icon: ListChecks },
 };
 
 const categoryOrder = [
@@ -44,11 +45,13 @@ const categoryOrder = [
   "results",
   "reports",
   "audit_logs",
+  "programs",
 ];
 
 const roleCategories = {
-  student: ["organizations", "elections", "candidates", "officers", "results"],
+  student: ["programs", "organizations", "elections", "candidates", "officers", "results"],
   electoral_board: [
+    "programs",
     "students",
     "elections",
     "candidates",
@@ -59,6 +62,7 @@ const roleCategories = {
     "reports",
   ],
   super_admin: [
+    "programs",
     "organizations",
     "students",
     "elections",
@@ -71,6 +75,12 @@ const roleCategories = {
     "audit_logs",
   ],
 };
+
+const SEARCH_HISTORY_LIMIT = 15;
+
+function historyKey(role) {
+  return `kandid-search-history-${role || "guest"}`;
+}
 
 export function normalizeSearchInput(value) {
   return String(value || "").trim().toLowerCase();
@@ -102,6 +112,28 @@ function matchesQuery(fields, query) {
   const cleaned = normalizeSearchInput(query);
   if (!cleaned) return true;
   return fields.some((field) => normalizeSearchInput(field).includes(cleaned));
+}
+
+function extractYearTerms(value) {
+  const text = String(value || "");
+  return Array.from(new Set(text.match(/\b(?:19|20)\d{2}(?:\s*[-–]\s*(?:19|20)\d{2})?\b/g) || []))
+    .map((term) => term.replace(/\s+/g, ""));
+}
+
+function matchesYearFilter(record, year) {
+  const cleanedYear = String(year || "").trim();
+  if (!cleanedYear) return true;
+  const fields = [record.term_label, record.term_start, record.term_end];
+  return fields.some((field) => normalizeSearchInput(field).includes(normalizeSearchInput(cleanedYear)));
+}
+
+function officerSearchTerms(query) {
+  return normalizeSearchInput(query)
+    .replace(/\bofficers?\b/g, "")
+    .replace(/\bcurrent\b/g, "")
+    .replace(/\bprevious\b/g, "")
+    .replace(/\b(?:19|20)\d{2}(?:\s*[-–]\s*(?:19|20)\d{2})?\b/g, "")
+    .trim();
 }
 
 function scoreResult(result, query) {
@@ -152,6 +184,7 @@ function resultBase(role, category, record, query) {
 
 function organizationResult(record, role, query) {
   const programs = programText(record);
+  const memberCount = record.member_count ?? 0;
   return {
     ...resultBase(role, "organizations", record, query),
     title: record.name || "Organization",
@@ -159,14 +192,68 @@ function organizationResult(record, role, query) {
       record.organization_type === "non_departmental"
         ? "Organization - Non-departmental"
         : `Organization - ${programs || "Departmental"}`,
-    meta: record.description || programs || "Organization profile",
+    meta: record.description || `${memberCount} members` || programs || "Organization profile",
     image: record.logo_url,
     fields: [
       ["Type", record.organization_type === "non_departmental" ? "Non-departmental" : "Departmental"],
       ["Programs", programs],
+      ["Members", memberCount],
       ["Description", record.description],
     ],
+    sections: [
+      {
+        title: "Overview",
+        fields: [
+          ["Type", record.organization_type === "non_departmental" ? "Non-departmental" : "Departmental"],
+          ["Programs", programs || "No mapped programs"],
+          ["Member Count", memberCount],
+        ],
+      },
+      {
+        title: "About",
+        fields: [["Description", record.description || "No description available"]],
+      },
+    ],
     related: [],
+  };
+}
+
+function programResult(record, role, query) {
+  const organizations = (record.organization_programs || [])
+    .map((link) => link?.organizations?.name)
+    .filter(Boolean);
+
+  return {
+    ...resultBase(role, "programs", record, query),
+    title: record.code || record.name || "Program",
+    subtitle: record.name || "Academic program",
+    meta: `${record.student_count ?? 0} students`,
+    fields: [
+      ["Code", record.code],
+      ["Program Name", record.name],
+      ["Students", record.student_count ?? 0],
+      ["Organizations", organizations.join(", ")],
+    ],
+    sections: [
+      {
+        title: "Program Overview",
+        fields: [
+          ["Code", record.code],
+          ["Program Name", record.name || "No full program name recorded"],
+          ["Student Count", record.student_count ?? 0],
+        ],
+      },
+      {
+        title: "Organizations",
+        fields: [["Mapped Organizations", organizations.join(", ") || "No organizations mapped to this program"]],
+      },
+    ],
+    related: organizations.length
+      ? (record.organization_programs || [])
+          .map((link) => link?.organizations)
+          .filter(Boolean)
+          .map((org) => ({ label: org.name, href: resultHref(role, "organizations", org.id, query) }))
+      : [],
   };
 }
 
@@ -186,6 +273,24 @@ function electionResult(record, role, query) {
       ["Voting Starts", formatDate(record.start_date)],
       ["Voting Ends", formatDate(record.end_date)],
       ["Results", resultVisibilityLabel(record.student_result_visibility)],
+    ],
+    sections: [
+      {
+        title: "Election Overview",
+        fields: [
+          ["Organization", organizationName],
+          ["Status", record.status],
+          ["Result Visibility", resultVisibilityLabel(record.student_result_visibility)],
+        ],
+      },
+      {
+        title: "Schedule",
+        fields: [
+          ["Campaign Starts", formatDate(record.campaign_start)],
+          ["Voting Starts", formatDate(record.start_date)],
+          ["Voting Ends", formatDate(record.end_date)],
+        ],
+      },
     ],
     related: record.organization_id
       ? [{ label: organizationName, href: resultHref(role, "organizations", record.organization_id, query) }]
@@ -207,6 +312,26 @@ function studentResult(record, role, query) {
       ["Program", record.program],
       ["Year Level", record.year_level],
       ["Status", role === "student" ? null : record.status],
+    ],
+    sections: [
+      {
+        title: "Academic Information",
+        fields: [
+          ["Program", record.program],
+          ["Year Level", record.year_level],
+        ],
+      },
+      ...(role === "student"
+        ? []
+        : [
+            {
+              title: "Account Record",
+              fields: [
+                ["Student Number", record.student_number],
+                ["Status", record.status],
+              ],
+            },
+          ]),
     ],
     related: [],
   };
@@ -231,6 +356,31 @@ function candidateResult(record, role, query) {
       ["Platform", record.platform],
       ["Biography", record.bio],
     ],
+    sections: [
+      {
+        title: "Candidacy",
+        fields: [
+          ["Position", record.positions?.name],
+          ["Election", election?.title],
+          ["Organization", election?.organizations?.name],
+          ["Partylist", record.partylists?.name || "Independent / not specified"],
+        ],
+      },
+      {
+        title: "Student Information",
+        fields: [
+          ["Program", record.students?.program],
+          ["Year Level", record.students?.year_level],
+        ],
+      },
+      {
+        title: "Campaign",
+        fields: [
+          ["Platform", record.platform],
+          ["Biography", record.bio],
+        ],
+      },
+    ],
     related: election?.id
       ? [{ label: election.title, href: resultHref(role, "elections", election.id, query) }]
       : [],
@@ -252,6 +402,24 @@ function officerResult(record, role, query) {
       ["Status", record.is_current ? "Current officer" : "Previous officer"],
       ["Program", record.students?.program],
       ["Year Level", record.students?.year_level],
+    ],
+    sections: [
+      {
+        title: "Officer Role",
+        fields: [
+          ["Position", record.position_title],
+          ["Organization", record.organizations?.name],
+          ["Term", record.term_label],
+          ["Status", record.is_current ? "Current officer" : "Previous officer"],
+        ],
+      },
+      {
+        title: "Academic Information",
+        fields: [
+          ["Program", record.students?.program],
+          ["Year Level", record.students?.year_level],
+        ],
+      },
     ],
     related: record.organization_id
       ? [{ label: record.organizations?.name, href: resultHref(role, "organizations", record.organization_id, query) }]
@@ -370,12 +538,80 @@ async function queryOrganizations(user, query, role, limit) {
     rows = await attachProgramCoverage(data || []);
   }
 
+  const filteredRows = rows
+    .filter((org) => matchesQuery([org.name, org.description, org.organization_type, programText(org)], query))
+    .slice(0, limit);
+
+  const countedRows = await Promise.all(
+    filteredRows.map(async (org) => ({
+      ...org,
+      member_count: await countOrganizationMembers(org.id),
+    })),
+  );
+
   return sortResults(
-    rows
-      .filter((org) => matchesQuery([org.name, org.description, org.organization_type, programText(org)], query))
-      .map((org) => organizationResult(org, role, query)),
+    countedRows.map((org) => organizationResult(org, role, query)),
     query,
-  ).slice(0, limit);
+  );
+}
+
+async function countStudentsForProgram(programCode) {
+  if (!programCode) return 0;
+  const { count, error } = await supabase
+    .from("students")
+    .select("id", { count: "exact", head: true })
+    .eq("program", programCode);
+  if (error) return 0;
+  return count || 0;
+}
+
+async function countOrganizationMembers(organizationId) {
+  if (!organizationId) return 0;
+  const { count, error } = await supabase
+    .from("student_organizations")
+    .select("student_id", { count: "exact", head: true })
+    .eq("organization_id", organizationId);
+  if (error) return 0;
+  return count || 0;
+}
+
+async function queryPrograms(user, query, role, limit) {
+  let request = supabase
+    .from("programs")
+    .select("id, code, name, organization_programs(organization_id, organizations(id, name))")
+    .order("code", { ascending: true })
+    .limit(60);
+
+  const { data, error } = await request;
+  if (error) throw error;
+
+  let rows = data || [];
+
+  if (role === "student") {
+    rows = rows.filter((program) => normalizeSearchInput(program.code) === normalizeSearchInput(user?.program));
+  } else if (role === "electoral_board") {
+    rows = rows.filter((program) =>
+      (program.organization_programs || []).some(
+        (link) => String(link.organization_id) === String(user?.organization_id),
+      ),
+    );
+  }
+
+  const filteredRows = rows
+    .filter((program) => matchesQuery([program.code, program.name], query))
+    .slice(0, limit);
+
+  const countedRows = await Promise.all(
+    filteredRows.map(async (program) => ({
+      ...program,
+      student_count: await countStudentsForProgram(program.code),
+    })),
+  );
+
+  return sortResults(
+    countedRows.map((program) => programResult(program, role, query)),
+    query,
+  );
 }
 
 async function queryElections(user, query, role, limit) {
@@ -495,7 +731,7 @@ async function queryCandidates(user, query, role, limit) {
   ).slice(0, limit);
 }
 
-async function queryOfficers(user, query, role, limit) {
+async function queryOfficers(user, query, role, limit, options = {}) {
   let request = supabase
     .from("officers")
     .select(
@@ -519,6 +755,7 @@ async function queryOfficers(user, query, role, limit) {
 
   return sortResults(
     (data || [])
+      .filter((officer) => matchesYearFilter(officer, options.year))
       .filter((officer) =>
         matchesQuery(
           [
@@ -529,7 +766,7 @@ async function queryOfficers(user, query, role, limit) {
             officer.organizations?.name,
             officer.students?.program,
           ],
-          query,
+          officerSearchTerms(query) || query,
         ),
       )
       .map((officer) => officerResult(officer, role, query)),
@@ -664,6 +901,7 @@ const loaders = {
   results: queryResults,
   reports: queryReports,
   audit_logs: queryAuditLogs,
+  programs: queryPrograms,
 };
 
 export async function searchKandid(user, rawQuery, options = {}) {
@@ -671,6 +909,10 @@ export async function searchKandid(user, rawQuery, options = {}) {
   const query = normalizeSearchInput(rawQuery);
   const categories = getRoleSearchCategories(role);
   const perCategoryLimit = options.perCategoryLimit || 8;
+  const searchOptions = {
+    ...options,
+    year: options.year || extractYearTerms(query)[0] || "",
+  };
 
   if (!role || query.length < SEARCH_MIN_LENGTH) {
     return { query, categories, groups: {}, all: [], errors: [] };
@@ -678,7 +920,7 @@ export async function searchKandid(user, rawQuery, options = {}) {
 
   const settled = await Promise.allSettled(
     categories.map(async (category) => {
-      const items = await loaders[category](user, query, role, perCategoryLimit);
+      const items = await loaders[category](user, query, role, perCategoryLimit, searchOptions);
       return [category, items];
     }),
   );
@@ -707,4 +949,67 @@ export async function searchKandid(user, rawQuery, options = {}) {
 export function findSearchResult(searchData, category, id) {
   if (!searchData || !category || !id) return null;
   return (searchData.groups?.[category] || []).find((item) => String(item.id) === String(id)) || null;
+}
+
+export function getSearchHistory(role) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(historyKey(role)) || "[]");
+    return Array.isArray(parsed) ? parsed.slice(0, SEARCH_HISTORY_LIMIT) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveSearchHistory(role, query, category = "all") {
+  const cleaned = String(query || "").trim();
+  if (normalizeSearchInput(cleaned).length < SEARCH_MIN_LENGTH) return [];
+
+  const key = historyKey(role);
+  const current = getSearchHistory(role).filter(
+    (item) =>
+      normalizeSearchInput(item.query) !== normalizeSearchInput(cleaned) ||
+      String(item.category || "all") !== String(category || "all"),
+  );
+  const next = [
+    {
+      query: cleaned,
+      category: category || "all",
+      timestamp: Date.now(),
+    },
+    ...current,
+  ].slice(0, SEARCH_HISTORY_LIMIT);
+
+  localStorage.setItem(key, JSON.stringify(next));
+  window.dispatchEvent(new CustomEvent("kandid-search-history-updated", { detail: { role } }));
+  return next;
+}
+
+export function removeSearchHistoryItem(role, query, category = "all") {
+  const next = getSearchHistory(role).filter(
+    (item) =>
+      normalizeSearchInput(item.query) !== normalizeSearchInput(query) ||
+      String(item.category || "all") !== String(category || "all"),
+  );
+  localStorage.setItem(historyKey(role), JSON.stringify(next));
+  window.dispatchEvent(new CustomEvent("kandid-search-history-updated", { detail: { role } }));
+  return next;
+}
+
+export function clearSearchHistory(role) {
+  localStorage.removeItem(historyKey(role));
+  window.dispatchEvent(new CustomEvent("kandid-search-history-updated", { detail: { role } }));
+}
+
+export function getOfficerYearOptions(searchData) {
+  return Array.from(
+    new Set(
+      (searchData?.groups?.officers || [])
+        .flatMap((officer) => [
+          ...(officer.fields || [])
+            .filter(([label]) => label === "Term")
+            .flatMap(([, value]) => extractYearTerms(value)),
+        ])
+        .filter(Boolean),
+    ),
+  ).sort((a, b) => b.localeCompare(a));
 }

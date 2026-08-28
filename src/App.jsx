@@ -1,12 +1,15 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
+import PWAInstallPrompt from "./components/PWAInstallPrompt";
+import PWAOfflineNotice from "./components/PWAOfflineNotice";
 import { KandidRouteLoader } from "./components/KandidLoader";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import { PromptProvider } from "./context/PromptContext";
 
 const Home = lazy(() => import("./pages/Home"));
+const RoleLanding = lazy(() => import("./pages/RoleLanding"));
 const SuperAdminLayout = lazy(() => import("./layouts/SuperAdminLayout"));
 const StudentLayout = lazy(() => import("./layouts/StudentLayout"));
 const BoardLayout = lazy(() => import("./layouts/BoardLayout"));
@@ -70,6 +73,8 @@ function App() {
 
         {/* GLOBAL PWA UPDATE NOTIFICATION */}
         <PWAUpdatePrompt />
+        <PWAInstallPrompt />
+        <PWAOfflineNotice />
 
         <Suspense fallback={<RouteFallback />}>
         <Routes>
@@ -98,7 +103,22 @@ function App() {
           {/* DEFAULT */}
           <Route
             path="/"
+            element={<RoleLanding role="student" />}
+          />
+
+          <Route
+            path="/home"
             element={<Home />}
+          />
+
+          <Route
+            path="/board-portal"
+            element={<RoleLanding role="board" />}
+          />
+
+          <Route
+            path="/admin"
+            element={<RoleLanding role="admin" />}
           />
 
           {/* SUPER ADMIN (PROTECTED) */}

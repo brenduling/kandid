@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AlertCircle, Eye, Home } from "lucide-react";
-import StudentAuthShell from "../../components/StudentAuthShell";
+import AuthLayout from "../../components/AuthLayout";
+import { KandidButtonLoader } from "../../components/KandidLoader";
 import { supabase } from "../../lib/supabaseClient";
 import { getDefaultRouteForUser, getStoredUser } from "../../utils/auth";
 
@@ -75,15 +76,14 @@ function StudentLogin() {
   }
 
   return (
-    <StudentAuthShell>
-      <div className="student-auth-card">
+    <AuthLayout
+      roleLabel="Student Portal"
+      title="Student Login"
+      copy="Sign in to view your organizations, elections, receipts, and results."
+      backTo="/"
+    >
+      <div className="student-auth-card kandid-auth-form-card">
         <form onSubmit={handleLogin} className={notFound ? "student-auth-blur" : ""}>
-          <h2>Student Login</h2>
-          <p className="student-auth-subcopy">
-            Only registered students with active organization-linked accounts can
-            access the portal.
-          </p>
-
           <div className="student-auth-fields">
             <label>
               <span>Student ID Number</span>
@@ -113,7 +113,7 @@ function StudentLogin() {
             </label>
 
             <button disabled={loading} className="student-auth-submit">
-              {loading ? "Authenticating..." : "Authenticate Student Identity"}
+              {loading ? <KandidButtonLoader label="Verifying access..." /> : "Login to Vote"}
             </button>
           </div>
 
@@ -148,12 +148,7 @@ function StudentLogin() {
           </div>
         ) : null}
       </div>
-
-      <footer className="student-auth-footer">
-        <span>Blockchain secured</span>
-        <span>End-to-end encrypted</span>
-      </footer>
-    </StudentAuthShell>
+    </AuthLayout>
   );
 }
 
