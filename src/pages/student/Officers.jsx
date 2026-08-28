@@ -1,17 +1,29 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
+import { getEligibleStudentOrganizationIds } from "../../utils/organizationAccess";
 
 function StudentOfficers() {
   const [officers, setOfficers] = useState([]);
   const [filter, setFilter] = useState("current");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const user = JSON.parse(localStorage.getItem("user"));
 
   useEffect(() => {
     let active = true;
 
     async function loadOfficers() {
       setLoading(true);
+
+      const organizationIds = await getEligibleStudentOrganizationIds(user);
+
+      if (organizationIds.length === 0) {
+        if (active) {
+          setOfficers([]);
+          setLoading(false);
+        }
+        return;
+      }
 
       const { data } = await supabase
         .from("officers")
@@ -26,6 +38,7 @@ function StudentOfficers() {
             student_number
           )
         `)
+        .in("organization_id", organizationIds)
         .order("is_current", { ascending: false })
         .order("organization_id", { ascending: true })
         .order("display_order", { ascending: true })
@@ -42,7 +55,7 @@ function StudentOfficers() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [user.id]);
 
   const visibleOfficers = useMemo(() => {
     return officers.filter((officer) => {

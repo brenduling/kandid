@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabaseClient";
 import { canStudentViewResults, getElectionPhase } from "./elections";
+import { getEligibleStudentOrganizationIds } from "./organizationAccess";
 
 function toNotification({
   id,
@@ -45,12 +46,7 @@ export function markAllNotificationsRead(user, notifications) {
 }
 
 async function buildStudentNotifications(user) {
-  const { data: memberships } = await supabase
-    .from("student_organizations")
-    .select("organization_id, organizations(name)")
-    .eq("student_id", user.id);
-
-  const organizationIds = memberships?.map((item) => item.organization_id) || [];
+  const organizationIds = await getEligibleStudentOrganizationIds(user);
 
   if (organizationIds.length === 0) {
     return [
@@ -67,7 +63,19 @@ async function buildStudentNotifications(user) {
   const [{ data: elections }, { data: votes }] = await Promise.all([
     supabase
       .from("elections")
-      .select("*, organizations(name)")
+      .select(`
+        id,
+        title,
+        organization_id,
+        campaign_start,
+        campaign_end,
+        start_date,
+        end_date,
+        status,
+        results_visibility,
+        result_release_date,
+        organizations(name)
+      `)
       .in("organization_id", organizationIds)
       .neq("status", "archived")
       .order("start_date", { ascending: true }),
@@ -141,7 +149,7 @@ async function buildStudentNotifications(user) {
 async function buildBoardNotifications(user) {
   const { data: elections } = await supabase
     .from("elections")
-    .select("*")
+    .select("id, title, campaign_start, campaign_end, start_date, end_date, status")
     .eq("organization_id", user.organization_id)
     .neq("status", "archived")
     .order("start_date", { ascending: true });
@@ -197,15 +205,15 @@ async function buildSuperAdminNotifications() {
     await Promise.all([
       supabase
         .from("students")
-        .select("*", { count: "exact", head: true })
+        .select("id", { count: "exact", head: true })
         .eq("status", "pending"),
       supabase
         .from("elections")
-        .select("*", { count: "exact", head: true })
+        .select("id", { count: "exact", head: true })
         .in("status", ["active", "draft"]),
       supabase
         .from("admin_users")
-        .select("*", { count: "exact", head: true })
+        .select("id", { count: "exact", head: true })
         .eq("status", "disabled"),
     ]);
 
@@ -253,5 +261,6 @@ export async function fetchNotificationsForUser(user) {
     .sort(
       (a, b) =>
         new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime(),
-    );
+    )
+    .slice(0, 20);
 }

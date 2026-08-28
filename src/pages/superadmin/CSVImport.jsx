@@ -2,6 +2,7 @@ import { useState } from "react";
 import Papa from "papaparse";
 import { Upload, CheckCircle, XCircle } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
+import { syncStudentOrganizationMemberships } from "../../utils/organizationAccess";
 
 function CSVImport() {
   const [rows, setRows] = useState([]);
@@ -70,14 +71,6 @@ function CSVImport() {
 
     setImporting(true);
 
-    const programOrgMap = {
-      BSIT: "PSITS",
-      BSA: "JPIA",
-      BSBA: "JMA",
-      SHS: "SHS",
-      BSHM: "JEHMS",
-    };
-
     const { data: insertedStudents, error: studentError } = await supabase
       .from("students")
       .insert(validRows)
@@ -89,62 +82,11 @@ function CSVImport() {
       return;
     }
 
-    const { data: organizations, error: orgError } = await supabase
-      .from("organizations")
-      .select("id, name");
-
-    if (orgError) {
-      setImporting(false);
-      alert(orgError.message);
-      return;
-    }
-
-    const memberships = [];
-
-    insertedStudents.forEach((student) => {
-      const program = student.program?.toUpperCase();
-
-      const witsgOrg = organizations.find(
-        (org) => org.name.toUpperCase() === "WITSG",
-      );
-
-      const programOrgName = programOrgMap[program] || student.program;
-
-      const programOrg = organizations.find(
-        (org) => org.name.toUpperCase() === programOrgName.toUpperCase(),
-      );
-
-      // Ensure each imported student is linked to both the WITSG organization and their program organization.
-      const orgLinks = [];
-
-      if (witsgOrg) {
-        orgLinks.push({
-          student_id: student.id,
-          organization_id: witsgOrg.id,
-          role: "member",
-        });
-      }
-
-      if (programOrg) {
-        // Avoid duplicate if program organization is WITSG
-        if (!orgLinks.some((link) => link.organization_id === programOrg.id)) {
-          orgLinks.push({
-            student_id: student.id,
-            organization_id: programOrg.id,
-            role: "member",
-          });
-        }
-      }
-
-      if (orgLinks.length > 0) {
-        memberships.push(...orgLinks);
-      }
-    });
-
-    if (memberships.length > 0) {
-      const { error: membershipError } = await supabase
-        .from("student_organizations")
-        .insert(memberships);
+    for (const student of insertedStudents || []) {
+      const { error: membershipError } = await syncStudentOrganizationMemberships({
+        studentId: student.id,
+        program: student.program,
+      });
 
       if (membershipError) {
         setImporting(false);

@@ -3,6 +3,7 @@ import { ArrowLeft, BarChart3, ChevronRight, UserRound, UsersRound, Vote } from 
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { formatLocalDateTime, getElectionPhase } from "../../utils/elections";
+import { getEligibleStudentOrganizationIds } from "../../utils/organizationAccess";
 
 function StudentCampaign() {
   const { electionId } = useParams();
@@ -13,22 +14,49 @@ function StudentCampaign() {
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [tab, setTab] = useState("officers");
   const [loading, setLoading] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
+  const user = JSON.parse(localStorage.getItem("user"));
 
   useEffect(() => {
     let active = true;
 
     async function loadCampaign() {
       setLoading(true);
+      setAccessDenied(false);
 
-      const { data: electionData } = await supabase
-        .from("elections")
-        .select("*, organizations(name)")
-        .eq("id", electionId)
-        .single();
+      const [{ data: electionData }, eligibleOrganizationIds] = await Promise.all([
+        supabase
+          .from("elections")
+          .select(`
+            id,
+            title,
+            organization_id,
+            campaign_start,
+            campaign_end,
+            start_date,
+            end_date,
+            status,
+            organizations(name)
+          `)
+          .eq("id", electionId)
+          .single(),
+        getEligibleStudentOrganizationIds(user),
+      ]);
+
+      if (!eligibleOrganizationIds.includes(electionData?.organization_id)) {
+        if (active) {
+          setElection(null);
+          setPositions([]);
+          setCandidates([]);
+          setAccessDenied(true);
+          setLoading(false);
+        }
+        return;
+      }
 
       const { data: positionData } = await supabase
         .from("positions")
-        .select("*")
+        .select("id, name, election_id")
         .eq("election_id", electionId)
         .order("id", { ascending: true });
 
@@ -39,7 +67,16 @@ function StudentCampaign() {
         const { data } = await supabase
           .from("candidates")
           .select(`
-            *,
+            id,
+            election_id,
+            position_id,
+            student_id,
+            partylist_id,
+            photo,
+            credentials,
+            bio,
+            platform,
+            projects,
             students(first_name, last_name, program, year_level, photo_url),
             partylists(name)
           `)
@@ -61,7 +98,7 @@ function StudentCampaign() {
     return () => {
       active = false;
     };
-  }, [electionId]);
+  }, [electionId, user.id]);
 
   const groupedCandidates = useMemo(
     () =>
@@ -74,6 +111,10 @@ function StudentCampaign() {
 
   if (loading) {
     return <div className="student-empty-card">Loading campaign...</div>;
+  }
+
+  if (accessDenied) {
+    return <div className="student-empty-card">This campaign is not available for your organization.</div>;
   }
 
   if (!election) {

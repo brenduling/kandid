@@ -10,14 +10,24 @@ import {
 import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
 import { readFileAsDataUrl } from "../../utils/files";
+import {
+  attachProgramCoverage,
+  clearOrganizationAccessCache,
+  ensureProgram,
+  getPrograms,
+  syncStudentsForOrganizationCoverage,
+} from "../../utils/organizationAccess";
 import { usePrompt } from "../../context/PromptContext";
 
 function Organizations() {
   const prompt = usePrompt();
 
   const [organizations, setOrganizations] = useState([]);
+  const [programs, setPrograms] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
   const [editingOrg, setEditingOrg] = useState(null);
+  const [selectedProgramIds, setSelectedProgramIds] = useState([]);
+  const [newProgram, setNewProgram] = useState("");
 
   const [selectedOrg, setSelectedOrg] = useState(null);
   const [organizationStudents, setOrganizationStudents] = useState([]);
@@ -35,12 +45,18 @@ function Organizations() {
 
   useEffect(() => {
     fetchOrganizations();
+    loadPrograms();
   }, []);
+
+  async function loadPrograms() {
+    const data = await getPrograms();
+    setPrograms(data || []);
+  }
 
   async function fetchOrganizations() {
     const { data, error } = await supabase
       .from("organizations")
-      .select("*")
+      .select("id, name, description, organization_type, created_at")
       .order("id", { ascending: true });
 
     if (error) {
@@ -53,12 +69,39 @@ function Organizations() {
       return;
     }
 
-    const organizationData = data || [];
+    const organizationData = await attachProgramCoverage(data || []);
 
     setOrganizations(organizationData);
 
-    // Load the number of students for every organization.
-    await fetchOrganizationCounts(organizationData);
+    fetchOrganizationCounts(organizationData);
+    fetchOrganizationLogos(organizationData);
+  }
+
+  async function fetchOrganizationLogos(orgs = organizations) {
+    const organizationIds = orgs.map((org) => org.id);
+
+    if (organizationIds.length === 0) return;
+
+    const { data, error } = await supabase
+      .from("organizations")
+      .select("id, logo_url")
+      .in("id", organizationIds);
+
+    if (error) {
+      console.error("Failed to load organization logos:", error);
+      return;
+    }
+
+    const logoMap = new Map(
+      (data || []).map((org) => [org.id, org.logo_url])
+    );
+
+    setOrganizations((previous) =>
+      previous.map((org) => ({
+        ...org,
+        logo_url: logoMap.get(org.id) || null,
+      }))
+    );
   }
 
   async function fetchOrganizationCounts(orgs = organizations) {
@@ -219,6 +262,8 @@ function Organizations() {
       logo_url: "",
       organization_type: "departmental",
     });
+    setSelectedProgramIds([]);
+    setNewProgram("");
 
     setFormOpen(true);
   }
@@ -233,8 +278,53 @@ function Organizations() {
       organization_type:
         org.organization_type || "departmental",
     });
+    setSelectedProgramIds(
+      (org.organization_programs || [])
+        .map((link) => String(link.program_id))
+        .filter(Boolean)
+    );
+    setNewProgram("");
 
     setFormOpen(true);
+  }
+
+  function toggleProgram(programId) {
+    setSelectedProgramIds((previous) =>
+      previous.includes(String(programId))
+        ? previous.filter((id) => id !== String(programId))
+        : [...previous, String(programId)]
+    );
+  }
+
+  async function handleAddProgram() {
+    const { data, error } = await ensureProgram(newProgram);
+
+    if (error) {
+      prompt.error(
+        error.message ||
+        "Program could not be added. Apply the organization sync migration first."
+      );
+      return;
+    }
+
+    if (!data) return;
+
+    setPrograms((previous) => {
+      const exists = previous.some(
+        (program) => String(program.id) === String(data.id)
+      );
+      return exists
+        ? previous
+        : [...previous, data].sort((a, b) =>
+            String(a.code || a.name).localeCompare(String(b.code || b.name))
+          );
+    });
+    setSelectedProgramIds((previous) =>
+      previous.includes(String(data.id))
+        ? previous
+        : [...previous, String(data.id)]
+    );
+    setNewProgram("");
   }
 
   async function handleLogoUpload(file) {
@@ -265,6 +355,15 @@ function Organizations() {
       return;
     }
 
+    if (
+      form.organization_type === "departmental" &&
+      programs.length > 0 &&
+      selectedProgramIds.length === 0
+    ) {
+      prompt.error("Select at least one covered program for this departmental organization.");
+      return;
+    }
+
     setLoading(true);
 
     let result;
@@ -278,7 +377,9 @@ function Organizations() {
           logo_url: form.logo_url || null,
           organization_type: form.organization_type,
         })
-        .eq("id", editingOrg.id);
+        .eq("id", editingOrg.id)
+        .select("id")
+        .single();
     } else {
       result = await supabase
         .from("organizations")
@@ -289,7 +390,9 @@ function Organizations() {
             logo_url: form.logo_url || null,
             organization_type: form.organization_type,
           },
-        ]);
+        ])
+        .select("id")
+        .single();
     }
 
     const error = result?.error;
@@ -306,6 +409,54 @@ function Organizations() {
 
       setLoading(false);
       return;
+    }
+
+    const organizationId = result?.data?.id || editingOrg?.id;
+
+    if (programs.length > 0) {
+      const { error: deleteProgramError } = await supabase
+        .from("organization_programs")
+        .delete()
+        .eq("organization_id", organizationId);
+
+      if (deleteProgramError) {
+        console.warn("Program coverage update skipped:", deleteProgramError);
+        prompt.error(
+          "Organization saved, but program coverage needs the organization sync migration."
+        );
+      } else if (
+        form.organization_type === "departmental" &&
+        selectedProgramIds.length > 0
+      ) {
+        const programRows = selectedProgramIds.map((programId) => ({
+          organization_id: organizationId,
+          program_id: Number(programId),
+        }));
+
+        const { error: programError } = await supabase
+          .from("organization_programs")
+          .insert(programRows);
+
+        if (programError) {
+          console.warn("Program coverage insert skipped:", programError);
+          prompt.error(
+            "Organization saved, but program coverage needs the organization sync migration."
+          );
+        }
+      }
+    }
+
+    clearOrganizationAccessCache();
+    const { error: syncError } = await syncStudentsForOrganizationCoverage(
+      organizationId
+    );
+
+    if (syncError) {
+      console.warn("Student membership backfill skipped:", syncError);
+      prompt.error(
+        syncError.message ||
+        "Organization saved, but matching students could not be synced."
+      );
     }
 
     prompt.success(
@@ -419,6 +570,8 @@ function Organizations() {
                       src={org.logo_url}
                       alt={`${org.name} logo`}
                       className="h-14 w-14 rounded-2xl object-cover ring-1 ring-[rgba(37,99,235,0.08)]"
+                      loading="lazy"
+                      decoding="async"
                     />
                   ) : (
                     <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[rgba(248,115,22,0.14)] text-sm font-black text-[#f97316]">
@@ -533,6 +686,8 @@ function Organizations() {
                       src={selectedOrg.logo_url}
                       alt={`${selectedOrg.name} logo`}
                       className="h-16 w-16 rounded-2xl object-cover"
+                      loading="lazy"
+                      decoding="async"
                     />
                   ) : (
                     <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[rgba(255,90,31,0.12)] text-sm font-black text-[#ff5a1f]">
@@ -733,6 +888,8 @@ function Organizations() {
                                         }
                                         alt={`${student.first_name} ${student.last_name}`}
                                         className="h-10 w-10 rounded-xl object-cover"
+                                        loading="lazy"
+                                        decoding="async"
                                       />
                                     ) : (
                                       <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[rgba(37,99,235,0.08)] text-xs font-black text-[#2563eb]">
@@ -968,6 +1125,68 @@ function Organizations() {
                       </label>
                     </div>
                   </div>
+
+                  {form.organization_type === "departmental" && (
+                    <div>
+                      <label className="field-label">
+                        Covered Programs
+                      </label>
+
+                      <div className="mb-3 flex flex-col gap-2 sm:flex-row">
+                        <input
+                          value={newProgram}
+                          onChange={(event) =>
+                            setNewProgram(event.target.value)
+                          }
+                          className="field-shell w-full"
+                          placeholder="Add program code"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddProgram}
+                          disabled={!newProgram.trim()}
+                          className="secondary-btn justify-center disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Add Program
+                        </button>
+                      </div>
+
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {programs.length === 0 ? (
+                          <div className="rounded-2xl border border-gray-200 bg-white p-4 text-sm text-gray-500">
+                            No programs found. Programs are seeded from student records by the organization sync migration.
+                          </div>
+                        ) : (
+                          programs.map((program) => {
+                            const checked = selectedProgramIds.includes(
+                              String(program.id)
+                            );
+
+                            return (
+                              <label
+                                key={program.id}
+                                className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3 text-sm transition ${
+                                  checked
+                                    ? "border-[#d35a25] bg-[rgba(211,90,37,0.08)] text-[#1d262f]"
+                                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => toggleProgram(program.id)}
+                                  className="h-4 w-4"
+                                />
+                                <span className="font-bold">
+                                  {program.code || program.name}
+                                </span>
+                              </label>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   <div>
                     <label className="field-label">

@@ -3,6 +3,7 @@ import { Plus, Pencil, Trash2, X, Search } from "lucide-react";
 import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
 import { readFileAsDataUrl } from "../../utils/files";
+import { syncStudentOrganizationMemberships } from "../../utils/organizationAccess";
 import { usePrompt } from "../../context/PromptContext";
 
 function Students() {
@@ -42,14 +43,26 @@ function Students() {
     const { data, error } = await supabase
       .from("students")
       .select(`
-        *,
+        id,
+        student_number,
+        first_name,
+        last_name,
+        email,
+        photo_url,
+        program,
+        year_level,
+        precinct_code,
+        batch_code,
+        is_shs,
+        status,
+        created_at,
         student_organizations (
           organization_id,
           role,
           organizations (
             id,
             name,
-            logo_url
+            organization_type
           )
         )
       `)
@@ -71,7 +84,7 @@ function Students() {
   async function fetchOrganizations() {
     const { data, error } = await supabase
       .from("organizations")
-      .select("id, name, logo_url")
+      .select("id, name, organization_type")
       .order("name", { ascending: true });
 
     if (error) {
@@ -119,14 +132,11 @@ function Students() {
       student.student_organizations || [];
 
     const specificOrganization =
-      existingOrganizations.find((item) => {
-        const name =
-          item.organizations?.name
-            ?.trim()
-            .toUpperCase();
-
-        return name !== "WITSG" && name !== "PSITS";
-      });
+      existingOrganizations.find(
+        (item) =>
+          item.organizations?.organization_type !==
+          "non_departmental"
+      );
 
     setForm({
       student_number:
@@ -235,161 +245,28 @@ function Students() {
       return;
     }
 
-    // ============================================================
-    // REMOVE OLD ORGANIZATION MEMBERSHIPS
-    // ============================================================
+    const { error: syncError } =
+      await syncStudentOrganizationMemberships({
+        studentId: savedStudentId,
+        program: form.program,
+        explicitOrganizationIds: form.organization_id
+          ? [form.organization_id]
+          : [],
+      });
 
-    const {
-      error: deleteOrgLinkError,
-    } = await supabase
-      .from("student_organizations")
-      .delete()
-      .eq("student_id", savedStudentId);
-
-    if (deleteOrgLinkError) {
+    if (syncError) {
       console.error(
-        "Existing organization links cleanup failed:",
-        deleteOrgLinkError
+        "Student organization sync failed:",
+        syncError
       );
 
       prompt.error(
-        deleteOrgLinkError.message ||
-        "Failed to update student organization membership."
-      );
-
-      return;
-    }
-
-    // ============================================================
-    // FIND WITSG
-    // ============================================================
-
-    const witsgOrg = organizations.find(
-      (org) =>
-        org.name
-          ?.trim()
-          .toUpperCase() === "WITSG"
-    );
-
-    // WITSG IS REQUIRED FOR EVERY STUDENT
-    if (!witsgOrg) {
-      prompt.error(
-        "WITSG organization was not found. Please create the WITSG organization first."
-      );
-
-      return;
-    }
-
-    // ============================================================
-    // FIND PSITS
-    // ============================================================
-
-    const psitsOrg = organizations.find(
-      (org) =>
-        org.name
-          ?.trim()
-          .toUpperCase() === "PSITS"
-    );
-
-    const orgLinks = [];
-
-    // ============================================================
-    // EVERY STUDENT → WITSG
-    // ============================================================
-
-    orgLinks.push({
-      student_id: savedStudentId,
-      organization_id: witsgOrg.id,
-      role: "member",
-    });
-
-    // ============================================================
-    // BSIT → PSITS AUTOMATICALLY
-    // ============================================================
-
-    if (
-      form.program
-        ?.trim()
-        .toUpperCase() === "BSIT"
-    ) {
-      if (!psitsOrg) {
-        prompt.error(
-          "PSITS organization was not found. Please create the PSITS organization first."
-        );
-
-        return;
-      }
-
-      if (
-        !orgLinks.some(
-          (link) =>
-            link.organization_id ===
-            psitsOrg.id
-        )
-      ) {
-        orgLinks.push({
-          student_id: savedStudentId,
-          organization_id: psitsOrg.id,
-          role: "member",
-        });
-      }
-    }
-
-    // ============================================================
-    // SPECIFIC ORGANIZATION
-    // ============================================================
-    // This is ADDITIONAL.
-    // It does not replace WITSG or PSITS.
-    // ============================================================
-
-    if (form.organization_id) {
-      const selectedOrgId = Number(
-        form.organization_id
-      );
-
-      if (
-        selectedOrgId &&
-        !orgLinks.some(
-          (link) =>
-            link.organization_id ===
-            selectedOrgId
-        )
-      ) {
-        orgLinks.push({
-          student_id: savedStudentId,
-          organization_id: selectedOrgId,
-          role: "member",
-        });
-      }
-    }
-
-    // ============================================================
-    // SAVE ALL ORGANIZATION MEMBERSHIPS
-    // ============================================================
-
-    const {
-      error: orgLinkError,
-    } = await supabase
-      .from("student_organizations")
-      .insert(orgLinks);
-
-    if (orgLinkError) {
-      console.error(
-        "Student organization links failed:",
-        orgLinkError
-      );
-
-      prompt.error(
-        orgLinkError.message ||
+        syncError.message ||
         "Failed to link student to organizations."
       );
 
       return;
     }
-
-    // ============================================================
-    // SUCCESS
-    // ============================================================
 
     prompt.success(
       editingStudent
@@ -400,6 +277,8 @@ function Students() {
     setFormOpen(false);
 
     fetchStudents();
+    return;
+
   }
 
   async function handleDelete(id) {
@@ -740,18 +619,12 @@ function Students() {
                                     key={
                                       org.id
                                     }
-                                    className={`rounded-full px-3 py-1 text-xs font-bold ${org.name
-                                        ?.trim()
-                                        .toUpperCase() ===
-                                        "WITSG"
+                                    className={`rounded-full px-3 py-1 text-xs font-bold ${
+                                      org.organization_type ===
+                                      "non_departmental"
                                         ? "bg-blue-100 text-blue-700"
-                                        : org.name
-                                          ?.trim()
-                                          .toUpperCase() ===
-                                          "PSITS"
-                                          ? "bg-orange-100 text-orange-700"
-                                          : "bg-gray-100 text-gray-700"
-                                      }`}
+                                        : "bg-orange-100 text-orange-700"
+                                    }`}
                                   >
                                     {
                                       org.name
@@ -985,9 +858,7 @@ function Students() {
                     />
 
                     <p className="mt-2 text-xs text-gray-500">
-                      BSIT students are
-                      automatically added to
-                      PSITS.
+                      Departmental memberships are synced from covered programs.
                     </p>
                   </div>
 
@@ -1073,19 +944,7 @@ function Students() {
                         No additional organization
                       </option>
 
-                      {organizations
-                        .filter(
-                          (org) =>
-                            org.name
-                              ?.trim()
-                              .toUpperCase() !==
-                            "WITSG" &&
-                            org.name
-                              ?.trim()
-                              .toUpperCase() !==
-                            "PSITS"
-                        )
-                        .map((org) => (
+                      {organizations.map((org) => (
                           <option
                             key={org.id}
                             value={org.id}
@@ -1096,17 +955,9 @@ function Students() {
                     </select>
 
                     <div className="mt-3 rounded-xl bg-blue-50 p-3 text-xs leading-5 text-blue-700">
-                      <strong>
-                        WITSG:
-                      </strong>{" "}
-                      Every student is
-                      automatically a member.
-                      <br />
-                      <strong>
-                        PSITS:
-                      </strong>{" "}
-                      Automatically added
-                      for BSIT students.
+                      Non-departmental organizations are synced for every student.
+                      Departmental organizations are synced from their covered
+                      programs.
                       <br />
                       <strong>
                         Specific Organization:
@@ -1241,3 +1092,4 @@ function Students() {
 }
 
 export default Students;
+

@@ -7,6 +7,7 @@ import {
   formatLocalDateTime,
   getElectionPhase,
 } from "../../utils/elections";
+import { getEligibleStudentOrganizationIds } from "../../utils/organizationAccess";
 
 function friendlyPhase(phase) {
   if (phase === "campaign") return "Campaign Period";
@@ -28,36 +29,89 @@ function StudentElections() {
     async function loadElections() {
       setLoading(true);
 
-      const { data: studentOrgs } = await supabase
-        .from("student_organizations")
-        .select("organization_id")
-        .eq("student_id", user.id);
+      const [organizationIds, { data: voteData }] = await Promise.all([
+        getEligibleStudentOrganizationIds(user),
+        supabase
+          .from("votes")
+          .select("election_id")
+          .eq("student_id", user.id),
+      ]);
 
-      const organizationIds = studentOrgs?.map((item) => item.organization_id) || [];
+      const votedElectionIds = [
+        ...new Set(
+          (voteData || [])
+            .map((voteRow) => voteRow.election_id)
+            .filter(Boolean)
+        ),
+      ];
 
-      if (organizationIds.length === 0) {
+      if (organizationIds.length === 0 && votedElectionIds.length === 0) {
         if (active) {
           setElections([]);
+          setVotes([]);
           setLoading(false);
         }
         return;
       }
 
-      const { data: electionData } = await supabase
-        .from("elections")
-        .select("*, organizations(name)")
-        .in("organization_id", organizationIds)
-        .neq("status", "archived")
-        .order("start_date", { ascending: true });
+      const electionColumns = `
+        id,
+        title,
+        organization_id,
+        campaign_start,
+        campaign_end,
+        start_date,
+        end_date,
+        status,
+        venue,
+        results_visibility,
+        result_release_date,
+        organizations(name)
+      `;
 
-      const { data: voteData } = await supabase
-        .from("votes")
-        .select("election_id")
-        .eq("student_id", user.id);
+      const electionQueries = [];
+
+      if (organizationIds.length > 0) {
+        electionQueries.push(
+          supabase
+            .from("elections")
+            .select(electionColumns)
+            .in("organization_id", organizationIds)
+            .neq("status", "archived")
+            .order("start_date", { ascending: true })
+        );
+      }
+
+      if (votedElectionIds.length > 0) {
+        electionQueries.push(
+          supabase
+            .from("elections")
+            .select(electionColumns)
+            .in("id", votedElectionIds)
+            .neq("status", "archived")
+            .order("start_date", { ascending: true })
+        );
+      }
+
+      const electionResponses = await Promise.all(electionQueries);
 
       if (!active) return;
 
-      setElections(electionData || []);
+      const electionMap = new Map();
+
+      electionResponses.forEach(({ data }) => {
+        (data || []).forEach((election) => {
+          electionMap.set(election.id, election);
+        });
+      });
+
+      setElections(
+        [...electionMap.values()].sort(
+          (first, second) =>
+            new Date(first.start_date || 0) -
+            new Date(second.start_date || 0)
+        )
+      );
       setVotes(voteData || []);
       setLoading(false);
     }

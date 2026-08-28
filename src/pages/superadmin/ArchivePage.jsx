@@ -12,8 +12,9 @@ function Archives() {
   async function fetchArchives() {
     const { data } = await supabase
       .from("archived_elections")
-      .select("*")
-      .order("archived_at", { ascending: false });
+      .select("id, title, total_votes, total_voters, archived_at")
+      .order("archived_at", { ascending: false })
+      .range(0, 99);
 
     setArchives(data || []);
   }
@@ -32,9 +33,9 @@ function Archives() {
         View and manage archived elections.
       </p>
 
-      <div className="mt-8 bg-white rounded-2xl shadow-sm overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-[#1d1d1d] text-white">
+      <div className="table-shell mt-8">
+        <table className="app-table">
+          <thead>
             <tr>
               <th className="px-6 py-4">Title</th>
               <th className="px-6 py-4">Votes</th>
@@ -63,13 +64,13 @@ function Archives() {
 
                   <td className="px-6 py-4">
                     <div className="flex justify-end gap-2">
-                      <button className="p-2 bg-gray-100 rounded-lg">
+                      <button className="icon-action">
                         <Archive size={16} />
                       </button>
 
                       <button
                         onClick={() => handleDelete(a.id)}
-                        className="p-2 bg-red-100 text-red-600 rounded-lg"
+                        className="icon-action icon-action-danger"
                       >
                         <Trash2 size={16} />
                       </button>

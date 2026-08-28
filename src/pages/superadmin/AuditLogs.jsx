@@ -5,18 +5,26 @@ import { supabase } from "../../lib/supabaseClient";
 function AuditLogs() {
   const [logs, setLogs] = useState([]);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
+  const pageSize = 100;
 
   useEffect(() => {
-    fetchLogs();
+    fetchLogs(0);
   }, []);
 
-  async function fetchLogs() {
+  async function fetchLogs(nextPage = page) {
+    const from = nextPage * pageSize;
+    const to = from + pageSize - 1;
     const { data, error } = await supabase
       .from("audit_logs")
-      .select("*")
-      .order("timestamp", { ascending: false });
+      .select("id, user_id, action, timestamp")
+      .order("timestamp", { ascending: false })
+      .range(from, to);
 
-    if (!error) setLogs(data || []);
+    if (!error) {
+      setLogs(nextPage === 0 ? data || [] : [...logs, ...(data || [])]);
+      setPage(nextPage);
+    }
     if (error) console.log(error);
   }
 
@@ -36,7 +44,7 @@ function AuditLogs() {
         </div>
 
         <button
-          onClick={fetchLogs}
+          onClick={() => fetchLogs(0)}
           className="primary-btn self-start lg:self-auto"
         >
           <RefreshCw size={18} />
@@ -97,6 +105,14 @@ function AuditLogs() {
           </tbody>
         </table>
       </div>
+
+      {logs.length >= (page + 1) * pageSize ? (
+        <div className="mt-4 flex justify-center">
+          <button onClick={() => fetchLogs(page + 1)} className="secondary-btn">
+            Load more logs
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

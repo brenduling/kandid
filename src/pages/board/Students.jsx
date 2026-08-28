@@ -3,6 +3,7 @@ import { Plus, Search } from "lucide-react";
 import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
 import { readFileAsDataUrl } from "../../utils/files";
+import { syncStudentOrganizationMemberships } from "../../utils/organizationAccess";
 
 function BoardStudents() {
   const [students, setStudents] = useState([]);
@@ -119,15 +120,11 @@ function BoardStudents() {
       return;
     }
 
-    const { error: orgError } = await supabase
-      .from("student_organizations")
-      .insert([
-        {
-          student_id: insertedStudent.id,
-          organization_id: orgId,
-          role: "member",
-        },
-      ]);
+    const { error: orgError } = await syncStudentOrganizationMemberships({
+      studentId: insertedStudent.id,
+      program: insertedStudent.program,
+      explicitOrganizationIds: [orgId],
+    });
 
     if (orgError) {
       console.error("Board student organization link failed:", orgError);

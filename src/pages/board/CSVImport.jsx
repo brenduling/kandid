@@ -2,6 +2,7 @@ import { useState } from "react";
 import Papa from "papaparse";
 import { Upload, CheckCircle, XCircle } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
+import { syncStudentOrganizationMemberships } from "../../utils/organizationAccess";
 
 function BoardCSVImport() {
   const [rows, setRows] = useState([]);
@@ -87,20 +88,18 @@ function BoardCSVImport() {
       return;
     }
 
-    const memberships = insertedStudents.map((student) => ({
-      student_id: student.id,
-      organization_id: orgId,
-      role: "member",
-    }));
+    for (const student of insertedStudents || []) {
+      const { error: membershipError } = await syncStudentOrganizationMemberships({
+        studentId: student.id,
+        program: student.program,
+        explicitOrganizationIds: [orgId],
+      });
 
-    const { error: membershipError } = await supabase
-      .from("student_organizations")
-      .insert(memberships);
-
-    if (membershipError) {
-      alert(membershipError.message);
-      setImporting(false);
-      return;
+      if (membershipError) {
+        alert(membershipError.message);
+        setImporting(false);
+        return;
+      }
     }
 
     alert("Students imported and assigned to your organization successfully.");

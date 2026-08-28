@@ -26,7 +26,14 @@ function BoardLogin() {
     const { data, error } = await supabase
       .from("admin_users")
       .select(`
-        *,
+        id,
+        email,
+        password,
+        full_name,
+        role,
+        status,
+        organization_id,
+        created_at,
         organizations (
           id,
           name

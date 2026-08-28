@@ -55,7 +55,7 @@ function SuperAdminLayout() {
   }
 
   return (
-    <div className="super-admin-theme app-shell relative overflow-hidden">
+    <div className="super-admin-theme kandid-app-theme app-shell relative overflow-hidden">
       <div className="ambient-orb left-[-120px] top-16 h-96 w-96 bg-[rgba(17,128,106,0.16)]" />
       <div className="ambient-orb bottom-8 right-[-90px] h-80 w-80 bg-[rgba(25,162,140,0.14)]" />
 

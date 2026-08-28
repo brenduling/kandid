@@ -13,10 +13,29 @@ function Reports() {
   }, []);
 
   async function fetchReportsData() {
-    const { data: studentsData } = await supabase.from("students").select("*");
-    const { data: orgsData } = await supabase.from("organizations").select("*");
-    const { data: electionsData } = await supabase.from("elections").select("*");
-    const { data: votesData } = await supabase.from("votes").select("*");
+    const [
+      { data: studentsData, error: studentsError },
+      { data: orgsData, error: orgsError },
+      { data: electionsData, error: electionsError },
+      { data: votesData, error: votesError },
+    ] = await Promise.all([
+      supabase
+        .from("students")
+        .select("id, student_number, first_name, last_name, email, program, year_level, is_shs, status, created_at"),
+      supabase
+        .from("organizations")
+        .select("id, name, organization_type, created_at"),
+      supabase
+        .from("elections")
+        .select("id, title, organization_id, campaign_start, campaign_end, start_date, end_date, status, venue, created_at"),
+      supabase
+        .from("votes")
+        .select("id, election_id, position_id, candidate_id, student_id, vote_hash, blockchain_tx_hash, vote_timestamp"),
+    ]);
+
+    [studentsError, orgsError, electionsError, votesError].filter(Boolean).forEach((error) => {
+      console.error("Failed to load report data:", error);
+    });
 
     setStudents(studentsData || []);
     setOrganizations(orgsData || []);
@@ -96,22 +115,22 @@ function Reports() {
       </div>
 
       <div className="grid grid-cols-4 gap-6 mt-8">
-        <div className="bg-white p-6 rounded-2xl shadow-sm">
+        <div className="metric-card">
           <p className="text-sm text-gray-500">Students</p>
           <h2 className="text-3xl font-black mt-2">{students.length}</h2>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm">
+        <div className="metric-card">
           <p className="text-sm text-gray-500">Organizations</p>
           <h2 className="text-3xl font-black mt-2">{organizations.length}</h2>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm">
+        <div className="metric-card">
           <p className="text-sm text-gray-500">Elections</p>
           <h2 className="text-3xl font-black mt-2">{elections.length}</h2>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm">
+        <div className="metric-card">
           <p className="text-sm text-gray-500">Turnout</p>
           <h2 className="text-3xl font-black mt-2">{turnout}%</h2>
         </div>
@@ -124,10 +143,10 @@ function Reports() {
           return (
             <div
               key={report.title}
-              className="bg-white p-6 rounded-2xl shadow-sm flex items-center justify-between"
+              className="metric-card flex items-center justify-between"
             >
               <div className="flex gap-4">
-                <div className="w-12 h-12 rounded-xl bg-orange-100 text-[#ff5a1f] flex items-center justify-center">
+                <div className="w-12 h-12 rounded-xl bg-[rgba(194,65,12,0.08)] text-[#ff5a1f] flex items-center justify-center">
                   <Icon size={22} />
                 </div>
 
@@ -141,7 +160,7 @@ function Reports() {
 
               <button
                 onClick={report.action}
-                className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[#1d1d1d] text-white text-sm font-bold hover:bg-black"
+                className="primary-btn"
               >
                 <Download size={16} />
                 Export

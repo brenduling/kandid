@@ -13,38 +13,53 @@ function VotingMonitor() {
   }, []);
 
   async function fetchData() {
-    const { data: votesData } = await supabase
-      .from("votes")
-      .select(`
-        *,
-        students (
-          student_number,
-          first_name,
-          last_name
-        ),
-        elections (
-          title
-        ),
-        positions (
-          name
-        ),
-        candidates (
+    const [
+      { data: votesData, error: votesError },
+      { data: studentsData, error: studentsError },
+      { data: electionsData, error: electionsError },
+    ] = await Promise.all([
+      supabase
+        .from("votes")
+        .select(`
+          id,
+          election_id,
+          position_id,
+          candidate_id,
+          student_id,
+          is_abstain,
+          vote_timestamp,
+          blockchain_tx_id,
           students (
+            student_number,
             first_name,
             last_name
+          ),
+          elections (
+            title
+          ),
+          positions (
+            name
+          ),
+          candidates (
+            students (
+              first_name,
+              last_name
+            )
           )
-        )
-      `)
-      .order("vote_timestamp", { ascending: false });
+        `)
+        .order("vote_timestamp", { ascending: false }),
+      supabase
+        .from("students")
+        .select("id", { count: "exact" }),
+      supabase
+        .from("elections")
+        .select("id, title")
+        .order("id", { ascending: true }),
+    ]);
 
-    const { data: studentsData } = await supabase
-      .from("students")
-      .select("*");
-
-    const { data: electionsData } = await supabase
-      .from("elections")
-      .select("*")
-      .order("id", { ascending: true });
+    [votesError, studentsError, electionsError].filter(Boolean).forEach((error) => {
+      console.error("Failed to load voting monitor data:", error);
+    });
 
     setVotes(votesData || []);
     setStudents(studentsData || []);
@@ -74,10 +89,7 @@ function VotingMonitor() {
           </p>
         </div>
 
-        <button
-          onClick={fetchData}
-          className="flex items-center gap-2 bg-[#ff5a1f] text-white px-5 py-3 rounded-xl font-bold hover:bg-[#e24d17]"
-        >
+        <button onClick={fetchData} className="primary-btn">
           <RefreshCw size={18} />
           Refresh
         </button>
@@ -87,7 +99,7 @@ function VotingMonitor() {
         <select
           value={selectedElection}
           onChange={(e) => setSelectedElection(e.target.value)}
-          className="bg-white px-4 py-3 rounded-xl shadow-sm outline-none"
+          className="field-shell bg-white px-4 py-3 outline-none"
         >
           <option value="all">All Elections</option>
           {elections.map((election) => (
@@ -99,7 +111,7 @@ function VotingMonitor() {
       </div>
 
       <div className="grid grid-cols-4 gap-6 mt-6">
-        <div className="bg-white p-6 rounded-2xl shadow-sm">
+        <div className="metric-card">
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-500">Total Votes</p>
             <Vote className="text-[#ff5a1f]" size={22} />
@@ -107,7 +119,7 @@ function VotingMonitor() {
           <h2 className="text-3xl font-black mt-2">{totalVotes}</h2>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm">
+        <div className="metric-card">
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-500">Unique Voters</p>
             <Users className="text-[#ff5a1f]" size={22} />
@@ -115,7 +127,7 @@ function VotingMonitor() {
           <h2 className="text-3xl font-black mt-2">{totalVoters}</h2>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm">
+        <div className="metric-card">
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-500">Total Students</p>
             <CheckCircle className="text-[#ff5a1f]" size={22} />
@@ -123,7 +135,7 @@ function VotingMonitor() {
           <h2 className="text-3xl font-black mt-2">{totalStudents}</h2>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm">
+        <div className="metric-card">
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-500">Turnout</p>
             <Clock className="text-[#ff5a1f]" size={22} />
@@ -132,9 +144,9 @@ function VotingMonitor() {
         </div>
       </div>
 
-      <div className="mt-8 bg-white rounded-2xl shadow-sm overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-[#1d1d1d] text-white">
+      <div className="table-shell mt-8">
+        <table className="app-table">
+          <thead>
             <tr>
               <th className="px-6 py-4 text-sm">Voter</th>
               <th className="px-6 py-4 text-sm">Election</th>

@@ -233,9 +233,9 @@ function BoardElections() {
         </button>
       </div>
 
-      <div className="mt-8 overflow-hidden rounded-2xl bg-white shadow-sm">
-        <table className="w-full text-left">
-          <thead className="bg-[#1d1d1d] text-white">
+      <div className="table-shell mt-8">
+        <table className="app-table">
+          <thead>
             <tr>
               <th className="px-6 py-4">Title</th>
               <th className="px-6 py-4">Phase</th>
@@ -260,7 +260,7 @@ function BoardElections() {
                 <tr key={election.id} className="border-b">
                   <td className="px-6 py-4 font-bold">{election.title}</td>
                   <td className="px-6 py-4 text-sm">
-                    <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-700">
+                    <span className="status-pill">
                       {getElectionPhase(election)}
                     </span>
                   </td>
@@ -417,7 +417,7 @@ function BoardElections() {
                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#55726b]">
                       Access Tokens / QR
                     </p>
-                    <QrCode size={18} className="text-[#11806a]" />
+                    <QrCode size={18} className="text-[#ff5a1f]" />
                   </div>
 
                   <div className="mt-4 grid gap-4 md:grid-cols-3">
@@ -430,7 +430,7 @@ function BoardElections() {
                     <input type="datetime-local" value={tokenForm.expires_at} onChange={(e) => setTokenForm({ ...tokenForm, expires_at: e.target.value })} className="w-full rounded-xl border p-3" />
                   </div>
 
-                  <button type="button" onClick={handleCreateAccessToken} className="mt-4 rounded-xl bg-[#eaf8f4] px-4 py-3 text-sm font-bold text-[#11806a]">
+                  <button type="button" onClick={handleCreateAccessToken} className="secondary-btn mt-4">
                     Generate Token
                   </button>
 

@@ -29,28 +29,33 @@ function Dashboard() {
     setLoading(true);
 
     try {
-      // 1. Fetch counts
-      const { count: orgCount } = await supabase
-        .from("organizations")
-        .select("*", { count: "exact", head: true });
-        
-      const { count: studentCount } = await supabase
-        .from("students")
-        .select("*", { count: "exact", head: true });
-        
-      const { count: activeElectionCount } = await supabase
-        .from("elections")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "active");
-        
-      const { count: voteCount } = await supabase
-        .from("votes")
-        .select("*", { count: "exact", head: true });
-
-      const { count: pendingCount } = await supabase
-        .from("students")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "pending");
+      const [
+        { count: orgCount },
+        { count: studentCount },
+        { count: activeElectionCount },
+        { count: voteCount },
+        { count: pendingCount },
+        { data: studentPrograms },
+        { data: logsData },
+      ] = await Promise.all([
+        supabase.from("organizations").select("id", { count: "exact", head: true }),
+        supabase.from("students").select("id", { count: "exact", head: true }),
+        supabase
+          .from("elections")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "active"),
+        supabase.from("votes").select("id", { count: "exact", head: true }),
+        supabase
+          .from("students")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "pending"),
+        supabase.from("students").select("program"),
+        supabase
+          .from("audit_logs")
+          .select("id, action, timestamp")
+          .order("timestamp", { ascending: false })
+          .limit(5),
+      ]);
 
       setStats({
         organizations: orgCount || 0,
@@ -59,11 +64,6 @@ function Dashboard() {
         votes: voteCount || 0,
         pendingReview: pendingCount || 0,
       });
-
-      // 2. Fetch program stats for the bar chart
-      const { data: studentPrograms } = await supabase
-        .from("students")
-        .select("program");
 
       const programCounts = (studentPrograms || []).reduce((accumulator, student) => {
         const key = student.program || "Unassigned";
@@ -87,13 +87,6 @@ function Dashboard() {
         .slice(0, 6);
 
       setProgramStats(normalizedPrograms);
-
-      // 3. Fetch audit logs and map to events
-      const { data: logsData } = await supabase
-        .from("audit_logs")
-        .select("*")
-        .order("timestamp", { ascending: false })
-        .limit(5);
 
       const mappedLogs = (logsData || []).map((log) => {
         let org = "Super Admin";

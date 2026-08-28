@@ -50,7 +50,7 @@ function BoardLayout() {
   }
 
   return (
-    <div className="app-shell relative overflow-hidden">
+    <div className="board-theme kandid-app-theme app-shell relative overflow-hidden">
       <div className="ambient-orb left-[-100px] top-32 h-80 w-80 bg-[rgba(25,162,140,0.16)]" />
       <div className="ambient-orb bottom-12 right-[-80px] h-72 w-72 bg-[rgba(17,128,106,0.12)]" />
 

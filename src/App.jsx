@@ -1,65 +1,69 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
 
-// layouts
-import Home from "./pages/Home";
-import SuperAdminLayout from "./layouts/SuperAdminLayout";
-import StudentLayout from "./layouts/StudentLayout";
-import BoardLayout from "./layouts/BoardLayout";
-
-// student pages
-import StudentDashboard from "./pages/student/Dashboard";
-import StudentElections from "./pages/student/Elections";
-import StudentVotePage from "./pages/student/VotePage";
-import StudentReceipt from "./pages/student/Receipt";
-import StudentCampaign from "./pages/student/Campaign";
-import StudentResults from "./pages/student/Results";
-import StudentOfficers from "./pages/student/Officers";
-import StudentSetup from "./pages/auth/StudentSetup";
-import ProfilePage from "./pages/shared/Profile";
-import KioskVoting from "./pages/shared/KioskVoting";
-
-// board pages
-import BoardDashboard from "./pages/board/Dashboard";
-import BoardElections from "./pages/board/Elections";
-import BoardStudents from "./pages/board/Students";
-import BoardCSVImport from "./pages/board/CSVImport";
-import BoardPositions from "./pages/board/Positions.jsx";
-import BoardCandidates from "./pages/board/Candidates";
-import BoardOfficers from "./pages/board/Officers";
-import BoardPartylists from "./pages/board/Partylists";
-import BoardEligibilityRules from "./pages/board/EligibilityRules";
-import BoardVotingMonitor from "./pages/board/VotingMonitor";
-import BoardResults from "./pages/board/Results";
-import BoardReports from "./pages/board/Reports";
-
-// admin pages
-import Dashboard from "./pages/superadmin/Dashboard";
-import Organizations from "./pages/superadmin/Organizations";
-import Students from "./pages/superadmin/Students";
-import CSVImport from "./pages/superadmin/CSVImport";
-import Elections from "./pages/superadmin/Elections";
-import Positions from "./pages/superadmin/Positions";
-import Candidates from "./pages/superadmin/Candidates";
-import Officers from "./pages/superadmin/Officers";
-import Partylists from "./pages/superadmin/Partylists";
-import EligibilityRules from "./pages/superadmin/EligibilityRules";
-import VotingMonitor from "./pages/superadmin/VotingMonitor";
-import Results from "./pages/superadmin/Results";
-import BlockchainVerification from "./pages/superadmin/BlockchainVerification";
-import Reports from "./pages/superadmin/Reports";
-import AuditLogs from "./pages/superadmin/AuditLogs";
-import UsersRoles from "./pages/superadmin/UsersRoles";
-import Archives from "./pages/superadmin/ArchivePage";
-import SystemSettings from "./pages/superadmin/SystemSettings";
-
-// login pages
-import AdminLogin from "./pages/auth/AdminLogin";
-import BoardLogin from "./pages/auth/BoardLogin";
-import StudentLogin from "./pages/auth/StudentLogin";
-
 import ProtectedRoute from "./components/ProtectedRoute";
 import { PromptProvider } from "./context/PromptContext";
+
+const Home = lazy(() => import("./pages/Home"));
+const SuperAdminLayout = lazy(() => import("./layouts/SuperAdminLayout"));
+const StudentLayout = lazy(() => import("./layouts/StudentLayout"));
+const BoardLayout = lazy(() => import("./layouts/BoardLayout"));
+
+const StudentDashboard = lazy(() => import("./pages/student/Dashboard"));
+const StudentElections = lazy(() => import("./pages/student/Elections"));
+const StudentVotePage = lazy(() => import("./pages/student/VotePage"));
+const StudentReceipt = lazy(() => import("./pages/student/Receipt"));
+const StudentCampaign = lazy(() => import("./pages/student/Campaign"));
+const StudentResults = lazy(() => import("./pages/student/Results"));
+const StudentOfficers = lazy(() => import("./pages/student/Officers"));
+const StudentSetup = lazy(() => import("./pages/auth/StudentSetup"));
+const ProfilePage = lazy(() => import("./pages/shared/Profile"));
+const KioskVoting = lazy(() => import("./pages/shared/KioskVoting"));
+
+const BoardDashboard = lazy(() => import("./pages/board/Dashboard"));
+const BoardElections = lazy(() => import("./pages/board/Elections"));
+const BoardStudents = lazy(() => import("./pages/board/Students"));
+const BoardCSVImport = lazy(() => import("./pages/board/CSVImport"));
+const BoardPositions = lazy(() => import("./pages/board/Positions.jsx"));
+const BoardCandidates = lazy(() => import("./pages/board/Candidates"));
+const BoardOfficers = lazy(() => import("./pages/board/Officers"));
+const BoardPartylists = lazy(() => import("./pages/board/Partylists"));
+const BoardEligibilityRules = lazy(() => import("./pages/board/EligibilityRules"));
+const BoardVotingMonitor = lazy(() => import("./pages/board/VotingMonitor"));
+const BoardResults = lazy(() => import("./pages/board/Results"));
+const BoardReports = lazy(() => import("./pages/board/Reports"));
+
+const Dashboard = lazy(() => import("./pages/superadmin/Dashboard"));
+const Organizations = lazy(() => import("./pages/superadmin/Organizations"));
+const Students = lazy(() => import("./pages/superadmin/Students"));
+const CSVImport = lazy(() => import("./pages/superadmin/CSVImport"));
+const Elections = lazy(() => import("./pages/superadmin/Elections"));
+const Positions = lazy(() => import("./pages/superadmin/Positions"));
+const Candidates = lazy(() => import("./pages/superadmin/Candidates"));
+const Officers = lazy(() => import("./pages/superadmin/Officers"));
+const Partylists = lazy(() => import("./pages/superadmin/Partylists"));
+const EligibilityRules = lazy(() => import("./pages/superadmin/EligibilityRules"));
+const VotingMonitor = lazy(() => import("./pages/superadmin/VotingMonitor"));
+const Results = lazy(() => import("./pages/superadmin/Results"));
+const BlockchainVerification = lazy(() => import("./pages/superadmin/BlockchainVerification"));
+const Reports = lazy(() => import("./pages/superadmin/Reports"));
+const AuditLogs = lazy(() => import("./pages/superadmin/AuditLogs"));
+const UsersRoles = lazy(() => import("./pages/superadmin/UsersRoles"));
+const Archives = lazy(() => import("./pages/superadmin/ArchivePage"));
+const SystemSettings = lazy(() => import("./pages/superadmin/SystemSettings"));
+
+const AdminLogin = lazy(() => import("./pages/auth/AdminLogin"));
+const BoardLogin = lazy(() => import("./pages/auth/BoardLogin"));
+const StudentLogin = lazy(() => import("./pages/auth/StudentLogin"));
+
+function RouteFallback() {
+  return (
+    <div className="min-h-screen bg-[#f8faf9] px-6 py-8 text-sm font-semibold text-[#55726b]">
+      Loading...
+    </div>
+  );
+}
 
 function App() {
   return (
@@ -69,6 +73,7 @@ function App() {
         {/* GLOBAL PWA UPDATE NOTIFICATION */}
         <PWAUpdatePrompt />
 
+        <Suspense fallback={<RouteFallback />}>
         <Routes>
 
           {/* ENTRY ROUTES */}
@@ -360,6 +365,7 @@ function App() {
           />
 
         </Routes>
+        </Suspense>
 
       </PromptProvider>
     </BrowserRouter>

@@ -9,6 +9,11 @@ import {
 import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
 import { usePrompt } from "../../context/PromptContext";
+import {
+  attachProgramCoverage,
+  fetchEligibleStudentsForOrganization,
+  isOrganizationEligibleForStudent,
+} from "../../utils/organizationAccess";
 
 const emptyPositionForm = {
   election_id: "",
@@ -71,7 +76,8 @@ function Positions() {
         organization_id,
         organizations (
           id,
-          name
+          name,
+          organization_type
         )
       `)
       .order("id", { ascending: true });
@@ -81,7 +87,21 @@ function Positions() {
       return;
     }
 
-    setElections(data || []);
+    const organizations = await attachProgramCoverage(
+      (data || []).map((election) => election.organizations).filter(Boolean)
+    );
+    const organizationById = new Map(
+      organizations.map((organization) => [Number(organization.id), organization])
+    );
+
+    setElections(
+      (data || []).map((election) => ({
+        ...election,
+        organizations:
+          organizationById.get(Number(election.organization_id)) ||
+          election.organizations,
+      }))
+    );
   }
 
   async function fetchPositions() {
@@ -98,7 +118,8 @@ function Positions() {
           organization_id,
           organizations (
             id,
-            name
+            name,
+            organization_type
           )
         )
       `)
@@ -222,110 +243,19 @@ function Positions() {
       return [];
     }
 
-    const { data: organization, error: organizationError } = await supabase
-      .from("organizations")
-      .select("id, name")
-      .eq("id", election.organization_id)
-      .maybeSingle();
-
-    if (organizationError) {
+    try {
+      const eligible = await fetchEligibleStudentsForOrganization(
+        election.organization_id
+      );
+      setStudents(eligible);
+      return eligible;
+    } catch (error) {
       prompt.error(
-        organizationError.message ||
-        "Failed to identify the election organization."
+        error.message ||
+        "Failed to load organization-eligible students."
       );
       return [];
     }
-
-    if (!organization) {
-      prompt.error("The election organization could not be found.");
-      return [];
-    }
-
-    const organizationName =
-      String(organization.name || "").trim().toUpperCase();
-
-    // WITSG = every verified student.
-    if (organizationName === "WITSG") {
-      const { data, error } = await supabase
-        .from("students")
-        .select(`
-          id,
-          student_number,
-          first_name,
-          last_name,
-          program,
-          year_level
-        `)
-        .order("last_name", { ascending: true });
-
-      if (error) {
-        prompt.error(error.message || "Failed to load WITSG students.");
-        return [];
-      }
-
-      setStudents(data || []);
-      return data || [];
-    }
-
-    // PSITS = BSIT ONLY.
-    if (organizationName === "PSITS") {
-      const { data, error } = await supabase
-        .from("students")
-        .select(`
-          id,
-          student_number,
-          first_name,
-          last_name,
-          program,
-          year_level
-        `)
-        .ilike("program", "BSIT")
-        .order("last_name", { ascending: true });
-
-      if (error) {
-        prompt.error(error.message || "Failed to load eligible BSIT students.");
-        return [];
-      }
-
-      setStudents(data || []);
-      return data || [];
-    }
-
-    // Every other organization = only registered members.
-    const { data: memberships, error: membershipError } = await supabase
-      .from("student_organizations")
-      .select(`
-        student_id,
-        students (
-          id,
-          student_number,
-          first_name,
-          last_name,
-          program,
-          year_level
-        )
-      `)
-      .eq("organization_id", election.organization_id);
-
-    if (membershipError) {
-      prompt.error(
-        membershipError.message ||
-        "Failed to load organization members."
-      );
-      return [];
-    }
-
-    const eligible = (memberships || [])
-      .map((row) => row.students)
-      .filter(Boolean)
-      .sort((a, b) =>
-        `${a.last_name || ""} ${a.first_name || ""}`.localeCompare(
-          `${b.last_name || ""} ${b.first_name || ""}`
-        )
-      );
-
-    setStudents(eligible);
-    return eligible;
   }
 
   function getElectionForPosition(position) {
@@ -336,45 +266,21 @@ function Positions() {
   }
 
   function isCandidateEligible(candidate, election) {
-    const organizationName =
-      election?.organizations?.name?.trim().toUpperCase();
-
     const student = candidate?.students;
 
     if (!student) return false;
 
-    // WITSG: every verified student is eligible.
-    if (organizationName === "WITSG") {
-      return true;
-    }
-
-    // PSITS: ONLY BSIT students are eligible.
-    if (organizationName === "PSITS") {
-      return (
-        student.program?.trim().toUpperCase() === "BSIT"
-      );
-    }
-
-    // Other organizations are validated against their
-    // student_organizations membership below when needed.
-    return null;
+    return isOrganizationEligibleForStudent(
+      election?.organizations,
+      student
+    );
   }
 
   async function verifyOtherOrganizationCandidate(candidate, election) {
-    const organizationName =
-      election?.organizations?.name?.trim().toUpperCase();
+    if (!election?.organization_id || !candidate?.student_id) return false;
 
-    if (
-      !election?.organization_id ||
-      !candidate?.student_id ||
-      organizationName === "WITSG" ||
-      organizationName === "PSITS"
-    ) {
-      return organizationName === "WITSG" ||
-        organizationName === "PSITS"
-        ? isCandidateEligible(candidate, election)
-        : false;
-    }
+    const directEligibility = isCandidateEligible(candidate, election);
+    if (directEligibility) return true;
 
     const { data, error } = await supabase
       .from("student_organizations")
@@ -401,7 +307,7 @@ function Positions() {
       election
     );
 
-    if (basicEligibility !== null) {
+    if (basicEligibility) {
       return basicEligibility;
     }
 
@@ -557,16 +463,9 @@ function Positions() {
       return;
     }
 
-    // Extra PSITS protection.
-    const organizationName =
-      election.organizations?.name?.trim().toUpperCase();
-
-    if (
-      organizationName === "PSITS" &&
-      eligibleStudent.program?.trim().toUpperCase() !== "BSIT"
-    ) {
+    if (!isOrganizationEligibleForStudent(election.organizations, eligibleStudent)) {
       prompt.error(
-        "Only BSIT students can be candidates for PSITS."
+        "This student is not eligible for this election's organization."
       );
       return;
     }
@@ -1123,11 +1022,10 @@ function Positions() {
                   </h3>
 
                   <p className="text-sm text-gray-500">
-                    {selectedOrganizationName.toUpperCase() === "PSITS"
-                      ? "Only BSIT students are eligible for PSITS."
-                      : selectedOrganizationName.toUpperCase() === "WITSG"
-                        ? "All verified students are eligible for WITSG."
-                        : "Only members of this organization are eligible."}
+                    {selectedElection?.organizations?.organization_type ===
+                    "non_departmental"
+                      ? "All students are eligible for this organization type."
+                      : "Eligible students come from this organization's covered programs and explicit memberships."}
                   </p>
                 </div>
 

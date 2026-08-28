@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { canStudentViewResults } from "../../utils/elections";
+import { getEligibleStudentOrganizationIds } from "../../utils/organizationAccess";
 import { buildElectionAnalytics } from "../../utils/results";
 
 function StudentResults() {
@@ -18,13 +19,7 @@ function StudentResults() {
     let active = true;
 
     async function loadResults() {
-      const { data: studentOrgs } = await supabase
-        .from("student_organizations")
-        .select("organization_id")
-        .eq("student_id", user.id);
-
-      const organizationIds =
-        studentOrgs?.map((item) => item.organization_id) || [];
+      const organizationIds = await getEligibleStudentOrganizationIds(user);
 
       if (organizationIds.length === 0) return;
 

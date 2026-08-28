@@ -28,18 +28,40 @@ function BoardDashboard() {
   const orgName = user?.organizations?.name || "Assigned Organization";
 
   async function fetchDashboardData() {
-    setLoading(true);
+    await loadDashboardData(() => true);
+  }
+
+  useEffect(() => {
+    let active = true;
+
+    loadDashboardData(() => active);
+
+    return () => {
+      active = false;
+    };
+  }, [orgId]);
+
+  async function loadDashboardData(isActive = () => true) {
+    if (isActive()) {
+      setLoading(true);
+    }
 
     if (!orgId) {
-      setLoading(false);
+      if (isActive()) {
+        setLoading(false);
+      }
       return;
     }
 
-    const { data: electionsData } = await supabase
+    const { data: electionsData, error: electionError } = await supabase
       .from("elections")
-      .select("*")
+      .select("id, title, start_date, end_date, status, created_at")
       .eq("organization_id", orgId)
       .order("created_at", { ascending: false });
+
+    if (electionError) {
+      console.error("Failed to load board elections:", electionError);
+    }
 
     const electionIds = electionsData?.map((election) => election.id) || [];
 
@@ -48,31 +70,33 @@ function BoardDashboard() {
     let votesData = [];
 
     if (electionIds.length > 0) {
-      const { data: posData } = await supabase
-        .from("positions")
-        .select("*")
-        .in("election_id", electionIds);
+      const [{ data: posData }, { data: voteData }] = await Promise.all([
+        supabase
+          .from("positions")
+          .select("id, election_id")
+          .in("election_id", electionIds),
+        supabase
+          .from("votes")
+          .select("id, student_id, election_id")
+          .in("election_id", electionIds),
+      ]);
 
       positionsData = posData || [];
+      votesData = voteData || [];
 
       const positionIds = positionsData.map((position) => position.id);
 
       if (positionIds.length > 0) {
         const { data: candData } = await supabase
           .from("candidates")
-          .select("*")
+          .select("id, position_id")
           .in("position_id", positionIds);
 
         candidatesData = candData || [];
       }
-
-      const { data: voteData } = await supabase
-        .from("votes")
-        .select("*")
-        .in("election_id", electionIds);
-
-      votesData = voteData || [];
     }
+
+    if (!isActive()) return;
 
     const uniqueVoters = new Set(votesData.map((vote) => vote.student_id));
 
@@ -89,85 +113,6 @@ function BoardDashboard() {
     setRecentElections(electionsData?.slice(0, 5) || []);
     setLoading(false);
   }
-
-  useEffect(() => {
-    let active = true;
-
-    async function loadDashboard() {
-      if (active) {
-        setLoading(true);
-      }
-
-      if (!orgId) {
-        if (active) {
-          setLoading(false);
-        }
-        return;
-      }
-
-      const { data: electionsData } = await supabase
-        .from("elections")
-        .select("*")
-        .eq("organization_id", orgId)
-        .order("created_at", { ascending: false });
-
-      const electionIds = electionsData?.map((election) => election.id) || [];
-
-      let positionsData = [];
-      let candidatesData = [];
-      let votesData = [];
-
-      if (electionIds.length > 0) {
-        const { data: posData } = await supabase
-          .from("positions")
-          .select("*")
-          .in("election_id", electionIds);
-
-        positionsData = posData || [];
-
-        const positionIds = positionsData.map((position) => position.id);
-
-        if (positionIds.length > 0) {
-          const { data: candData } = await supabase
-            .from("candidates")
-            .select("*")
-            .in("position_id", positionIds);
-
-          candidatesData = candData || [];
-        }
-
-        const { data: voteData } = await supabase
-          .from("votes")
-          .select("*")
-          .in("election_id", electionIds);
-
-        votesData = voteData || [];
-      }
-
-      if (!active) return;
-
-      const uniqueVoters = new Set(votesData.map((vote) => vote.student_id));
-
-      setStats({
-        elections: electionsData?.length || 0,
-        activeElections:
-          electionsData?.filter((election) => election.status === "active").length || 0,
-        positions: positionsData.length,
-        candidates: candidatesData.length,
-        votes: votesData.length,
-        voters: uniqueVoters.size,
-      });
-
-      setRecentElections(electionsData?.slice(0, 5) || []);
-      setLoading(false);
-    }
-
-    loadDashboard();
-
-    return () => {
-      active = false;
-    };
-  }, [orgId]);
 
   const cards = [
     {

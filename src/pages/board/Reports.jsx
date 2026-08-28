@@ -14,36 +14,69 @@ function BoardReports() {
 
   useEffect(() => {
     fetchReportData();
-  }, []);
+  }, [orgId]);
 
   async function fetchReportData() {
     if (!orgId) return;
 
-    const { data: electionData } = await supabase
+    const { data: electionData, error: electionError } = await supabase
       .from("elections")
-      .select("*")
+      .select("id, title, organization_id, campaign_start, campaign_end, start_date, end_date, status, venue, created_at")
       .eq("organization_id", orgId);
+
+    if (electionError) {
+      console.error("Failed to load board report elections:", electionError);
+      return;
+    }
 
     const electionIds = electionData?.map((election) => election.id) || [];
 
     setElections(electionData || []);
+    setPositions([]);
+    setCandidates([]);
+    setVotes([]);
 
     if (electionIds.length === 0) return;
 
-    const { data: positionData } = await supabase
-      .from("positions")
-      .select("*")
-      .in("election_id", electionIds);
+    const [
+      { data: positionData, error: positionError },
+      { data: voteData, error: voteError },
+    ] = await Promise.all([
+      supabase
+        .from("positions")
+        .select("id, name, election_id, max_winners, display_order, created_at")
+        .in("election_id", electionIds),
+      supabase
+        .from("votes")
+        .select("id, election_id, position_id, candidate_id, student_id, vote_hash, blockchain_tx_hash, vote_timestamp")
+        .in("election_id", electionIds),
+    ]);
+
+    if (positionError) {
+      console.error("Failed to load board report positions:", positionError);
+    }
+
+    if (voteError) {
+      console.error("Failed to load board report votes:", voteError);
+    }
 
     const positionIds = positionData?.map((position) => position.id) || [];
 
     setPositions(positionData || []);
+    setVotes(voteData || []);
 
     if (positionIds.length > 0) {
-      const { data: candidateData } = await supabase
+      const { data: candidateData, error: candidateError } = await supabase
         .from("candidates")
         .select(`
-          *,
+          id,
+          position_id,
+          student_id,
+          partylist_id,
+          platform,
+          photo_url,
+          status,
+          created_at,
           students (
             first_name,
             last_name,
@@ -55,15 +88,12 @@ function BoardReports() {
         `)
         .in("position_id", positionIds);
 
+      if (candidateError) {
+        console.error("Failed to load board report candidates:", candidateError);
+      }
+
       setCandidates(candidateData || []);
     }
-
-    const { data: voteData } = await supabase
-      .from("votes")
-      .select("*")
-      .in("election_id", electionIds);
-
-    setVotes(voteData || []);
   }
 
   function downloadCSV(filename, rows) {
@@ -143,22 +173,22 @@ function BoardReports() {
       </div>
 
       <div className="grid grid-cols-4 gap-6 mt-8">
-        <div className="bg-white p-6 rounded-2xl shadow-sm">
+        <div className="metric-card">
           <p className="text-sm text-gray-500">Elections</p>
           <h2 className="text-3xl font-black mt-2">{elections.length}</h2>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm">
+        <div className="metric-card">
           <p className="text-sm text-gray-500">Positions</p>
           <h2 className="text-3xl font-black mt-2">{positions.length}</h2>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm">
+        <div className="metric-card">
           <p className="text-sm text-gray-500">Candidates</p>
           <h2 className="text-3xl font-black mt-2">{candidates.length}</h2>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm">
+        <div className="metric-card">
           <p className="text-sm text-gray-500">Unique Voters</p>
           <h2 className="text-3xl font-black mt-2">{uniqueVoters}</h2>
         </div>
@@ -171,10 +201,10 @@ function BoardReports() {
           return (
             <div
               key={report.title}
-              className="bg-white p-6 rounded-2xl shadow-sm flex items-center justify-between"
+              className="metric-card flex items-center justify-between"
             >
               <div className="flex gap-4">
-                <div className="w-12 h-12 rounded-xl bg-orange-100 text-[#ff5a1f] flex items-center justify-center">
+                <div className="w-12 h-12 rounded-xl bg-[rgba(194,65,12,0.08)] text-[#ff5a1f] flex items-center justify-center">
                   <Icon size={22} />
                 </div>
 
@@ -188,7 +218,7 @@ function BoardReports() {
 
               <button
                 onClick={report.action}
-                className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[#1d1d1d] text-white text-sm font-bold hover:bg-black"
+                className="primary-btn"
               >
                 <Download size={16} />
                 Export

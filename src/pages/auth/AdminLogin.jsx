@@ -25,7 +25,7 @@ function AdminLogin() {
 
     const { data, error } = await supabase
       .from("admin_users")
-      .select("*")
+      .select("id, email, password, full_name, role, status, created_at")
       .eq("email", email)
       .single();
 

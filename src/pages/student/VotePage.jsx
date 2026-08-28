@@ -17,6 +17,7 @@ import {
   isTokenExpired,
 } from "../../utils/votingAccess";
 import { hasStudentVotedInElection, submitBallot } from "../../utils/voting";
+import { getEligibleStudentOrganizationIds } from "../../utils/organizationAccess";
 import { usePrompt } from "../../context/PromptContext";
 
 function StudentVotePage() {
@@ -37,12 +38,14 @@ function StudentVotePage() {
   const [accessMessage, setAccessMessage] = useState("");
   const [verifyingAccess, setVerifyingAccess] = useState(false);
   const [alreadyVoted, setAlreadyVoted] = useState(false);
+  const [accessDenied, setAccessDenied] = useState(false);
 
   useEffect(() => {
     let active = true;
 
     async function loadBallot() {
       setLoading(true);
+      setAccessDenied(false);
 
       const [
         { data: electionData },
@@ -51,17 +54,54 @@ function StudentVotePage() {
         voteCheck,
       ] =
         await Promise.all([
-          supabase.from("elections").select("*").eq("id", electionId).single(),
-          supabase.from("students").select("*, organizations(*)").eq("id", user.id).single(),
+          supabase
+            .from("elections")
+            .select(`
+              id,
+              title,
+              organization_id,
+              campaign_start,
+              campaign_end,
+              start_date,
+              end_date,
+              status,
+              voting_access_mode,
+              geo_lat,
+              geo_lng,
+              geo_radius_meters,
+              location_label,
+              organizations(name)
+            `)
+            .eq("id", electionId)
+            .single(),
+          supabase
+            .from("students")
+            .select("id, student_number, first_name, last_name, program, precinct_code, batch_code")
+            .eq("id", user.id)
+            .single(),
           supabase
             .from("positions")
-            .select("*")
+            .select("id, name, election_id, max_winners, order_index")
             .eq("election_id", electionId)
             .order("order_index", { ascending: true }),
           hasStudentVotedInElection(user.id, electionId),
         ]);
 
       if (!active) return;
+
+      const eligibleOrganizationIds = await getEligibleStudentOrganizationIds(
+        studentData || user,
+      );
+
+      if (!eligibleOrganizationIds.includes(electionData?.organization_id)) {
+        setElection(null);
+        setStudentProfile(studentData);
+        setPositions([]);
+        setCandidates([]);
+        setAccessDenied(true);
+        setLoading(false);
+        return;
+      }
 
       setElection(electionData);
       setStudentProfile(studentData);
@@ -71,7 +111,19 @@ function StudentVotePage() {
         setPositions(positionData);
         const { data: candData } = await supabase
           .from("candidates")
-          .select("*, partylists(*)")
+          .select(`
+            id,
+            election_id,
+            position_id,
+            student_id,
+            partylist_id,
+            photo,
+            credentials,
+            bio,
+            platform,
+            students(first_name, last_name),
+            partylists(name, logo_url)
+          `)
           .eq("election_id", electionId);
 
         if (active) {
@@ -130,7 +182,7 @@ function StudentVotePage() {
 
     const { data, error } = await supabase
       .from("election_access_tokens")
-      .select("*")
+      .select("id, election_id, token, is_active, scope_type, scope_value, expires_at")
       .eq("election_id", Number(electionId))
       .eq("token", normalizedCode)
       .maybeSingle();
@@ -272,6 +324,14 @@ function StudentVotePage() {
 
   if (loading) {
     return <div className="glass-panel rounded-[28px] p-8 text-gray-500">Loading ballot...</div>;
+  }
+
+  if (accessDenied) {
+    return (
+      <div className="empty-state font-bold text-red-600">
+        This ballot is not available for your organization.
+      </div>
+    );
   }
 
   if (!election) {

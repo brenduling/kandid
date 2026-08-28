@@ -20,7 +20,12 @@ function NotificationCenter({ user }) {
   const wrapperRef = useRef(null);
   const buttonRef = useRef(null);
   const panelRef = useRef(null);
+  const notificationsRef = useRef([]);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    notificationsRef.current = notifications;
+  }, [notifications]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -28,7 +33,7 @@ function NotificationCenter({ user }) {
     let active = true;
 
     async function loadNotifications() {
-      setLoading(true);
+      setLoading((current) => current || notificationsRef.current.length === 0);
       const items = await fetchNotificationsForUser(user);
 
       if (!active) return;
@@ -45,7 +50,7 @@ function NotificationCenter({ user }) {
       active = false;
       window.clearInterval(interval);
     };
-  }, [user]);
+  }, [user?.id, user?.role, user?.organization_id]);
 
   useEffect(() => {
     if (!open) return;

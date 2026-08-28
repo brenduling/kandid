@@ -2974,3 +2974,688 @@ a:active {
   color: var(--brand) !important;
 }
 
+/* ==========================================
+   Board / Admin shared operations palette
+   ========================================== */
+
+.board-theme {
+  color-scheme: light !important;
+  --bg-base: #f8fafc !important;
+  --bg-tint: #f1f5f9 !important;
+  --surface: #ffffff !important;
+  --surface-strong: #ffffff !important;
+  --surface-dark: #111827 !important;
+  --line-soft: #e2e8f0 !important;
+  --line-strong: #cbd5e1 !important;
+  --text-main: #0f172a !important;
+  --text-soft: #64748b !important;
+  --brand: #c2410c !important;
+  --brand-deep: #9a3412 !important;
+  --brand-mist: rgba(194, 65, 12, 0.08) !important;
+  --teal: #c2410c !important;
+  --teal-deep: #7c2d12 !important;
+  --emerald: #16a34a !important;
+  --indigo: #475569 !important;
+  --gold: #ca8a04 !important;
+  --danger: #dc2626 !important;
+}
+
+.board-theme.app-shell {
+  background: #f8fafc !important;
+}
+
+.board-theme .ambient-orb {
+  opacity: 0.02 !important;
+}
+
+.board-theme .shell-sidebar {
+  background: #18181b !important;
+  border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+}
+
+.board-theme .nav-item-active {
+  background: linear-gradient(135deg, var(--brand), var(--brand-deep)) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 8px 16px rgba(194, 65, 12, 0.2) !important;
+}
+
+.board-theme .nav-item:hover:not(.nav-item-active) {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+
+.board-theme .graph-card,
+.board-theme .metric-card,
+.board-theme .soft-card,
+.board-theme .table-shell,
+.board-theme .app-panel,
+.board-theme .form-card,
+.board-theme .data-card,
+.board-theme .glass-panel {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05) !important;
+  color: #0f172a !important;
+}
+
+.board-theme .glass-panel-dark,
+.super-admin-theme .glass-panel-dark {
+  background: #18181b !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+
+.board-theme .shell-header {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05) !important;
+}
+
+.board-theme .shell-search,
+.board-theme .shell-profile-chip {
+  background: #f1f5f9 !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: none !important;
+}
+
+.board-theme .shell-search input {
+  color: #0f172a !important;
+}
+
+.board-theme .shell-search input::placeholder {
+  color: #94a3b8 !important;
+}
+
+.board-theme .page-title,
+.board-theme .surface-title,
+.board-theme .surface-heading,
+.board-theme .shell-profile-chip p:first-child {
+  color: #0f172a !important;
+}
+
+.board-theme .page-subtitle,
+.board-theme .surface-copy,
+.board-theme .surface-subcopy,
+.board-theme .surface-muted {
+  color: #64748b !important;
+}
+
+.board-theme .page-kicker,
+.board-theme .secure-badge,
+.board-theme .status-pill {
+  color: var(--brand) !important;
+  background: var(--brand-mist) !important;
+  border-color: rgba(194, 65, 12, 0.2) !important;
+}
+
+.board-theme .page-title-accent {
+  color: var(--brand) !important;
+}
+
+.board-theme .primary-btn {
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-deep) 100%) !important;
+  border-color: rgba(194, 65, 12, 0.24) !important;
+  box-shadow: 0 8px 16px rgba(194, 65, 12, 0.2) !important;
+}
+
+.board-theme .secondary-btn {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #334155 !important;
+  box-shadow: none !important;
+}
+
+.board-theme .app-table thead,
+.super-admin-theme .app-table thead {
+  background: #f8fafc !important;
+  color: #64748b !important;
+}
+
+.board-theme .app-table th,
+.super-admin-theme .app-table th {
+  color: #64748b !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+.board-theme .app-table td,
+.super-admin-theme .app-table td {
+  border-bottom: 1px solid #f1f5f9 !important;
+  color: #334155 !important;
+}
+
+.board-theme .app-table tbody tr:hover,
+.super-admin-theme .app-table tbody tr:hover {
+  background: #f8fafc !important;
+}
+
+.board-theme .mobile-nav {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05) !important;
+}
+
+.board-theme .mobile-nav a.active {
+  background: var(--brand-mist) !important;
+  color: var(--brand) !important;
+}
+
+.board-theme .bg-\[\#ff5a1f\],
+.super-admin-theme .bg-\[\#ff5a1f\] {
+  background-color: var(--brand) !important;
+}
+
+.board-theme .text-\[\#ff5a1f\],
+.super-admin-theme .text-\[\#ff5a1f\],
+.board-theme .text-\[\#11806a\],
+.super-admin-theme .text-\[\#11806a\] {
+  color: var(--brand) !important;
+}
+
+/* ==========================================
+   KANDID Student-Centered Design System
+   ========================================== */
+
+:root {
+  --kandid-primary: #ef4e23;
+  --kandid-primary-hover: #d94718;
+  --kandid-primary-soft: #fff2e8;
+  --kandid-primary-wash: rgba(239, 78, 35, 0.08);
+  --kandid-background: #f6f7f9;
+  --kandid-background-warm: #fbf7ef;
+  --kandid-surface: #ffffff;
+  --kandid-surface-soft: #f9fafb;
+  --kandid-border: #e7ebf0;
+  --kandid-border-strong: #dbe2ea;
+  --kandid-text: #111827;
+  --kandid-text-secondary: #4b5563;
+  --kandid-text-muted: #7b8492;
+  --kandid-info: #2563eb;
+  --kandid-success: #16a34a;
+  --kandid-warning: #d97706;
+  --kandid-danger: #dc2626;
+  --kandid-shadow-sm: 0 8px 20px rgba(15, 23, 42, 0.045);
+  --kandid-shadow-md: 0 14px 34px rgba(15, 23, 42, 0.07);
+  --kandid-shadow-lg: 0 24px 60px rgba(15, 23, 42, 0.1);
+  --kandid-radius-sm: 0.65rem;
+  --kandid-radius-md: 0.9rem;
+  --kandid-radius-lg: 1.25rem;
+  --kandid-pattern-color: rgba(239, 78, 35, 0.1);
+  --kandid-pattern-neutral: rgba(17, 24, 39, 0.055);
+  --kandid-decoration-opacity: 0.75;
+}
+
+.kandid-app-theme,
+.student-theme,
+.board-theme.app-shell,
+.super-admin-theme.app-shell {
+  color-scheme: light !important;
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 8% 6%, rgba(239, 78, 35, 0.065), transparent 22rem),
+    radial-gradient(circle at 92% 12%, rgba(37, 99, 235, 0.04), transparent 20rem),
+    linear-gradient(135deg, var(--kandid-background-warm) 0%, var(--kandid-background) 44%, #f8fafc 100%) !important;
+  color: var(--kandid-text) !important;
+}
+
+.kandid-app-theme::before,
+.kandid-app-theme::after {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  pointer-events: none;
+  opacity: var(--kandid-decoration-opacity);
+}
+
+.kandid-app-theme::before {
+  inset: 0;
+  background-image:
+    radial-gradient(circle, var(--kandid-pattern-neutral) 1px, transparent 1.2px),
+    linear-gradient(120deg, transparent 0 58%, rgba(239, 78, 35, 0.045) 58.2% 58.8%, transparent 59%),
+    linear-gradient(30deg, transparent 0 72%, rgba(37, 99, 235, 0.035) 72.2% 72.8%, transparent 73%);
+  background-position:
+    0 0,
+    right 8rem top 5rem,
+    left 14rem bottom 8rem;
+  background-size:
+    26px 26px,
+    28rem 20rem,
+    26rem 18rem;
+  mask-image: linear-gradient(180deg, black 0%, black 72%, transparent 100%);
+}
+
+.kandid-app-theme::after {
+  right: clamp(-7rem, -8vw, -3rem);
+  top: clamp(7rem, 14vh, 12rem);
+  width: clamp(16rem, 24vw, 28rem);
+  aspect-ratio: 1;
+  border: 1px solid rgba(239, 78, 35, 0.09);
+  border-radius: 42% 58% 55% 45%;
+  background:
+    radial-gradient(circle at 35% 35%, rgba(239, 78, 35, 0.065), transparent 28%),
+    radial-gradient(circle at 64% 58%, rgba(37, 99, 235, 0.035), transparent 30%);
+}
+
+.student-main {
+  position: relative;
+  background: transparent !important;
+}
+
+.student-main::before,
+.workspace-main::before {
+  content: "";
+  position: fixed;
+  left: clamp(13rem, 16vw, 20rem);
+  bottom: 2.5rem;
+  z-index: -1;
+  width: min(24rem, 38vw);
+  height: min(12rem, 20vw);
+  opacity: 0.45;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 10% 30%, rgba(239, 78, 35, 0.16) 0 0.35rem, transparent 0.42rem),
+    radial-gradient(circle at 48% 18%, rgba(17, 24, 39, 0.1) 0 0.28rem, transparent 0.34rem),
+    radial-gradient(circle at 72% 72%, rgba(37, 99, 235, 0.11) 0 0.3rem, transparent 0.36rem),
+    linear-gradient(25deg, transparent 0 19%, rgba(17, 24, 39, 0.065) 19.2% 19.8%, transparent 20%),
+    linear-gradient(150deg, transparent 0 48%, rgba(239, 78, 35, 0.075) 48.2% 48.8%, transparent 49%);
+}
+
+.ambient-orb {
+  display: none !important;
+}
+
+.student-sidebar,
+.shell-sidebar {
+  background:
+    radial-gradient(circle at 24% 12%, rgba(239, 78, 35, 0.16), transparent 9rem),
+    linear-gradient(180deg, #17181d 0%, #111217 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: var(--kandid-shadow-lg) !important;
+}
+
+.student-sidebar-brand,
+.sidebar-brand-block {
+  position: relative;
+}
+
+.student-sidebar-brand::after,
+.sidebar-brand-block::after {
+  content: "";
+  position: absolute;
+  right: 1.25rem;
+  bottom: 0.85rem;
+  width: 4.8rem;
+  height: 2.6rem;
+  opacity: 0.18;
+  background-image:
+    radial-gradient(circle, #ffffff 1.5px, transparent 2px),
+    linear-gradient(90deg, transparent 0 42%, rgba(255, 255, 255, 0.5) 42.5% 43.5%, transparent 44%);
+  background-size: 18px 18px, 100% 100%;
+}
+
+.student-topbar,
+.shell-header {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid var(--kandid-border) !important;
+  box-shadow: var(--kandid-shadow-sm) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.student-search,
+.shell-search,
+.shell-profile-chip,
+.student-profile-chip,
+.mobile-nav,
+.mobile-nav-panel {
+  background: var(--kandid-surface) !important;
+  border: 1px solid var(--kandid-border) !important;
+  box-shadow: var(--kandid-shadow-sm) !important;
+  color: var(--kandid-text) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.glass-panel,
+.glass-panel-strong,
+.metric-card,
+.soft-card,
+.entity-card,
+.graph-card,
+.table-shell,
+.form-card,
+.data-card,
+.popup-sheet,
+.modal-card,
+.student-org-detail-panel,
+.student-empty-card {
+  background: var(--kandid-surface) !important;
+  border: 1px solid var(--kandid-border) !important;
+  box-shadow: var(--kandid-shadow-sm) !important;
+  color: var(--kandid-text) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.metric-card,
+.graph-card,
+.entity-card,
+.soft-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.metric-card::before,
+.graph-card::before,
+.entity-card::before,
+.soft-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: linear-gradient(180deg, var(--kandid-primary), rgba(239, 78, 35, 0.18));
+  opacity: 0.82;
+}
+
+.metric-card::after,
+.entity-card::after {
+  content: "";
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  width: 4.2rem;
+  height: 2.2rem;
+  opacity: 0.42;
+  pointer-events: none;
+  background-image: radial-gradient(circle, rgba(239, 78, 35, 0.18) 1.2px, transparent 1.6px);
+  background-size: 12px 12px;
+}
+
+.glass-panel-dark,
+.trust-card {
+  background:
+    radial-gradient(circle at 86% 16%, rgba(239, 78, 35, 0.14), transparent 9rem),
+    linear-gradient(135deg, #17181d 0%, #111217 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: var(--kandid-shadow-lg) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  color: #ffffff !important;
+}
+
+.page-head,
+.student-page-head,
+.student-module-banner,
+.student-campaign-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--kandid-radius-lg);
+}
+
+.page-head {
+  padding: clamp(1rem, 2vw, 1.35rem);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.76), rgba(255, 255, 255, 0.42)),
+    radial-gradient(circle at 96% 18%, rgba(239, 78, 35, 0.08), transparent 11rem);
+  border: 1px solid rgba(231, 235, 240, 0.78);
+}
+
+.page-head::after,
+.student-page-head::after,
+.student-module-banner::after,
+.student-campaign-hero::after {
+  content: "";
+  position: absolute;
+  right: clamp(1rem, 4vw, 3rem);
+  top: 1rem;
+  width: 8rem;
+  height: 5rem;
+  opacity: 0.45;
+  pointer-events: none;
+  background:
+    radial-gradient(circle, rgba(239, 78, 35, 0.18) 1.4px, transparent 1.8px),
+    linear-gradient(140deg, transparent 0 48%, rgba(17, 24, 39, 0.07) 48.4% 49%, transparent 49.4%);
+  background-size: 16px 16px, 100% 100%;
+}
+
+.page-kicker,
+.secure-badge,
+.status-pill {
+  background: var(--kandid-primary-soft) !important;
+  border: 1px solid rgba(239, 78, 35, 0.16) !important;
+  color: var(--kandid-primary) !important;
+  letter-spacing: 0.14em !important;
+}
+
+.page-title,
+.surface-title,
+.surface-heading {
+  color: var(--kandid-text) !important;
+}
+
+.page-title-accent {
+  color: var(--kandid-primary) !important;
+}
+
+.page-subtitle,
+.surface-copy,
+.surface-subcopy,
+.surface-muted,
+.empty-copy {
+  color: var(--kandid-text-muted) !important;
+}
+
+.primary-btn,
+.student-solid-btn,
+.student-election-action {
+  border-radius: var(--kandid-radius-md) !important;
+  background: var(--kandid-primary) !important;
+  border: 1px solid rgba(239, 78, 35, 0.22) !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 24px rgba(239, 78, 35, 0.18) !important;
+}
+
+.primary-btn:hover,
+.student-solid-btn:hover,
+.student-election-action:hover {
+  background: var(--kandid-primary-hover) !important;
+  box-shadow: 0 14px 30px rgba(239, 78, 35, 0.2) !important;
+}
+
+.secondary-btn,
+.student-outline-btn {
+  border-radius: var(--kandid-radius-md) !important;
+  background: var(--kandid-surface) !important;
+  border: 1px solid var(--kandid-border) !important;
+  color: var(--kandid-text-secondary) !important;
+  box-shadow: var(--kandid-shadow-sm) !important;
+}
+
+.field-shell,
+input,
+select,
+textarea {
+  border-color: var(--kandid-border-strong);
+}
+
+.field-shell {
+  background: #ffffff !important;
+  color: var(--kandid-text) !important;
+  border-radius: var(--kandid-radius-md) !important;
+  box-shadow: none !important;
+}
+
+.field-shell:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: rgba(239, 78, 35, 0.52) !important;
+  box-shadow: 0 0 0 4px rgba(239, 78, 35, 0.08) !important;
+}
+
+.app-table thead {
+  background: var(--kandid-surface-soft) !important;
+  color: var(--kandid-text-muted) !important;
+}
+
+.app-table th {
+  color: var(--kandid-text-muted) !important;
+  border-bottom: 1px solid var(--kandid-border) !important;
+}
+
+.app-table td {
+  border-bottom: 1px solid #eef2f6 !important;
+  color: var(--kandid-text-secondary) !important;
+}
+
+.app-table tbody tr:hover {
+  background: #fbfcfd !important;
+}
+
+.empty-state,
+.student-empty-card {
+  position: relative;
+  min-height: 6.2rem;
+  padding-left: clamp(1.25rem, 4vw, 5.4rem) !important;
+}
+
+.empty-state::before,
+.student-empty-card::before {
+  content: "\2713";
+  position: absolute;
+  left: 1.35rem;
+  top: 1.35rem;
+  display: grid;
+  width: 2.7rem;
+  height: 2.7rem;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--kandid-primary-soft);
+  color: var(--kandid-primary);
+  font-weight: 900;
+}
+
+.student-election-card,
+.student-candidate-card,
+.student-org-election-card,
+.student-officer-row {
+  border-color: var(--kandid-border) !important;
+  box-shadow: var(--kandid-shadow-sm);
+}
+
+.student-election-art {
+  background:
+    radial-gradient(circle at 18% 22%, rgba(239, 78, 35, 0.18), transparent 4rem),
+    radial-gradient(circle at 80% 34%, rgba(37, 99, 235, 0.08), transparent 4.5rem),
+    linear-gradient(135deg, #fff7ed, #f8fafc) !important;
+}
+
+.kandid-app-theme img[alt$=" logo"],
+.kandid-app-theme img[alt*="logo preview"] {
+  border-radius: 9999px !important;
+  object-fit: cover !important;
+}
+
+.nav-item,
+.student-sidebar-link,
+.mobile-nav a,
+.mobile-nav button,
+.mobile-nav-panel-link {
+  transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.nav-item-active,
+.student-sidebar-link-active,
+.student-sidebar-link:hover {
+  background: rgba(239, 78, 35, 0.15) !important;
+  color: #ffffff !important;
+  border-color: rgba(239, 78, 35, 0.22) !important;
+}
+
+.nav-item-active .nav-item-icon {
+  background: rgba(239, 78, 35, 0.2) !important;
+}
+
+.popup-sheet,
+.modal-card {
+  position: relative;
+}
+
+.popup-sheet::before,
+.modal-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 5px;
+  background: linear-gradient(90deg, var(--kandid-primary), rgba(239, 78, 35, 0.16));
+}
+
+.auth-screen,
+.student-auth-screen {
+  background:
+    radial-gradient(circle at 14% 12%, rgba(239, 78, 35, 0.09), transparent 20rem),
+    radial-gradient(circle at 84% 18%, rgba(37, 99, 235, 0.055), transparent 18rem),
+    linear-gradient(135deg, #fffaf5 0%, #f6f7f9 48%, #f8fafc 100%) !important;
+}
+
+.auth-card,
+.student-auth-card,
+.auth-shell,
+.student-auth-rail {
+  box-shadow: var(--kandid-shadow-lg) !important;
+}
+
+@media (max-width: 1024px) {
+  .kandid-app-theme::after,
+  .student-main::before,
+  .workspace-main::before {
+    opacity: 0.24;
+    transform: scale(0.78);
+  }
+
+  .page-head {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .kandid-app-theme::before {
+    background-size: 34px 34px, 18rem 12rem, 18rem 12rem;
+    opacity: 0.5;
+  }
+
+  .page-head::after,
+  .student-page-head::after,
+  .student-module-banner::after,
+  .student-campaign-hero::after {
+    opacity: 0.22;
+    right: -1.5rem;
+  }
+
+  .empty-state,
+  .student-empty-card {
+    padding-left: 1.25rem !important;
+    padding-top: 4.7rem !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+

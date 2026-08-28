@@ -26,7 +26,22 @@ function StudentLogin() {
 
     const { data, error } = await supabase
       .from("students")
-      .select("*")
+      .select(`
+        id,
+        student_number,
+        first_name,
+        last_name,
+        email,
+        password,
+        photo_url,
+        program,
+        year_level,
+        precinct_code,
+        batch_code,
+        is_shs,
+        status,
+        created_at
+      `)
       .eq("student_number", studentNumber)
       .single();
 

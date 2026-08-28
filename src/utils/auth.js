@@ -1,3 +1,5 @@
+import { clearSessionCache } from "./sessionCache";
+
 export function getStoredUser() {
   try {
     return JSON.parse(localStorage.getItem("user"));
@@ -12,6 +14,7 @@ export function setStoredUser(user) {
 
 export function clearStoredUser() {
   localStorage.removeItem("user");
+  clearSessionCache();
 }
 
 export function getDefaultRouteForUser(user) {

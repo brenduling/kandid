@@ -1,0 +1,1 @@
+import{n as e,t}from"./jsx-runtime-2UHhqg_S.js";import{i as n,r,y as i}from"./index-C3VR5hZT.js";e();var a=t(),o=({children:e})=>{let t=i();return(0,a.jsx)(n,{mode:`wait`,children:(0,a.jsx)(r.div,{initial:{opacity:0,y:6},animate:{opacity:1,y:0},exit:{opacity:0,y:-6},transition:{duration:.2,ease:`easeOut`},className:`w-full`,children:e},t.pathname)})};export{o as t};
