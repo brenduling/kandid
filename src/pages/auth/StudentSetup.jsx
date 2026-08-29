@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Eye, Home, Mail, UserRound } from "lucide-react";
+import { AlertCircle, Eye, EyeOff, Home, Mail, UserRound } from "lucide-react";
 import StudentAuthShell from "../../components/StudentAuthShell";
 import { supabase } from "../../lib/supabaseClient";
 import { syncStudentOrganizationMemberships } from "../../utils/organizationAccess";
@@ -16,17 +16,93 @@ function StudentSetup() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const [setupError, setSetupError] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  function friendlyAuthError(error, fallback) {
+    const message = String(error?.message || "").toLowerCase();
+    if (message.includes("rate")) return "Please wait before requesting another verification code.";
+    if (message.includes("expired")) return "That verification code has expired. Request a new code.";
+    if (message.includes("invalid")) return "That verification code is invalid. Check the email and try again.";
+    return fallback;
+  }
+
+  async function sendOtp() {
+    if (!student?.email) {
+      setSetupError("This student record has no email address. Ask the Electoral Board to add one first.");
+      return;
+    }
+
+    setSendingOtp(true);
+    setSetupError("");
+
+    const { error } = await supabase.auth.signInWithOtp({
+      email: student.email,
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo: window.location.origin,
+      },
+    });
+
+    if (error) {
+      setSetupError(friendlyAuthError(error, "We could not send the verification code. Please try again."));
+      setSendingOtp(false);
+      return;
+    }
+
+    setOtpSent(true);
+    setSendingOtp(false);
+  }
+
+  async function verifyOtp() {
+    const token = otp.trim();
+    if (!token) {
+      setSetupError("Enter the verification code sent to your email.");
+      return;
+    }
+
+    setVerifyingOtp(true);
+    setSetupError("");
+
+    const { error } = await supabase.auth.verifyOtp({
+      email: student.email,
+      token,
+      type: "email",
+    });
+
+    if (error) {
+      setSetupError(friendlyAuthError(error, "We could not verify that code. Please try again."));
+      setVerifyingOtp(false);
+      return;
+    }
+
+    setOtpVerified(true);
+    setVerifyingOtp(false);
+    await supabase.auth.signOut();
+  }
 
   async function handleCompleteSetup(event) {
     event.preventDefault();
+    setSetupError("");
 
     if (password.length < 6) {
-      alert("Password must be at least 6 characters.");
+      setSetupError("Password must be at least 6 characters.");
       return;
     }
 
     if (password !== confirmPassword) {
-      alert("Passwords do not match.");
+      setSetupError("Passwords do not match.");
+      return;
+    }
+
+    if (!otpVerified) {
+      setSetupError("Verify your email before completing account setup.");
       return;
     }
 
@@ -38,7 +114,7 @@ function StudentSetup() {
       .eq("id", student.id);
 
     if (error) {
-      alert(error.message);
+      setSetupError("We could not complete your account setup. Please try again.");
       setLoading(false);
       return;
     }
@@ -50,7 +126,9 @@ function StudentSetup() {
 
     if (linkError) {
       console.error("Failed to link student to organizations:", linkError);
-      alert(linkError.message || "Failed to associate student with organizations.");
+      setSetupError("Your account was activated, but organization syncing needs to be retried by the Electoral Board.");
+      setLoading(false);
+      return;
     }
 
     navigate("/student-login", { replace: true });
@@ -59,6 +137,7 @@ function StudentSetup() {
     event.preventDefault();
     setLoading(true);
     setNotFound(false);
+    setSetupError("");
 
     const { data, error } = await supabase
       .from("students")
@@ -78,12 +157,15 @@ function StudentSetup() {
     }
 
     if (data.status === "disabled") {
-      alert("Your account is disabled. Please contact the Electoral Board.");
+      setSetupError("Your account is disabled. Please contact the Electoral Board.");
       setLoading(false);
       return;
     }
 
     setStudent(data);
+    setOtpSent(false);
+    setOtp("");
+    setOtpVerified(false);
     setLoading(false);
   }
 
@@ -138,6 +220,12 @@ function StudentSetup() {
                 Student ID not found. Please see Electoral Board.
               </p>
             ) : null}
+            {setupError ? (
+              <div className="student-auth-inline-error mt-5">
+                <AlertCircle size={18} />
+                <span>{setupError}</span>
+              </div>
+            ) : null}
           </form>
         ) : (
           <form onSubmit={handleCompleteSetup}>
@@ -191,12 +279,19 @@ function StudentSetup() {
               <div className="student-auth-password">
                 <input
                   required
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="e.g. brendulinmaharliakatibapa"
                 />
-                <Eye size={14} />
+                <button
+                  type="button"
+                  className="student-auth-eye-btn"
+                  onClick={() => setShowPassword((current) => !current)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </label>
 
@@ -205,14 +300,74 @@ function StudentSetup() {
               <div className="student-auth-password">
                 <input
                   required
-                  type="password"
+                  type={showConfirmPassword ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}
                   placeholder="e.g. brendulinmaharliakatibapa"
                 />
-                <Eye size={14} />
+                <button
+                  type="button"
+                  className="student-auth-eye-btn"
+                  onClick={() => setShowConfirmPassword((current) => !current)}
+                  aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                >
+                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </label>
+
+            <div className="student-auth-otp-panel">
+              <div>
+                <span>Email Verification</span>
+                <p>
+                  {otpVerified
+                    ? "Email verified. You can complete setup."
+                    : otpSent
+                      ? `Enter the code sent to ${student.email}.`
+                      : `Send a verification code to ${student.email}.`}
+                </p>
+              </div>
+
+              {!otpVerified ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={sendOtp}
+                    disabled={sendingOtp || verifyingOtp}
+                    className="student-auth-otp-action"
+                  >
+                    {sendingOtp ? "Sending..." : otpSent ? "Resend Code" : "Send Code"}
+                  </button>
+
+                  {otpSent ? (
+                    <div className="student-auth-password mt-3">
+                      <input
+                        value={otp}
+                        onChange={(event) => setOtp(event.target.value)}
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        placeholder="Enter email code"
+                      />
+                      <button
+                        type="button"
+                        className="student-auth-otp-verify"
+                        onClick={verifyOtp}
+                        disabled={verifyingOtp}
+                      >
+                        {verifyingOtp ? "Checking..." : "Verify"}
+                      </button>
+                    </div>
+                  ) : null}
+                </>
+              ) : null}
+            </div>
+
+            {setupError ? (
+              <div className="student-auth-inline-error mt-5">
+                <AlertCircle size={18} />
+                <span>{setupError}</span>
+              </div>
+            ) : null}
 
             <button disabled={loading} className="student-auth-submit mt-6">
               {loading ? "Saving..." : "Complete Set Up"}

@@ -4774,6 +4774,236 @@ textarea:focus {
   }
 }
 
+.kandid-image-frame {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--kandid-border, #e7ebf0);
+  background: #ffffff;
+  color: var(--kandid-primary, #ef4e23);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
+.kandid-image-frame img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.kandid-image-fallback {
+  display: inline-flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  background: var(--kandid-primary-soft, #fff0e8);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.student-avatar-img {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.8rem;
+}
+
+.organization-logo {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  padding: 0.22rem;
+}
+
+.student-org-logo-stack {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 12rem;
+}
+
+.student-org-logo-button {
+  position: relative;
+  display: inline-flex;
+  border-radius: 9999px;
+  outline: none;
+}
+
+.student-org-logo-button:focus-visible {
+  box-shadow: 0 0 0 3px rgba(239, 78, 35, 0.18);
+}
+
+.student-org-logo-popover {
+  pointer-events: none;
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.55rem);
+  z-index: 20;
+  width: min(16rem, 72vw);
+  transform: translateX(-50%) translateY(0.25rem);
+  border: 1px solid var(--kandid-border, #e7ebf0);
+  border-radius: 0.85rem;
+  background: #ffffff;
+  padding: 0.75rem;
+  text-align: left;
+  opacity: 0;
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.15);
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.student-org-logo-button:hover .student-org-logo-popover,
+.student-org-logo-button:focus-visible .student-org-logo-popover,
+.student-org-logo-button:focus-within .student-org-logo-popover {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.student-org-logo-popover strong {
+  display: block;
+  color: var(--kandid-text, #101828);
+  font-size: 0.86rem;
+}
+
+.student-org-logo-popover span {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--kandid-text-secondary, #475467);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.student-directory-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  border-top: 1px solid var(--kandid-border, #e7ebf0);
+  padding: 1rem;
+}
+
+.student-directory-pager-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.global-result-thumb {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.65rem;
+  padding: 0.12rem;
+  box-shadow: none;
+}
+
+.student-auth-password {
+  position: relative;
+}
+
+.student-auth-password input {
+  padding-right: 3rem !important;
+}
+
+.student-auth-eye-btn,
+.student-auth-otp-verify {
+  position: absolute;
+  right: 0.25rem;
+  top: 50%;
+  z-index: 2;
+  display: inline-flex;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  transform: translateY(-50%);
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  color: var(--kandid-text-secondary, #475467);
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+.student-auth-eye-btn:hover,
+.student-auth-otp-verify:hover {
+  background: rgba(239, 78, 35, 0.08);
+  color: var(--kandid-primary, #ef4e23);
+}
+
+.student-auth-otp-panel,
+.student-auth-inline-error {
+  border-radius: 0.9rem;
+  border: 1px solid rgba(239, 78, 35, 0.16);
+  background: rgba(255, 247, 237, 0.72);
+  padding: 0.9rem;
+}
+
+.student-auth-otp-panel span {
+  display: block;
+  color: var(--kandid-text, #101828);
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.student-auth-otp-panel p {
+  margin-top: 0.3rem;
+  color: var(--kandid-text-secondary, #475467);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.student-auth-otp-action {
+  margin-top: 0.75rem;
+  min-height: 2.55rem;
+  border-radius: 0.75rem;
+  background: var(--kandid-primary, #ef4e23);
+  padding-inline: 1rem;
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 850;
+}
+
+.student-auth-otp-action:disabled,
+.student-auth-otp-verify:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.student-auth-otp-verify {
+  width: auto;
+  padding-inline: 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.student-auth-inline-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  border-color: rgba(244, 63, 94, 0.22);
+  background: rgba(255, 241, 242, 0.88);
+  color: #9f1239;
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+@media (max-width: 640px) {
+  .student-auth-eye-btn,
+  .student-auth-otp-verify {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+
+  .student-auth-otp-panel {
+    scroll-margin-bottom: 16rem;
+  }
+}
+
 .kandid-app-theme .student-page-head {
   display: flex !important;
   align-items: center !important;

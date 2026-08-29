@@ -1,13 +1,25 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, X, Search } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import PopupOverlay from "../../components/PopupOverlay";
+import { OrganizationLogo, StudentAvatar } from "../../components/KandidImage";
 import { supabase } from "../../lib/supabaseClient";
 import { readFileAsDataUrl } from "../../utils/files";
 import { syncStudentOrganizationMemberships } from "../../utils/organizationAccess";
 import { usePrompt } from "../../context/PromptContext";
 import { logAuditEvent } from "../../utils/auditLog";
 import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
+
+const PAGE_SIZE = 25;
+
+const sortOptions = {
+  name_asc: { label: "Name: A-Z", column: "last_name", ascending: true },
+  name_desc: { label: "Name: Z-A", column: "last_name", ascending: false },
+  newest: { label: "Newest Added", column: "created_at", ascending: false },
+  oldest: { label: "Oldest Added", column: "created_at", ascending: true },
+  id_asc: { label: "Student ID: Low-High", column: "student_number", ascending: true },
+  id_desc: { label: "Student ID: High-Low", column: "student_number", ascending: false },
+};
 
 function Students() {
   const prompt = usePrompt();
@@ -20,8 +32,14 @@ function Students() {
   const [editingStudent, setEditingStudent] = useState(null);
 
   const [search, setSearch] = useState("");
-  const [programFilter, setProgramFilter] = useState("all");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [organizationFilter, setOrganizationFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("name_asc");
+  const [page, setPage] = useState(1);
+  const [totalStudents, setTotalStudents] = useState(0);
+  const [loadingStudents, setLoadingStudents] = useState(true);
+  const [studentsError, setStudentsError] = useState("");
 
   const [form, setForm] = useState({
     student_number: "",
@@ -39,16 +57,62 @@ function Students() {
   });
 
   useEffect(() => {
-    fetchStudents();
     fetchOrganizations();
   }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
   useEffect(() => {
     setSearch(searchParams.get("q") || "");
   }, [searchParams]);
 
+  useEffect(() => {
+    fetchStudents();
+  }, [debouncedSearch, organizationFilter, statusFilter, sortBy, page]);
+
   async function fetchStudents() {
-    const { data, error } = await supabase
+    setLoadingStudents(true);
+    setStudentsError("");
+
+    let allowedStudentIds = null;
+
+    if (organizationFilter !== "all") {
+      const { data: membershipData, error: membershipError } = await supabase
+        .from("student_organizations")
+        .select("student_id")
+        .eq("organization_id", Number(organizationFilter));
+
+      if (membershipError) {
+        console.error("Failed to load organization memberships:", membershipError);
+        setStudents([]);
+        setTotalStudents(0);
+        setStudentsError("Unable to load students for the selected organization.");
+        setLoadingStudents(false);
+        return;
+      }
+
+      allowedStudentIds = [...new Set((membershipData || []).map((item) => item.student_id).filter(Boolean))];
+
+      if (allowedStudentIds.length === 0) {
+        setStudents([]);
+        setTotalStudents(0);
+        setLoadingStudents(false);
+        return;
+      }
+    }
+
+    const sort = sortOptions[sortBy] || sortOptions.name_asc;
+    const from = (page - 1) * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
+    let query = supabase
       .from("students")
       .select(`
         id,
@@ -70,29 +134,52 @@ function Students() {
           organizations (
             id,
             name,
+            description,
+            logo_url,
             organization_type
           )
         )
-      `)
-      .order("last_name", { ascending: true });
+      `, { count: "exact" });
+
+    if (allowedStudentIds) {
+      query = query.in("id", allowedStudentIds);
+    }
+
+    if (statusFilter !== "all") {
+      query = query.eq("status", statusFilter);
+    }
+
+    if (debouncedSearch) {
+      const term = debouncedSearch.replaceAll("%", "\\%").replaceAll(",", " ");
+      query = query.or(
+        `student_number.ilike.%${term}%,first_name.ilike.%${term}%,last_name.ilike.%${term}%,email.ilike.%${term}%`,
+      );
+    }
+
+    const { data, error, count } = await query
+      .order(sort.column, { ascending: sort.ascending, nullsFirst: false })
+      .order("first_name", { ascending: sort.ascending, nullsFirst: false })
+      .order("id", { ascending: true })
+      .range(from, to);
 
     if (error) {
       console.error("Failed to load students:", error);
-
-      prompt.error(
-        error.message || "Failed to load students."
-      );
-
+      setStudents([]);
+      setTotalStudents(0);
+      setStudentsError("Unable to load the student directory. Please try again.");
+      setLoadingStudents(false);
       return;
     }
 
     setStudents(data || []);
+    setTotalStudents(count || 0);
+    setLoadingStudents(false);
   }
 
   async function fetchOrganizations() {
     const { data, error } = await supabase
       .from("organizations")
-      .select("id, name, organization_type")
+      .select("id, name, description, logo_url, organization_type")
       .order("name", { ascending: true });
 
     if (error) {
@@ -389,60 +476,6 @@ function Students() {
     fetchStudents();
   }
 
-  const programs = useMemo(() => {
-    return [
-      ...new Set(
-        students
-          .map((student) => student.program)
-          .filter(Boolean)
-      ),
-    ].sort();
-  }, [students]);
-
-  const filteredStudents = useMemo(() => {
-    const query =
-      search.trim().toLowerCase();
-
-    return students.filter((student) => {
-      const fullName = [
-        student.first_name,
-        student.last_name,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-
-      const matchesSearch =
-        !query ||
-        fullName.includes(query) ||
-        student.student_number
-          ?.toLowerCase()
-          .includes(query) ||
-        student.email
-          ?.toLowerCase()
-          .includes(query);
-
-      const matchesProgram =
-        programFilter === "all" ||
-        student.program === programFilter;
-
-      const matchesStatus =
-        statusFilter === "all" ||
-        student.status === statusFilter;
-
-      return (
-        matchesSearch &&
-        matchesProgram &&
-        matchesStatus
-      );
-    });
-  }, [
-    students,
-    search,
-    programFilter,
-    statusFilter,
-  ]);
-
   function getStudentOrganizations(student) {
     return (
       student.student_organizations || []
@@ -450,8 +483,17 @@ function Students() {
       .map(
         (item) => item.organizations
       )
-      .filter(Boolean);
+      .filter(Boolean)
+      .sort((a, b) => {
+        const typeDelta =
+          (a.organization_type === "non_departmental" ? 1 : 0) -
+          (b.organization_type === "non_departmental" ? 1 : 0);
+        if (typeDelta !== 0) return typeDelta;
+        return String(a.name || "").localeCompare(String(b.name || ""));
+      });
   }
+
+  const totalPages = Math.max(1, Math.ceil(totalStudents / PAGE_SIZE));
 
   return (
     <div>
@@ -508,31 +550,33 @@ function Students() {
         </div>
 
         <select
-          value={programFilter}
-          onChange={(e) =>
-            setProgramFilter(e.target.value)
-          }
+          value={organizationFilter}
+          onChange={(e) => {
+            setOrganizationFilter(e.target.value);
+            setPage(1);
+          }}
           className="field-shell lg:w-56"
         >
           <option value="all">
-            All Programs
+            All Organizations
           </option>
 
-          {programs.map((program) => (
+          {organizations.map((organization) => (
             <option
-              key={program}
-              value={program}
+              key={organization.id}
+              value={organization.id}
             >
-              {program}
+              {organization.name}
             </option>
           ))}
         </select>
 
         <select
           value={statusFilter}
-          onChange={(e) =>
-            setStatusFilter(e.target.value)
-          }
+          onChange={(e) => {
+            setStatusFilter(e.target.value);
+            setPage(1);
+          }}
           className="field-shell lg:w-48"
         >
           <option value="all">
@@ -551,13 +595,40 @@ function Students() {
             Disabled
           </option>
         </select>
+
+        <select
+          value={sortBy}
+          onChange={(e) => {
+            setSortBy(e.target.value);
+            setPage(1);
+          }}
+          className="field-shell lg:w-56"
+        >
+          {Object.entries(sortOptions).map(([value, option]) => (
+            <option key={value} value={value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* ========================================================
           STUDENT TABLE
       ======================================================== */}
 
-      {filteredStudents.length === 0 ? (
+      {loadingStudents ? (
+        <div className="empty-state mt-8">
+          Loading students...
+        </div>
+      ) : studentsError ? (
+        <div className="empty-state mt-8">
+          <p className="font-bold text-rose-600">Unable to load students.</p>
+          <p className="mt-2 text-sm text-gray-500">{studentsError}</p>
+          <button type="button" onClick={fetchStudents} className="secondary-btn mt-4">
+            Retry
+          </button>
+        </div>
+      ) : students.length === 0 ? (
         <div className="empty-state mt-8">
           No students found.
         </div>
@@ -598,7 +669,7 @@ function Students() {
               </thead>
 
               <tbody>
-                {filteredStudents.map(
+                {students.map(
                   (student) => {
                     const studentOrganizations =
                       getStudentOrganizations(
@@ -613,19 +684,7 @@ function Students() {
                         {/* STUDENT */}
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-3">
-                            {student.photo_url ? (
-                              <img
-                                src={
-                                  student.photo_url
-                                }
-                                alt={`${student.first_name} ${student.last_name}`}
-                                className="h-11 w-11 rounded-xl object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[rgba(37,99,235,0.08)] text-xs font-black text-[#2563eb]">
-                                {`${student.first_name?.[0] || ""}${student.last_name?.[0] || ""}`}
-                              </div>
-                            )}
+                            <StudentAvatar student={student} loading="lazy" />
 
                             <div>
                               <p className="font-black">
@@ -669,28 +728,33 @@ function Students() {
 
                         {/* ORGANIZATIONS */}
                         <td className="px-5 py-4">
-                          <div className="flex max-w-[320px] flex-wrap gap-2">
+                          <div className="student-org-logo-stack">
                             {studentOrganizations.length >
                               0 ? (
-                              studentOrganizations.map(
-                                (org) => (
+                              <>
+                                {studentOrganizations.slice(0, 3).map((org) => (
                                   <span
-                                    key={
-                                      org.id
-                                    }
-                                    className={`rounded-full px-3 py-1 text-xs font-bold ${
-                                      org.organization_type ===
-                                      "non_departmental"
-                                        ? "bg-blue-100 text-blue-700"
-                                        : "bg-orange-100 text-orange-700"
-                                    }`}
+                                    key={org.id}
+                                    className="student-org-logo-button"
                                   >
-                                    {
-                                      org.name
-                                    }
+                                    <OrganizationLogo organization={org} />
+                                    <span className="student-org-logo-popover">
+                                      <strong>{org.name}</strong>
+                                      <span>
+                                        {org.description ||
+                                          (org.organization_type === "non_departmental"
+                                            ? "Non-departmental organization"
+                                            : "Departmental organization")}
+                                      </span>
+                                    </span>
                                   </span>
-                                )
-                              )
+                                ))}
+                                {studentOrganizations.length > 3 ? (
+                                  <span className="config-badge">
+                                    +{studentOrganizations.length - 3}
+                                  </span>
+                                ) : null}
+                              </>
                             ) : (
                               <span className="text-sm text-gray-400">
                                 No organization
@@ -756,6 +820,32 @@ function Students() {
                 )}
               </tbody>
             </table>
+          </div>
+          <div className="student-directory-pager">
+            <p className="text-sm font-semibold text-gray-500">
+              Showing {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, totalStudents)} of {totalStudents} students
+            </p>
+            <div className="student-directory-pager-actions">
+              <button
+                type="button"
+                className="secondary-btn"
+                disabled={page <= 1}
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+              >
+                Previous
+              </button>
+              <span className="text-sm font-bold text-gray-600">
+                Page {page} of {totalPages}
+              </span>
+              <button
+                type="button"
+                className="secondary-btn"
+                disabled={page >= totalPages}
+                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+              >
+                Next
+              </button>
+            </div>
           </div>
         </div>
       )}

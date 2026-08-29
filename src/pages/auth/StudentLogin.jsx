@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertCircle, Eye, Home } from "lucide-react";
+import { AlertCircle, Eye, EyeOff, Home } from "lucide-react";
 import AuthLayout from "../../components/AuthLayout";
 import { KandidButtonLoader } from "../../components/KandidLoader";
 import { supabase } from "../../lib/supabaseClient";
@@ -11,6 +11,8 @@ function StudentLogin() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [authError, setAuthError] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -24,6 +26,7 @@ function StudentLogin() {
     event.preventDefault();
     setLoading(true);
     setNotFound(false);
+    setAuthError("");
 
     const { data, error } = await supabase
       .from("students")
@@ -59,13 +62,13 @@ function StudentLogin() {
     }
 
     if (data.status === "disabled") {
-      alert("Your account is disabled.");
+      setAuthError("Your account is disabled. Please contact the Electoral Board.");
       setLoading(false);
       return;
     }
 
     if (data.password !== password) {
-      alert("Incorrect password.");
+      setAuthError("Incorrect password. Please check your access code and try again.");
       setLoading(false);
       return;
     }
@@ -106,14 +109,28 @@ function StudentLogin() {
                 <input
                   required
                   autoComplete="current-password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="Enter your secure access code"
                 />
-                <Eye size={15} />
+                <button
+                  type="button"
+                  className="student-auth-eye-btn"
+                  onClick={() => setShowPassword((current) => !current)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </label>
+
+            {authError ? (
+              <div className="student-auth-inline-error">
+                <AlertCircle size={18} />
+                <span>{authError}</span>
+              </div>
+            ) : null}
 
             <button type="submit" disabled={loading} className="student-auth-submit">
               {loading ? <KandidButtonLoader label="Verifying access..." /> : "Login to Vote"}

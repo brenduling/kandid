@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { KandidButtonLoader, KandidInlineLoader } from "../../components/KandidLoader";
 import PopupOverlay from "../../components/PopupOverlay";
+import { StudentAvatar } from "../../components/KandidImage";
 import { supabase } from "../../lib/supabaseClient";
 import { usePrompt } from "../../context/PromptContext";
 import { readFileAsDataUrl } from "../../utils/files";
@@ -13,6 +14,7 @@ function BoardStudents() {
   const [searchParams] = useSearchParams();
   const [students, setStudents] = useState([]);
   const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState("name_asc");
   const [formOpen, setFormOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -161,7 +163,7 @@ function BoardStudents() {
           batch_code: form.batch_code || null,
         },
       ])
-      .select()
+      .select("id, student_number, first_name, last_name, email, photo_url, program, year_level, is_shs, status, created_at")
       .single();
 
     if (studentError) {
@@ -197,14 +199,41 @@ function BoardStudents() {
     setForm({ ...form, photo_url: dataUrl });
   }
 
-  const filteredStudents = students.filter((student) => {
-    const fullName = `${student.first_name} ${student.last_name}`.toLowerCase();
+  const filteredStudents = useMemo(() => {
+    const query = search.trim().toLowerCase();
 
-    return (
-      fullName.includes(search.toLowerCase()) ||
-      student.student_number?.toLowerCase().includes(search.toLowerCase())
-    );
-  });
+    const filtered = students.filter((student) => {
+      const fullName = `${student.first_name} ${student.last_name}`.toLowerCase();
+
+      return (
+        !query ||
+        fullName.includes(query) ||
+        student.student_number?.toLowerCase().includes(query) ||
+        student.email?.toLowerCase().includes(query) ||
+        student.program?.toLowerCase().includes(query)
+      );
+    });
+
+    return [...filtered].sort((a, b) => {
+      const nameA = `${a.last_name || ""} ${a.first_name || ""}`.trim();
+      const nameB = `${b.last_name || ""} ${b.first_name || ""}`.trim();
+      const idA = Number.parseInt(a.student_number, 10);
+      const idB = Number.parseInt(b.student_number, 10);
+
+      if (sortBy === "name_desc") return nameB.localeCompare(nameA) || Number(a.id) - Number(b.id);
+      if (sortBy === "newest") return new Date(b.created_at || 0) - new Date(a.created_at || 0) || Number(a.id) - Number(b.id);
+      if (sortBy === "oldest") return new Date(a.created_at || 0) - new Date(b.created_at || 0) || Number(a.id) - Number(b.id);
+      if (sortBy === "id_desc") {
+        if (!Number.isNaN(idA) && !Number.isNaN(idB)) return idB - idA || Number(a.id) - Number(b.id);
+        return String(b.student_number || "").localeCompare(String(a.student_number || "")) || Number(a.id) - Number(b.id);
+      }
+      if (sortBy === "id_asc") {
+        if (!Number.isNaN(idA) && !Number.isNaN(idB)) return idA - idB || Number(a.id) - Number(b.id);
+        return String(a.student_number || "").localeCompare(String(b.student_number || "")) || Number(a.id) - Number(b.id);
+      }
+      return nameA.localeCompare(nameB) || Number(a.id) - Number(b.id);
+    });
+  }, [search, sortBy, students]);
 
   return (
     <div>
@@ -235,6 +264,18 @@ function BoardStudents() {
           placeholder="Search student..."
         />
       </div>
+      <select
+        value={sortBy}
+        onChange={(event) => setSortBy(event.target.value)}
+        className="field-shell lg:w-56"
+      >
+        <option value="name_asc">Name: A-Z</option>
+        <option value="name_desc">Name: Z-A</option>
+        <option value="newest">Newest Added</option>
+        <option value="oldest">Oldest Added</option>
+        <option value="id_asc">Student ID: Low-High</option>
+        <option value="id_desc">Student ID: High-Low</option>
+      </select>
       </div>
 
       <div className="table-shell mt-6">
@@ -283,17 +324,7 @@ function BoardStudents() {
                   </td>
                   <td>
                     <div className="flex items-center gap-3">
-                      {student.photo_url ? (
-                        <img
-                          src={student.photo_url}
-                          alt={`${student.first_name} ${student.last_name}`}
-                          className="h-10 w-10 rounded-2xl object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[rgba(47,143,131,0.12)] text-xs font-black text-[#2f8f83]">
-                          {`${student.first_name?.[0] || ""}${student.last_name?.[0] || ""}`}
-                        </div>
-                      )}
+                      <StudentAvatar student={student} loading="lazy" className="!h-10 !w-10" />
                       <div>
                         {student.first_name} {student.last_name}
                         <p className="text-xs text-gray-500">{student.email}</p>

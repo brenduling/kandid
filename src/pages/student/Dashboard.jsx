@@ -7,44 +7,22 @@ import {
   Globe2,
   Plus,
   UserRound,
-  UsersRound,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { OrganizationLogo as BaseOrganizationLogo } from "../../components/KandidImage";
 import { supabase } from "../../lib/supabaseClient";
 import {
   getEligibleStudentOrganizations,
   getOrganizationCatalog,
 } from "../../utils/organizationAccess";
 
-function initials(name = "Organization") {
-  return name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 4)
-    .toUpperCase();
-}
-
 function OrganizationLogo({ organization }) {
-  const [imageError, setImageError] = useState(false);
-
   return (
-    <div className="flex h-[clamp(7rem,9vw,10rem)] w-[clamp(7rem,9vw,10rem)] shrink-0 items-center justify-center overflow-hidden rounded-full bg-white p-2.5 shadow-[0_10px_28px_rgba(15,23,42,0.12)] ring-1 ring-gray-100">
-      {organization?.logo_url && !imageError ? (
-        <img
-          src={organization.logo_url}
-          alt={`${organization.name || "Organization"} logo`}
-          className="h-full w-full rounded-full object-cover"
-          loading="lazy"
-          decoding="async"
-          onError={() => setImageError(true)}
-        />
-      ) : (
-        <span className="text-3xl font-black tracking-tight text-[#d94718]">
-          {initials(organization?.name)}
-        </span>
-      )}
-    </div>
+    <BaseOrganizationLogo
+      organization={organization}
+      className="!h-[clamp(7rem,9vw,10rem)] !w-[clamp(7rem,9vw,10rem)] !p-2.5"
+      loading="lazy"
+    />
   );
 }
 
@@ -339,19 +317,11 @@ function StudentDashboard() {
         {/* ORGANIZATION HERO */}
         <section className="student-campaign-hero student-org-detail-hero w-full max-w-none overflow-hidden px-6 py-6 md:px-8 md:py-8 lg:px-10">
           <div className="flex min-w-0 flex-1 items-center gap-6">
-            <div className="flex h-[clamp(5.5rem,8vw,8rem)] w-[clamp(5.5rem,8vw,8rem)] shrink-0 items-center justify-center overflow-hidden rounded-full bg-white p-2.5 shadow-[0_10px_30px_rgba(15,23,42,0.12)] ring-1 ring-gray-100">
-              {selectedOrganization.logo_url ? (
-                <img
-                  src={selectedOrganization.logo_url}
-                  alt={`${selectedOrganization.name} logo`}
-                  className="h-full w-full rounded-full object-cover"
-                />
-              ) : (
-                <span className="flex h-full w-full items-center justify-center text-[#f4511e]">
-                  <UsersRound size={36} />
-                </span>
-              )}
-            </div>
+            <BaseOrganizationLogo
+              organization={selectedOrganization}
+              className="!h-[clamp(5.5rem,8vw,8rem)] !w-[clamp(5.5rem,8vw,8rem)] !p-2.5"
+              loading="eager"
+            />
 
             <div className="min-w-0">
               <span className="mb-2 inline-flex rounded-full bg-white/80 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#f4511e]">

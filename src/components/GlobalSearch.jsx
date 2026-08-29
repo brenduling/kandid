@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { KandidInlineLoader } from "./KandidLoader";
+import KandidImage from "./KandidImage";
 import {
   getRoleSearchCategories,
   getRoleSearchPath,
@@ -347,9 +348,19 @@ function GlobalSearch({
                             onMouseEnter={() => setActiveIndex(itemIndex)}
                             onClick={() => openResult(result)}
                           >
-                            <span className="global-result-icon">
-                              <Icon size={16} />
-                            </span>
+                            {result.image ? (
+                              <KandidImage
+                                src={result.image}
+                                alt={result.title}
+                                label={result.title}
+                                className="global-result-thumb"
+                                fit={result.category === "organizations" || result.category === "partylists" ? "contain" : "cover"}
+                              />
+                            ) : (
+                              <span className="global-result-icon">
+                                <Icon size={16} />
+                              </span>
+                            )}
                             <span className="global-result-copy">
                               <strong>{result.title}</strong>
                               <small>{result.subtitle || result.meta}</small>
