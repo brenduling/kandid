@@ -3,8 +3,11 @@ import Papa from "papaparse";
 import { Upload, CheckCircle, XCircle } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { syncStudentOrganizationMemberships } from "../../utils/organizationAccess";
+import { logAuditEvent } from "../../utils/auditLog";
+import { usePrompt } from "../../context/PromptContext";
 
 function BoardCSVImport() {
+  const prompt = usePrompt();
   const [rows, setRows] = useState([]);
   const [validRows, setValidRows] = useState([]);
   const [invalidRows, setInvalidRows] = useState([]);
@@ -12,6 +15,7 @@ function BoardCSVImport() {
 
   const user = JSON.parse(localStorage.getItem("user"));
   const orgId = user?.organization_id;
+  const orgName = user?.organizations?.name;
 
   function handleFileUpload(e) {
     const file = e.target.files[0];
@@ -69,7 +73,7 @@ function BoardCSVImport() {
 
   async function importStudents() {
     if (!orgId) {
-      alert("No organization assigned to this Electoral Board account.");
+      prompt.error("No organization assigned to this Electoral Board account.");
       return;
     }
 
@@ -83,7 +87,7 @@ function BoardCSVImport() {
       .select();
 
     if (studentError) {
-      alert(studentError.message);
+      prompt.error(studentError.message || "Student import failed.");
       setImporting(false);
       return;
     }
@@ -96,13 +100,25 @@ function BoardCSVImport() {
       });
 
       if (membershipError) {
-        alert(membershipError.message);
+        prompt.error(membershipError.message || "Student organization sync failed.");
         setImporting(false);
         return;
       }
     }
 
-    alert("Students imported and assigned to your organization successfully.");
+    prompt.success("Students imported and assigned to your organization successfully.");
+    await logAuditEvent({
+      action: "student_batch_imported",
+      entityType: "student",
+      entityLabel: "Board CSV Import",
+      organizationId: orgId,
+      organizationName: orgName,
+      status: "completed",
+      metadata: {
+        imported_count: insertedStudents?.length || 0,
+        invalid_count: invalidRows.length,
+      },
+    });
 
     setRows([]);
     setValidRows([]);

@@ -13,6 +13,8 @@ import {
   VOTING_ACCESS_MODES,
 } from "../../utils/votingAccess";
 import { usePrompt } from "../../context/PromptContext";
+import { logAuditEvent } from "../../utils/auditLog";
+import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
 
 function BoardElections() {
   const prompt = usePrompt();
@@ -45,6 +47,7 @@ function BoardElections() {
 
   const user = JSON.parse(localStorage.getItem("user"));
   const orgId = user?.organization_id;
+  const orgName = user?.organizations?.name;
   const searchQuery = (searchParams.get("q") || "").trim().toLowerCase();
 
   useEffect(() => {
@@ -199,9 +202,14 @@ function BoardElections() {
     let result;
 
     if (editing) {
-      result = await supabase.from("elections").update(payload).eq("id", editing.id);
+      result = await supabase
+        .from("elections")
+        .update(payload)
+        .eq("id", editing.id)
+        .select("id")
+        .single();
     } else {
-      result = await supabase.from("elections").insert([payload]);
+      result = await supabase.from("elections").insert([payload]).select("id").single();
     }
 
     if (result.error) {
@@ -212,6 +220,19 @@ function BoardElections() {
     }
 
     prompt.success(editing ? "Election updated." : "Election created.");
+    await logAuditEvent({
+      action: editing ? "election_updated" : "election_created",
+      entityType: "election",
+      entityId: result?.data?.id || editing?.id,
+      entityLabel: payload.title,
+      organizationId: orgId,
+      organizationName: orgName,
+      status: "completed",
+      metadata: {
+        election_status: payload.status,
+        voting_access_mode: payload.voting_access_mode,
+      },
+    });
     setFormOpen(false);
     setSubmitting(false);
     await refreshElections();
@@ -263,13 +284,43 @@ function BoardElections() {
   }
 
   async function handleDelete(id) {
+    const election = elections.find((item) => item.id === id) || {};
+    const analysis = await analyzeDeleteDependencies("election", { id });
+
+    if (analysis.blocked) {
+      await logAuditEvent({
+        action: "election_delete_blocked",
+        entityType: "election",
+        entityId: id,
+        entityLabel: election.title || "Election",
+        organizationId: orgId,
+        organizationName: orgName,
+        status: "requires_action",
+        metadata: { dependencies: analysis.dependencies },
+      });
+
+      await prompt.alert({
+        title: analysis.severity === "archive" ? "Archive Recommended" : "Election Cannot Be Deleted Yet",
+        message: dependencyMessage(election.title || "This election", analysis),
+        type: "warning",
+        confirmText: "Review Related Records",
+      });
+      return;
+    }
+
     const ok = await prompt.confirm({
       title: "Delete Election?",
-      message: "Are you sure you want to delete this election?",
+      message: dependencyMessage(election.title || "This election", analysis),
       type: "danger",
       confirmText: "Delete Election",
     });
     if (!ok) return;
+
+    const recheck = await analyzeDeleteDependencies("election", { id });
+    if (recheck.blocked) {
+      prompt.error(dependencyMessage(election.title || "This election", recheck));
+      return;
+    }
 
     const { error } = await supabase.from("elections").delete().eq("id", id);
     if (error) {
@@ -277,6 +328,15 @@ function BoardElections() {
       return;
     }
     prompt.success("Election deleted.");
+    await logAuditEvent({
+      action: "election_deleted",
+      entityType: "election",
+      entityId: id,
+      entityLabel: election.title || "Election",
+      organizationId: orgId,
+      organizationName: orgName,
+      status: "completed",
+    });
     refreshElections();
   }
 

@@ -3,8 +3,11 @@ import Papa from "papaparse";
 import { Upload, CheckCircle, XCircle } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { syncStudentOrganizationMemberships } from "../../utils/organizationAccess";
+import { logAuditEvent } from "../../utils/auditLog";
+import { usePrompt } from "../../context/PromptContext";
 
 function CSVImport() {
+  const prompt = usePrompt();
   const [rows, setRows] = useState([]);
   const [validRows, setValidRows] = useState([]);
   const [invalidRows, setInvalidRows] = useState([]);
@@ -78,7 +81,7 @@ function CSVImport() {
 
     if (studentError) {
       setImporting(false);
-      alert(studentError.message);
+      prompt.error(studentError.message || "Student import failed.");
       return;
     }
 
@@ -90,13 +93,23 @@ function CSVImport() {
 
       if (membershipError) {
         setImporting(false);
-        alert(membershipError.message);
+        prompt.error(membershipError.message || "Student organization sync failed.");
         return;
       }
     }
 
     setImporting(false);
-    alert("Students imported and assigned to organizations successfully.");
+    prompt.success("Students imported and assigned to organizations successfully.");
+    await logAuditEvent({
+      action: "student_batch_imported",
+      entityType: "student",
+      entityLabel: "CSV Import",
+      status: "completed",
+      metadata: {
+        imported_count: insertedStudents?.length || 0,
+        invalid_count: invalidRows.length,
+      },
+    });
 
     setRows([]);
     setValidRows([]);

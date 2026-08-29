@@ -156,38 +156,43 @@ export function PromptProvider({ children }) {
     switch (type) {
       case "danger":
         return {
-          icon: <AlertTriangle className="h-6 w-6 text-rose-400" />,
-          badgeBg: "bg-rose-500/15 border-rose-500/30 text-rose-300",
-          btnBg: "bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white shadow-rose-900/40",
-          accentColor: "border-rose-500/20",
+          icon: <AlertTriangle className="h-5 w-5 text-rose-600" />,
+          badgeBg: "bg-rose-50 border-rose-200 text-rose-700",
+          btnBg: "danger-btn",
+          accentColor: "border-rose-200",
+          eyebrow: "Sensitive Operation",
         };
       case "success":
         return {
-          icon: <CheckCircle2 className="h-6 w-6 text-emerald-400" />,
-          badgeBg: "bg-emerald-500/15 border-emerald-500/30 text-emerald-300",
-          btnBg: "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-900/40",
-          accentColor: "border-emerald-500/20",
+          icon: <CheckCircle2 className="h-5 w-5 text-emerald-700" />,
+          badgeBg: "bg-emerald-50 border-emerald-200 text-emerald-700",
+          btnBg: "primary-btn",
+          accentColor: "border-emerald-200",
+          eyebrow: "Configuration Complete",
         };
       case "error":
         return {
-          icon: <XCircle className="h-6 w-6 text-red-400" />,
-          badgeBg: "bg-red-500/15 border-red-500/30 text-red-300",
-          btnBg: "bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white shadow-red-900/40",
-          accentColor: "border-red-500/20",
+          icon: <XCircle className="h-5 w-5 text-rose-600" />,
+          badgeBg: "bg-rose-50 border-rose-200 text-rose-700",
+          btnBg: "danger-btn",
+          accentColor: "border-rose-200",
+          eyebrow: "Configuration Issue",
         };
       case "warning":
         return {
-          icon: <AlertCircle className="h-6 w-6 text-amber-400" />,
-          badgeBg: "bg-amber-500/15 border-amber-500/30 text-amber-300",
-          btnBg: "bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white shadow-amber-900/40",
-          accentColor: "border-amber-500/20",
+          icon: <AlertCircle className="h-5 w-5 text-orange-600" />,
+          badgeBg: "bg-orange-50 border-orange-200 text-orange-700",
+          btnBg: "primary-btn",
+          accentColor: "border-orange-200",
+          eyebrow: "Review Configuration",
         };
       default:
         return {
-          icon: <Info className="h-6 w-6 text-cyan-400" />,
-          badgeBg: "bg-cyan-500/15 border-cyan-500/30 text-cyan-300",
-          btnBg: "bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white shadow-teal-900/40",
-          accentColor: "border-cyan-500/20",
+          icon: <Info className="h-5 w-5 text-[#ef4e23]" />,
+          badgeBg: "bg-orange-50 border-orange-200 text-orange-700",
+          btnBg: "primary-btn",
+          accentColor: "border-orange-200",
+          eyebrow: "Configuration",
         };
     }
   };
@@ -225,37 +230,40 @@ export function PromptProvider({ children }) {
       {/* Modal Dialog */}
       <AnimatePresence>
         {modal && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6">
+          <div className="modal-overlay z-[9999]">
             {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={closeModal}
-              className="fixed inset-0 bg-black/75 backdrop-blur-md"
+              className="absolute inset-0"
             />
 
             {/* Modal Card */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.92, y: 14 }}
+              initial={{ opacity: 0, scale: 0.985, y: 8 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.94, y: 10 }}
-              transition={{ type: "spring", damping: 25, stiffness: 350 }}
-              className={`relative z-10 w-full max-w-md overflow-hidden rounded-[28px] border bg-[#12161f] p-6 text-white shadow-2xl ${currentStyles?.accentColor || "border-white/10"}`}
+              exit={{ opacity: 0, scale: 0.985, y: 8 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              role="dialog"
+              aria-modal="true"
+              className={`config-modal relative z-10 w-full max-w-md overflow-hidden border ${currentStyles?.accentColor || "border-orange-200"}`}
             >
-              {/* Glowing header accent */}
-              <div className="flex items-start gap-4">
+              <div className="config-modal-accent" />
+              <div className="config-modal-header">
                 <div
-                  className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl border ${currentStyles?.badgeBg}`}
+                  className={`config-icon ${currentStyles?.badgeBg}`}
                 >
                   {currentStyles?.icon}
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <h3 className="text-lg font-bold text-white tracking-tight">
+                  <p className="config-eyebrow">{currentStyles?.eyebrow}</p>
+                  <h3 className="config-title">
                     {modal.title}
                   </h3>
-                  <p className="mt-1.5 text-sm leading-relaxed text-slate-300">
+                  <p className="config-description">
                     {modal.message}
                   </p>
                 </div>
@@ -263,7 +271,8 @@ export function PromptProvider({ children }) {
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="rounded-xl p-1.5 text-slate-400 hover:bg-white/10 hover:text-white transition"
+                  className="config-close-btn"
+                  aria-label="Close dialog"
                 >
                   <X size={18} />
                 </button>
@@ -278,18 +287,18 @@ export function PromptProvider({ children }) {
                     onChange={(e) => setPromptInputValue(e.target.value)}
                     placeholder={modal.placeholder}
                     autoFocus
-                    className="w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-white placeholder-white/35 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 transition"
+                    className="field-shell w-full"
                   />
                 </div>
               )}
 
               {/* Action Buttons */}
-              <div className="mt-7 flex items-center justify-end gap-3">
+              <div className="config-footer">
                 {modal.showCancel && (
                   <button
                     type="button"
                     onClick={closeModal}
-                    className="rounded-2xl border border-white/15 bg-white/5 px-5 py-2.5 text-sm font-semibold text-slate-300 hover:bg-white/10 hover:text-white transition shadow-sm"
+                    className="secondary-btn"
                   >
                     {modal.cancelText}
                   </button>
@@ -299,7 +308,7 @@ export function PromptProvider({ children }) {
                   type="button"
                   onClick={confirmModal}
                   autoFocus={!modal.isPromptInput}
-                  className={`rounded-2xl px-6 py-2.5 text-sm font-bold shadow-lg transition duration-150 ${currentStyles?.btnBg}`}
+                  className={currentStyles?.btnBg}
                 >
                   {modal.confirmText}
                 </button>

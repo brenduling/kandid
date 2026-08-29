@@ -3,6 +3,8 @@ import { Plus, Pencil, Trash2, X } from "lucide-react";
 import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
 import { usePrompt } from "../../context/PromptContext";
+import { logAuditEvent } from "../../utils/auditLog";
+import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
 
 function BoardEligibilityRules() {
   const prompt = usePrompt();
@@ -130,14 +132,44 @@ function BoardEligibilityRules() {
     fetchRules();
   }
 
-  async function handleDelete(id) {
+  async function handleDelete(rule) {
+    const id = rule.id;
+    const label = `${rule.elections?.title || "Election"} eligibility rule`;
+    const analysis = await analyzeDeleteDependencies("eligibility_rule", rule);
+
+    if (analysis.blocked) {
+      await logAuditEvent({
+        action: "eligibility_rule_delete_blocked",
+        entityType: "eligibility_rule",
+        entityId: id,
+        entityLabel: label,
+        organizationId: orgId,
+        organizationName: user?.organizations?.name,
+        status: "requires_action",
+        metadata: { dependencies: analysis.dependencies },
+      });
+      await prompt.alert({
+        title: "Eligibility Rule Is Historical",
+        message: dependencyMessage(label, analysis),
+        type: "warning",
+        confirmText: "Review Rule",
+      });
+      return;
+    }
+
     const ok = await prompt.confirm({
       title: "Delete Eligibility Rule?",
-      message: "Are you sure you want to delete this eligibility rule?",
+      message: dependencyMessage(label, analysis),
       type: "danger",
       confirmText: "Delete Rule",
     });
     if (!ok) return;
+
+    const recheck = await analyzeDeleteDependencies("eligibility_rule", rule);
+    if (recheck.blocked) {
+      prompt.error(dependencyMessage(label, recheck));
+      return;
+    }
 
     const { error } = await supabase.from("eligibility_rules").delete().eq("id", id);
     if (error) {
@@ -145,6 +177,15 @@ function BoardEligibilityRules() {
       return;
     }
     prompt.success("Eligibility rule deleted.");
+    await logAuditEvent({
+      action: "eligibility_rule_deleted",
+      entityType: "eligibility_rule",
+      entityId: id,
+      entityLabel: label,
+      organizationId: orgId,
+      organizationName: user?.organizations?.name,
+      status: "completed",
+    });
     fetchRules();
   }
 
@@ -192,7 +233,7 @@ function BoardEligibilityRules() {
                 <button onClick={() => openEdit(rule)} className="icon-action">
                   <Pencil size={16} />
                 </button>
-                <button onClick={() => handleDelete(rule.id)} className="icon-action icon-action-danger">
+                <button onClick={() => handleDelete(rule)} className="icon-action icon-action-danger">
                   <Trash2 size={16} />
                 </button>
               </div>

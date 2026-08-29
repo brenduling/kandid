@@ -8,6 +8,7 @@ import {
   Users,
 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
+import { fetchAuditLogs } from "../../utils/auditLog";
 
 function Dashboard() {
   const [stats, setStats] = useState({
@@ -23,6 +24,8 @@ function Dashboard() {
 
   useEffect(() => {
     fetchDashboardData();
+    window.addEventListener("kandid-audit-updated", fetchDashboardData);
+    return () => window.removeEventListener("kandid-audit-updated", fetchDashboardData);
   }, []);
 
   async function fetchDashboardData() {
@@ -36,7 +39,6 @@ function Dashboard() {
         { count: voteCount },
         { count: pendingCount },
         { data: studentPrograms },
-        { data: logsData },
       ] = await Promise.all([
         supabase.from("organizations").select("id", { count: "exact", head: true }),
         supabase.from("students").select("id", { count: "exact", head: true }),
@@ -50,11 +52,6 @@ function Dashboard() {
           .select("id", { count: "exact", head: true })
           .eq("status", "pending"),
         supabase.from("students").select("program"),
-        supabase
-          .from("audit_logs")
-          .select("id, action, timestamp")
-          .order("timestamp", { ascending: false })
-          .limit(5),
       ]);
 
       setStats({
@@ -88,70 +85,11 @@ function Dashboard() {
 
       setProgramStats(normalizedPrograms);
 
-      const mappedLogs = (logsData || []).map((log) => {
-        let org = "Super Admin";
-        if (log.action.includes("Student") || log.action.includes("Import")) {
-          org = "CSIT";
-        } else if (log.action.includes("ECE") || log.action.includes("Anomaly")) {
-          org = "ECE";
-        }
-        
-        let status = "Completed";
-        if (log.action.toLowerCase().includes("anomaly") || log.action.toLowerCase().includes("fail") || log.action.toLowerCase().includes("requires")) {
-          status = "Requires Action";
-        } else if (log.action.toLowerCase().includes("draft") || log.action.toLowerCase().includes("update")) {
-          status = "Draft";
-        }
-
-        const timeDiff = new Date() - new Date(log.timestamp);
-        let timeStr = "Just now";
-        const mins = Math.floor(timeDiff / 60000);
-        const hours = Math.floor(mins / 60);
-        if (hours > 0) {
-          timeStr = `${hours} hour${hours > 1 ? "s" : ""} ago`;
-        } else if (mins > 0) {
-          timeStr = `${mins} min${mins > 1 ? "s" : ""} ago`;
-        }
-
-        return {
-          id: log.id,
-          event: log.action,
-          organization: org,
-          status: status,
-          time: timeStr,
-        };
-      });
-
-      // Default/mock activities matching the screenshot as fallback or extension
-      const defaultActivities = [
-        {
-          id: "mock-1",
-          event: "New Student Batch Imported",
-          organization: "CSIT",
-          status: "Completed",
-          time: "10 mins ago",
-        },
-        {
-          id: "mock-2",
-          event: "Election Guidelines Updated",
-          organization: "Super Admin",
-          status: "Draft",
-          time: "1 hour ago",
-        },
-        {
-          id: "mock-3",
-          event: "Voting Anomaly Detected",
-          organization: "ECE",
-          status: "Requires Action",
-          time: "3 hours ago",
-        }
-      ];
-
-      setRecentActivities(
-        mappedLogs.length > 0
-          ? [...mappedLogs, ...defaultActivities].slice(0, 5)
-          : defaultActivities
-      );
+      const { data: auditActivities, error: auditError } = await fetchAuditLogs({ limit: 5 });
+      if (auditError) {
+        console.warn("Failed to load recent audit activity:", auditError);
+      }
+      setRecentActivities(auditActivities || []);
     } catch (err) {
       console.error("Error fetching dashboard data:", err);
     } finally {
@@ -296,7 +234,13 @@ function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentActivities.map((activity) => (
+                  {recentActivities.length === 0 ? (
+                    <tr>
+                      <td colSpan="4" className="px-6 py-10 text-center empty-copy">
+                        No recent activity yet.
+                      </td>
+                    </tr>
+                  ) : recentActivities.map((activity) => (
                     <tr key={activity.id}>
                       <td className="font-bold text-slate-800">
                         {activity.event}

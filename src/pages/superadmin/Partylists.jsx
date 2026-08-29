@@ -4,6 +4,8 @@ import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
 import { readFileAsDataUrl } from "../../utils/files";
 import { usePrompt } from "../../context/PromptContext";
+import { logAuditEvent } from "../../utils/auditLog";
+import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
 
 function Partylists() {
   const prompt = usePrompt();
@@ -106,14 +108,41 @@ function Partylists() {
     fetchPartylists();
   }
 
-  async function handleDelete(id) {
+  async function handleDelete(partylist) {
+    const id = partylist.id;
+    const analysis = await analyzeDeleteDependencies("partylist", partylist);
+
+    if (analysis.blocked) {
+      await logAuditEvent({
+        action: "partylist_delete_blocked",
+        entityType: "partylist",
+        entityId: id,
+        entityLabel: partylist.name,
+        status: "requires_action",
+        metadata: { dependencies: analysis.dependencies },
+      });
+      await prompt.alert({
+        title: analysis.severity === "archive" ? "Partylist Is Historical" : "Partylist Cannot Be Deleted Yet",
+        message: dependencyMessage(partylist.name || "This partylist", analysis),
+        type: "warning",
+        confirmText: "Review Candidates",
+      });
+      return;
+    }
+
     const ok = await prompt.confirm({
       title: "Delete Partylist?",
-      message: "Are you sure you want to delete this partylist? Candidates in this partylist may be unlinked.",
+      message: dependencyMessage(partylist.name || "This partylist", analysis),
       type: "danger",
       confirmText: "Delete",
     });
     if (!ok) return;
+
+    const recheck = await analyzeDeleteDependencies("partylist", partylist);
+    if (recheck.blocked) {
+      prompt.error(dependencyMessage(partylist.name || "This partylist", recheck));
+      return;
+    }
 
     const { error } = await supabase.from("partylists").delete().eq("id", id);
     if (error) {
@@ -121,6 +150,13 @@ function Partylists() {
       return;
     }
     prompt.success("Partylist deleted.");
+    await logAuditEvent({
+      action: "partylist_deleted",
+      entityType: "partylist",
+      entityId: id,
+      entityLabel: partylist.name,
+      status: "completed",
+    });
     fetchPartylists();
   }
 
@@ -196,7 +232,7 @@ function Partylists() {
                       </button>
 
                       <button
-                        onClick={() => handleDelete(p.id)}
+                        onClick={() => handleDelete(p)}
                         className="icon-action icon-action-danger"
                       >
                         <Trash2 size={16} />

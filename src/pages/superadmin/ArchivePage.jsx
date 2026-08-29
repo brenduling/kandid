@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
 import { Archive, Trash2 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
+import { usePrompt } from "../../context/PromptContext";
+import { logAuditEvent } from "../../utils/auditLog";
+import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
 
 function Archives() {
+  const prompt = usePrompt();
   const [archives, setArchives] = useState([]);
 
   useEffect(() => {
@@ -19,10 +23,39 @@ function Archives() {
     setArchives(data || []);
   }
 
-  async function handleDelete(id) {
-    if (!window.confirm("Delete archived record?")) return;
+  async function handleDelete(archive) {
+    const analysis = await analyzeDeleteDependencies("archived_election", archive);
+    await logAuditEvent({
+      action: "archived_election_delete_blocked",
+      entityType: "archived_election",
+      entityId: archive.id,
+      entityLabel: archive.title,
+      status: "requires_action",
+      metadata: { recommendation: analysis.recommendation },
+    });
 
-    await supabase.from("archived_elections").delete().eq("id", id);
+    const ok = await prompt.confirm({
+      title: "Permanently Delete Archive?",
+      message: `${dependencyMessage(archive.title || "This archive", analysis)}\n\nThis removes the archive-center record from KANDID.`,
+      type: "danger",
+      confirmText: "Delete Archive",
+      cancelText: "Keep Archive",
+    });
+    if (!ok) return;
+
+    const { error } = await supabase.from("archived_elections").delete().eq("id", archive.id);
+    if (error) {
+      prompt.error(error.message || "Failed to delete archived election.");
+      return;
+    }
+    prompt.success("Archived election deleted.");
+    await logAuditEvent({
+      action: "archived_election_deleted",
+      entityType: "archived_election",
+      entityId: archive.id,
+      entityLabel: archive.title,
+      status: "completed",
+    });
     fetchArchives();
   }
 
@@ -69,7 +102,7 @@ function Archives() {
                       </button>
 
                       <button
-                        onClick={() => handleDelete(a.id)}
+                        onClick={() => handleDelete(a)}
                         className="icon-action icon-action-danger"
                       >
                         <Trash2 size={16} />

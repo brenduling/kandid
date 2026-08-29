@@ -9,8 +9,12 @@ import {
   X,
 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
+import { usePrompt } from "../../context/PromptContext";
+import { logAuditEvent } from "../../utils/auditLog";
+import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
 
 function UsersRoles() {
+  const prompt = usePrompt();
   const [users, setUsers] = useState([]);
   const [organizations, setOrganizations] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
@@ -110,7 +114,7 @@ function UsersRoles() {
 
       if (result.error) {
         setSubmitting(false);
-        alert(result.error.message || "Failed to save access account.");
+        prompt.error(result.error.message || "Failed to save access account.");
         return;
       }
     } else {
@@ -118,21 +122,66 @@ function UsersRoles() {
 
       if (result.error) {
         setSubmitting(false);
-        alert(result.error.message || "Failed to save access account.");
+        prompt.error(result.error.message || "Failed to save access account.");
         return;
       }
     }
 
+    await logAuditEvent({
+      action: editing ? "user_updated" : "user_created",
+      entityType: "admin_user",
+      entityId: editing?.id,
+      entityLabel: payload.email,
+      organizationId: payload.organization_id,
+      status: "completed",
+      metadata: { role: payload.role, account_status: payload.status },
+    });
+    prompt.success(editing ? "Access account updated." : "Access account created.");
     setSubmitting(false);
 
     setFormOpen(false);
     fetchUsers();
   }
 
-  async function handleDelete(id) {
-    if (!window.confirm("Delete this access account?")) return;
+  async function handleDelete(user) {
+    const analysis = await analyzeDeleteDependencies("admin_user", user);
+    const label = user.email || user.full_name || "Access account";
 
-    await supabase.from("admin_users").delete().eq("id", id);
+    await logAuditEvent({
+      action: "user_delete_blocked",
+      entityType: "admin_user",
+      entityId: user.id,
+      entityLabel: label,
+      organizationId: user.organization_id,
+      organizationName: user.organizations?.name,
+      status: "requires_action",
+      metadata: { dependencies: analysis.dependencies, recommendation: analysis.recommendation },
+    });
+
+    const ok = await prompt.confirm({
+      title: "Delete Access Account?",
+      message: `${dependencyMessage(label, analysis)}\n\nRecommended action: set Status to Disabled unless this account was created by mistake.`,
+      type: "danger",
+      confirmText: "Delete Anyway",
+      cancelText: "Keep Account",
+    });
+    if (!ok) return;
+
+    const result = await supabase.from("admin_users").delete().eq("id", user.id);
+    if (result.error) {
+      prompt.error(result.error.message || "Failed to delete access account.");
+      return;
+    }
+    prompt.success("Access account deleted.");
+    await logAuditEvent({
+      action: "user_deleted",
+      entityType: "admin_user",
+      entityId: user.id,
+      entityLabel: label,
+      organizationId: user.organization_id,
+      organizationName: user.organizations?.name,
+      status: "completed",
+    });
     fetchUsers();
   }
 
@@ -346,7 +395,7 @@ function UsersRoles() {
                             Edit
                           </button>
                           <button
-                            onClick={() => handleDelete(user.id)}
+                            onClick={() => handleDelete(user)}
                             className="danger-btn !w-auto !px-3 !py-2 text-sm"
                           >
                             <Trash2 size={15} />

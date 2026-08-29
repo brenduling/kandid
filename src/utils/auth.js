@@ -14,6 +14,12 @@ export function setStoredUser(user) {
 
 export function clearStoredUser() {
   localStorage.removeItem("user");
+  sessionStorage.removeItem("kandid-login-email");
+  sessionStorage.removeItem("kandid-login-student-number");
+  sessionStorage.removeItem("kandid-login-password");
+  localStorage.removeItem("kandid-login-email");
+  localStorage.removeItem("kandid-login-student-number");
+  localStorage.removeItem("kandid-login-password");
   clearSessionCache();
 }
 

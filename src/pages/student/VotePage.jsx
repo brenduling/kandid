@@ -81,9 +81,9 @@ function StudentVotePage() {
             .single(),
           supabase
             .from("positions")
-            .select("id, name, election_id, max_winners, order_index")
+            .select("id, name, election_id, max_votes")
             .eq("election_id", electionId)
-            .order("order_index", { ascending: true }),
+            .order("id", { ascending: true }),
           hasStudentVotedInElection(user.id, electionId),
         ]);
 

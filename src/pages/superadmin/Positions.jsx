@@ -5,8 +5,12 @@ import {
   Trash2,
   X,
   Unlink,
+  Archive,
+  Eye,
+  ArrowLeft,
 } from "lucide-react";
 import PopupOverlay from "../../components/PopupOverlay";
+import { DependencyRow, InlineKandidLoader } from "../../components/ConfigurationUI";
 import { supabase } from "../../lib/supabaseClient";
 import { usePrompt } from "../../context/PromptContext";
 import {
@@ -14,6 +18,8 @@ import {
   fetchEligibleStudentsForOrganization,
   isOrganizationEligibleForStudent,
 } from "../../utils/organizationAccess";
+import { logAuditEvent } from "../../utils/auditLog";
+import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
 
 const emptyPositionForm = {
   election_id: "",
@@ -25,6 +31,12 @@ const emptyCandidateForm = {
   student_id: "",
   partylist_id: "",
 };
+
+function isMissingPositionStatusError(error) {
+  return /positions\.status|column positions\.status does not exist/i.test(
+    error?.message || ""
+  );
+}
 
 function Positions() {
   const prompt = usePrompt();
@@ -49,7 +61,14 @@ function Positions() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletePosition, setDeletePosition] = useState(null);
   const [deleteCandidates, setDeleteCandidates] = useState([]);
+  const [deleteVoteCount, setDeleteVoteCount] = useState(0);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteView, setDeleteView] = useState("summary");
+  const [positionFilter, setPositionFilter] = useState("active");
+  const [retiringPosition, setRetiringPosition] = useState(false);
+  const [positionsLoading, setPositionsLoading] = useState(true);
+  const [positionsError, setPositionsError] = useState("");
+  const [positionLifecycleReady, setPositionLifecycleReady] = useState(true);
 
   useEffect(() => {
     loadInitialData();
@@ -105,9 +124,27 @@ function Positions() {
   }
 
   async function fetchPositions() {
-    const { data, error } = await supabase
-      .from("positions")
-      .select(`
+    setPositionsLoading(true);
+    setPositionsError("");
+
+    const lifecycleSelect = `
+        id,
+        election_id,
+        name,
+        max_votes,
+        status,
+        elections (
+          id,
+          title,
+          organization_id,
+          organizations (
+            id,
+            name,
+            organization_type
+          )
+        )
+      `;
+    const baseSelect = `
         id,
         election_id,
         name,
@@ -122,15 +159,40 @@ function Positions() {
             organization_type
           )
         )
-      `)
+      `;
+
+    let { data, error } = await supabase
+      .from("positions")
+      .select(lifecycleSelect)
       .order("id", { ascending: true });
 
+    if (isMissingPositionStatusError(error)) {
+      console.warn("Position lifecycle migration is not applied yet:", error);
+      setPositionLifecycleReady(false);
+      const fallback = await supabase
+        .from("positions")
+        .select(baseSelect)
+        .order("id", { ascending: true });
+      data = (fallback.data || []).map((position) => ({
+        ...position,
+        status: "active",
+      }));
+      error = fallback.error;
+    } else {
+      setPositionLifecycleReady(true);
+    }
+
     if (error) {
-      prompt.error(error.message || "Failed to load positions.");
+      console.error("Failed to load positions:", error);
+      setPositionsError(
+        "Unable to load positions because the configuration could not be retrieved."
+      );
+      setPositionsLoading(false);
       return;
     }
 
     setPositions(data || []);
+    setPositionsLoading(false);
   }
 
   async function fetchPartylists() {
@@ -540,6 +602,17 @@ function Positions() {
     ]
       .filter(Boolean)
       .join(" ");
+    const analysis = await analyzeDeleteDependencies("candidate", candidate);
+
+    if (analysis.blocked) {
+      await prompt.alert({
+        title: "Candidate Cannot Be Deleted",
+        message: dependencyMessage(studentName || "This candidate", analysis),
+        type: "warning",
+        confirmText: "Keep Candidate",
+      });
+      return;
+    }
 
     const confirmed = await prompt.confirm({
       title: "Delete Candidate?",
@@ -550,6 +623,12 @@ function Positions() {
     });
 
     if (!confirmed) return;
+
+    const recheck = await analyzeDeleteDependencies("candidate", candidate);
+    if (recheck.blocked) {
+      prompt.error(dependencyMessage(studentName || "This candidate", recheck));
+      return;
+    }
 
     const { error } = await supabase
       .from("candidates")
@@ -562,6 +641,16 @@ function Positions() {
     }
 
     prompt.success("Candidate deleted.");
+    const election = getElectionForPosition(selectedPosition);
+    await logAuditEvent({
+      action: "candidate_deleted",
+      entityType: "candidate",
+      entityId: candidate.id,
+      entityLabel: studentName || "Candidate",
+      organizationId: election?.organization_id,
+      organizationName: election?.organizations?.name,
+      status: "completed",
+    });
     const refreshed = await fetchCandidates(selectedPosition.id);
     await refreshCandidateEligibility(refreshed);
   }
@@ -573,6 +662,18 @@ function Positions() {
     ]
       .filter(Boolean)
       .join(" ");
+    const analysis = await analyzeDeleteDependencies("candidate", candidate);
+
+    if (analysis.blocked) {
+      await prompt.alert({
+        title: "Candidate Has Protected History",
+        message:
+          `${dependencyMessage(studentName || "This candidate", analysis)}\n\nKeep the candidate linked so receipts and results remain verifiable.`,
+        type: "warning",
+        confirmText: "Keep Linked",
+      });
+      return;
+    }
 
     const confirmed = await prompt.confirm({
       title: "Disconnect Candidate?",
@@ -583,6 +684,12 @@ function Positions() {
     });
 
     if (!confirmed) return;
+
+    const recheck = await analyzeDeleteDependencies("candidate", candidate);
+    if (recheck.blocked) {
+      prompt.error(dependencyMessage(studentName || "This candidate", recheck));
+      return;
+    }
 
     const { error } = await supabase
       .from("candidates")
@@ -598,6 +705,17 @@ function Positions() {
     }
 
     prompt.success("Candidate disconnected.");
+    const election = getElectionForPosition(selectedPosition);
+    await logAuditEvent({
+      action: "candidate_updated",
+      entityType: "candidate",
+      entityId: candidate.id,
+      entityLabel: studentName || "Candidate",
+      organizationId: election?.organization_id,
+      organizationName: election?.organizations?.name,
+      status: "completed",
+      metadata: { position_id: null, previous_position_id: selectedPosition?.id },
+    });
     const refreshed = await fetchCandidates(selectedPosition.id);
     await refreshCandidateEligibility(refreshed);
   }
@@ -619,31 +737,39 @@ function Positions() {
 
     setDeletePosition(position);
     setDeleteCandidates([]);
+    setDeleteVoteCount(0);
+    setDeleteView("summary");
     setDeleteLoading(true);
     setDeleteOpen(true);
 
-    const { data, error } = await supabase
-      .from("candidates")
-      .select(`
-        id,
-        student_id,
-        position_id,
-        partylist_id,
-        students (
+    const [{ data, error }, voteResult] = await Promise.all([
+      supabase
+        .from("candidates")
+        .select(`
           id,
-          student_number,
-          first_name,
-          last_name,
-          program,
-          year_level
-        ),
-        partylists (
-          id,
-          name
-        )
-      `)
-      .eq("position_id", position.id)
-      .order("id", { ascending: true });
+          student_id,
+          position_id,
+          partylist_id,
+          students (
+            id,
+            student_number,
+            first_name,
+            last_name,
+            program,
+            year_level
+          ),
+          partylists (
+            id,
+            name
+          )
+        `)
+        .eq("position_id", position.id)
+        .order("id", { ascending: true }),
+      supabase
+        .from("votes")
+        .select("id", { count: "exact", head: true })
+        .eq("position_id", position.id),
+    ]);
 
     if (error) {
       prompt.error(
@@ -655,6 +781,7 @@ function Positions() {
     }
 
     setDeleteCandidates(data || []);
+    setDeleteVoteCount(voteResult?.count || 0);
     setDeleteLoading(false);
   }
 
@@ -663,9 +790,10 @@ function Positions() {
 
     setDeleteLoading(true);
 
-    const { data, error } = await supabase
-      .from("candidates")
-      .select(`
+    const [{ data, error }, voteResult] = await Promise.all([
+      supabase
+        .from("candidates")
+        .select(`
         id,
         student_id,
         position_id,
@@ -683,8 +811,13 @@ function Positions() {
           name
         )
       `)
-      .eq("position_id", deletePosition.id)
-      .order("id", { ascending: true });
+        .eq("position_id", deletePosition.id)
+        .order("id", { ascending: true }),
+      supabase
+        .from("votes")
+        .select("id", { count: "exact", head: true })
+        .eq("position_id", deletePosition.id),
+    ]);
 
     if (error) {
       prompt.error(error.message || "Failed to refresh candidates.");
@@ -693,10 +826,89 @@ function Positions() {
     }
 
     setDeleteCandidates(data || []);
+    setDeleteVoteCount(voteResult?.count || 0);
     setDeleteLoading(false);
   }
 
+  async function openRelatedPositionRecords() {
+    await refreshDeleteCandidates();
+    setDeleteView("related");
+  }
+
+  async function manageBlockingCandidates() {
+    if (!deletePosition) return;
+    closeDeleteConfiguration();
+    await openCandidates(deletePosition);
+  }
+
+  async function retirePosition() {
+    if (!deletePosition || retiringPosition) return;
+
+    if (!positionLifecycleReady) {
+      prompt.error(
+        "Position retirement is unavailable until the position lifecycle migration is applied in Supabase."
+      );
+      return;
+    }
+
+    setRetiringPosition(true);
+
+    const { error } = await supabase
+      .from("positions")
+      .update({ status: "retired" })
+      .eq("id", deletePosition.id);
+
+    if (error) {
+      setRetiringPosition(false);
+      prompt.error(
+        error.message ||
+          "Failed to retire position. Apply the position lifecycle migration first."
+      );
+      return;
+    }
+
+    const election = getElectionForPosition(deletePosition);
+
+    await logAuditEvent({
+      action: "position_retired",
+      entityType: "position",
+      entityId: deletePosition.id,
+      entityLabel: deletePosition.name,
+      organizationId: election?.organization_id,
+      organizationName: election?.organizations?.name,
+      status: "completed",
+      metadata: {
+        vote_count: deleteVoteCount,
+        candidate_count: deleteCandidates.length,
+      },
+    });
+
+    prompt.success("Position retired. Historical votes and receipts were preserved.");
+    setRetiringPosition(false);
+    closeDeleteConfiguration();
+    if (selectedPosition?.id === deletePosition.id) closeCandidates();
+    await fetchPositions();
+  }
+
   async function deleteLinkedCandidate(candidate) {
+    const studentName = [
+      candidate.students?.first_name,
+      candidate.students?.last_name,
+    ]
+      .filter(Boolean)
+      .join(" ");
+    const analysis = await analyzeDeleteDependencies("candidate", candidate);
+
+    if (analysis.blocked) {
+      await prompt.alert({
+        title: "Candidate Cannot Be Deleted",
+        message: dependencyMessage(studentName || "This candidate", analysis),
+        type: "warning",
+        confirmText: "Keep Candidate",
+      });
+      return;
+    }
+
     const confirmed = await prompt.confirm({
       title: "Delete Candidate?",
       message:
@@ -706,6 +918,12 @@ function Positions() {
     });
 
     if (!confirmed) return;
+
+    const recheck = await analyzeDeleteDependencies("candidate", candidate);
+    if (recheck.blocked) {
+      prompt.error(dependencyMessage(studentName || "This candidate", recheck));
+      return;
+    }
 
     const { error } = await supabase
       .from("candidates")
@@ -718,10 +936,39 @@ function Positions() {
     }
 
     prompt.success("Candidate deleted.");
+    const election = getElectionForPosition(deletePosition);
+    await logAuditEvent({
+      action: "candidate_deleted",
+      entityType: "candidate",
+      entityId: candidate.id,
+      entityLabel: studentName || "Candidate",
+      organizationId: election?.organization_id,
+      organizationName: election?.organizations?.name,
+      status: "completed",
+    });
     await refreshDeleteCandidates();
   }
 
   async function disconnectLinkedCandidate(candidate) {
+    const studentName = [
+      candidate.students?.first_name,
+      candidate.students?.last_name,
+    ]
+      .filter(Boolean)
+      .join(" ");
+    const analysis = await analyzeDeleteDependencies("candidate", candidate);
+
+    if (analysis.blocked) {
+      await prompt.alert({
+        title: "Candidate Has Protected History",
+        message:
+          `${dependencyMessage(studentName || "This candidate", analysis)}\n\nKeep the candidate linked so receipts and results remain verifiable.`,
+        type: "warning",
+        confirmText: "Keep Linked",
+      });
+      return;
+    }
+
     const confirmed = await prompt.confirm({
       title: "Disconnect Candidate?",
       message:
@@ -731,6 +978,12 @@ function Positions() {
     });
 
     if (!confirmed) return;
+
+    const recheck = await analyzeDeleteDependencies("candidate", candidate);
+    if (recheck.blocked) {
+      prompt.error(dependencyMessage(studentName || "This candidate", recheck));
+      return;
+    }
 
     const { error } = await supabase
       .from("candidates")
@@ -746,6 +999,17 @@ function Positions() {
     }
 
     prompt.success("Candidate disconnected.");
+    const election = getElectionForPosition(deletePosition);
+    await logAuditEvent({
+      action: "candidate_updated",
+      entityType: "candidate",
+      entityId: candidate.id,
+      entityLabel: studentName || "Candidate",
+      organizationId: election?.organization_id,
+      organizationName: election?.organizations?.name,
+      status: "completed",
+      metadata: { position_id: null, previous_position_id: deletePosition?.id },
+    });
     await refreshDeleteCandidates();
   }
 
@@ -755,6 +1019,27 @@ function Positions() {
     if (deleteCandidates.length > 0) {
       prompt.error(
         "Handle all linked candidates before deleting the position."
+      );
+      return;
+    }
+
+    const { count: voteCount, error: voteCountError } = await supabase
+      .from("votes")
+      .select("id", { count: "exact", head: true })
+      .eq("position_id", deletePosition.id);
+
+    if (voteCountError) {
+      prompt.error(
+        voteCountError.message ||
+        "Failed to check vote records linked to this position."
+      );
+      return;
+    }
+
+    if ((voteCount || 0) > 0) {
+      setDeleteVoteCount(voteCount || 0);
+      prompt.error(
+        `${deletePosition.name} cannot be deleted because ${voteCount} vote record${voteCount === 1 ? "" : "s"} still reference this position. Use Retire Position to preserve election history.`
       );
       return;
     }
@@ -781,6 +1066,17 @@ function Positions() {
 
     prompt.success("Position deleted.");
 
+    const election = getElectionForPosition(deletePosition);
+    await logAuditEvent({
+      action: "position_deleted",
+      entityType: "position",
+      entityId: deletePosition.id,
+      entityLabel: deletePosition.name,
+      organizationId: election?.organization_id,
+      organizationName: election?.organizations?.name,
+      status: "completed",
+    });
+
     if (selectedPosition?.id === deletePosition.id) {
       closeCandidates();
     }
@@ -793,7 +1089,10 @@ function Positions() {
     setDeleteOpen(false);
     setDeletePosition(null);
     setDeleteCandidates([]);
+    setDeleteVoteCount(0);
     setDeleteLoading(false);
+    setDeleteView("summary");
+    setRetiringPosition(false);
   }
 
   // ------------------------------------------------------------
@@ -806,6 +1105,21 @@ function Positions() {
 
   const selectedOrganizationName =
     selectedElection?.organizations?.name || "Unknown organization";
+
+  const visiblePositions = positions.filter((position) => {
+    if (!positionLifecycleReady && positionFilter === "retired") return false;
+    const status = position.status || "active";
+    if (positionFilter === "active") return status !== "retired";
+    if (positionFilter === "retired") return status === "retired";
+    return true;
+  });
+
+  const activePositionCount = positions.filter(
+    (position) => (position.status || "active") !== "retired"
+  ).length;
+  const retiredPositionCount = positions.filter(
+    (position) => position.status === "retired"
+  ).length;
 
   return (
     <div>
@@ -828,13 +1142,52 @@ function Positions() {
         </button>
       </div>
 
-      {positions.length === 0 ? (
+      {!positionLifecycleReady ? (
+        <div className="mt-6 rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm font-semibold leading-6 text-orange-800">
+          Position lifecycle migration is not applied in Supabase yet. Existing positions are shown as active, and Retired filtering/Retire Position will be enabled after the migration is applied.
+        </div>
+      ) : null}
+
+      <div className="mt-6 flex flex-wrap gap-2">
+        {[
+          ["active", `Active (${activePositionCount})`],
+          ["retired", `Retired (${retiredPositionCount})`],
+          ["all", `All (${positions.length})`],
+        ].map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            disabled={!positionLifecycleReady && value === "retired"}
+            onClick={() => setPositionFilter(value)}
+            className={`filter-pill ${positionFilter === value ? "filter-pill-active" : ""} disabled:cursor-not-allowed disabled:opacity-50`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {positionsLoading ? (
         <div className="empty-state mt-8">
-          No positions found.
+          Loading positions...
+        </div>
+      ) : positionsError ? (
+        <div className="empty-state mt-8">
+          <p>{positionsError}</p>
+          <button
+            type="button"
+            onClick={fetchPositions}
+            className="primary-btn mt-4"
+          >
+            Try Again
+          </button>
+        </div>
+      ) : visiblePositions.length === 0 ? (
+        <div className="empty-state mt-8">
+          No {positionFilter === "all" ? "" : positionFilter} positions found.
         </div>
       ) : (
         <div className="entity-grid">
-          {positions.map((position) => (
+          {visiblePositions.map((position) => (
             <div
               key={position.id}
               className="entity-card lift-card"
@@ -860,8 +1213,9 @@ function Positions() {
                   </div>
 
                   <span className="status-pill">
-                    {position.max_votes} vote
-                    {position.max_votes > 1 ? "s" : ""}
+                    {position.status === "retired"
+                      ? "Retired"
+                      : `${position.max_votes} vote${position.max_votes > 1 ? "s" : ""}`}
                   </span>
                 </div>
 
@@ -1263,35 +1617,112 @@ function Positions() {
       {deleteOpen && deletePosition && (
         <PopupOverlay>
           <div className="modal-card max-w-3xl">
-            <div className="flex items-start justify-between mb-6">
-              <div>
-                <p className="field-label">Position Configuration</p>
+            <div className="config-modal-header mb-6">
+              <div className="min-w-0 flex-1">
+                <p className="config-eyebrow">Position Configuration</p>
 
-                <h2 className="mt-1 text-2xl font-black">
-                  Delete {deletePosition.name}
+                <h2 className="config-title">
+                  {deleteView === "related" ? "Related Records" : "Delete"} {deletePosition.name}
                 </h2>
 
-                <p className="mt-2 text-sm text-gray-500">
-                  Handle all candidates linked to this position before deletion.
+                <p className="config-description">
+                  {deletePosition.status === "retired"
+                    ? "This position is retired and preserved for historical election records."
+                    : "Review dependencies and choose a safe lifecycle action."}
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={closeDeleteConfiguration}
-                className="p-2 rounded-lg hover:bg-gray-100"
+                className="config-close-btn"
+                aria-label="Close position configuration"
               >
                 <X size={20} />
               </button>
             </div>
 
             {deleteLoading ? (
-              <div className="empty-state">
-                Checking linked candidates...
+              <div className="config-panel">
+                <div className="flex items-center gap-3">
+                  <InlineKandidLoader />
+                  <p className="font-bold text-[#1d262f]">Checking related records...</p>
+                </div>
+                <div className="mt-5 grid gap-3">
+                  <div className="config-skeleton-row" />
+                  <div className="config-skeleton-row" />
+                  <div className="config-skeleton-row" />
+                </div>
               </div>
-            ) : deleteCandidates.length === 0 ? (
+            ) : deleteView === "related" ? (
               <>
-                <div className="rounded-2xl border border-green-200 bg-green-50 p-5">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="config-panel">
+                    <p className="config-section-label">Active Configuration</p>
+                    <div className="dependency-list mt-3">
+                      <DependencyRow
+                        label="Candidates"
+                        count={deleteCandidates.length}
+                        badge={deleteCandidates.length > 0 ? "Requires Action" : ""}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="config-panel">
+                    <p className="config-section-label">Historical Records</p>
+                    <div className="dependency-list mt-3">
+                    {[
+                      ["Votes", deleteVoteCount],
+                      ["Results", deleteVoteCount > 0 ? 1 : 0],
+                      ["Receipts", deleteVoteCount],
+                      ["Verification", deleteVoteCount],
+                    ].map(([label, count]) => (
+                      <DependencyRow
+                        key={label}
+                        label={label}
+                        count={count}
+                        badge={count > 0 ? "Protected" : ""}
+                      />
+                    ))}
+                    </div>
+                  </div>
+                </div>
+
+                <p className="config-alert mt-4 text-sm font-semibold leading-6">
+                  Historical vote choices, receipt hashes, and verification records are protected.
+                  This view only shows counts and does not expose private ballot selections.
+                </p>
+
+                <div className="config-footer">
+                  <button
+                    type="button"
+                    onClick={() => setDeleteView("summary")}
+                    className="secondary-btn"
+                  >
+                    <ArrowLeft size={16} />
+                    Return to {deletePosition.name} Configuration
+                  </button>
+
+                  {deleteVoteCount > 0 && deletePosition.status !== "retired" ? (
+                    <button
+                      type="button"
+                      onClick={retirePosition}
+                      disabled={retiringPosition}
+                      className="primary-btn disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {retiringPosition ? (
+                        <InlineKandidLoader bars={3} />
+                      ) : (
+                        <Archive size={16} />
+                      )}
+                      {retiringPosition ? "Retiring..." : "Retire Position"}
+                    </button>
+                  ) : null}
+                </div>
+              </>
+            ) : deleteCandidates.length === 0 && deleteVoteCount === 0 ? (
+              <>
+                <div className="config-panel border-green-200 bg-green-50">
                   <p className="font-black text-green-800">
                     No candidates are linked to this position.
                   </p>
@@ -1301,7 +1732,7 @@ function Positions() {
                   </p>
                 </div>
 
-                <div className="mt-6 flex justify-end gap-3">
+                <div className="config-footer">
                   <button
                     type="button"
                     onClick={closeDeleteConfiguration}
@@ -1316,13 +1747,127 @@ function Positions() {
                     className="primary-btn"
                   >
                     <Trash2 size={16} />
-                    Delete Position
+                    Permanently Delete
                   </button>
+                </div>
+              </>
+            ) : deleteCandidates.length === 0 && deleteVoteCount > 0 ? (
+              <>
+                <div className="config-recommended-panel">
+                  <p className="config-section-label">Recommended</p>
+                  <p className="font-black text-orange-800">
+                    Retire Position
+                  </p>
+
+                  <div className="dependency-list mt-4">
+                    {[
+                      ["Candidates", deleteCandidates.length, ""],
+                      ["Votes", deleteVoteCount, "Protected"],
+                      ["Receipts", deleteVoteCount, "Protected"],
+                      ["Verification", deleteVoteCount, "Protected"],
+                    ].map(([label, count, badge]) => (
+                      <DependencyRow key={label} label={label} count={count} badge={badge} />
+                    ))}
+                  </div>
+
+                  <p className="mt-4 text-sm text-orange-700">
+                    Retire this position to remove it from active configuration while preserving
+                    votes, results, receipts, verification records, and audit history.
+                  </p>
+                </div>
+
+                <div className="config-footer">
+                  <button
+                    type="button"
+                    onClick={openRelatedPositionRecords}
+                    className="secondary-btn"
+                  >
+                    <Eye size={16} />
+                    View Related Records
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={closeDeleteConfiguration}
+                    className="secondary-btn"
+                  >
+                    Cancel
+                  </button>
+
+                  {deletePosition.status !== "retired" ? (
+                    <button
+                      type="button"
+                      onClick={retirePosition}
+                      disabled={retiringPosition}
+                      className="primary-btn disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {retiringPosition ? (
+                        <InlineKandidLoader bars={3} />
+                      ) : (
+                        <Archive size={16} />
+                      )}
+                      {retiringPosition ? "Retiring..." : "Retire Position"}
+                    </button>
+                  ) : null}
+                </div>
+              </>
+            ) : deleteVoteCount > 0 ? (
+              <>
+                <div className="config-alert mb-5">
+                  <p className="config-section-label">Protected History</p>
+                  <p className="font-black text-orange-800">
+                    Votes exist for this position, so permanent deletion is disabled.
+                  </p>
+                  <p className="mt-1 text-sm text-orange-700">
+                    Manage the active candidate links if needed, then retire the position to
+                    preserve historical election data.
+                  </p>
+                </div>
+
+                <div className="config-footer">
+                  <button
+                    type="button"
+                    onClick={manageBlockingCandidates}
+                    className="secondary-btn"
+                  >
+                    Manage {deleteCandidates.length} Candidate
+                    {deleteCandidates.length !== 1 ? "s" : ""}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={openRelatedPositionRecords}
+                    className="secondary-btn"
+                  >
+                    <Eye size={16} />
+                    View Related Records
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closeDeleteConfiguration}
+                    className="secondary-btn"
+                  >
+                    Cancel
+                  </button>
+                  {deletePosition.status !== "retired" ? (
+                    <button
+                      type="button"
+                      onClick={retirePosition}
+                      disabled={retiringPosition}
+                      className="primary-btn disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {retiringPosition ? (
+                        <InlineKandidLoader bars={3} />
+                      ) : (
+                        <Archive size={16} />
+                      )}
+                      {retiringPosition ? "Retiring..." : "Retire Position"}
+                    </button>
+                  ) : null}
                 </div>
               </>
             ) : (
               <>
-                <div className="mb-5 rounded-2xl border border-orange-200 bg-orange-50 p-4">
+                <div className="config-alert mb-5">
                   <p className="font-black text-orange-800">
                     {deleteCandidates.length} candidate
                     {deleteCandidates.length !== 1 ? "s" : ""} linked
@@ -1346,7 +1891,7 @@ function Positions() {
                     return (
                       <div
                         key={candidate.id}
-                        className="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-4 md:flex-row md:items-center md:justify-between"
+                        className="flex flex-col gap-4 rounded-[0.85rem] border border-gray-200 bg-white p-4 md:flex-row md:items-center md:justify-between"
                       >
                         <div>
                           <p className="font-black">
@@ -1378,7 +1923,7 @@ function Positions() {
                             onClick={() =>
                               deleteLinkedCandidate(candidate)
                             }
-                            className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-200"
+                            className="icon-action icon-action-danger"
                             title="Delete candidate"
                           >
                             <Trash2 size={16} />
@@ -1389,23 +1934,22 @@ function Positions() {
                   })}
                 </div>
 
-                <div className="mt-6 flex justify-between gap-3">
+                <div className="config-footer">
+                  <button
+                    type="button"
+                    onClick={manageBlockingCandidates}
+                    className="secondary-btn"
+                  >
+                    Manage {deleteCandidates.length} Candidate
+                    {deleteCandidates.length !== 1 ? "s" : ""}
+                  </button>
+
                   <button
                     type="button"
                     onClick={closeDeleteConfiguration}
                     className="secondary-btn"
                   >
-                    Close
-                  </button>
-
-                  <button
-                    type="button"
-                    disabled={deleteCandidates.length > 0}
-                    onClick={confirmPositionDeletion}
-                    className="primary-btn disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <Trash2 size={16} />
-                    Delete Position
+                    Cancel
                   </button>
                 </div>
               </>

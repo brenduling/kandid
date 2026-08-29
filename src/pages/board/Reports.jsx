@@ -21,7 +21,7 @@ function BoardReports() {
 
     const { data: electionData, error: electionError } = await supabase
       .from("elections")
-      .select("id, title, organization_id, campaign_start, campaign_end, start_date, end_date, status, venue, created_at")
+      .select("id, title, organization_id, campaign_start, campaign_end, start_date, end_date, status, location_label, created_at")
       .eq("organization_id", orgId);
 
     if (electionError) {
@@ -44,11 +44,11 @@ function BoardReports() {
     ] = await Promise.all([
       supabase
         .from("positions")
-        .select("id, name, election_id, max_winners, display_order, created_at")
+        .select("id, name, election_id, max_votes")
         .in("election_id", electionIds),
       supabase
         .from("votes")
-        .select("id, election_id, position_id, candidate_id, student_id, vote_hash, blockchain_tx_hash, vote_timestamp")
+        .select("id, election_id, position_id, candidate_id, student_id, vote_hash, blockchain_tx_id, vote_timestamp")
         .in("election_id", electionIds),
     ]);
 
@@ -74,8 +74,8 @@ function BoardReports() {
           student_id,
           partylist_id,
           platform,
-          photo_url,
-          status,
+          photo,
+          campaign_status,
           created_at,
           students (
             first_name,

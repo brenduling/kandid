@@ -78,6 +78,7 @@ function AdminLogin() {
                 type="email"
                 placeholder="Enter super admin email"
                 required
+                autoComplete="username"
                 className="field-shell w-full"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -90,6 +91,7 @@ function AdminLogin() {
                 type="password"
                 placeholder="Enter password"
                 required
+                autoComplete="current-password"
                 className="field-shell w-full"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

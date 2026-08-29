@@ -31,6 +31,7 @@ import {
 import {
   usePrompt,
 } from "../context/PromptContext";
+import { logAuditEvent } from "../utils/auditLog";
 
 function StudentLayout() {
   const navigate = useNavigate();
@@ -82,6 +83,13 @@ function StudentLayout() {
 
     if (!ok) return;
 
+    await logAuditEvent({
+      action: "logout",
+      entityType: "auth",
+      entityLabel: "Student Portal",
+      status: "completed",
+      user,
+    });
     clearStoredUser();
 
     navigate(

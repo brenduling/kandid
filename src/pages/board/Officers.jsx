@@ -3,6 +3,8 @@ import { Plus, Pencil, Trash2, X } from "lucide-react";
 import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
 import { usePrompt } from "../../context/PromptContext";
+import { logAuditEvent } from "../../utils/auditLog";
+import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
 
 const emptyForm = {
   student_id: "",
@@ -157,14 +159,53 @@ function BoardOfficers() {
     refreshOfficers();
   }
 
-  async function handleDelete(id) {
+  async function handleDelete(officer) {
+    const id = officer.id;
+    const label =
+      officer.students
+        ? `${officer.students.first_name} ${officer.students.last_name}`
+        : officer.officer_name || "Officer";
+    const analysis = await analyzeDeleteDependencies("officer", {
+      ...officer,
+      organization_id: orgId,
+    });
+
+    if (analysis.blocked) {
+      await logAuditEvent({
+        action: "officer_delete_blocked",
+        entityType: "officer",
+        entityId: id,
+        entityLabel: label,
+        organizationId: orgId,
+        organizationName: user?.organizations?.name,
+        status: "requires_action",
+        metadata: { dependencies: analysis.dependencies },
+      });
+      await prompt.alert({
+        title: "Officer Record Should Be Preserved",
+        message: dependencyMessage(label, analysis),
+        type: "warning",
+        confirmText: "Review Officer",
+      });
+      return;
+    }
+
     const ok = await prompt.confirm({
       title: "Delete Officer Entry?",
-      message: "Are you sure you want to delete this officer entry?",
+      message: dependencyMessage(label, analysis),
       type: "danger",
       confirmText: "Delete",
     });
     if (!ok) return;
+
+    const recheck = await analyzeDeleteDependencies("officer", {
+      ...officer,
+      organization_id: orgId,
+    });
+    if (recheck.blocked) {
+      prompt.error(dependencyMessage(label, recheck));
+      return;
+    }
 
     const { error } = await supabase.from("officers").delete().eq("id", id);
     if (error) {
@@ -172,6 +213,15 @@ function BoardOfficers() {
       return;
     }
     prompt.success("Officer deleted.");
+    await logAuditEvent({
+      action: "officer_deleted",
+      entityType: "officer",
+      entityId: id,
+      entityLabel: label,
+      organizationId: orgId,
+      organizationName: user?.organizations?.name,
+      status: "completed",
+    });
     refreshOfficers();
   }
 
@@ -221,7 +271,7 @@ function BoardOfficers() {
                 <button onClick={() => openEditForm(officer)} className="icon-action">
                   <Pencil size={16} />
                 </button>
-                <button onClick={() => handleDelete(officer.id)} className="icon-action icon-action-danger">
+                <button onClick={() => handleDelete(officer)} className="icon-action icon-action-danger">
                   <Trash2 size={16} />
                 </button>
               </div>

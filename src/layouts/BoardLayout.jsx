@@ -15,6 +15,7 @@ import { boardMenuGroups, boardPrimaryNav } from "../config/navigation";
 import logo from "../assets/kandidlogo.png";
 import TransitionWrapper from "../components/TransitionWrapper";
 import { usePrompt } from "../context/PromptContext";
+import { logAuditEvent } from "../utils/auditLog";
 
 function BoardLayout() {
   const navigate = useNavigate();
@@ -41,6 +42,15 @@ function BoardLayout() {
     });
     if (!ok) return;
 
+    await logAuditEvent({
+      action: "logout",
+      entityType: "auth",
+      entityLabel: "Electoral Board Portal",
+      organizationId: user?.organization_id,
+      organizationName: user?.organizations?.name,
+      status: "completed",
+      user,
+    });
     clearStoredUser();
     navigate("/board-portal", { replace: true });
   }

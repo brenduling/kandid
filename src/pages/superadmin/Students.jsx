@@ -6,6 +6,8 @@ import { supabase } from "../../lib/supabaseClient";
 import { readFileAsDataUrl } from "../../utils/files";
 import { syncStudentOrganizationMemberships } from "../../utils/organizationAccess";
 import { usePrompt } from "../../context/PromptContext";
+import { logAuditEvent } from "../../utils/auditLog";
+import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
 
 function Students() {
   const prompt = usePrompt();
@@ -280,6 +282,23 @@ function Students() {
         : "Student record created."
     );
 
+    await logAuditEvent({
+      action: editingStudent ? "student_updated" : "student_created",
+      entityType: "student",
+      entityId: savedStudentId,
+      entityLabel: `${form.first_name} ${form.last_name}`.trim() || form.student_number,
+      organizationId: form.organization_id || null,
+      organizationName:
+        organizations.find((org) => String(org.id) === String(form.organization_id))?.name ||
+        null,
+      status: "completed",
+      metadata: {
+        program: form.program,
+        year_level: Number(form.year_level),
+        student_status: form.status,
+      },
+    });
+
     setFormOpen(false);
 
     fetchStudents();
@@ -288,11 +307,36 @@ function Students() {
   }
 
   async function handleDelete(id) {
+    const student = students.find((item) => item.id === id) || {};
+    const label =
+      `${student.first_name || ""} ${student.last_name || ""}`.trim() ||
+      student.student_number ||
+      "Student";
+    const analysis = await analyzeDeleteDependencies("student", { id });
+
+    if (analysis.blocked) {
+      await logAuditEvent({
+        action: "student_delete_blocked",
+        entityType: "student",
+        entityId: id,
+        entityLabel: label,
+        status: "requires_action",
+        metadata: { dependencies: analysis.dependencies },
+      });
+
+      await prompt.alert({
+        title: "Student Cannot Be Deleted Yet",
+        message: dependencyMessage(label, analysis),
+        type: "warning",
+        confirmText: "Review Related Records",
+      });
+      return;
+    }
+
     const confirmDelete =
       await prompt.confirm({
         title: "Delete Student?",
-        message:
-          "Are you sure you want to delete this student? This will also remove their organization memberships.",
+        message: dependencyMessage(label, analysis),
         type: "danger",
         confirmText: "Delete Student",
       });
@@ -332,6 +376,15 @@ function Students() {
     }
 
     prompt.success("Student deleted.");
+
+    await logAuditEvent({
+      action: "student_deleted",
+      entityType: "student",
+      entityId: id,
+      entityLabel: label,
+      status: "completed",
+      metadata: { removed_memberships: analysis.dependencies },
+    });
 
     fetchStudents();
   }

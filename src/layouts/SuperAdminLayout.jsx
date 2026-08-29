@@ -15,6 +15,7 @@ import logo from "../assets/kandidlogo.png";
 import TransitionWrapper from "../components/TransitionWrapper";
 import { superAdminMenuGroups, superAdminPrimaryNav } from "../config/navigation";
 import { usePrompt } from "../context/PromptContext";
+import { logAuditEvent } from "../utils/auditLog";
 
 function SuperAdminLayout() {
   const navigate = useNavigate();
@@ -34,6 +35,13 @@ function SuperAdminLayout() {
     });
     if (!ok) return;
 
+    await logAuditEvent({
+      action: "logout",
+      entityType: "auth",
+      entityLabel: "Super Admin Portal",
+      status: "completed",
+      user,
+    });
     clearStoredUser();
     navigate("/admin", { replace: true });
   }

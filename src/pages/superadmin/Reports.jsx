@@ -27,10 +27,10 @@ function Reports() {
         .select("id, name, organization_type, created_at"),
       supabase
         .from("elections")
-        .select("id, title, organization_id, campaign_start, campaign_end, start_date, end_date, status, venue, created_at"),
+        .select("id, title, organization_id, campaign_start, campaign_end, start_date, end_date, status, location_label, created_at"),
       supabase
         .from("votes")
-        .select("id, election_id, position_id, candidate_id, student_id, vote_hash, blockchain_tx_hash, vote_timestamp"),
+        .select("id, election_id, position_id, candidate_id, student_id, vote_hash, blockchain_tx_id, vote_timestamp"),
     ]);
 
     [studentsError, orgsError, electionsError, votesError].filter(Boolean).forEach((error) => {

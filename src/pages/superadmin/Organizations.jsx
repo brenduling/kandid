@@ -19,6 +19,8 @@ import {
   syncStudentsForOrganizationCoverage,
 } from "../../utils/organizationAccess";
 import { usePrompt } from "../../context/PromptContext";
+import { logAuditEvent } from "../../utils/auditLog";
+import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
 
 function Organizations() {
   const prompt = usePrompt();
@@ -473,6 +475,20 @@ function Organizations() {
         : "Organization created."
     );
 
+    await logAuditEvent({
+      action: editingOrg ? "organization_updated" : "organization_created",
+      entityType: "organization",
+      entityId: organizationId,
+      entityLabel: form.name.trim(),
+      organizationId,
+      organizationName: form.name.trim(),
+      status: "completed",
+      metadata: {
+        organization_type: form.organization_type,
+        program_count: selectedProgramIds.length,
+      },
+    });
+
     setLoading(false);
     setFormOpen(false);
 
@@ -480,15 +496,45 @@ function Organizations() {
   }
 
   async function handleDelete(id) {
+    const organization =
+      organizations.find((org) => org.id === id) || selectedOrg || {};
+    const analysis = await analyzeDeleteDependencies("organization", { id });
+
+    if (analysis.blocked) {
+      await logAuditEvent({
+        action: "organization_delete_blocked",
+        entityType: "organization",
+        entityId: id,
+        entityLabel: organization.name || "Organization",
+        organizationId: id,
+        organizationName: organization.name,
+        status: "requires_action",
+        metadata: { dependencies: analysis.dependencies },
+      });
+
+      await prompt.alert({
+        title: "Organization Cannot Be Deleted Yet",
+        message: dependencyMessage(organization.name || "This organization", analysis),
+        type: "warning",
+        confirmText: "Review Related Records",
+      });
+      return;
+    }
+
     const confirmDelete = await prompt.confirm({
       title: "Delete Organization?",
-      message:
-        "Are you sure you want to delete this organization? Associated elections, partylists, and students may be affected.",
+      message: dependencyMessage(organization.name || "This organization", analysis),
       type: "danger",
       confirmText: "Delete Organization",
     });
 
     if (!confirmDelete) return;
+
+    const recheck = await analyzeDeleteDependencies("organization", { id });
+    if (recheck.blocked) {
+      prompt.error(dependencyMessage(organization.name || "This organization", recheck));
+      return;
+    }
 
     const { error } = await supabase
       .from("organizations")
@@ -504,6 +550,16 @@ function Organizations() {
     }
 
     prompt.success("Organization deleted.");
+
+    await logAuditEvent({
+      action: "organization_deleted",
+      entityType: "organization",
+      entityId: id,
+      entityLabel: organization.name || "Organization",
+      organizationId: id,
+      organizationName: organization.name,
+      status: "completed",
+    });
 
     if (selectedOrg?.id === id) {
       closeOrganizationDetails();
@@ -611,7 +667,7 @@ function Organizations() {
           {search ? "No organizations match your search." : "No organizations found."}
         </div>
       ) : (
-        <div className="section-grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+        <div className="section-grid superadmin-org-grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
           {filteredOrganizations.map((org) => {
             const studentCount =
               organizationCounts[org.id] ?? 0;
@@ -622,20 +678,20 @@ function Organizations() {
                 onClick={() =>
                   openOrganizationDetails(org)
                 }
-                className="metric-card lift-card min-h-[220px] cursor-pointer transition-transform hover:-translate-y-1"
+                className="metric-card lift-card superadmin-org-card min-h-[220px] cursor-pointer transition-transform hover:-translate-y-1"
               >
                 {/* ORGANIZATION HEADER */}
-                <div className="flex items-start gap-4">
+                <div className="superadmin-org-card-head flex items-start gap-4">
                   {org.logo_url ? (
                     <img
                       src={org.logo_url}
                       alt={`${org.name} logo`}
-                      className="h-14 w-14 rounded-2xl object-cover ring-1 ring-[rgba(37,99,235,0.08)]"
+                      className="superadmin-org-logo h-14 w-14 rounded-2xl object-cover ring-1 ring-[rgba(37,99,235,0.08)]"
                       loading="lazy"
                       decoding="async"
                     />
                   ) : (
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[rgba(248,115,22,0.14)] text-sm font-black text-[#f97316]">
+                    <div className="superadmin-org-logo superadmin-org-logo-fallback flex h-14 w-14 items-center justify-center rounded-2xl bg-[rgba(248,115,22,0.14)] text-sm font-black text-[#f97316]">
                       {(org.name || "O")
                         .slice(0, 2)
                         .toUpperCase()}
@@ -643,7 +699,7 @@ function Organizations() {
                   )}
 
                   <div className="min-w-0 flex-1">
-                    <h2 className="surface-title truncate text-[1.7rem] font-black tracking-tight">
+                    <h2 className="surface-title superadmin-org-name truncate text-[1.7rem] font-black tracking-tight">
                       {org.name}
                     </h2>
 
@@ -655,7 +711,7 @@ function Organizations() {
                       </span>
                     </div>
 
-                    <p className="surface-copy mt-2 line-clamp-2 text-sm leading-6">
+                    <p className="surface-copy superadmin-org-description mt-2 line-clamp-2 text-sm leading-6">
                       {org.description ||
                         "No organization description yet."}
                     </p>
@@ -663,7 +719,7 @@ function Organizations() {
                 </div>
 
                 {/* STUDENT COUNT */}
-                <div className="mt-6 flex items-center gap-3 rounded-2xl bg-white/60 px-4 py-3">
+                <div className="superadmin-org-count mt-6 flex items-center gap-3 rounded-2xl bg-white/60 px-4 py-3">
                   <div className="rounded-xl bg-[rgba(37,99,235,0.10)] p-2.5 text-[#2563eb]">
                     <Users size={18} />
                   </div>
@@ -680,8 +736,8 @@ function Organizations() {
                 </div>
 
                 {/* CARD FOOTER */}
-                <div className="mt-6 flex items-center justify-between gap-3">
-                  <div className="surface-muted text-xs uppercase tracking-[0.16em]">
+                <div className="superadmin-org-footer mt-6 flex items-center justify-between gap-3">
+                  <div className="surface-muted superadmin-org-added text-xs uppercase tracking-[0.16em]">
                     Added{" "}
                     {org.created_at
                       ? new Date(
@@ -691,7 +747,7 @@ function Organizations() {
                   </div>
 
                   <div
-                    className="flex items-center gap-2"
+                    className="superadmin-org-actions flex items-center gap-2"
                     onClick={(e) =>
                       e.stopPropagation()
                     }
@@ -700,7 +756,7 @@ function Organizations() {
                       onClick={() =>
                         openEditForm(org)
                       }
-                      className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/70 text-[#1d1d1d] shadow-sm hover:bg-white"
+                      className="superadmin-org-action-btn flex h-10 w-10 items-center justify-center rounded-xl bg-white/70 text-[#1d1d1d] shadow-sm hover:bg-white"
                       type="button"
                       title="Edit organization"
                     >
@@ -711,7 +767,7 @@ function Organizations() {
                       onClick={() =>
                         handleDelete(org.id)
                       }
-                      className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/70 text-[#1d1d1d] shadow-sm hover:bg-white"
+                      className="superadmin-org-action-btn flex h-10 w-10 items-center justify-center rounded-xl bg-white/70 text-[#1d1d1d] shadow-sm hover:bg-white"
                       type="button"
                       title="Delete organization"
                     >
@@ -720,7 +776,7 @@ function Organizations() {
                   </div>
                 </div>
 
-                <div className="mt-4 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-[#6b7280]">
+                <div className="superadmin-org-view-hint mt-4 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-[#6b7280]">
                   <Users size={14} />
                   Click to view students
                 </div>

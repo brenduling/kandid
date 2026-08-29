@@ -10,6 +10,7 @@ import {
   Vote,
 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
+import { fetchAuditLogs } from "../../utils/auditLog";
 
 function BoardDashboard() {
   const [stats, setStats] = useState({
@@ -21,6 +22,7 @@ function BoardDashboard() {
     voters: 0,
   });
   const [recentElections, setRecentElections] = useState([]);
+  const [recentActivities, setRecentActivities] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const user = JSON.parse(localStorage.getItem("user"));
@@ -35,9 +37,11 @@ function BoardDashboard() {
     let active = true;
 
     loadDashboardData(() => active);
+    window.addEventListener("kandid-audit-updated", fetchDashboardData);
 
     return () => {
       active = false;
+      window.removeEventListener("kandid-audit-updated", fetchDashboardData);
     };
   }, [orgId]);
 
@@ -111,6 +115,14 @@ function BoardDashboard() {
     });
 
     setRecentElections(electionsData?.slice(0, 5) || []);
+    const { data: auditActivities, error: auditError } = await fetchAuditLogs({
+      limit: 5,
+      organizationId: orgId,
+    });
+    if (auditError) {
+      console.warn("Failed to load board audit activity:", auditError);
+    }
+    setRecentActivities(auditActivities || []);
     setLoading(false);
   }
 
@@ -404,6 +416,50 @@ function BoardDashboard() {
                   </div>
                 ))
               )}
+            </div>
+          </div>
+
+          <div className="section-grid grid-cols-1">
+            <div className="table-shell">
+              <div className="border-b border-[rgba(104,86,72,0.1)] px-6 py-5">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#55726b]">
+                  Recent Activity
+                </p>
+                <h3 className="mt-2 text-xl font-black">
+                  Latest actions for {orgName}
+                </h3>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="app-table">
+                  <thead>
+                    <tr>
+                      <th>Event</th>
+                      <th>Organization</th>
+                      <th>Status</th>
+                      <th>Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentActivities.length === 0 ? (
+                      <tr>
+                        <td colSpan="4" className="px-6 py-10 text-center empty-copy">
+                          No recent activity yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      recentActivities.map((activity) => (
+                        <tr key={activity.id}>
+                          <td className="font-bold text-slate-800">{activity.event}</td>
+                          <td className="text-slate-500 font-medium">{activity.organization}</td>
+                          <td><span className="status-pill">{activity.status}</span></td>
+                          <td className="text-slate-400 font-medium">{activity.time}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </>

@@ -89,6 +89,8 @@ function StudentLogin() {
               <span>Student ID Number</span>
               <input
                 required
+                autoComplete="username"
+                inputMode="numeric"
                 value={studentNumber}
                 onChange={(event) => setStudentNumber(event.target.value)}
                 placeholder="e.g. 12345"
@@ -103,6 +105,7 @@ function StudentLogin() {
               <div className="student-auth-password">
                 <input
                   required
+                  autoComplete="current-password"
                   type="password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
@@ -112,7 +115,7 @@ function StudentLogin() {
               </div>
             </label>
 
-            <button disabled={loading} className="student-auth-submit">
+            <button type="submit" disabled={loading} className="student-auth-submit">
               {loading ? <KandidButtonLoader label="Verifying access..." /> : "Login to Vote"}
             </button>
           </div>

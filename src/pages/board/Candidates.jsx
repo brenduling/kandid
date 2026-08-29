@@ -8,6 +8,8 @@ import {
   parseCampaignMaterials,
 } from "../../utils/candidates";
 import { usePrompt } from "../../context/PromptContext";
+import { logAuditEvent } from "../../utils/auditLog";
+import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
 
 function BoardCandidates() {
   const prompt = usePrompt();
@@ -282,14 +284,46 @@ function BoardCandidates() {
     refreshCandidates();
   }
 
-  async function handleDelete(id) {
+  async function handleDelete(candidate) {
+    const id = candidate.id;
+    const label =
+      `${candidate.students?.first_name || ""} ${candidate.students?.last_name || ""}`.trim() ||
+      "Candidate";
+    const analysis = await analyzeDeleteDependencies("candidate", candidate);
+
+    if (analysis.blocked) {
+      await logAuditEvent({
+        action: "candidate_delete_blocked",
+        entityType: "candidate",
+        entityId: id,
+        entityLabel: label,
+        organizationId: orgId,
+        organizationName: user?.organizations?.name,
+        status: "requires_action",
+        metadata: { dependencies: analysis.dependencies },
+      });
+      await prompt.alert({
+        title: "Candidate Cannot Be Deleted",
+        message: dependencyMessage(label, analysis),
+        type: "warning",
+        confirmText: "Review Candidate",
+      });
+      return;
+    }
+
     const ok = await prompt.confirm({
       title: "Delete Candidate?",
-      message: "Are you sure you want to remove this candidate?",
+      message: dependencyMessage(label, analysis),
       type: "danger",
       confirmText: "Delete",
     });
     if (!ok) return;
+
+    const recheck = await analyzeDeleteDependencies("candidate", candidate);
+    if (recheck.blocked) {
+      prompt.error(dependencyMessage(label, recheck));
+      return;
+    }
 
     const { error } = await supabase.from("candidates").delete().eq("id", id);
     if (error) {
@@ -297,6 +331,15 @@ function BoardCandidates() {
       return;
     }
     prompt.success("Candidate deleted.");
+    await logAuditEvent({
+      action: "candidate_deleted",
+      entityType: "candidate",
+      entityId: id,
+      entityLabel: label,
+      organizationId: orgId,
+      organizationName: user?.organizations?.name,
+      status: "completed",
+    });
     refreshCandidates();
   }
 
@@ -375,7 +418,7 @@ function BoardCandidates() {
                       </button>
 
                       <button
-                        onClick={() => handleDelete(candidate.id)}
+                        onClick={() => handleDelete(candidate)}
                         className="icon-action icon-action-danger"
                       >
                         <Trash2 size={16} />

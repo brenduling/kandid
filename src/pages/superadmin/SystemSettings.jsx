@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import { Save } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
+import { usePrompt } from "../../context/PromptContext";
+import { logAuditEvent } from "../../utils/auditLog";
 
 function SystemSettings() {
+  const prompt = usePrompt();
   const [settings, setSettings] = useState(null);
 
   useEffect(() => {
@@ -34,11 +37,24 @@ function SystemSettings() {
       .eq("id", 1);
 
     if (error) {
-      alert(error.message);
+      prompt.error(error.message || "Failed to save settings.");
       return;
     }
 
-    alert("Settings saved!");
+    prompt.success("Settings saved.");
+    await logAuditEvent({
+      action: "system_setting_updated",
+      entityType: "system_settings",
+      entityId: 1,
+      entityLabel: settings.system_name || "System Settings",
+      status: "completed",
+      metadata: {
+        default_election_duration: settings.default_election_duration,
+        allow_multiple_votes: settings.allow_multiple_votes,
+        allow_abstain: settings.allow_abstain,
+        maintenance_mode: settings.maintenance_mode,
+      },
+    });
   }
 
   if (!settings) {
