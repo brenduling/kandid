@@ -9,6 +9,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from "../utils/notifications";
+import { formatLocalDateTime } from "../utils/time";
 
 function NotificationCenter({ user }) {
   const [open, setOpen] = useState(false);
@@ -204,9 +205,7 @@ function NotificationCenter({ user }) {
                             {item.body}
                           </p>
                           <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#55726b]">
-                            {item.timestamp
-                              ? new Date(item.timestamp).toLocaleString()
-                              : "Just now"}
+                            {formatLocalDateTime(item.timestamp, "Just now")}
                           </p>
                         </div>
                         <ChevronRight size={16} className="mt-1 text-gray-400" />

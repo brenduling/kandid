@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabaseClient";
 import { canStudentViewResults, getElectionPhase } from "./elections";
+import { isMissingResultReleaseColumn } from "./results";
 import { getEligibleStudentOrganizationIds } from "./organizationAccess";
 
 function toNotification({
@@ -60,29 +61,56 @@ async function buildStudentNotifications(user) {
     ];
   }
 
-  const [{ data: elections }, { data: votes }] = await Promise.all([
+  const fetchElections = (includeReleaseColumn = true) =>
     supabase
       .from("elections")
-      .select(`
-        id,
-        title,
-        organization_id,
-        campaign_start,
-        campaign_end,
-        start_date,
-        end_date,
-        status,
-        student_result_visibility,
-        organizations(name)
-      `)
+      .select(
+        includeReleaseColumn
+          ? `
+            id,
+            title,
+            organization_id,
+            campaign_start,
+            campaign_end,
+            start_date,
+            end_date,
+            status,
+            student_result_visibility,
+            results_released_at,
+            organizations(name)
+          `
+          : `
+            id,
+            title,
+            organization_id,
+            campaign_start,
+            campaign_end,
+            start_date,
+            end_date,
+            status,
+            student_result_visibility,
+            organizations(name)
+          `,
+      )
       .in("organization_id", organizationIds)
       .neq("status", "archived")
-      .order("start_date", { ascending: true }),
+      .order("start_date", { ascending: true });
+
+  let [{ data: elections, error: electionsError }, { data: votes }] = await Promise.all([
+    fetchElections(),
     supabase
       .from("votes")
       .select("election_id, vote_timestamp")
       .eq("student_id", user.id),
   ]);
+
+  if (isMissingResultReleaseColumn(electionsError)) {
+    const fallback = await fetchElections(false);
+    elections = (fallback.data || []).map((election) => ({
+      ...election,
+      results_released_at: null,
+    }));
+  }
 
   const votedElectionIds = new Set((votes || []).map((vote) => vote.election_id));
   const items = [];

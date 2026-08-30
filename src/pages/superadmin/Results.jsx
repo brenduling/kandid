@@ -1,11 +1,19 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { usePrompt } from "../../context/PromptContext";
-import { buildElectionAnalytics } from "../../utils/results";
+import {
+  buildElectionAnalytics,
+  getResultVerificationSummary,
+  normalizeResultVisibilityMode,
+  resultVisibilityLabel,
+  RESULT_VISIBILITY_MODES,
+} from "../../utils/results";
 import { isMissingPositionOrderError } from "../../utils/positionOrder";
-import { fetchAuthoritativeNow } from "../../utils/elections";
+import { fetchAuthoritativeNow, getElectionPhase } from "../../utils/elections";
+import { logAuditEvent } from "../../utils/auditLog";
 
-const RELEASE_COLUMN_SELECT = "id, title, organization_id, results_released_at, organizations(name)";
+const RELEASE_COLUMN_SELECT =
+  "id, title, status, end_date, organization_id, student_result_visibility, results_released_at, results_released_by, organizations(name)";
 const BASE_ELECTION_SELECT = "id, title, organization_id, organizations(name)";
 
 function isMissingReleaseColumn(error) {
@@ -111,6 +119,17 @@ function Results() {
     (election) => election.id === Number(selectedElection)
   );
   const analytics = buildElectionAnalytics(filteredVotes, activeElection);
+  const verification = getResultVerificationSummary(filteredVotes);
+  const activeVisibilityMode = normalizeResultVisibilityMode(
+    activeElection?.student_result_visibility,
+  );
+  const phase = activeElection ? getElectionPhase(activeElection) : "";
+  const canPublishResults =
+    releaseColumnReady &&
+    activeElection &&
+    activeVisibilityMode === RESULT_VISIBILITY_MODES.MANUAL &&
+    phase === "closed" &&
+    verification.verified;
 
   async function releaseResults() {
     if (!activeElection) return;
@@ -120,11 +139,26 @@ function Results() {
       return;
     }
 
+    if (activeVisibilityMode !== RESULT_VISIBILITY_MODES.MANUAL) {
+      prompt.error("Manual publishing is only used for elections set to Manual admin release.");
+      return;
+    }
+
+    if (phase !== "closed") {
+      prompt.error("Results can only be published after voting has closed.");
+      return;
+    }
+
+    if (!verification.verified) {
+      prompt.error("Complete vote verification before publishing results.");
+      return;
+    }
+
     const confirmed = await prompt.confirm({
-      title: activeElection.results_released_at ? "Update Result Release?" : "Release Results?",
-      message: `Make ${activeElection.title} results visible to eligible students?`,
+      title: activeElection.results_released_at ? "Update Official Release?" : "Publish Official Results?",
+      message: `${activeElection.title}\n\nVote entries: ${verification.totalVoteEntries}\nMissing vote hashes: ${verification.missingHash}\nDuplicate vote row IDs: ${verification.duplicateVoteIds}\n\nPublishing will make official aggregate results visible to eligible students.`,
       type: "primary",
-      confirmText: activeElection.results_released_at ? "Update Release" : "Release Results",
+      confirmText: activeElection.results_released_at ? "Update Release" : "Publish Results",
     });
 
     if (!confirmed) return;
@@ -132,7 +166,9 @@ function Results() {
     const serverNow = await fetchAuthoritativeNow();
     const { error } = await supabase
       .from("elections")
-      .update({ results_released_at: serverNow.toISOString() })
+      .update({
+        results_released_at: serverNow.toISOString(),
+      })
       .eq("id", activeElection.id);
 
     if (error) {
@@ -140,7 +176,20 @@ function Results() {
       return;
     }
 
-    prompt.success("Results are now visible to eligible students.");
+    await logAuditEvent({
+      action: "results_published",
+      entityType: "election",
+      entityId: activeElection.id,
+      entityLabel: activeElection.title,
+      organizationId: activeElection.organization_id,
+      organizationName: activeElection.organizations?.name,
+      metadata: {
+        visibility_mode: activeVisibilityMode,
+        vote_entries: verification.totalVoteEntries,
+      },
+    });
+
+    prompt.success("Election results published successfully.");
     await fetchData();
   }
 
@@ -169,13 +218,17 @@ function Results() {
             type="button"
             onClick={releaseResults}
             className="primary-btn ml-3 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={!releaseColumnReady}
+            disabled={!canPublishResults}
           >
             {!releaseColumnReady
               ? "Release Setup Required"
               : activeElection.results_released_at
                 ? "Results Released"
-                : "Release Results"}
+                : activeVisibilityMode !== RESULT_VISIBILITY_MODES.MANUAL
+                  ? resultVisibilityLabel(activeVisibilityMode)
+                  : verification.verified
+                    ? "Publish Results"
+                    : "Verification Required"}
           </button>
         ) : null}
       </div>
@@ -187,6 +240,24 @@ function Results() {
           <div className="text-gray-500">No results yet.</div>
         ) : (
           <>
+            {activeElection ? (
+              <div className="soft-card">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8b6e5c]">
+                  Student Result Visibility
+                </p>
+                <h2 className="mt-2 text-2xl font-black">
+                  {resultVisibilityLabel(
+                    activeElection.student_result_visibility,
+                    activeElection.results_released_at,
+                  )}
+                </h2>
+                <p className="mt-2 text-sm text-gray-600">
+                  Verification: {verification.verified ? "Completed" : "Required"}.
+                  Vote entries: {verification.totalVoteEntries}. Missing hashes:{" "}
+                  {verification.missingHash}.
+                </p>
+              </div>
+            ) : null}
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
               {[
                 ["Vote Entries", analytics.totalVoteEntries],

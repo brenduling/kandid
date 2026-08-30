@@ -1,5 +1,43 @@
 import { sortVotesByPositionOrder } from "./positionOrder";
 
+export const RESULT_VISIBILITY_MODES = {
+  REALTIME: "realtime",
+  AFTER_CLOSE: "after_close",
+  MANUAL: "manual",
+};
+
+export function normalizeResultVisibilityMode(value) {
+  if (value === RESULT_VISIBILITY_MODES.REALTIME) return RESULT_VISIBILITY_MODES.REALTIME;
+  if (value === RESULT_VISIBILITY_MODES.MANUAL) return RESULT_VISIBILITY_MODES.MANUAL;
+  return RESULT_VISIBILITY_MODES.AFTER_CLOSE;
+}
+
+export function resultVisibilityLabel(value, releasedAt) {
+  if (releasedAt) return "Released";
+  const mode = normalizeResultVisibilityMode(value);
+  if (mode === RESULT_VISIBILITY_MODES.REALTIME) return "Real-time";
+  if (mode === RESULT_VISIBILITY_MODES.MANUAL) return "Manual release";
+  return "After voting ends";
+}
+
+export function isMissingResultReleaseColumn(error) {
+  const message = String(error?.message || "");
+  return /results_released_at|results_released_by|schema cache|column .*does not exist/i.test(message);
+}
+
+export function getResultVerificationSummary(votes = []) {
+  const totalVoteEntries = votes.length;
+  const missingHash = votes.filter((vote) => !vote.vote_hash).length;
+  const duplicateVoteIds = totalVoteEntries - new Set(votes.map((vote) => vote.id)).size;
+
+  return {
+    totalVoteEntries,
+    missingHash,
+    duplicateVoteIds,
+    verified: totalVoteEntries > 0 && missingHash === 0 && duplicateVoteIds === 0,
+  };
+}
+
 export function buildGroupedResults(votes = []) {
   const grouped = {};
 

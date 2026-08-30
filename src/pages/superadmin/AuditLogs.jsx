@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, Filter, RefreshCw, Search, ShieldCheck, X } from "lucide-react";
 import { fetchAuditLogs } from "../../utils/auditLog";
 import PopupOverlay from "../../components/PopupOverlay";
+import { formatLocalDateTime, parseAbsoluteTimestamp } from "../../utils/time";
 
 const pageSize = 50;
 
@@ -61,7 +62,7 @@ function AuditLogs() {
       const matchesDate =
         !filters.date ||
         (log.createdAt &&
-          new Date(log.createdAt).toISOString().slice(0, 10) === filters.date);
+          parseAbsoluteTimestamp(log.createdAt)?.toISOString().slice(0, 10) === filters.date);
       return matchesOrganization && matchesDate;
     });
   }, [logs, filters.organization, filters.date]);
@@ -170,7 +171,7 @@ function AuditLogs() {
                 filteredLogs.map((log) => (
                   <tr key={log.id}>
                     <td className="text-[#5a5548]">
-                      {log.createdAt ? new Date(log.createdAt).toLocaleString() : "-"}
+                      {formatLocalDateTime(log.createdAt, "-")}
                     </td>
                     <td className="font-bold">{log.actor}</td>
                     <td>{log.actorRole}</td>
@@ -225,7 +226,7 @@ function AuditLogs() {
               {[
                 ["Actor", selectedLog.actor],
                 ["Role", selectedLog.actorRole],
-                ["Date & Time", selectedLog.createdAt ? new Date(selectedLog.createdAt).toLocaleString() : "-"],
+                ["Date & Time", formatLocalDateTime(selectedLog.createdAt, "-")],
                 ["Organization", selectedLog.organization],
                 ["Affected Record", selectedLog.entityLabel || selectedLog.entityId || "-"],
                 ["Action", selectedLog.action],

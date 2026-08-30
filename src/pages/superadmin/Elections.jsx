@@ -4,7 +4,9 @@ import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
 import {
   formatLocalDateTime,
+  formValueToScheduleTimestamp,
   getElectionPhase,
+  scheduleTimestampToFormValue,
   validateElectionSchedule,
 } from "../../utils/elections";
 import {
@@ -21,6 +23,7 @@ import {
   fetchOrderedPositions,
   isMissingPositionOrderError,
 } from "../../utils/positionOrder";
+import { resultVisibilityLabel } from "../../utils/results";
 
 function Elections() {
   const prompt = usePrompt();
@@ -55,7 +58,7 @@ function Elections() {
     start_date: "",
     end_date: "",
     status: "draft",
-    student_result_visibility: "hidden",
+    student_result_visibility: "after_close",
     voting_access_mode: "anywhere",
     location_label: "",
     geo_lat: "",
@@ -316,7 +319,7 @@ function Elections() {
       start_date: "",
       end_date: "",
       status: "draft",
-      student_result_visibility: "hidden",
+      student_result_visibility: "after_close",
       voting_access_mode: "anywhere",
       location_label: "",
       geo_lat: "",
@@ -348,18 +351,20 @@ function Elections() {
       organization_id: election.organization_id || "",
       title: election.title || "",
       campaign_start: election.campaign_start
-        ? election.campaign_start.slice(0, 16)
+        ? scheduleTimestampToFormValue(election.campaign_start)
         : "",
       campaign_end: election.campaign_end
-        ? election.campaign_end.slice(0, 16)
+        ? scheduleTimestampToFormValue(election.campaign_end)
         : "",
       start_date: election.start_date
-        ? election.start_date.slice(0, 16)
+        ? scheduleTimestampToFormValue(election.start_date)
         : "",
-      end_date: election.end_date ? election.end_date.slice(0, 16) : "",
+      end_date: election.end_date ? scheduleTimestampToFormValue(election.end_date) : "",
       status: election.status || "draft",
       student_result_visibility:
-        election.student_result_visibility || "hidden",
+        election.student_result_visibility === "hidden"
+          ? "after_close"
+          : election.student_result_visibility || "after_close",
       voting_access_mode: election.voting_access_mode || "anywhere",
       location_label: election.location_label || "",
       geo_lat: election.geo_lat ?? "",
@@ -387,10 +392,10 @@ function Elections() {
     const payload = {
       organization_id: Number(form.organization_id),
       title: form.title,
-      campaign_start: form.campaign_start || null,
-      campaign_end: form.campaign_end || null,
-      start_date: form.start_date,
-      end_date: form.end_date,
+      campaign_start: formValueToScheduleTimestamp(form.campaign_start),
+      campaign_end: formValueToScheduleTimestamp(form.campaign_end),
+      start_date: formValueToScheduleTimestamp(form.start_date),
+      end_date: formValueToScheduleTimestamp(form.end_date),
       status: form.status,
       student_result_visibility: form.student_result_visibility,
       voting_access_mode: form.voting_access_mode,
@@ -635,9 +640,10 @@ function Elections() {
                   </td>
                   <td className="px-6 py-4">
                     <span className="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-700">
-                      {election.student_result_visibility === "realtime"
-                        ? "Real-time"
-                        : "After close"}
+                      {resultVisibilityLabel(
+                        election.student_result_visibility,
+                        election.results_released_at,
+                      )}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600">
@@ -996,8 +1002,9 @@ function Elections() {
                 }
                 className="field-shell w-full"
               >
-                <option value="hidden">Students see results after close</option>
-                <option value="realtime">Students see real-time results</option>
+                <option value="realtime">Real-time results</option>
+                <option value="after_close">Show after voting ends</option>
+                <option value="manual">Manual admin release</option>
               </select>
 
               <div className="rounded-2xl border border-[rgba(24,54,49,0.08)] p-4">

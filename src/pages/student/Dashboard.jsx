@@ -19,6 +19,7 @@ import StudentOrganizationCard, {
   getOrganizationTypeLabel,
 } from "../../components/student/StudentOrganizationCard";
 import { supabase } from "../../lib/supabaseClient";
+import { formatLocalDate } from "../../utils/elections";
 import {
   getStudentOrganizationDirectory,
   selectActiveMemberships,
@@ -40,6 +41,7 @@ function StudentDashboard() {
   const [organizationOfficers, setOrganizationOfficers] = useState([]);
   const [organizationElections, setOrganizationElections] = useState([]);
   const [organizationMemberCount, setOrganizationMemberCount] = useState(0);
+  const [organizationMemberCountError, setOrganizationMemberCountError] = useState("");
 
   const [organizationTab, setOrganizationTab] = useState("about");
 
@@ -250,6 +252,7 @@ function StudentDashboard() {
     setOrganizationOfficers([]);
     setOrganizationElections([]);
     setOrganizationMemberCount(0);
+    setOrganizationMemberCountError("");
 
     setDetailLoading(true);
 
@@ -260,7 +263,7 @@ function StudentDashboard() {
       const [
         { data: officers, error: officersError },
         { data: elections, error: electionsError },
-        { count, error: countError },
+        { data: memberships, error: countError },
       ] = await Promise.all([
         supabase
           .from("officers")
@@ -288,12 +291,8 @@ function StudentDashboard() {
           .order("start_date", { ascending: false }),
 
         selectActiveMemberships(
-          "student_id",
+          "organization_id",
           [["organization_id", organization.id]],
-          {
-            count: "exact",
-            head: true,
-          },
         ),
       ]);
 
@@ -320,7 +319,8 @@ function StudentDashboard() {
 
       setOrganizationOfficers(officers || []);
       setOrganizationElections(elections || []);
-      setOrganizationMemberCount(count || 0);
+      setOrganizationMemberCount(countError ? 0 : (memberships || []).length);
+      setOrganizationMemberCountError(countError ? "Member count unavailable" : "");
     } catch (error) {
       console.error(
         "Unexpected organization detail error:",
@@ -389,8 +389,10 @@ function StudentDashboard() {
                 </span>
 
                 <span className="rounded-full bg-white/80 px-3 py-1 text-sm font-bold text-gray-700">
-                  {organizationMemberCount} active member
-                  {organizationMemberCount === 1 ? "" : "s"}
+                  {organizationMemberCountError ||
+                    `${organizationMemberCount} active member${
+                      organizationMemberCount === 1 ? "" : "s"
+                    }`}
                 </span>
 
                 <span className="rounded-full bg-white/80 px-3 py-1 text-sm font-bold text-gray-700">
@@ -559,9 +561,7 @@ function StudentDashboard() {
 
                       <p>
                         {election.start_date
-                          ? new Date(
-                            election.start_date
-                          ).toLocaleDateString()
+                          ? formatLocalDate(election.start_date)
                           : "No start date"}
                       </p>
                     </div>

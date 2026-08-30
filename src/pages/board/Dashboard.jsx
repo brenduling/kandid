@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { fetchAuditLogs } from "../../utils/auditLog";
+import { formatLocalDateTime } from "../../utils/elections";
 
 function BoardDashboard() {
   const [stats, setStats] = useState({
@@ -403,11 +404,11 @@ function BoardDashboard() {
                       <p className="mt-1 inline-flex items-center gap-2 text-xs text-gray-500">
                         <CalendarRange size={14} />
                         {election.start_date
-                          ? new Date(election.start_date).toLocaleString()
+                          ? formatLocalDateTime(election.start_date)
                           : "No start date"}
                         {" - "}
                         {election.end_date
-                          ? new Date(election.end_date).toLocaleString()
+                          ? formatLocalDateTime(election.end_date)
                           : "No end date"}
                       </p>
                     </div>

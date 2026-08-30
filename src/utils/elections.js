@@ -1,8 +1,20 @@
 import { supabase } from "../lib/supabaseClient";
-import { formatLocalDateTime as formatSharedLocalDateTime } from "./time";
+import {
+  formatScheduleDate,
+  formatScheduleDateTime,
+  formValueToScheduleWallClock,
+  parseAbsoluteTimestamp,
+  parseScheduleWallClock,
+  scheduleWallClockToFormValue,
+} from "./time";
+import { RESULT_VISIBILITY_MODES, normalizeResultVisibilityMode } from "./results";
 
 export function formatLocalDateTime(value) {
-  return formatSharedLocalDateTime(value, "-");
+  return formatScheduleDateTime(value, "-");
+}
+
+export function formatLocalDate(value) {
+  return formatScheduleDate(value, "-");
 }
 
 export function getElectionLocationLabel(election) {
@@ -13,9 +25,21 @@ export function getElectionLocationLabel(election) {
 }
 
 export function normalizeElectionDateTime(value) {
-  if (!value) return null;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
+  return parseScheduleWallClock(value);
+}
+
+export function scheduleTimestampToFormValue(value) {
+  return scheduleWallClockToFormValue(value);
+}
+
+export function formValueToScheduleTimestamp(value) {
+  return formValueToScheduleWallClock(value);
+}
+
+export function compareElectionScheduleValues(first, second) {
+  const firstDate = parseScheduleWallClock(first);
+  const secondDate = parseScheduleWallClock(second);
+  return (firstDate?.getTime() || 0) - (secondDate?.getTime() || 0);
 }
 
 export function validateElectionSchedule(form, { requireCampaign = true } = {}) {
@@ -66,13 +90,13 @@ export function validateElectionSchedule(form, { requireCampaign = true } = {}) 
 
 export function getElectionPhase(election, now = new Date()) {
   const campaignStart = election?.campaign_start
-    ? new Date(election.campaign_start)
+    ? parseScheduleWallClock(election.campaign_start)
     : null;
   const campaignEnd = election?.campaign_end
-    ? new Date(election.campaign_end)
+    ? parseScheduleWallClock(election.campaign_end)
     : null;
-  const votingStart = election?.start_date ? new Date(election.start_date) : null;
-  const votingEnd = election?.end_date ? new Date(election.end_date) : null;
+  const votingStart = election?.start_date ? parseScheduleWallClock(election.start_date) : null;
+  const votingEnd = election?.end_date ? parseScheduleWallClock(election.end_date) : null;
   const status = election?.status || "draft";
 
   if (status === "draft") return "draft";
@@ -124,8 +148,8 @@ export async function fetchAuthoritativeNow() {
   const { data, error } = await supabase.rpc("kandid_server_time");
 
   if (!error && data) {
-    const serverNow = new Date(data);
-    if (!Number.isNaN(serverNow.getTime())) return serverNow;
+    const serverNow = parseAbsoluteTimestamp(data);
+    if (serverNow) return serverNow;
   }
 
   return new Date();
@@ -139,5 +163,17 @@ export function canStudentViewResults(election, now = new Date()) {
   }
 
   const phase = getElectionPhase(election, now);
-  return election.student_result_visibility === "realtime" && phase === "voting";
+  const visibilityMode = normalizeResultVisibilityMode(
+    election.student_result_visibility,
+  );
+
+  if (visibilityMode === RESULT_VISIBILITY_MODES.REALTIME) {
+    return phase === "voting" || phase === "closed";
+  }
+
+  if (visibilityMode === RESULT_VISIBILITY_MODES.AFTER_CLOSE) {
+    return phase === "closed";
+  }
+
+  return false;
 }

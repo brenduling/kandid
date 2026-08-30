@@ -5,11 +5,13 @@ import { KandidInlineLoader } from "../../components/KandidLoader";
 import { supabase } from "../../lib/supabaseClient";
 import {
   canStudentViewResults,
+  compareElectionScheduleValues,
   formatLocalDateTime,
   getElectionPhase,
   getElectionLocationLabel,
 } from "../../utils/elections";
 import { getStudentElectionOrganizationIds } from "../../utils/organizationAccess";
+import { isMissingResultReleaseColumn } from "../../utils/results";
 
 function friendlyPhase(phase) {
   if (phase === "campaign_upcoming") return "Campaign Upcoming";
@@ -19,6 +21,66 @@ function friendlyPhase(phase) {
   if (phase === "closed") return "Closed";
   if (phase === "draft") return "Draft";
   return "Upcoming";
+}
+
+const electionColumnsWithRelease = `
+  id,
+  title,
+  organization_id,
+  campaign_start,
+  campaign_end,
+  start_date,
+  end_date,
+  status,
+  voting_access_mode,
+  location_label,
+  student_result_visibility,
+  results_released_at,
+  organizations(name)
+`;
+
+const electionColumnsWithoutRelease = `
+  id,
+  title,
+  organization_id,
+  campaign_start,
+  campaign_end,
+  start_date,
+  end_date,
+  status,
+  voting_access_mode,
+  location_label,
+  student_result_visibility,
+  organizations(name)
+`;
+
+function electionColumns(includeReleaseColumn) {
+  return includeReleaseColumn ? electionColumnsWithRelease : electionColumnsWithoutRelease;
+}
+
+async function fetchVoteStatus(studentId, includeReleaseColumn = true) {
+  const { data, error } = await supabase
+    .from("votes")
+    .select(`
+      election_id,
+      elections (
+        ${electionColumns(includeReleaseColumn)}
+      )
+    `)
+    .eq("student_id", studentId);
+
+  return {
+    data: (data || []).map((voteRow) => ({
+      ...voteRow,
+      elections: voteRow.elections
+        ? {
+            ...voteRow.elections,
+            results_released_at: voteRow.elections.results_released_at || null,
+          }
+        : null,
+    })),
+    error,
+  };
 }
 
 function StudentElections() {
@@ -39,29 +101,12 @@ function StudentElections() {
       setLoading(true);
       setLoadError("");
 
-      const [organizationIds, voteResponse] = await Promise.all([
-        getStudentElectionOrganizationIds(user),
-        supabase
-          .from("votes")
-          .select(`
-            election_id,
-            elections (
-              id,
-              title,
-              organization_id,
-              campaign_start,
-              campaign_end,
-              start_date,
-              end_date,
-              status,
-              voting_access_mode,
-              location_label,
-              student_result_visibility,
-              organizations(name)
-            )
-          `)
-          .eq("student_id", user.id),
-      ]);
+      const organizationIds = await getStudentElectionOrganizationIds(user);
+      let voteResponse = await fetchVoteStatus(user.id);
+
+      if (isMissingResultReleaseColumn(voteResponse.error)) {
+        voteResponse = await fetchVoteStatus(user.id, false);
+      }
 
       if (voteResponse.error) {
         console.error("Failed to load student voting status:", voteResponse.error);
@@ -93,48 +138,41 @@ function StudentElections() {
         return;
       }
 
-      const electionColumns = `
-        id,
-        title,
-        organization_id,
-        campaign_start,
-        campaign_end,
-        start_date,
-        end_date,
-        status,
-        voting_access_mode,
-        location_label,
-        student_result_visibility,
-        organizations(name)
-      `;
+      const buildElectionQueries = (includeReleaseColumn = true) => {
+        const queries = [];
 
-      const electionQueries = [];
+        if (organizationIds.length > 0) {
+          queries.push(
+            supabase
+              .from("elections")
+              .select(electionColumns(includeReleaseColumn))
+              .in("organization_id", organizationIds)
+              .neq("status", "draft")
+              .neq("status", "archived")
+              .order("start_date", { ascending: true })
+          );
+        }
 
-      if (organizationIds.length > 0) {
-        electionQueries.push(
-          supabase
-            .from("elections")
-            .select(electionColumns)
-            .in("organization_id", organizationIds)
-            .neq("status", "draft")
-            .neq("status", "archived")
-            .order("start_date", { ascending: true })
-        );
+        if (votedElectionIds.length > 0) {
+          queries.push(
+            supabase
+              .from("elections")
+              .select(electionColumns(includeReleaseColumn))
+              .in("id", votedElectionIds)
+              .neq("status", "draft")
+              .neq("status", "archived")
+              .order("start_date", { ascending: true })
+          );
+        }
+
+        return queries;
+      };
+
+      let electionResponses = await Promise.all(buildElectionQueries());
+
+      if (electionResponses.some((response) => isMissingResultReleaseColumn(response.error))) {
+        electionResponses = await Promise.all(buildElectionQueries(false));
       }
-
-      if (votedElectionIds.length > 0) {
-        electionQueries.push(
-          supabase
-            .from("elections")
-            .select(electionColumns)
-            .in("id", votedElectionIds)
-            .neq("status", "draft")
-            .neq("status", "archived")
-            .order("start_date", { ascending: true })
-        );
-      }
-
-      const electionResponses = await Promise.all(electionQueries);
 
       if (!active) return;
 
@@ -149,7 +187,10 @@ function StudentElections() {
         }
 
         (data || []).forEach((election) => {
-          electionMap.set(election.id, election);
+          electionMap.set(election.id, {
+            ...election,
+            results_released_at: election.results_released_at || null,
+          });
         });
       });
 
@@ -174,8 +215,7 @@ function StudentElections() {
       setElections(
         [...electionMap.values()].sort(
           (first, second) =>
-            new Date(first.start_date || 0) -
-            new Date(second.start_date || 0)
+            compareElectionScheduleValues(first.start_date, second.start_date)
         )
       );
       setVotes(voteData || []);
@@ -229,12 +269,22 @@ function StudentElections() {
 
     if (canStudentViewResults(election)) {
       return (
-        <button
-          onClick={() => navigate(`/student/results?election=${election.id}`)}
-          className="student-election-action"
-        >
-          View Results
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => navigate(`/student/elections/${election.id}/campaign`)}
+            className="student-election-action"
+          >
+            Overview
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate(`/student/results?election=${election.id}`)}
+            className="student-election-action"
+          >
+            View Results
+          </button>
+        </div>
       );
     }
 

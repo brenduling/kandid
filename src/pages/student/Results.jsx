@@ -3,7 +3,11 @@ import { useSearchParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { canStudentViewResults } from "../../utils/elections";
 import { getStudentElectionOrganizationIds } from "../../utils/organizationAccess";
-import { buildElectionAnalytics } from "../../utils/results";
+import {
+  buildElectionAnalytics,
+  isMissingResultReleaseColumn,
+  resultVisibilityLabel,
+} from "../../utils/results";
 import { isMissingPositionOrderError } from "../../utils/positionOrder";
 
 async function fetchResultVotes(electionIds, includeDisplayOrder = true) {
@@ -26,10 +30,34 @@ async function fetchResultVotes(electionIds, includeDisplayOrder = true) {
     .in("election_id", electionIds);
 }
 
+const electionSelectWithRelease =
+  "id, title, status, start_date, end_date, student_result_visibility, results_released_at, organization_id, organizations(name)";
+const electionSelectWithoutRelease =
+  "id, title, status, start_date, end_date, student_result_visibility, organization_id, organizations(name)";
+
+async function fetchResultElections(organizationIds, includeReleaseColumn = true) {
+  const { data, error } = await supabase
+    .from("elections")
+    .select(includeReleaseColumn ? electionSelectWithRelease : electionSelectWithoutRelease)
+    .in("organization_id", organizationIds)
+    .neq("status", "draft")
+    .neq("status", "archived")
+    .order("start_date", { ascending: false });
+
+  return {
+    data: (data || []).map((election) => ({
+      ...election,
+      results_released_at: election.results_released_at || null,
+    })),
+    error,
+  };
+}
+
 function StudentResults() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [elections, setElections] = useState([]);
   const [votes, setVotes] = useState([]);
+  const [voteLoadError, setVoteLoadError] = useState("");
   const [selectedElection, setSelectedElection] = useState(
     searchParams.get("election") || ""
   );
@@ -44,39 +72,18 @@ function StudentResults() {
 
       if (organizationIds.length === 0) return;
 
-      const { data: electionData } = await supabase
-        .from("elections")
-        .select(
-          "id, title, status, start_date, end_date, student_result_visibility, organization_id, organizations(name)"
-        )
-        .in("organization_id", organizationIds)
-        .neq("status", "draft")
-        .neq("status", "archived")
-        .order("start_date", { ascending: false });
+      let { data: electionData, error: electionError } =
+        await fetchResultElections(organizationIds);
 
-      let { data: voteData, error: voteError } = await fetchResultVotes(
-        (electionData || []).map((election) => election.id)
-      );
-
-      if (isMissingPositionOrderError(voteError)) {
-        const fallback = await fetchResultVotes(
-          (electionData || []).map((election) => election.id),
-          false
-        );
-        voteData = (fallback.data || []).map((vote) => ({
-          ...vote,
-          positions: {
-            ...vote.positions,
-            display_order: vote.position_id,
-          },
-        }));
-        voteError = fallback.error;
+      if (isMissingResultReleaseColumn(electionError)) {
+        const fallback = await fetchResultElections(organizationIds, false);
+        electionData = fallback.data;
+        electionError = fallback.error;
       }
 
       if (!active) return;
 
-      setElections(electionData || []);
-      setVotes(voteError ? [] : voteData || []);
+      setElections(electionError ? [] : electionData || []);
     }
 
     loadResults();
@@ -89,6 +96,48 @@ function StudentResults() {
   const activeElection = elections.find(
     (election) => election.id === Number(selectedElection)
   );
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadSelectedVotes() {
+      setVotes([]);
+      setVoteLoadError("");
+
+      if (!activeElection || !canStudentViewResults(activeElection)) return;
+
+      let { data: voteData, error: voteError } = await fetchResultVotes([
+        activeElection.id,
+      ]);
+
+      if (isMissingPositionOrderError(voteError)) {
+        const fallback = await fetchResultVotes([activeElection.id], false);
+        voteData = (fallback.data || []).map((vote) => ({
+          ...vote,
+          positions: {
+            ...vote.positions,
+            display_order: vote.position_id,
+          },
+        }));
+        voteError = fallback.error;
+      }
+
+      if (!active) return;
+
+      if (voteError) {
+        setVoteLoadError(voteError.message || "Unable to load result totals.");
+        return;
+      }
+
+      setVotes(voteData || []);
+    }
+
+    loadSelectedVotes();
+
+    return () => {
+      active = false;
+    };
+  }, [activeElection]);
 
   const analytics = useMemo(() => {
     if (!selectedElection) {
@@ -155,7 +204,16 @@ function StudentResults() {
           </div>
         ) : !canStudentViewResults(activeElection) ? (
           <div className="glass-panel rounded-[28px] p-8 text-gray-500">
-            Results are hidden until the election team releases them.
+            {activeElection
+              ? `${resultVisibilityLabel(
+                  activeElection.student_result_visibility,
+                  activeElection.results_released_at,
+                )}: results are not available to students yet.`
+              : "Results are hidden until the election team releases them."}
+          </div>
+        ) : voteLoadError ? (
+          <div className="glass-panel rounded-[28px] p-8 text-gray-500">
+            {voteLoadError}
           </div>
         ) : Object.keys(analytics.groupedResults).length === 0 ? (
           <div className="glass-panel rounded-[28px] p-8 text-gray-500">

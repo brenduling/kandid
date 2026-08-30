@@ -1,145 +1,267 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, BarChart3, ChevronRight, UsersRound, Vote } from "lucide-react";
+import {
+  ArrowLeft,
+  BarChart3,
+  Trophy,
+  UserRound,
+  UsersRound,
+  Vote,
+} from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
-import KandidImage from "../../components/KandidImage";
+import {
+  OrganizationLogo,
+  StudentAvatar,
+} from "../../components/KandidImage";
 import { supabase } from "../../lib/supabaseClient";
-import { formatLocalDateTime, getElectionPhase } from "../../utils/elections";
+import {
+  canStudentViewResults,
+  formatLocalDateTime,
+  getElectionPhase,
+} from "../../utils/elections";
 import { getStudentElectionOrganizationIds } from "../../utils/organizationAccess";
-import { fetchOrderedPositions } from "../../utils/positionOrder";
+import { isMissingResultReleaseColumn } from "../../utils/results";
+
+const electionSelectWithRelease = `
+  id,
+  title,
+  organization_id,
+  campaign_start,
+  campaign_end,
+  start_date,
+  end_date,
+  status,
+  student_result_visibility,
+  results_released_at,
+  organizations(id, name, description, logo_url, organization_type)
+`;
+
+const electionSelectWithoutRelease = `
+  id,
+  title,
+  organization_id,
+  campaign_start,
+  campaign_end,
+  start_date,
+  end_date,
+  status,
+  student_result_visibility,
+  organizations(id, name, description, logo_url, organization_type)
+`;
+
+async function fetchElection(electionId, includeReleaseColumn = true) {
+  const { data, error } = await supabase
+    .from("elections")
+    .select(includeReleaseColumn ? electionSelectWithRelease : electionSelectWithoutRelease)
+    .eq("id", electionId)
+    .single();
+
+  return {
+    data: data ? { ...data, results_released_at: data.results_released_at || null } : null,
+    error,
+  };
+}
+
+function officerName(officer) {
+  if (officer?.students) {
+    return `${officer.students.first_name || ""} ${officer.students.last_name || ""}`.trim();
+  }
+
+  return officer?.officer_name || "Officer";
+}
 
 function StudentCampaign() {
   const { electionId } = useParams();
   const navigate = useNavigate();
   const [election, setElection] = useState(null);
-  const [positions, setPositions] = useState([]);
-  const [candidates, setCandidates] = useState([]);
-  const [candidateError, setCandidateError] = useState("");
-  const [selectedCandidate, setSelectedCandidate] = useState(null);
+  const [organizationElections, setOrganizationElections] = useState([]);
+  const [officers, setOfficers] = useState([]);
+  const [votes, setVotes] = useState([]);
   const [tab, setTab] = useState("officers");
   const [loading, setLoading] = useState(true);
   const [accessDenied, setAccessDenied] = useState(false);
+  const [loadError, setLoadError] = useState("");
   const user = JSON.parse(localStorage.getItem("user"));
-
-  function candidateName(candidate) {
-    return `${candidate?.students?.first_name || ""} ${candidate?.students?.last_name || ""}`.trim();
-  }
 
   useEffect(() => {
     let active = true;
 
-    async function loadCampaign() {
+    async function loadOverview() {
       setLoading(true);
       setAccessDenied(false);
-      setCandidateError("");
+      setLoadError("");
 
-      const [{ data: electionData }, eligibleOrganizationIds] = await Promise.all([
-        supabase
-          .from("elections")
-          .select(`
-            id,
-            title,
-            organization_id,
-            campaign_start,
-            campaign_end,
-            start_date,
-            end_date,
-            status,
-            organizations(name)
-          `)
-          .eq("id", electionId)
-          .single(),
+      const [electionResponse, eligibleOrganizationIds] = await Promise.all([
+        fetchElection(electionId),
         getStudentElectionOrganizationIds(user),
       ]);
 
+      let { data: electionData, error: electionError } = electionResponse;
+
+      if (isMissingResultReleaseColumn(electionError)) {
+        const fallback = await fetchElection(electionId, false);
+        electionData = fallback.data;
+        electionError = fallback.error;
+      }
+
+      if (electionError) {
+        console.error("Failed to load student election overview:", electionError);
+        if (active) {
+          setLoadError(electionError.message || "Unable to load election overview.");
+          setLoading(false);
+        }
+        return;
+      }
+
       if (!eligibleOrganizationIds.includes(electionData?.organization_id)) {
         if (active) {
-          setElection(null);
-          setPositions([]);
-          setCandidates([]);
           setAccessDenied(true);
           setLoading(false);
         }
         return;
       }
 
-      const { data: positionData } = await fetchOrderedPositions(supabase, electionId);
+      const [
+        { data: officerData, error: officersError },
+        { data: orgElectionData, error: electionsError },
+      ] = await Promise.all([
+        supabase
+          .from("officers")
+          .select(`
+            *,
+            students (
+              first_name,
+              last_name,
+              student_number,
+              photo_url,
+              program,
+              year_level
+            )
+          `)
+          .eq("organization_id", electionData.organization_id)
+          .order("is_current", { ascending: false })
+          .order("display_order", { ascending: true }),
+        supabase
+          .from("elections")
+          .select("id, title, campaign_start, campaign_end, start_date, end_date, status")
+          .eq("organization_id", electionData.organization_id)
+          .neq("status", "draft")
+          .neq("status", "archived")
+          .order("start_date", { ascending: false }),
+      ]);
 
-      const positionIds = (positionData || []).map((position) => position.id);
-      let candidateData = [];
+      if (officersError) {
+        console.error("Failed to load organization officers:", officersError);
+      }
 
-      if (positionIds.length > 0) {
+      if (electionsError) {
+        console.error("Failed to load organization elections:", electionsError);
+      }
+
+      const electionIds = (orgElectionData || []).map((item) => item.id);
+      let voteData = [];
+
+      if (electionIds.length > 0) {
         const { data, error } = await supabase
-          .from("candidates")
+          .from("votes")
           .select(`
             id,
-            position_id,
+            election_id,
             student_id,
-            partylist_id,
-            photo,
-            credentials,
-            bio,
-            platform,
-            projects,
-            students(first_name, last_name, program, year_level, photo_url),
-            partylists(name)
+            is_abstain,
+            students(program, year_level)
           `)
-          .in("position_id", positionIds);
+          .in("election_id", electionIds);
 
         if (error) {
-          console.error("Failed to load student campaign candidates:", error);
-          if (active) {
-            setCandidateError(error.message || "Unable to load candidates.");
-          }
+          console.error("Failed to load organization election demographics:", error);
+        } else {
+          voteData = data || [];
         }
-
-        candidateData = data || [];
       }
 
       if (!active) return;
 
       setElection(electionData);
-      setPositions(positionData || []);
-      setCandidates(candidateData);
+      setOfficers(officerData || []);
+      setOrganizationElections(orgElectionData || []);
+      setVotes(voteData);
       setLoading(false);
     }
 
-    loadCampaign();
+    loadOverview();
 
     return () => {
       active = false;
     };
   }, [electionId, user.id]);
 
-  const groupedCandidates = useMemo(
-    () =>
-      positions.map((position) => ({
-        ...position,
-        candidates: candidates.filter((candidate) => candidate.position_id === position.id),
-      })),
-    [candidates, positions],
-  );
+  const officerGroups = useMemo(() => {
+    const current = officers.filter((officer) => officer.is_current);
+    const past = officers.filter((officer) => !officer.is_current);
+    return { current, past };
+  }, [officers]);
+
+  const electionDemographics = useMemo(() => {
+    if (!election) return [];
+
+    return organizationElections.map((item) => {
+      const electionVotes = votes.filter((vote) => vote.election_id === item.id);
+      const uniqueVoters = new Set(electionVotes.map((vote) => vote.student_id).filter(Boolean));
+      const programCounts = {};
+
+      electionVotes.forEach((vote) => {
+        const program = vote.students?.program || "Unspecified";
+        programCounts[program] = (programCounts[program] || 0) + 1;
+      });
+
+      const topProgram =
+        Object.entries(programCounts).sort((first, second) => second[1] - first[1])[0]?.[0] ||
+        "No voter data";
+
+      return {
+        ...item,
+        results_released_at:
+          item.id === election.id ? election.results_released_at || null : null,
+        student_result_visibility:
+          item.id === election.id ? election.student_result_visibility : "manual",
+        voteEntries: electionVotes.length,
+        uniqueVoters: uniqueVoters.size,
+        abstains: electionVotes.filter((vote) => vote.is_abstain).length,
+        topProgram,
+      };
+    });
+  }, [election, organizationElections, votes]);
 
   if (loading) {
-    return <div className="student-empty-card">Loading campaign...</div>;
+    return <div className="student-empty-card">Loading election overview...</div>;
   }
 
   if (accessDenied) {
-    return <div className="student-empty-card">This campaign is not available for your organization.</div>;
+    return <div className="student-empty-card">This election overview is not available for your organization.</div>;
+  }
+
+  if (loadError) {
+    return <div className="student-empty-card">{loadError}</div>;
   }
 
   if (!election) {
     return <div className="student-empty-card">Election not found.</div>;
   }
 
+  const organization = election.organizations;
   const phase = getElectionPhase(election);
 
   if (phase === "draft" || phase === "archived") {
-    return <div className="student-empty-card">This campaign is not available.</div>;
+    return <div className="student-empty-card">This election overview is not available.</div>;
   }
 
-  if (phase !== "campaign") {
+  if (phase !== "campaign" && !canStudentViewResults(election)) {
     return (
       <div>
+        <button type="button" onClick={() => navigate("/student/elections")} className="student-back-link">
+          <ArrowLeft size={15} />
+          Back
+        </button>
         <div className="student-module-banner">
           <div className="student-module-icon">
             <BarChart3 size={22} />
@@ -150,109 +272,34 @@ function StudentCampaign() {
               {phase === "campaign_upcoming"
                 ? `Campaign begins ${formatLocalDateTime(election.campaign_start)}.`
                 : phase === "waiting"
-                ? `Campaign has ended. Voting opens ${formatLocalDateTime(election.start_date)}.`
-                : "Campaign materials are no longer available."}
+                  ? `Campaign has ended. Voting opens ${formatLocalDateTime(election.start_date)}.`
+                  : "Results are being verified before the overview reopens."}
             </p>
           </div>
         </div>
-        <button onClick={() => navigate("/student/elections")} className="student-back-link">
-          <ArrowLeft size={15} />
-          Back
-        </button>
-      </div>
-    );
-  }
-
-  if (selectedCandidate) {
-    const position = positions.find((item) => item.id === selectedCandidate.position_id);
-
-    return (
-      <div>
-        <div className="student-module-banner">
-          <div className="student-module-icon">
-            <BarChart3 size={22} />
-          </div>
-          <div>
-            <h1>Election Overview</h1>
-            <p>View candidate credentials, platforms, and project details.</p>
-          </div>
-        </div>
-
-        <button onClick={() => setSelectedCandidate(null)} className="student-back-link">
-          <ArrowLeft size={15} />
-          Back
-        </button>
-
-        <select className="student-candidate-select" value={election.organizations?.name || ""} readOnly>
-          <option>{election.organizations?.name || "Organization"}</option>
-        </select>
-
-        <article className="student-candidate-detail">
-          <KandidImage
-            src={selectedCandidate.photo || selectedCandidate.students?.photo_url}
-            alt={candidateName(selectedCandidate) || "Candidate"}
-            label={candidateName(selectedCandidate) || "Candidate"}
-            className="student-candidate-photo"
-            fit="cover"
-          />
-
-          <div className="student-candidate-facts">
-            {[
-              ["Elected Position:", position?.name || "-"],
-              [
-                "Full Name:",
-                `${selectedCandidate.students?.first_name || ""} ${selectedCandidate.students?.last_name || ""}`.trim() || "-",
-              ],
-              ["Year Level:", selectedCandidate.students?.year_level || "-"],
-              ["Number of Votes:", "Pending election tally"],
-              ["Term Started:", formatLocalDateTime(election.start_date)],
-              ["Term Finished:", "TBA"],
-              ["Party List:", selectedCandidate.partylists?.name || "Independent"],
-            ].map(([label, value]) => (
-              <p key={label}>
-                <Vote size={15} />
-                <strong>{label}</strong>
-                <span>{value}</span>
-              </p>
-            ))}
-          </div>
-
-          <div className="student-candidate-text-block">
-            <h3>Credentials:</h3>
-            <p>{selectedCandidate.credentials || selectedCandidate.bio || "No credentials provided."}</p>
-          </div>
-          <div className="student-candidate-text-block">
-            <h3>Platform:</h3>
-            <p>{selectedCandidate.platform || "No platform provided."}</p>
-          </div>
-          <div className="student-candidate-text-block">
-            <h3>Projects:</h3>
-            <p>{selectedCandidate.projects || "No projects provided."}</p>
-          </div>
-        </article>
       </div>
     );
   }
 
   return (
     <div>
-      <button onClick={() => navigate("/student/elections")} className="student-back-link">
+      <button type="button" onClick={() => navigate("/student/elections")} className="student-back-link">
         <ArrowLeft size={15} />
-        {election.organizations?.name || "Organization"}
+        {organization?.name || "Organization"}
       </button>
 
-      <section className="student-campaign-hero">
-        <div className="student-campaign-icon">
-          <UsersRound size={34} />
-        </div>
+      <section className="student-campaign-hero student-org-detail-hero">
+        <OrganizationLogo
+          organization={organization}
+          className="!h-[clamp(5.5rem,8vw,8rem)] !w-[clamp(5.5rem,8vw,8rem)] !p-2.5"
+          loading="eager"
+        />
         <div>
-          <h1>{election.organizations?.name || "Student Organization"}</h1>
-          <p>{candidates.length} active candidates</p>
-          {candidateError ? (
-            <p className="mt-2 text-sm font-semibold text-red-600">
-              Unable to load candidates. Please retry this campaign page.
-            </p>
-          ) : null}
+          <span className="mb-2 inline-flex rounded-full bg-white/80 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#f4511e]">
+            Election Overview
+          </span>
+          <h1>{organization?.name || "Student Organization"}</h1>
+          <p>{election.title}</p>
         </div>
       </section>
 
@@ -273,58 +320,74 @@ function StudentCampaign() {
         </button>
       </div>
 
-      {tab === "elections" ? (
-        <div className="student-turnout-card">
-          <h2>Voter Turnouts</h2>
-          <p>{election.title}</p>
-          <strong>{formatLocalDateTime(election.start_date)}</strong>
+      {tab === "officers" ? (
+        <div className="student-officer-stack">
+          {officers.length === 0 ? (
+            <div className="student-empty-card">No officers have been published for this organization.</div>
+          ) : (
+            [
+              ["Current Officers", officerGroups.current],
+              ["Past Officers", officerGroups.past],
+            ].map(([title, group]) =>
+              group.length > 0 ? (
+                <section key={title}>
+                  <h2>{title}</h2>
+                  <div className="space-y-4">
+                    {group.map((officer) => (
+                      <div key={officer.id} className="student-officer-row">
+                        {officer.students ? (
+                          <StudentAvatar student={officer.students} className="student-officer-avatar" />
+                        ) : (
+                          <div className="student-officer-avatar">
+                            <UserRound size={30} />
+                          </div>
+                        )}
+                        <div>
+                          <strong>{officerName(officer)}</strong>
+                          <p>{officer.position_title || "Officer"}</p>
+                          <p>{officer.term_label || (officer.is_current ? "Current Term" : "Past Term")}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ) : null,
+            )
+          )}
         </div>
       ) : (
-        <div className="student-candidate-list">
-          {groupedCandidates.map((position) => (
-            <section key={position.id}>
-              <h2>Candidates for {position.name}</h2>
-              <div className="student-candidate-grid">
-                {position.candidates.length === 0 ? (
-                  <div className="student-empty-card">
-                    {candidateError
-                      ? "Candidate records could not be loaded for this position."
-                      : "No candidates have been added for this position."}
-                  </div>
-                ) : (
-                  position.candidates.map((candidate) => (
-                    <article key={candidate.id} className="student-candidate-card">
-                      <KandidImage
-                        src={candidate.photo || candidate.students?.photo_url}
-                        alt={candidateName(candidate) || "Candidate"}
-                        label={candidateName(candidate) || "Candidate"}
-                        className="student-candidate-avatar"
-                        fit="cover"
-                      />
-                      <div>
-                        <h3>
-                          {candidate.students?.first_name} {candidate.students?.last_name}
-                        </h3>
-                        <p>
-                          {candidate.students?.program || "Student"} /{" "}
-                          {candidate.students?.year_level || "Year Level"}
-                        </p>
-                        <div className="student-party-card">
-                          <span>Partylist</span>
-                          <strong>{candidate.partylists?.name || "Independent"}</strong>
-                          <span>Platform</span>
-                          <strong>{candidate.platform || "No platform provided"}</strong>
-                        </div>
-                        <button onClick={() => setSelectedCandidate(candidate)}>
-                          Read More <ChevronRight size={14} />
-                        </button>
-                      </div>
-                    </article>
-                  ))
-                )}
-              </div>
-            </section>
-          ))}
+        <div className="student-org-election-list grid w-full grid-cols-1 gap-5 lg:grid-cols-2">
+          {electionDemographics.length === 0 ? (
+            <div className="student-empty-card">No organization elections are listed yet.</div>
+          ) : (
+            electionDemographics.map((item) => (
+              <article key={item.id} className="student-org-election-card min-h-[190px]">
+                <div>
+                  <span className="status-pill">{getElectionPhase(item)}</span>
+                  <h2 className="mt-3">{item.title}</h2>
+                  <p>{formatLocalDateTime(item.start_date)} - {formatLocalDateTime(item.end_date)}</p>
+                </div>
+                <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                  {[
+                    [UsersRound, "Voters", item.uniqueVoters],
+                    [Vote, "Vote entries", item.voteEntries],
+                    [Trophy, "Top program", item.topProgram],
+                  ].map(([Icon, label, value]) => (
+                    <div key={label} className="rounded-2xl bg-white/70 p-3">
+                      <Icon size={16} className="text-[#f4511e]" />
+                      <p className="mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-gray-400">{label}</p>
+                      <strong className="mt-1 block text-sm text-[#182033]">{value}</strong>
+                    </div>
+                  ))}
+                </div>
+                {canStudentViewResults(item) ? (
+                  <button type="button" onClick={() => navigate(`/student/results?election=${item.id}`)}>
+                    View Results
+                  </button>
+                ) : null}
+              </article>
+            ))
+          )}
         </div>
       )}
     </div>

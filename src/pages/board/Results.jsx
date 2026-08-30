@@ -2,11 +2,18 @@ import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { usePrompt } from "../../context/PromptContext";
-import { buildElectionAnalytics } from "../../utils/results";
+import {
+  buildElectionAnalytics,
+  getResultVerificationSummary,
+  normalizeResultVisibilityMode,
+  resultVisibilityLabel,
+  RESULT_VISIBILITY_MODES,
+} from "../../utils/results";
 import { isMissingPositionOrderError } from "../../utils/positionOrder";
-import { fetchAuthoritativeNow } from "../../utils/elections";
+import { fetchAuthoritativeNow, getElectionPhase } from "../../utils/elections";
 
-const RELEASE_COLUMN_SELECT = "id, title, organization_id, results_released_at, organizations(name)";
+const RELEASE_COLUMN_SELECT =
+  "id, title, status, end_date, organization_id, student_result_visibility, results_released_at, organizations(name)";
 const BASE_ELECTION_SELECT = "id, title, organization_id, organizations(name)";
 
 function isMissingReleaseColumn(error) {
@@ -187,12 +194,32 @@ function BoardResults() {
     (election) => election.id === Number(selectedElection)
   );
   const analytics = buildElectionAnalytics(filteredVotes, activeElection);
+  const verification = getResultVerificationSummary(filteredVotes);
+  const activeVisibilityMode = normalizeResultVisibilityMode(
+    activeElection?.student_result_visibility,
+  );
+  const phase = activeElection ? getElectionPhase(activeElection) : "";
 
   async function releaseResults() {
     if (!activeElection) return;
 
     if (!releaseColumnReady) {
       prompt.error("Apply the result release migration in Supabase before releasing results.");
+      return;
+    }
+
+    if (activeVisibilityMode === RESULT_VISIBILITY_MODES.MANUAL) {
+      prompt.error("Manual result publishing is restricted to Super Admin.");
+      return;
+    }
+
+    if (phase !== "closed") {
+      prompt.error("Results can only be released after voting has closed.");
+      return;
+    }
+
+    if (!verification.verified) {
+      prompt.error("Complete vote verification before releasing results.");
       return;
     }
 
@@ -264,7 +291,9 @@ function BoardResults() {
               ? "Release Setup Required"
               : activeElection.results_released_at
                 ? "Results Released"
-                : "Release Results"}
+                : activeVisibilityMode === RESULT_VISIBILITY_MODES.MANUAL
+                  ? "Super Admin Release"
+                  : "Release Results"}
           </button>
         ) : null}
       </div>
@@ -280,6 +309,24 @@ function BoardResults() {
           </div>
         ) : (
           <>
+            {activeElection ? (
+              <div className="soft-card">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8b6e5c]">
+                  Student Result Visibility
+                </p>
+                <h2 className="mt-2 text-2xl font-black">
+                  {resultVisibilityLabel(
+                    activeElection.student_result_visibility,
+                    activeElection.results_released_at,
+                  )}
+                </h2>
+                <p className="mt-2 text-sm text-gray-600">
+                  Verification: {verification.verified ? "Completed" : "Required"}.
+                  Vote entries: {verification.totalVoteEntries}. Missing hashes:{" "}
+                  {verification.missingHash}.
+                </p>
+              </div>
+            ) : null}
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
               {[
                 ["Vote Entries", analytics.totalVoteEntries],

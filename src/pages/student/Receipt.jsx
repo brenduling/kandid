@@ -7,7 +7,7 @@ import {
   isMissingPositionOrderError,
   sortVotesByPositionOrder,
 } from "../../utils/positionOrder";
-import { formatLocalDateTime } from "../../utils/time";
+import { formatLocalDateTime, parseAbsoluteTimestamp } from "../../utils/time";
 
 function getReceiptGroupKey(vote) {
   return vote.election_id || vote.elections?.title || vote.id;
@@ -137,7 +137,8 @@ function StudentReceipt() {
       if (
         vote.vote_timestamp &&
         (!current.submittedAt ||
-          new Date(vote.vote_timestamp) > new Date(current.submittedAt))
+          parseAbsoluteTimestamp(vote.vote_timestamp) >
+            parseAbsoluteTimestamp(current.submittedAt))
       ) {
         current.submittedAt = vote.vote_timestamp;
       }

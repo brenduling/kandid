@@ -6,7 +6,11 @@ import {
   UserRoundCheck,
 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
-import { formatLocalDateTime, getElectionPhase } from "../../utils/elections";
+import {
+  fetchAuthoritativeNow,
+  formatLocalDateTime,
+  getElectionPhase,
+} from "../../utils/elections";
 import { hasStudentVotedInElection, submitBallot } from "../../utils/voting";
 import { usePrompt } from "../../context/PromptContext";
 import KandidImage from "../../components/KandidImage";
@@ -16,6 +20,7 @@ function KioskVoting() {
   const user = JSON.parse(localStorage.getItem("user"));
   const prompt = usePrompt();
   const [nowTick, setNowTick] = useState(0);
+  const [authoritativeNow, setAuthoritativeNow] = useState(null);
   const [elections, setElections] = useState([]);
   const [selectedElectionId, setSelectedElectionId] = useState("");
   const [selectedElection, setSelectedElection] = useState(null);
@@ -32,11 +37,27 @@ function KioskVoting() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    let active = true;
+
+    async function syncClock() {
+      const serverNow = await fetchAuthoritativeNow();
+      if (active) {
+        setAuthoritativeNow(serverNow);
+        setNowTick(0);
+      }
+    }
+
+    syncClock();
+
     const timer = window.setInterval(() => {
       setNowTick((value) => value + 1);
+      syncClock();
     }, 30000);
 
-    return () => window.clearInterval(timer);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
   }, []);
 
   useEffect(() => {
@@ -67,8 +88,15 @@ function KioskVoting() {
         return;
       }
 
+      const serverNow = await fetchAuthoritativeNow();
+
+      if (!active) return;
+
+      setAuthoritativeNow(serverNow);
+      setNowTick(0);
+
       const activeElections = (data || []).filter(
-        (election) => getElectionPhase(election, new Date()) === "voting",
+        (election) => getElectionPhase(election, serverNow) === "voting",
       );
 
       setElections(activeElections);
@@ -212,7 +240,11 @@ function KioskVoting() {
       return;
     }
 
-    if (getElectionPhase(selectedElection, new Date(nowTick)) !== "voting") {
+    const serverNow = await fetchAuthoritativeNow();
+    setAuthoritativeNow(serverNow);
+    setNowTick(0);
+
+    if (getElectionPhase(selectedElection, serverNow) !== "voting") {
       setFeedback("Kiosk voting is only available during the live voting period.", "error");
       return;
     }
@@ -308,7 +340,11 @@ function KioskVoting() {
       return;
     }
 
-    if (getElectionPhase(selectedElection, new Date(nowTick)) !== "voting") {
+    const serverNow = await fetchAuthoritativeNow();
+    setAuthoritativeNow(serverNow);
+    setNowTick(0);
+
+    if (getElectionPhase(selectedElection, serverNow) !== "voting") {
       setFeedback("This voting window has already closed.", "error");
       return;
     }
@@ -354,7 +390,10 @@ function KioskVoting() {
     setSubmitting(false);
   }
 
-  const kioskPhase = selectedElection ? getElectionPhase(selectedElection, new Date(nowTick)) : null;
+  const displayNow = authoritativeNow
+    ? new Date(authoritativeNow.getTime() + nowTick * 30000)
+    : new Date();
+  const kioskPhase = selectedElection ? getElectionPhase(selectedElection, displayNow) : null;
   const completedSelections = Object.keys(selectedVotes).length;
 
   return (

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { RefreshCw, Vote, Users, CheckCircle, Clock } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
+import { formatLocalDateTime } from "../../utils/time";
 
 function BoardVotingMonitor() {
   const [votes, setVotes] = useState([]);
@@ -197,9 +198,7 @@ function BoardVotingMonitor() {
                   </td>
 
                   <td className="px-6 py-4 text-sm text-gray-600">
-                    {vote.vote_timestamp
-                      ? new Date(vote.vote_timestamp).toLocaleString()
-                      : "-"}
+                    {formatLocalDateTime(vote.vote_timestamp, "-")}
                   </td>
 
                   <td className="px-6 py-4">

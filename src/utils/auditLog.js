@@ -17,6 +17,7 @@ const ACTION_LABELS = {
   election_deleted: "Election Deleted",
   election_archived: "Election Archived",
   election_delete_blocked: "Election Delete Blocked",
+  results_published: "Results Published",
   position_created: "Position Created",
   position_updated: "Position Updated",
   position_deleted: "Position Deleted",

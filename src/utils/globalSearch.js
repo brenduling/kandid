@@ -17,6 +17,7 @@ import {
   getStudentElectionOrganizationIds,
   selectActiveMemberships,
 } from "./organizationAccess";
+import { formatLocalDateTime, formatScheduleDateTime } from "./time";
 
 export const SEARCH_MIN_LENGTH = 2;
 
@@ -269,7 +270,7 @@ function electionResult(record, role, query) {
     ...resultBase(role, "elections", record, query),
     title: record.title || "Election",
     subtitle: `Election - ${organizationName}`,
-    meta: [record.status, record.start_date && `Starts ${new Date(record.start_date).toLocaleString()}`]
+    meta: [record.status, record.start_date && `Starts ${formatScheduleDateTime(record.start_date)}`]
       .filter(Boolean)
       .join(" - "),
     image: record.organizations?.logo_url,
@@ -277,9 +278,9 @@ function electionResult(record, role, query) {
     fields: [
       ["Organization", organizationName],
       ["Status", record.status],
-      ["Campaign Starts", formatDate(record.campaign_start)],
-      ["Voting Starts", formatDate(record.start_date)],
-      ["Voting Ends", formatDate(record.end_date)],
+      ["Campaign Starts", formatDate(record.campaign_start, "schedule")],
+      ["Voting Starts", formatDate(record.start_date, "schedule")],
+      ["Voting Ends", formatDate(record.end_date, "schedule")],
       ["Results", resultVisibilityLabel(record.student_result_visibility, record.results_released_at)],
     ],
     sections: [
@@ -294,9 +295,9 @@ function electionResult(record, role, query) {
       {
         title: "Schedule",
         fields: [
-          ["Campaign Starts", formatDate(record.campaign_start)],
-          ["Voting Starts", formatDate(record.start_date)],
-          ["Voting Ends", formatDate(record.end_date)],
+          ["Campaign Starts", formatDate(record.campaign_start, "schedule")],
+          ["Voting Starts", formatDate(record.start_date, "schedule")],
+          ["Voting Ends", formatDate(record.end_date, "schedule")],
         ],
       },
     ],
@@ -523,12 +524,12 @@ function reportResult(record, role, query) {
     ...resultBase(role, "reports", record, query),
     title: record.title || "Election Report",
     subtitle: ["Report", record.organizations?.name].filter(Boolean).join(" - "),
-    meta: [record.status, formatDate(record.end_date)].filter(Boolean).join(" - "),
+    meta: [record.status, formatDate(record.end_date, "schedule")].filter(Boolean).join(" - "),
     fields: [
       ["Election", record.title],
       ["Organization", record.organizations?.name],
       ["Status", record.status],
-      ["Voting Ends", formatDate(record.end_date)],
+      ["Voting Ends", formatDate(record.end_date, "schedule")],
     ],
     related: [{ label: record.title, href: resultHref(role, "elections", record.id, query) }],
   };
@@ -549,14 +550,18 @@ function auditLogResult(record, role, query) {
   };
 }
 
-function formatDate(value) {
-  return value ? new Date(value).toLocaleString() : null;
+function formatDate(value, semantic = "event") {
+  if (!value) return null;
+  return semantic === "schedule"
+    ? formatScheduleDateTime(value, null)
+    : formatLocalDateTime(value, null);
 }
 
 function resultVisibilityLabel(value, releasedAt) {
   if (releasedAt) return "Released";
   if (value === "realtime") return "Live while voting";
-  if (value === "after_close") return "Visible after close";
+  if (value === "after_close" || value === "hidden") return "Visible after voting ends";
+  if (value === "manual") return "Manual admin release";
   if (value === "public") return "Visible";
   return "Hidden until released";
 }
