@@ -9,6 +9,8 @@ import { supabase } from "../../lib/supabaseClient";
 import { formatLocalDateTime, getElectionPhase } from "../../utils/elections";
 import { hasStudentVotedInElection, submitBallot } from "../../utils/voting";
 import { usePrompt } from "../../context/PromptContext";
+import KandidImage from "../../components/KandidImage";
+import { fetchOrderedPositions } from "../../utils/positionOrder";
 
 function KioskVoting() {
   const user = JSON.parse(localStorage.getItem("user"));
@@ -102,11 +104,7 @@ function KioskVoting() {
           .select("*, organizations(name)")
           .eq("id", Number(selectedElectionId))
           .single(),
-        supabase
-          .from("positions")
-          .select("*")
-          .eq("election_id", Number(selectedElectionId))
-          .order("id", { ascending: true }),
+        fetchOrderedPositions(supabase, Number(selectedElectionId)),
       ]);
 
       const positionIds = positionData?.map((position) => position.id) || [];
@@ -117,7 +115,7 @@ function KioskVoting() {
           .from("candidates")
           .select(`
             *,
-            students(first_name, last_name, student_number),
+            students(first_name, last_name, student_number, photo_url),
             partylists(name, logo_url)
           `)
           .in("position_id", positionIds);
@@ -151,14 +149,47 @@ function KioskVoting() {
   }
 
   function handleSelect(position, candidateId) {
-    setSelectedVotes((current) => ({
-      ...current,
-      [position.id]: {
-        position_id: position.id,
-        candidate_id: candidateId,
-        is_abstain: false,
-      },
-    }));
+    const maxVotes = Math.max(Number(position.max_votes || 1), 1);
+
+    setSelectedVotes((current) => {
+      const previous = current[position.id];
+
+      if (maxVotes === 1) {
+        return {
+          ...current,
+          [position.id]: {
+            position_id: position.id,
+            candidate_id: candidateId,
+            candidate_ids: [candidateId],
+            is_abstain: false,
+          },
+        };
+      }
+
+      const existing = previous?.is_abstain ? [] : previous?.candidate_ids || [];
+      const alreadySelected = existing.includes(candidateId);
+      const nextCandidateIds = alreadySelected
+        ? existing.filter((id) => id !== candidateId)
+        : existing.length < maxVotes
+          ? [...existing, candidateId]
+          : existing;
+
+      if (nextCandidateIds.length === 0) {
+        const next = { ...current };
+        delete next[position.id];
+        return next;
+      }
+
+      return {
+        ...current,
+        [position.id]: {
+          position_id: position.id,
+          candidate_id: nextCandidateIds[0],
+          candidate_ids: nextCandidateIds,
+          is_abstain: false,
+        },
+      };
+    });
   }
 
   function handleAbstain(position) {
@@ -167,6 +198,7 @@ function KioskVoting() {
       [position.id]: {
         position_id: position.id,
         candidate_id: null,
+        candidate_ids: [],
         is_abstain: true,
       },
     }));
@@ -508,52 +540,73 @@ function KioskVoting() {
                     <p className="mt-1 text-sm text-gray-600">{verifiedStudent.student_number}</p>
                   </div>
 
-                  <div className="mt-6 space-y-6">
-                    {positions.length === 0 ? (
-                      <div className="empty-state">No ballot positions found for this election.</div>
-                    ) : (
-                      positions.map((position) => {
+                  {positions.length === 0 ? (
+                    <div className="empty-state mt-6">No ballot positions found for this election.</div>
+                  ) : (
+                    <div className="mt-6 rounded-[28px] bg-white/38 p-5">
+                      <div className="border-b border-[rgba(104,86,72,0.1)] pb-4">
+                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#d35a25]">
+                          Official Kiosk Ballot
+                        </p>
+                        <p className="mt-2 text-sm text-gray-600">
+                          Complete each position below for the verified student.
+                        </p>
+                      </div>
+
+                      <div className="divide-y divide-[rgba(104,86,72,0.1)]">
+                        {positions.map((position) => {
                         const positionCandidates = candidates.filter(
                           (candidate) => candidate.position_id === position.id,
                         );
 
                         return (
-                          <div key={position.id} className="rounded-[28px] bg-white/38 p-5">
+                          <section key={position.id} className="py-5 first:pt-4 last:pb-0">
                             <h3 className="text-xl font-black">{position.name}</h3>
                             <p className="mt-2 text-sm text-gray-600">
-                              Choose one candidate or abstain.
+                              {Number(position.max_votes || 1) > 1
+                                ? `Choose up to ${position.max_votes} candidates or abstain.`
+                                : "Vote for one."}
                             </p>
 
-                            <div className="mt-4 grid gap-4 xl:grid-cols-2">
+                            <div className="mt-4 space-y-2">
                               {positionCandidates.map((candidate) => {
-                                const selected =
-                                  selectedVotes[position.id]?.candidate_id === candidate.id;
+                                const currentVote = selectedVotes[position.id];
+                                const maxVotes = Math.max(Number(position.max_votes || 1), 1);
+                                const selectedIds = currentVote?.candidate_ids || (
+                                  currentVote?.candidate_id ? [currentVote.candidate_id] : []
+                                );
+                                const selected = selectedIds.includes(candidate.id);
+                                const limitReached = selectedIds.length >= maxVotes;
+                                const deEmphasized =
+                                  !selected &&
+                                  Boolean(currentVote) &&
+                                  ((maxVotes === 1 && selectedIds.length > 0) ||
+                                    (maxVotes > 1 && limitReached) ||
+                                    currentVote?.is_abstain);
 
                                 return (
                                   <button
                                     key={candidate.id}
                                     type="button"
                                     onClick={() => handleSelect(position, candidate.id)}
-                                    className={`ballot-choice ${selected ? "ballot-choice-active" : "hover:bg-white"}`}
+                                    className={`ballot-choice ${selected ? "ballot-choice-active" : ""} ${
+                                      deEmphasized ? "ballot-choice-muted" : ""
+                                    }`}
+                                    aria-pressed={selected}
                                   >
-                                    <p className="font-black">
+                                    <div className="ballot-oval" aria-hidden="true">
+                                      <span />
+                                    </div>
+                                    <KandidImage
+                                      src={candidate.photo || candidate.students?.photo_url}
+                                      alt={`${candidate.students?.first_name || ""} ${candidate.students?.last_name || ""}`.trim() || "Candidate"}
+                                      label={`${candidate.students?.first_name || ""} ${candidate.students?.last_name || ""}`.trim() || "Candidate"}
+                                      className="h-11 w-11 shrink-0 rounded-full object-cover"
+                                      fit="cover"
+                                    />
+                                    <p className="min-w-0 truncate font-black">
                                       {candidate.students?.first_name} {candidate.students?.last_name}
                                     </p>
-                                    <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
-                                      {candidate.partylists?.logo_url ? (
-                                        <img
-                                          src={candidate.partylists.logo_url}
-                                          alt={`${candidate.partylists.name} logo`}
-                                          className="h-6 w-6 rounded-lg object-cover"
-                                        />
-                                      ) : null}
-                                      <span>{candidate.partylists?.name || "Independent"}</span>
-                                    </div>
-                                    {candidate.credentials || candidate.bio ? (
-                                      <p className="mt-2 text-sm text-gray-600">
-                                        {candidate.credentials || candidate.bio}
-                                      </p>
-                                    ) : null}
                                   </button>
                                 );
                               })}
@@ -563,21 +616,25 @@ function KioskVoting() {
                                 onClick={() => handleAbstain(position)}
                                 className={`ballot-choice ${
                                   selectedVotes[position.id]?.is_abstain
-                                    ? "border-[#1d262f] bg-[rgba(29,38,47,0.08)]"
-                                    : "hover:bg-white"
+                                    ? "ballot-choice-active"
+                                    : selectedVotes[position.id]
+                                    ? "ballot-choice-muted"
+                                    : ""
                                 }`}
+                                aria-pressed={Boolean(selectedVotes[position.id]?.is_abstain)}
                               >
+                                <div className="ballot-oval" aria-hidden="true">
+                                  <span />
+                                </div>
                                 <p className="font-black">Abstain</p>
-                                <p className="text-xs text-gray-500">
-                                  I choose not to vote for this position.
-                                </p>
                               </button>
                             </div>
-                          </div>
+                          </section>
                         );
-                      })
-                    )}
-                  </div>
+                        })}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="mt-8 flex flex-wrap justify-end gap-3">
                     <button

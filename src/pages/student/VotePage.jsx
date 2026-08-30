@@ -19,6 +19,8 @@ import {
 import { hasStudentVotedInElection, submitBallot } from "../../utils/voting";
 import { getStudentElectionOrganizationIds } from "../../utils/organizationAccess";
 import { usePrompt } from "../../context/PromptContext";
+import KandidImage from "../../components/KandidImage";
+import { fetchOrderedPositions } from "../../utils/positionOrder";
 
 function StudentVotePage() {
   const { electionId } = useParams();
@@ -36,6 +38,7 @@ function StudentVotePage() {
   const [accessCode, setAccessCode] = useState("");
   const [accessGranted, setAccessGranted] = useState(false);
   const [accessMessage, setAccessMessage] = useState("");
+  const [candidateError, setCandidateError] = useState("");
   const [verifyingAccess, setVerifyingAccess] = useState(false);
   const [alreadyVoted, setAlreadyVoted] = useState(false);
   const [accessDenied, setAccessDenied] = useState(false);
@@ -46,6 +49,7 @@ function StudentVotePage() {
     async function loadBallot() {
       setLoading(true);
       setAccessDenied(false);
+      setCandidateError("");
 
       const [
         { data: electionData },
@@ -79,11 +83,7 @@ function StudentVotePage() {
             .select("id, student_number, first_name, last_name, program, precinct_code, batch_code")
             .eq("id", user.id)
             .single(),
-          supabase
-            .from("positions")
-            .select("id, name, election_id, max_votes")
-            .eq("election_id", electionId)
-            .order("id", { ascending: true }),
+          fetchOrderedPositions(supabase, electionId),
           hasStudentVotedInElection(user.id, electionId),
         ]);
 
@@ -109,11 +109,11 @@ function StudentVotePage() {
 
       if (positionData?.length) {
         setPositions(positionData);
-        const { data: candData } = await supabase
+        const positionIds = positionData.map((position) => position.id);
+        const { data: candData, error: candidateLoadError } = await supabase
           .from("candidates")
           .select(`
             id,
-            election_id,
             position_id,
             student_id,
             partylist_id,
@@ -121,10 +121,19 @@ function StudentVotePage() {
             credentials,
             bio,
             platform,
-            students(first_name, last_name),
+            students(first_name, last_name, photo_url),
             partylists(name, logo_url)
           `)
-          .eq("election_id", electionId);
+          .in("position_id", positionIds);
+
+        if (candidateLoadError) {
+          console.error("Failed to load ballot candidates:", candidateLoadError);
+          if (active) {
+            setCandidateError(
+              candidateLoadError.message || "Unable to load ballot candidates."
+            );
+          }
+        }
 
         if (active) {
           setCandidates(candData || []);
@@ -149,13 +158,46 @@ function StudentVotePage() {
   }, [electionId, user.id]);
 
   function handleSelect(position, candidateId) {
-    setSelectedVotes({
-      ...selectedVotes,
-      [position.id]: {
-        position_id: position.id,
-        candidate_id: candidateId,
-        is_abstain: false,
-      },
+    const maxVotes = Math.max(Number(position.max_votes || 1), 1);
+
+    setSelectedVotes((current) => {
+      const previous = current[position.id];
+
+      if (maxVotes === 1) {
+        return {
+          ...current,
+          [position.id]: {
+            position_id: position.id,
+            candidate_id: candidateId,
+            candidate_ids: [candidateId],
+            is_abstain: false,
+          },
+        };
+      }
+
+      const existing = previous?.is_abstain ? [] : previous?.candidate_ids || [];
+      const alreadySelected = existing.includes(candidateId);
+      const nextCandidateIds = alreadySelected
+        ? existing.filter((id) => id !== candidateId)
+        : existing.length < maxVotes
+          ? [...existing, candidateId]
+          : existing;
+
+      if (nextCandidateIds.length === 0) {
+        const next = { ...current };
+        delete next[position.id];
+        return next;
+      }
+
+      return {
+        ...current,
+        [position.id]: {
+          position_id: position.id,
+          candidate_id: nextCandidateIds[0],
+          candidate_ids: nextCandidateIds,
+          is_abstain: false,
+        },
+      };
     });
   }
 
@@ -165,6 +207,7 @@ function StudentVotePage() {
       [position.id]: {
         position_id: position.id,
         candidate_id: null,
+        candidate_ids: [],
         is_abstain: true,
       },
     });
@@ -273,6 +316,15 @@ function StudentVotePage() {
   }
 
   async function handleSubmitVotes() {
+    if (candidateError) {
+      await prompt.alert({
+        title: "Candidates Not Loaded",
+        message: "The ballot candidate list could not be loaded. Please retry before submitting.",
+        type: "error",
+      });
+      return;
+    }
+
     const missingPosition = positions.find(
       (position) => !selectedVotes[position.id]
     );
@@ -286,9 +338,27 @@ function StudentVotePage() {
       return;
     }
 
+    const reviewLines = positions.map((position) => {
+      const vote = selectedVotes[position.id];
+      const candidateIds = vote?.candidate_ids || (vote?.candidate_id ? [vote.candidate_id] : []);
+      const candidateName = vote?.is_abstain
+        ? "Abstain"
+        : candidateIds
+            .map((candidateId) => {
+              const candidate = candidates.find((item) => item.id === candidateId);
+              return candidate
+                ? `${candidate.students?.first_name || ""} ${candidate.students?.last_name || ""}`.trim()
+                : "";
+            })
+            .filter(Boolean)
+            .join(", ");
+
+      return `${position.name}: ${candidateName || "Abstain"}`;
+    });
+
     const ok = await prompt.confirm({
-      title: "Submit Ballot?",
-      message: "Are you ready to submit your official ballot? Once submitted, your vote is cryptographically secured and cannot be altered or re-cast.",
+      title: "Review and Submit Ballot",
+      message: `Review your selections before submitting:\n\n${reviewLines.join("\n")}\n\nOnce submitted, your vote is cryptographically secured and cannot be altered or re-cast.`,
       type: "primary",
       confirmText: "Submit Official Vote",
     });
@@ -635,89 +705,132 @@ function StudentVotePage() {
         </div>
       </div>
 
-      <div className="mt-8 space-y-6">
-        {positions.length === 0 ? (
-          <div className="empty-state">
-            No positions found for this election.
+      {positions.length === 0 ? (
+        <div className="empty-state mt-8">
+          No positions found for this election.
+        </div>
+      ) : (
+        <div className="soft-card mt-8">
+          <div className="border-b border-[rgba(104,86,72,0.1)] pb-5">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#d35a25]">
+              Official Ballot
+            </p>
+            <h2 className="mt-2 text-2xl font-black">{election.title}</h2>
+            <p className="mt-2 text-sm text-gray-500">
+              Complete each position below, then submit the ballot once.
+            </p>
           </div>
-        ) : (
-          positions.map((position) => {
+
+          <div className="divide-y divide-[rgba(104,86,72,0.1)]">
+            {positions.map((position) => {
             const positionCandidates = candidates.filter(
               (candidate) => candidate.position_id === position.id
             );
 
             return (
-              <div key={position.id} className="soft-card">
-                <h2 className="text-xl font-black">{position.name}</h2>
-                <p className="mb-4 text-sm text-gray-500">
-                  Choose one candidate or abstain.
+              <section key={position.id} className="py-6 first:pt-5 last:pb-0">
+                <h3 className="text-xl font-black uppercase tracking-[0.04em]">{position.name}</h3>
+                <p className="mb-4 mt-1 text-sm text-gray-500">
+                  {Number(position.max_votes || 1) > 1
+                    ? `Choose up to ${position.max_votes} candidates or abstain.`
+                    : "Vote for one."}
                 </p>
 
-                <div className="grid gap-4 xl:grid-cols-2">
-                  {positionCandidates.map((candidate) => {
-                    const selected =
-                      selectedVotes[position.id]?.candidate_id === candidate.id;
+                <div className="space-y-2">
+                  {candidateError ? (
+                    <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                      Candidate records could not be loaded for this position.
+                    </div>
+                  ) : positionCandidates.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-[rgba(104,86,72,0.25)] bg-white/50 px-4 py-3 text-sm font-semibold text-gray-500">
+                      No candidates have been added for this position.
+                    </div>
+                  ) : (
+                    positionCandidates.map((candidate) => {
+                    const currentVote = selectedVotes[position.id];
+                    const maxVotes = Math.max(Number(position.max_votes || 1), 1);
+                    const selectedIds = currentVote?.candidate_ids || (
+                      currentVote?.candidate_id ? [currentVote.candidate_id] : []
+                    );
+                    const selected = selectedIds.includes(candidate.id);
+                    const limitReached = selectedIds.length >= maxVotes;
+                    const deEmphasized =
+                      !selected &&
+                      Boolean(currentVote) &&
+                      ((maxVotes === 1 && selectedIds.length > 0) ||
+                        (maxVotes > 1 && limitReached) ||
+                        currentVote?.is_abstain);
 
                     return (
                       <button
+                        type="button"
                         key={candidate.id}
                         onClick={() => handleSelect(position, candidate.id)}
-                        className={`ballot-choice ${
-                          selected
-                            ? "ballot-choice-active"
-                            : "hover:bg-white"
+                        className={`ballot-choice ${selected ? "ballot-choice-active" : ""} ${
+                          deEmphasized ? "ballot-choice-muted" : ""
                         }`}
+                        aria-pressed={selected}
                       >
-                        <p className="font-black">
-                          {candidate.students?.first_name} {candidate.students?.last_name}
-                        </p>
-                        <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
-                          {candidate.partylists?.logo_url ? (
-                            <img
-                              src={candidate.partylists.logo_url}
-                              alt={`${candidate.partylists.name} logo`}
-                              className="h-6 w-6 rounded-lg object-cover"
-                            />
-                          ) : null}
-                          <span>{candidate.partylists?.name || "Independent"}</span>
+                        <div className="ballot-oval" aria-hidden="true">
+                          <span />
                         </div>
-                        {candidate.credentials || candidate.bio ? (
-                          <p className="mt-2 text-sm text-gray-600">
-                            {candidate.credentials || candidate.bio}
-                          </p>
-                        ) : null}
+                        <div className="flex min-w-0 items-center gap-3 text-left">
+                          <KandidImage
+                            src={candidate.photo || candidate.students?.photo_url}
+                            alt={`${candidate.students?.first_name || ""} ${candidate.students?.last_name || ""}`.trim() || "Candidate"}
+                            label={`${candidate.students?.first_name || ""} ${candidate.students?.last_name || ""}`.trim() || "Candidate"}
+                            className="h-11 w-11 shrink-0 rounded-full object-cover"
+                            fit="cover"
+                          />
+                          <div className="min-w-0">
+                            <p className="truncate font-black">
+                              {candidate.students?.first_name} {candidate.students?.last_name}
+                            </p>
+                            <div className="mt-1 text-xs text-gray-500">
+                              <span>{candidate.partylists?.name || "Independent"}</span>
+                            </div>
+                          </div>
+                        </div>
                       </button>
                     );
-                  })}
+                    })
+                  )}
 
-                  <button
-                    onClick={() => handleAbstain(position)}
-                    className={`ballot-choice ${
-                      selectedVotes[position.id]?.is_abstain
-                        ? "border-[#1d262f] bg-[rgba(29,38,47,0.08)]"
-                        : "hover:bg-white"
-                    }`}
-                  >
-                    <p className="font-black">Abstain</p>
-                    <p className="text-xs text-gray-500">
-                      I choose not to vote for this position.
-                    </p>
-                  </button>
+                  {!candidateError ? (
+                    <button
+                      type="button"
+                      onClick={() => handleAbstain(position)}
+                      className={`ballot-choice ${
+                        selectedVotes[position.id]?.is_abstain
+                          ? "ballot-choice-active"
+                          : selectedVotes[position.id]
+                          ? "ballot-choice-muted"
+                          : ""
+                      }`}
+                      aria-pressed={Boolean(selectedVotes[position.id]?.is_abstain)}
+                    >
+                      <div className="ballot-oval" aria-hidden="true">
+                        <span />
+                      </div>
+                      <p className="font-black">Abstain</p>
+                    </button>
+                  ) : null}
                 </div>
-              </div>
+              </section>
             );
-          })
-        )}
-      </div>
+            })}
+          </div>
+        </div>
+      )}
 
       {positions.length > 0 && (
         <div className="mt-8 flex justify-end">
           <button
-            disabled={submitting}
+            disabled={submitting || Boolean(candidateError)}
             onClick={handleSubmitVotes}
             className="primary-btn px-8 py-4 disabled:opacity-60"
           >
-            {submitting ? "Submitting..." : "Submit Ballot"}
+            {submitting ? "Submitting..." : "Review Ballot"}
           </button>
         </div>
       )}

@@ -68,6 +68,7 @@ function Candidates() {
       .select(`
         id,
         name,
+        election_id,
         elections (
           title,
           organization_id
@@ -174,6 +175,9 @@ function Candidates() {
     e.preventDefault();
 
     const materials = normalizeCampaignMaterialsInput(form.campaign_materials);
+    const selectedPosition = positions.find(
+      (position) => Number(position.id) === Number(form.position_id)
+    );
 
     if (materials.length > 3) {
       await prompt.alert({
@@ -181,6 +185,29 @@ function Candidates() {
         message: "Only 1 to 3 campaign materials are allowed per candidate.",
         type: "warning",
       });
+      return;
+    }
+
+    if (!selectedPosition) {
+      prompt.error("Please select a valid position.");
+      return;
+    }
+
+    const electionPositionIds = positions
+      .filter((position) => Number(position.election_id) === Number(selectedPosition.election_id))
+      .map((position) => position.id);
+
+    const duplicateElectionCandidate = candidates.find(
+      (candidate) =>
+        String(candidate.student_id) === String(form.student_id) &&
+        electionPositionIds.map(Number).includes(Number(candidate.position_id)) &&
+        String(candidate.id) !== String(editingCandidate?.id || "")
+    );
+
+    if (duplicateElectionCandidate) {
+      prompt.error(
+        `This student is already a candidate for ${duplicateElectionCandidate.positions?.name || "another position"} in this election.`
+      );
       return;
     }
 

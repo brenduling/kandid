@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
-import { Plus, Pencil, Trash2, X, QrCode, Power } from "lucide-react";
+import { CheckCircle2, Plus, Pencil, Trash2, X, QrCode, Power } from "lucide-react";
 import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
-import { formatLocalDateTime, getElectionPhase } from "../../utils/elections";
+import {
+  formatLocalDateTime,
+  getElectionPhase,
+  validateElectionSchedule,
+} from "../../utils/elections";
 import {
   generateAccessToken,
   getAccessQrImageUrl,
@@ -13,6 +17,10 @@ import {
 import { usePrompt } from "../../context/PromptContext";
 import { logAuditEvent } from "../../utils/auditLog";
 import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
+import {
+  fetchOrderedPositions,
+  isMissingPositionOrderError,
+} from "../../utils/positionOrder";
 
 function Elections() {
   const prompt = usePrompt();
@@ -20,6 +28,7 @@ function Elections() {
   const [organizations, setOrganizations] = useState([]);
   const [accessTokens, setAccessTokens] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
+  const [createdElection, setCreatedElection] = useState(null);
   const [editingElection, setEditingElection] = useState(null);
 
   // Position management for the selected election
@@ -30,6 +39,7 @@ function Elections() {
   const [positionForm, setPositionForm] = useState({
     name: "",
     max_votes: 1,
+    display_order: 1,
   });
   const [tokenForm, setTokenForm] = useState({
     scope_type: "general",
@@ -41,6 +51,7 @@ function Elections() {
     organization_id: "",
     title: "",
     campaign_start: "",
+    campaign_end: "",
     start_date: "",
     end_date: "",
     status: "draft",
@@ -81,19 +92,16 @@ function Elections() {
   }
 
   async function fetchPositions(electionId) {
-    const { data, error } = await supabase
-      .from("positions")
-      .select("*")
-      .eq("election_id", electionId)
-      .order("id", { ascending: true });
+    const { data, error } = await fetchOrderedPositions(supabase, electionId);
 
     if (error) {
       console.error("Failed to load positions:", error);
       prompt.error(error.message || "Failed to load positions.");
-      return;
+      return [];
     }
 
     setPositions(data || []);
+    return data || [];
   }
 
   async function openPositions(election) {
@@ -102,9 +110,14 @@ function Elections() {
     setPositionForm({
       name: "",
       max_votes: 1,
+      display_order: 1,
     });
     setPositionsOpen(true);
-    await fetchPositions(election.id);
+    const loadedPositions = await fetchPositions(election.id);
+    setPositionForm((currentForm) => ({
+      ...currentForm,
+      display_order: loadedPositions.length + 1,
+    }));
   }
 
   function closePositions() {
@@ -115,6 +128,7 @@ function Elections() {
     setPositionForm({
       name: "",
       max_votes: 1,
+      display_order: positions.length + 1,
     });
   }
 
@@ -123,6 +137,7 @@ function Elections() {
     setPositionForm({
       name: "",
       max_votes: 1,
+      display_order: positions.length + 1,
     });
   }
 
@@ -131,6 +146,7 @@ function Elections() {
     setPositionForm({
       name: position.name || "",
       max_votes: position.max_votes || 1,
+      display_order: position.display_order || positions.indexOf(position) + 1,
     });
   }
 
@@ -159,16 +175,29 @@ function Elections() {
       election_id: selectedElection.id,
       name,
       max_votes: maxVotes,
+      display_order: Number(positionForm.display_order || positions.length + 1),
     };
 
     if (editingPosition) {
-      const { error } = await supabase
+      let { error } = await supabase
         .from("positions")
         .update({
           name: payload.name,
           max_votes: payload.max_votes,
+          display_order: payload.display_order,
         })
         .eq("id", editingPosition.id);
+
+      if (isMissingPositionOrderError(error)) {
+        const fallback = await supabase
+          .from("positions")
+          .update({
+            name: payload.name,
+            max_votes: payload.max_votes,
+          })
+          .eq("id", editingPosition.id);
+        error = fallback.error;
+      }
 
       if (error) {
         console.error("Position update failed:", error);
@@ -178,9 +207,20 @@ function Elections() {
 
       prompt.success("Position updated.");
     } else {
-      const { error } = await supabase
+      let { error } = await supabase
         .from("positions")
         .insert([payload]);
+
+      if (isMissingPositionOrderError(error)) {
+        const fallback = await supabase
+          .from("positions")
+          .insert([{
+            election_id: payload.election_id,
+            name: payload.name,
+            max_votes: payload.max_votes,
+          }]);
+        error = fallback.error;
+      }
 
       if (error) {
         console.error("Position creation failed:", error);
@@ -195,6 +235,7 @@ function Elections() {
     setPositionForm({
       name: "",
       max_votes: 1,
+      display_order: positions.length + 1,
     });
 
     await fetchPositions(selectedElection.id);
@@ -271,6 +312,7 @@ function Elections() {
       organization_id: "",
       title: "",
       campaign_start: "",
+      campaign_end: "",
       start_date: "",
       end_date: "",
       status: "draft",
@@ -308,6 +350,9 @@ function Elections() {
       campaign_start: election.campaign_start
         ? election.campaign_start.slice(0, 16)
         : "",
+      campaign_end: election.campaign_end
+        ? election.campaign_end.slice(0, 16)
+        : "",
       start_date: election.start_date
         ? election.start_date.slice(0, 16)
         : "",
@@ -333,10 +378,17 @@ function Elections() {
   async function handleSubmit(e) {
     e.preventDefault();
 
+    const validationMessage = validateElectionSchedule(form);
+    if (validationMessage) {
+      prompt.error(validationMessage);
+      return;
+    }
+
     const payload = {
       organization_id: Number(form.organization_id),
       title: form.title,
       campaign_start: form.campaign_start || null,
+      campaign_end: form.campaign_end || null,
       start_date: form.start_date,
       end_date: form.end_date,
       status: form.status,
@@ -373,7 +425,9 @@ function Elections() {
       (org) => String(org.id) === String(payload.organization_id),
     );
 
-    prompt.success(editingElection ? "Election updated." : "Election created.");
+    if (editingElection) {
+      prompt.success("Election updated.");
+    }
     await logAuditEvent({
       action: editingElection ? "election_updated" : "election_created",
       entityType: "election",
@@ -389,6 +443,14 @@ function Elections() {
     });
     setFormOpen(false);
     fetchElections();
+
+    if (!editingElection && result?.data?.id) {
+      setCreatedElection({
+        ...payload,
+        id: result.data.id,
+        organizations: organization ? { name: organization.name } : null,
+      });
+    }
   }
 
   async function handleCreateAccessToken() {
@@ -584,6 +646,14 @@ function Elections() {
                   <td className="px-6 py-4">
                     <div className="flex justify-end gap-2">
                       <button
+                        type="button"
+                        onClick={() => openPositions(election)}
+                        className="secondary-btn !px-3 !py-2 text-xs"
+                      >
+                        Manage Setup
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => openEditForm(election)}
                         className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200"
                       >
@@ -591,6 +661,7 @@ function Elections() {
                       </button>
 
                       <button
+                        type="button"
                         onClick={() => handleDelete(election.id)}
                         className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-200"
                       >
@@ -652,7 +723,7 @@ function Elections() {
 
               <form
                 onSubmit={handlePositionSubmit}
-                className="mt-4 grid gap-4 md:grid-cols-[1fr_180px_auto]"
+                className="mt-4 grid gap-4 md:grid-cols-[1fr_140px_140px_auto]"
               >
                 <div>
                   <label className="field-label">Position Name</label>
@@ -682,6 +753,24 @@ function Elections() {
                       setPositionForm({
                         ...positionForm,
                         max_votes: e.target.value,
+                      })
+                    }
+                    className="field-shell w-full"
+                  />
+                </div>
+
+                <div>
+                  <label className="field-label">Order</label>
+                  <input
+                    required
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={positionForm.display_order}
+                    onChange={(e) =>
+                      setPositionForm({
+                        ...positionForm,
+                        display_order: e.target.value,
                       })
                     }
                     className="field-shell w-full"
@@ -721,13 +810,16 @@ function Elections() {
                 </div>
               ) : (
                 <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
-                  {positions.map((position) => (
+                  {positions.map((position, index) => (
                     <div
                       key={position.id}
                       className="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between"
                     >
                       <div>
                         <h4 className="text-lg font-black">
+                          <span className="mr-2 text-sm text-[#d35a25]">
+                            {position.display_order || index + 1}.
+                          </span>
                           {position.name}
                         </h4>
                         <p className="mt-1 text-sm text-gray-500">
@@ -829,14 +921,28 @@ function Elections() {
                 />
               </div>
 
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label className="field-label">Campaign Start Date & Time</label>
                   <input
+                    required={form.status !== "draft" && form.status !== "archived"}
                     type="datetime-local"
                     value={form.campaign_start}
                     onChange={(e) =>
                       setForm({ ...form, campaign_start: e.target.value })
+                    }
+                    className="field-shell w-full"
+                  />
+                </div>
+
+                <div>
+                  <label className="field-label">Campaign End Date & Time</label>
+                  <input
+                    required={form.status !== "draft" && form.status !== "archived"}
+                    type="datetime-local"
+                    value={form.campaign_end}
+                    onChange={(e) =>
+                      setForm({ ...form, campaign_end: e.target.value })
                     }
                     className="field-shell w-full"
                   />
@@ -1065,6 +1171,44 @@ function Elections() {
                 {editingElection ? "Save Changes" : "Create Election"}
               </button>
             </form>
+          </div>
+        </PopupOverlay>
+      )}
+
+      {createdElection && (
+        <PopupOverlay>
+          <div className="modal-card max-w-lg text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
+              <CheckCircle2 size={28} />
+            </div>
+            <p className="field-label mt-5">Configuration Complete</p>
+            <h2 className="mt-2 text-2xl font-black">Election created successfully</h2>
+            <p className="mt-3 text-sm leading-6 text-gray-500">
+              {createdElection.title} has been created. Continue configuring the ballot by adding positions and candidates.
+            </p>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setCreatedElection(null);
+                  openEditForm(createdElection);
+                }}
+                className="secondary-btn justify-center"
+              >
+                View Election
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const election = createdElection;
+                  setCreatedElection(null);
+                  openPositions(election);
+                }}
+                className="primary-btn justify-center"
+              >
+                Continue Setup
+              </button>
+            </div>
           </div>
         </PopupOverlay>
       )}

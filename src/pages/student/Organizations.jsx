@@ -142,6 +142,7 @@ function StudentOrganizations() {
         .from("elections")
         .select("id, title, start_date, end_date, status")
         .eq("organization_id", organization.id)
+        .neq("status", "draft")
         .neq("status", "archived")
         .order("start_date", { ascending: false }),
       selectActiveMemberships(

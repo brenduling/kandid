@@ -5,6 +5,7 @@ import KandidImage from "../../components/KandidImage";
 import { supabase } from "../../lib/supabaseClient";
 import { formatLocalDateTime, getElectionPhase } from "../../utils/elections";
 import { getStudentElectionOrganizationIds } from "../../utils/organizationAccess";
+import { fetchOrderedPositions } from "../../utils/positionOrder";
 
 function StudentCampaign() {
   const { electionId } = useParams();
@@ -12,6 +13,7 @@ function StudentCampaign() {
   const [election, setElection] = useState(null);
   const [positions, setPositions] = useState([]);
   const [candidates, setCandidates] = useState([]);
+  const [candidateError, setCandidateError] = useState("");
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [tab, setTab] = useState("officers");
   const [loading, setLoading] = useState(true);
@@ -28,6 +30,7 @@ function StudentCampaign() {
     async function loadCampaign() {
       setLoading(true);
       setAccessDenied(false);
+      setCandidateError("");
 
       const [{ data: electionData }, eligibleOrganizationIds] = await Promise.all([
         supabase
@@ -59,21 +62,16 @@ function StudentCampaign() {
         return;
       }
 
-      const { data: positionData } = await supabase
-        .from("positions")
-        .select("id, name, election_id")
-        .eq("election_id", electionId)
-        .order("id", { ascending: true });
+      const { data: positionData } = await fetchOrderedPositions(supabase, electionId);
 
       const positionIds = (positionData || []).map((position) => position.id);
       let candidateData = [];
 
       if (positionIds.length > 0) {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("candidates")
           .select(`
             id,
-            election_id,
             position_id,
             student_id,
             partylist_id,
@@ -86,6 +84,13 @@ function StudentCampaign() {
             partylists(name)
           `)
           .in("position_id", positionIds);
+
+        if (error) {
+          console.error("Failed to load student campaign candidates:", error);
+          if (active) {
+            setCandidateError(error.message || "Unable to load candidates.");
+          }
+        }
 
         candidateData = data || [];
       }
@@ -128,7 +133,11 @@ function StudentCampaign() {
 
   const phase = getElectionPhase(election);
 
-  if (phase !== "campaign" && phase !== "voting") {
+  if (phase === "draft" || phase === "archived") {
+    return <div className="student-empty-card">This campaign is not available.</div>;
+  }
+
+  if (phase !== "campaign") {
     return (
       <div>
         <div className="student-module-banner">
@@ -137,7 +146,13 @@ function StudentCampaign() {
           </div>
           <div>
             <h1>Election Overview</h1>
-            <p>Campaign materials are not currently available.</p>
+            <p>
+              {phase === "campaign_upcoming"
+                ? `Campaign begins ${formatLocalDateTime(election.campaign_start)}.`
+                : phase === "waiting"
+                ? `Campaign has ended. Voting opens ${formatLocalDateTime(election.start_date)}.`
+                : "Campaign materials are no longer available."}
+            </p>
           </div>
         </div>
         <button onClick={() => navigate("/student/elections")} className="student-back-link">
@@ -233,6 +248,11 @@ function StudentCampaign() {
         <div>
           <h1>{election.organizations?.name || "Student Organization"}</h1>
           <p>{candidates.length} active candidates</p>
+          {candidateError ? (
+            <p className="mt-2 text-sm font-semibold text-red-600">
+              Unable to load candidates. Please retry this campaign page.
+            </p>
+          ) : null}
         </div>
       </section>
 
@@ -266,7 +286,11 @@ function StudentCampaign() {
               <h2>Candidates for {position.name}</h2>
               <div className="student-candidate-grid">
                 {position.candidates.length === 0 ? (
-                  <div className="student-empty-card">No candidates listed.</div>
+                  <div className="student-empty-card">
+                    {candidateError
+                      ? "Candidate records could not be loaded for this position."
+                      : "No candidates have been added for this position."}
+                  </div>
                 ) : (
                   position.candidates.map((candidate) => (
                     <article key={candidate.id} className="student-candidate-card">

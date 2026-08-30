@@ -4,6 +4,27 @@ import { supabase } from "../../lib/supabaseClient";
 import { canStudentViewResults } from "../../utils/elections";
 import { getStudentElectionOrganizationIds } from "../../utils/organizationAccess";
 import { buildElectionAnalytics } from "../../utils/results";
+import { isMissingPositionOrderError } from "../../utils/positionOrder";
+
+async function fetchResultVotes(electionIds, includeDisplayOrder = true) {
+  const positionColumns = includeDisplayOrder ? "id, name, display_order" : "id, name";
+
+  return supabase
+    .from("votes")
+    .select(`
+      *,
+      students (
+        program,
+        year_level
+      ),
+      candidates (
+        id,
+        students (first_name, last_name)
+      ),
+      positions (${positionColumns})
+    `)
+    .in("election_id", electionIds);
+}
 
 function StudentResults() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -29,29 +50,33 @@ function StudentResults() {
           "id, title, status, start_date, end_date, student_result_visibility, organization_id, organizations(name)"
         )
         .in("organization_id", organizationIds)
+        .neq("status", "draft")
         .neq("status", "archived")
         .order("start_date", { ascending: false });
 
-      const { data: voteData } = await supabase
-        .from("votes")
-        .select(`
-          *,
-          students (
-            program,
-            year_level
-          ),
-          candidates (
-            id,
-            students (first_name, last_name)
-          ),
-          positions (id, name)
-        `)
-        .in("election_id", (electionData || []).map((election) => election.id));
+      let { data: voteData, error: voteError } = await fetchResultVotes(
+        (electionData || []).map((election) => election.id)
+      );
+
+      if (isMissingPositionOrderError(voteError)) {
+        const fallback = await fetchResultVotes(
+          (electionData || []).map((election) => election.id),
+          false
+        );
+        voteData = (fallback.data || []).map((vote) => ({
+          ...vote,
+          positions: {
+            ...vote.positions,
+            display_order: vote.position_id,
+          },
+        }));
+        voteError = fallback.error;
+      }
 
       if (!active) return;
 
       setElections(electionData || []);
-      setVotes(voteData || []);
+      setVotes(voteError ? [] : voteData || []);
     }
 
     loadResults();
@@ -130,8 +155,7 @@ function StudentResults() {
           </div>
         ) : !canStudentViewResults(activeElection) ? (
           <div className="glass-panel rounded-[28px] p-8 text-gray-500">
-            Results are hidden until the election closes or real-time visibility is
-            enabled.
+            Results are hidden until the election team releases them.
           </div>
         ) : Object.keys(analytics.groupedResults).length === 0 ? (
           <div className="glass-panel rounded-[28px] p-8 text-gray-500">

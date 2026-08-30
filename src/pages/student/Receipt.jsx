@@ -3,6 +3,11 @@ import { ExternalLink, ReceiptText, RefreshCw, ShieldCheck } from "lucide-react"
 import { supabase } from "../../lib/supabaseClient";
 import { getBlockchainExplorerTxUrl } from "../../utils/blockchain";
 import { KandidInlineLoader } from "../../components/KandidLoader";
+import {
+  isMissingPositionOrderError,
+  sortVotesByPositionOrder,
+} from "../../utils/positionOrder";
+import { formatLocalDateTime } from "../../utils/time";
 
 function getReceiptGroupKey(vote) {
   return vote.election_id || vote.elections?.title || vote.id;
@@ -11,6 +16,29 @@ function getReceiptGroupKey(vote) {
 function getBlockchainStatus(vote) {
   if (vote.blockchain_tx_id) return "Verified";
   return "Pending";
+}
+
+async function fetchStudentVotes(studentId, includeDisplayOrder = true) {
+  const positionColumns = includeDisplayOrder
+    ? "id, name, display_order"
+    : "id, name";
+
+  return supabase
+    .from("votes")
+    .select(`
+      *,
+      elections (
+        title,
+        organizations (
+          name
+        )
+      ),
+      positions (
+        ${positionColumns}
+      )
+    `)
+    .eq("student_id", studentId)
+    .order("vote_timestamp", { ascending: false });
 }
 
 function StudentReceipt() {
@@ -26,22 +54,19 @@ function StudentReceipt() {
       setLoading(true);
       setLoadError("");
 
-      const { data, error } = await supabase
-        .from("votes")
-        .select(`
-          *,
-          elections (
-            title,
-            organizations (
-              name
-            )
-          ),
-          positions (
-            name
-          )
-        `)
-        .eq("student_id", user.id)
-        .order("vote_timestamp", { ascending: false });
+      let { data, error } = await fetchStudentVotes(user.id);
+
+      if (isMissingPositionOrderError(error)) {
+        const fallback = await fetchStudentVotes(user.id, false);
+        data = (fallback.data || []).map((vote) => ({
+          ...vote,
+          positions: {
+            ...vote.positions,
+            display_order: vote.position_id,
+          },
+        }));
+        error = fallback.error;
+      }
 
       if (!active) return;
 
@@ -68,22 +93,19 @@ function StudentReceipt() {
     setLoading(true);
     setLoadError("");
 
-    const { data, error } = await supabase
-      .from("votes")
-      .select(`
-        *,
-        elections (
-          title,
-          organizations (
-            name
-          )
-        ),
-        positions (
-          name
-        )
-      `)
-      .eq("student_id", user.id)
-      .order("vote_timestamp", { ascending: false });
+    let { data, error } = await fetchStudentVotes(user.id);
+
+    if (isMissingPositionOrderError(error)) {
+      const fallback = await fetchStudentVotes(user.id, false);
+      data = (fallback.data || []).map((vote) => ({
+        ...vote,
+        positions: {
+          ...vote.positions,
+          display_order: vote.position_id,
+        },
+      }));
+      error = fallback.error;
+    }
 
     if (error) {
       console.error("Failed to refresh student receipts:", error);
@@ -123,7 +145,10 @@ function StudentReceipt() {
       groups.set(key, current);
     });
 
-    return [...groups.values()];
+    return [...groups.values()].map((group) => ({
+      ...group,
+      votes: sortVotesByPositionOrder(group.votes),
+    }));
   }, [votes]);
 
   return (
@@ -196,11 +221,7 @@ function StudentReceipt() {
                 </div>
                 <div>
                   <span>Submitted On</span>
-                  <strong>
-                    {receipt.submittedAt
-                      ? new Date(receipt.submittedAt).toLocaleString()
-                      : "-"}
-                  </strong>
+                  <strong>{formatLocalDateTime(receipt.submittedAt)}</strong>
                 </div>
                 <div>
                   <span>Receipt Rows</span>

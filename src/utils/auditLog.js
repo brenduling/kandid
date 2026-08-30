@@ -1,5 +1,7 @@
 import { supabase } from "../lib/supabaseClient";
 import { getStoredUser } from "./auth";
+import { fetchAuthoritativeNow } from "./elections";
+import { formatRelativeTime } from "./time";
 
 const ACTION_LABELS = {
   organization_created: "Organization Created",
@@ -70,19 +72,7 @@ export function inferAuditStatus(action = "", explicitStatus = "") {
 }
 
 export function relativeTime(value) {
-  if (!value) return "-";
-  const timestamp = new Date(value).getTime();
-  if (Number.isNaN(timestamp)) return "-";
-
-  const diffMs = Date.now() - timestamp;
-  const diffMins = Math.max(0, Math.floor(diffMs / 60000));
-  if (diffMins < 1) return "Just now";
-  if (diffMins < 60) return `${diffMins} min${diffMins === 1 ? "" : "s"} ago`;
-  const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays === 1) return "Yesterday";
-  return `${diffDays} days ago`;
+  return formatRelativeTime(value, new Date());
 }
 
 export function normalizeAuditRecord(record = {}) {
@@ -130,6 +120,9 @@ export async function logAuditEvent({
   delete safeMetadata.selections;
   delete safeMetadata.selectedCandidates;
 
+  const serverNow = await fetchAuthoritativeNow();
+  const authoritativeTimestamp = serverNow.toISOString();
+
   const richPayload = {
     user_id: user?.id || null,
     actor_name:
@@ -150,8 +143,8 @@ export async function logAuditEvent({
       null,
     status,
     metadata: safeMetadata,
-    timestamp: new Date().toISOString(),
-    created_at: new Date().toISOString(),
+    timestamp: authoritativeTimestamp,
+    created_at: authoritativeTimestamp,
   };
 
   const { error } = await supabase.from("audit_logs").insert([richPayload]);

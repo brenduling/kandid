@@ -1,10 +1,14 @@
+import { sortVotesByPositionOrder } from "./positionOrder";
+
 export function buildGroupedResults(votes = []) {
   const grouped = {};
 
-  votes.forEach((vote) => {
+  sortVotesByPositionOrder(votes).forEach((vote) => {
     if (!grouped[vote.position_id]) {
       grouped[vote.position_id] = {
+        positionId: vote.position_id,
         position: vote.positions?.name || "Position",
+        displayOrder: vote.positions?.display_order || 0,
         candidates: {},
         abstain: 0,
       };

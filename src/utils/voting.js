@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabaseClient";
 import { hashVoteRecord } from "./blockchain";
+import { fetchAuthoritativeNow, getElectionPhase } from "./elections";
 
 export async function hasStudentVotedInElection(studentId, electionId) {
   const { data, error } = await supabase
@@ -21,6 +22,24 @@ export async function submitBallot({
   electionId,
   selectedVotes,
 }) {
+  const { data: election, error: electionError } = await supabase
+    .from("elections")
+    .select("id, status, campaign_start, campaign_end, start_date, end_date")
+    .eq("id", Number(electionId))
+    .single();
+
+  if (electionError) {
+    return { error: electionError };
+  }
+
+  const serverNow = await fetchAuthoritativeNow();
+  if (getElectionPhase(election, serverNow) !== "voting") {
+    return {
+      error: new Error("Voting is not open for this election right now."),
+      alreadyVoted: false,
+    };
+  }
+
   const duplicateCheck = await hasStudentVotedInElection(studentId, electionId);
 
   if (duplicateCheck.error) {
@@ -34,10 +53,22 @@ export async function submitBallot({
     };
   }
 
-  const submittedAt = new Date().toISOString();
+  const submittedAt = serverNow.toISOString();
+
+  const normalizedVotes = Object.values(selectedVotes).flatMap((vote) => {
+    if (vote.is_abstain) return [vote];
+    if (Array.isArray(vote.candidate_ids)) {
+      return vote.candidate_ids.map((candidateId) => ({
+        position_id: vote.position_id,
+        candidate_id: candidateId,
+        is_abstain: false,
+      }));
+    }
+    return [vote];
+  });
 
   const voteRows = await Promise.all(
-    Object.values(selectedVotes).map(async (vote) => ({
+    normalizedVotes.map(async (vote) => ({
       student_id: studentId,
       election_id: Number(electionId),
       position_id: vote.position_id,

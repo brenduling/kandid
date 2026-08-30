@@ -7,13 +7,17 @@ import {
   canStudentViewResults,
   formatLocalDateTime,
   getElectionPhase,
+  getElectionLocationLabel,
 } from "../../utils/elections";
 import { getStudentElectionOrganizationIds } from "../../utils/organizationAccess";
 
 function friendlyPhase(phase) {
+  if (phase === "campaign_upcoming") return "Campaign Upcoming";
   if (phase === "campaign") return "Campaign Period";
+  if (phase === "waiting") return "Waiting for Election";
   if (phase === "voting") return "Voting Open";
   if (phase === "closed") return "Closed";
+  if (phase === "draft") return "Draft";
   return "Upcoming";
 }
 
@@ -50,6 +54,8 @@ function StudentElections() {
               start_date,
               end_date,
               status,
+              voting_access_mode,
+              location_label,
               student_result_visibility,
               organizations(name)
             )
@@ -96,6 +102,8 @@ function StudentElections() {
         start_date,
         end_date,
         status,
+        voting_access_mode,
+        location_label,
         student_result_visibility,
         organizations(name)
       `;
@@ -108,6 +116,7 @@ function StudentElections() {
             .from("elections")
             .select(electionColumns)
             .in("organization_id", organizationIds)
+            .neq("status", "draft")
             .neq("status", "archived")
             .order("start_date", { ascending: true })
         );
@@ -119,6 +128,7 @@ function StudentElections() {
             .from("elections")
             .select(electionColumns)
             .in("id", votedElectionIds)
+            .neq("status", "draft")
             .neq("status", "archived")
             .order("start_date", { ascending: true })
         );
@@ -156,7 +166,7 @@ function StudentElections() {
 
       (voteData || []).forEach((voteRow) => {
         const election = voteRow.elections;
-        if (election && election.status !== "archived") {
+        if (election && election.status !== "draft" && election.status !== "archived") {
           electionMap.set(election.id, election);
         }
       });
@@ -231,7 +241,11 @@ function StudentElections() {
     return (
       <div className="student-election-note">
         <Info size={16} />
-        Newly elected officers already active.
+        {phase === "campaign_upcoming"
+          ? `Campaign begins ${formatLocalDateTime(election.campaign_start)}.`
+          : phase === "waiting"
+          ? `Voting opens ${formatLocalDateTime(election.start_date)}.`
+          : "Voting is not currently available."}
       </div>
     );
   }
@@ -319,7 +333,7 @@ function StudentElections() {
                   </p>
                   <p>
                     <MapPin size={16} />
-                    Venue: {election.venue || "CB 36"}
+                    Venue: {getElectionLocationLabel(election)}
                   </p>
                 </div>
 

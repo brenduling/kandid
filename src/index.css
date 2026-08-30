@@ -586,25 +586,65 @@ a:active {
   }
 
   .ballot-choice {
-    @apply rounded-[24px] border p-5 text-left;
-    border-color: rgba(255, 115, 22, 0.12);
-    background: rgba(216, 204, 160, 0.98);
-    box-shadow: var(--shadow-soft);
+    @apply flex w-full items-center gap-4 rounded-[16px] border px-4 py-3 text-left;
+    min-height: 4.25rem;
+    border-color: rgba(24, 54, 49, 0.1);
+    background: rgba(255, 255, 255, 0.62);
+    box-shadow: none;
     transition:
       transform 180ms ease,
       box-shadow 180ms ease,
       border-color 180ms ease,
-      background-color 180ms ease;
+      background-color 180ms ease,
+      opacity 180ms ease,
+      filter 180ms ease;
   }
 
   .ballot-choice:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-float);
+    background: rgba(255, 255, 255, 0.88);
+    border-color: rgba(255, 115, 22, 0.24);
   }
 
   .ballot-choice-active {
-    border-color: rgba(255, 115, 22, 0.28);
-    background: linear-gradient(135deg, rgba(255, 115, 22, 0.14), rgba(223, 210, 168, 0.98));
+    border-color: rgba(255, 115, 22, 0.42);
+    background: rgba(255, 248, 242, 0.95);
+    box-shadow: inset 4px 0 0 rgba(255, 90, 31, 0.9);
+  }
+
+  .ballot-choice-muted {
+    opacity: 0.54;
+    filter: saturate(0.65) blur(0.25px);
+  }
+
+  .ballot-choice-muted:hover {
+    opacity: 0.82;
+    filter: saturate(0.85);
+  }
+
+  .ballot-oval {
+    @apply flex shrink-0 items-center justify-center;
+    width: 3.8rem;
+    height: 1.6rem;
+    border-radius: 999px;
+    border: 2px solid rgba(20, 32, 47, 0.35);
+    background: rgba(255, 255, 255, 0.9);
+  }
+
+  .ballot-oval span {
+    width: 2.7rem;
+    height: 0.72rem;
+    border-radius: 999px;
+    background: transparent;
+    transition: background-color 180ms ease, box-shadow 180ms ease;
+  }
+
+  .ballot-choice-active .ballot-oval {
+    border-color: rgba(255, 90, 31, 0.95);
+  }
+
+  .ballot-choice-active .ballot-oval span {
+    background: linear-gradient(90deg, #ff5a1f, #c93810);
+    box-shadow: 0 6px 16px rgba(255, 90, 31, 0.28);
   }
 
   .info-row {
@@ -780,25 +820,29 @@ a:active {
   }
 
   .ballot-choice {
-    @apply rounded-[24px] border p-5 text-left;
-    border-color: rgba(255, 115, 22, 0.12);
-    background: rgba(216, 204, 160, 0.98);
-    box-shadow: var(--shadow-soft);
+    @apply flex w-full items-center gap-4 rounded-[16px] border px-4 py-3 text-left;
+    min-height: 4.25rem;
+    border-color: rgba(24, 54, 49, 0.1);
+    background: rgba(255, 255, 255, 0.62);
+    box-shadow: none;
     transition:
       transform 180ms ease,
       box-shadow 180ms ease,
       border-color 180ms ease,
-      background-color 180ms ease;
+      background-color 180ms ease,
+      opacity 180ms ease,
+      filter 180ms ease;
   }
 
   .ballot-choice:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-float);
+    background: rgba(255, 255, 255, 0.88);
+    border-color: rgba(255, 115, 22, 0.24);
   }
 
   .ballot-choice-active {
-    border-color: rgba(255, 115, 22, 0.28);
-    background: linear-gradient(135deg, rgba(255, 115, 22, 0.14), rgba(223, 210, 168, 0.98));
+    border-color: rgba(255, 115, 22, 0.42);
+    background: rgba(255, 248, 242, 0.95);
+    box-shadow: inset 4px 0 0 rgba(255, 90, 31, 0.9);
   }
 
   .info-row {

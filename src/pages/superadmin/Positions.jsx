@@ -20,11 +20,16 @@ import {
 } from "../../utils/organizationAccess";
 import { logAuditEvent } from "../../utils/auditLog";
 import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
+import {
+  isMissingPositionOrderError,
+  sortPositions,
+} from "../../utils/positionOrder";
 
 const emptyPositionForm = {
   election_id: "",
   name: "",
   max_votes: 1,
+  display_order: 1,
 };
 
 const emptyCandidateForm = {
@@ -132,6 +137,7 @@ function Positions() {
         election_id,
         name,
         max_votes,
+        display_order,
         status,
         elections (
           id,
@@ -164,18 +170,20 @@ function Positions() {
     let { data, error } = await supabase
       .from("positions")
       .select(lifecycleSelect)
+      .order("display_order", { ascending: true })
       .order("id", { ascending: true });
 
-    if (isMissingPositionStatusError(error)) {
+    if (isMissingPositionStatusError(error) || isMissingPositionOrderError(error)) {
       console.warn("Position lifecycle migration is not applied yet:", error);
-      setPositionLifecycleReady(false);
+      setPositionLifecycleReady(!isMissingPositionStatusError(error));
       const fallback = await supabase
         .from("positions")
         .select(baseSelect)
         .order("id", { ascending: true });
-      data = (fallback.data || []).map((position) => ({
+      data = (fallback.data || []).map((position, index) => ({
         ...position,
         status: "active",
+        display_order: index + 1,
       }));
       error = fallback.error;
     } else {
@@ -191,7 +199,7 @@ function Positions() {
       return;
     }
 
-    setPositions(data || []);
+    setPositions(sortPositions(data || []));
     setPositionsLoading(false);
   }
 
@@ -215,12 +223,22 @@ function Positions() {
     setFormOpen(true);
   }
 
+  function getNextDisplayOrder(electionId) {
+    const existing = positions.filter(
+      (position) => Number(position.election_id) === Number(electionId)
+    );
+    return existing.length
+      ? Math.max(...existing.map((position) => Number(position.display_order || 0))) + 1
+      : 1;
+  }
+
   function openEditForm(position) {
     setEditingPosition(position);
     setForm({
       election_id: position.election_id || "",
       name: position.name || "",
       max_votes: position.max_votes ?? 1,
+      display_order: position.display_order || positions.indexOf(position) + 1,
     });
     setFormOpen(true);
   }
@@ -237,6 +255,7 @@ function Positions() {
     const electionId = Number(form.election_id);
     const name = form.name.trim();
     const maxVotes = Number(form.max_votes);
+    const displayOrder = Number(form.display_order || 1);
 
     if (!electionId) {
       prompt.error("Please select an election.");
@@ -257,16 +276,29 @@ function Positions() {
       election_id: electionId,
       name,
       max_votes: maxVotes,
+      display_order: displayOrder,
     };
 
     if (editingPosition) {
-      const { error } = await supabase
+      let { error } = await supabase
         .from("positions")
         .update({
           name: payload.name,
           max_votes: payload.max_votes,
+          display_order: payload.display_order,
         })
         .eq("id", editingPosition.id);
+
+      if (isMissingPositionOrderError(error)) {
+        const fallback = await supabase
+          .from("positions")
+          .update({
+            name: payload.name,
+            max_votes: payload.max_votes,
+          })
+          .eq("id", editingPosition.id);
+        error = fallback.error;
+      }
 
       if (error) {
         prompt.error(error.message || "Failed to update position.");
@@ -275,9 +307,20 @@ function Positions() {
 
       prompt.success("Position updated.");
     } else {
-      const { error } = await supabase
+      let { error } = await supabase
         .from("positions")
         .insert([payload]);
+
+      if (isMissingPositionOrderError(error)) {
+        const fallback = await supabase
+          .from("positions")
+          .insert([{
+            election_id: payload.election_id,
+            name: payload.name,
+            max_votes: payload.max_votes,
+          }]);
+        error = fallback.error;
+      }
 
       if (error) {
         prompt.error(error.message || "Failed to create position.");
@@ -555,6 +598,50 @@ function Positions() {
       return;
     }
 
+    const { data: electionPositions, error: positionLookupError } = await supabase
+      .from("positions")
+      .select("id, name")
+      .eq("election_id", selectedPosition.election_id);
+
+    if (positionLookupError) {
+      prompt.error(positionLookupError.message || "Failed to validate candidate assignment.");
+      return;
+    }
+
+    const electionPositionIds = (electionPositions || []).map((position) => position.id);
+
+    if (electionPositionIds.length > 0) {
+      const { data: electionCandidates, error: candidateLookupError } = await supabase
+        .from("candidates")
+        .select(`
+          id,
+          student_id,
+          position_id,
+          positions (
+            id,
+            name
+          )
+        `)
+        .eq("student_id", candidateForm.student_id)
+        .in("position_id", electionPositionIds);
+
+      if (candidateLookupError) {
+        prompt.error(candidateLookupError.message || "Failed to validate candidate assignment.");
+        return;
+      }
+
+      const duplicateElectionCandidate = (electionCandidates || []).find(
+        (candidate) => String(candidate.id) !== String(editingCandidate?.id || "")
+      );
+
+      if (duplicateElectionCandidate) {
+        prompt.error(
+          `This student is already a candidate for ${duplicateElectionCandidate.positions?.name || "another position"} in this election.`
+        );
+        return;
+      }
+    }
+
     const payload = {
       student_id: candidateForm.student_id,
       position_id: selectedPosition.id,
@@ -566,6 +653,7 @@ function Positions() {
         .from("candidates")
         .update({
           student_id: payload.student_id,
+          position_id: payload.position_id,
           partylist_id: payload.partylist_id,
         })
         .eq("id", editingCandidate.id);
@@ -1120,6 +1208,14 @@ function Positions() {
   const retiredPositionCount = positions.filter(
     (position) => position.status === "retired"
   ).length;
+  const positionsByElection = elections
+    .map((election) => ({
+      ...election,
+      positions: visiblePositions.filter(
+        (position) => Number(position.election_id) === Number(election.id)
+      ),
+    }))
+    .filter((election) => election.positions.length > 0);
 
   return (
     <div>
@@ -1186,46 +1282,53 @@ function Positions() {
           No {positionFilter === "all" ? "" : positionFilter} positions found.
         </div>
       ) : (
-        <div className="entity-grid">
-          {visiblePositions.map((position) => (
-            <div
-              key={position.id}
-              className="entity-card lift-card"
-            >
+        <div className="mt-8 space-y-5">
+          {positionsByElection.map((election) => (
+            <section key={election.id} className="entity-card">
+              <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#ff7a35]">
+                    Election Folder
+                  </p>
+                  <h2 className="entity-card-title mt-2">{election.title}</h2>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {election.organizations?.name || "Organization"}
+                  </p>
+                </div>
+                <span className="status-pill">
+                  {election.positions.length} position{election.positions.length === 1 ? "" : "s"}
+                </span>
+              </div>
+
+              <div className="space-y-3">
+                {election.positions.map((position, index) => (
+                  <div
+                    key={position.id}
+                    className="flex flex-col gap-4 rounded-[16px] border border-[rgba(24,54,49,0.08)] bg-white/70 p-4 md:flex-row md:items-center md:justify-between"
+                  >
               <button
                 type="button"
                 onClick={() => openCandidates(position)}
-                className="block w-full text-left"
+                className="min-w-0 flex-1 text-left"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#ff7a35]">
-                      {position.elections?.title || "Unknown election"}
-                    </p>
-
-                    <h2 className="entity-card-title mt-2">
-                      {position.name}
-                    </h2>
-
-                    <p className="mt-1 text-xs font-semibold text-gray-400">
-                      Click to manage candidates
-                    </p>
-                  </div>
-
-                  <span className="status-pill">
-                    {position.status === "retired"
-                      ? "Retired"
-                      : `${position.max_votes} vote${position.max_votes > 1 ? "s" : ""}`}
+                <h3 className="truncate text-lg font-black">
+                  <span className="mr-2 text-sm text-[#d35a25]">
+                    {position.display_order || index + 1}.
                   </span>
-                </div>
-
+                  {position.name}
+                </h3>
                 <p className="entity-meta">
                   Voters can select up to {position.max_votes} candidate
-                  {position.max_votes > 1 ? "s" : ""}.
+                  {position.max_votes > 1 ? "s" : ""}. Click to manage candidates.
                 </p>
               </button>
 
-              <div className="entity-actions">
+              <div className="flex items-center gap-2">
+                <span className="status-pill">
+                  {position.status === "retired"
+                    ? "Retired"
+                    : `${position.max_votes} vote${position.max_votes > 1 ? "s" : ""}`}
+                </span>
                 <button
                   type="button"
                   onClick={() => openEditForm(position)}
@@ -1244,7 +1347,10 @@ function Positions() {
                   <Trash2 size={16} />
                 </button>
               </div>
-            </div>
+                  </div>
+                ))}
+              </div>
+            </section>
           ))}
         </div>
       )}
@@ -1280,6 +1386,9 @@ function Positions() {
                     setForm({
                       ...form,
                       election_id: e.target.value,
+                      display_order: editingPosition
+                        ? form.display_order
+                        : getNextDisplayOrder(e.target.value),
                     })
                   }
                   className="field-shell w-full"
@@ -1324,6 +1433,24 @@ function Positions() {
                     setForm({
                       ...form,
                       max_votes: e.target.value,
+                    })
+                  }
+                  className="field-shell w-full"
+                />
+              </div>
+
+              <div>
+                <label className="field-label">Order</label>
+                <input
+                  required
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={form.display_order}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      display_order: e.target.value,
                     })
                   }
                   className="field-shell w-full"

@@ -1,10 +1,15 @@
 import { useEffect, useState } from "react";
 import { Archive, Plus, Pencil, Trash2, X } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
 import { usePrompt } from "../../context/PromptContext";
 import { logAuditEvent } from "../../utils/auditLog";
 import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
+import {
+  isMissingPositionOrderError,
+  sortPositions,
+} from "../../utils/positionOrder";
 
 function isMissingPositionStatusError(error) {
   return /positions\.status|column positions\.status does not exist/i.test(
@@ -14,6 +19,8 @@ function isMissingPositionStatusError(error) {
 
 function BoardPositions() {
   const prompt = usePrompt();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const focusedElectionId = searchParams.get("election") || "";
   const [positions, setPositions] = useState([]);
   const [elections, setElections] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
@@ -25,6 +32,7 @@ function BoardPositions() {
     election_id: "",
     name: "",
     max_votes: 1,
+    display_order: 1,
   });
 
   const user = JSON.parse(localStorage.getItem("user"));
@@ -68,6 +76,7 @@ function BoardPositions() {
         election_id,
         name,
         max_votes,
+        display_order,
         status,
         elections (
           title,
@@ -89,19 +98,21 @@ function BoardPositions() {
       .from("positions")
       .select(lifecycleSelect)
       .in("election_id", electionIds)
+      .order("display_order", { ascending: true })
       .order("id", { ascending: true });
 
-    if (isMissingPositionStatusError(error)) {
+    if (isMissingPositionStatusError(error) || isMissingPositionOrderError(error)) {
       console.warn("Position lifecycle migration is not applied yet:", error);
-      setPositionLifecycleReady(false);
+      setPositionLifecycleReady(!isMissingPositionStatusError(error));
       const fallback = await supabase
         .from("positions")
         .select(baseSelect)
         .in("election_id", electionIds)
         .order("id", { ascending: true });
-      data = (fallback.data || []).map((position) => ({
+      data = (fallback.data || []).map((position, index) => ({
         ...position,
         status: "active",
+        display_order: index + 1,
       }));
       error = fallback.error;
     } else {
@@ -114,17 +125,30 @@ function BoardPositions() {
       return;
     }
 
-    setPositions(data || []);
+    setPositions(sortPositions(data || []));
   }
 
   function openCreate() {
+    const defaultElectionId = focusedElectionId || "";
     setEditing(null);
     setForm({
-      election_id: "",
+      election_id: defaultElectionId,
       name: "",
       max_votes: 1,
+      display_order: defaultElectionId
+        ? getNextDisplayOrder(defaultElectionId)
+        : positions.length + 1,
     });
     setFormOpen(true);
+  }
+
+  function getNextDisplayOrder(electionId) {
+    const existing = positions.filter(
+      (position) => Number(position.election_id) === Number(electionId)
+    );
+    return existing.length
+      ? Math.max(...existing.map((position) => Number(position.display_order || 0))) + 1
+      : 1;
   }
 
   function openEdit(position) {
@@ -133,6 +157,7 @@ function BoardPositions() {
       election_id: position.election_id || "",
       name: position.name || "",
       max_votes: position.max_votes || 1,
+      display_order: position.display_order || positions.indexOf(position) + 1,
     });
     setFormOpen(true);
   }
@@ -144,17 +169,32 @@ function BoardPositions() {
       election_id: Number(form.election_id),
       name: form.name,
       max_votes: Number(form.max_votes),
+      display_order: Number(form.display_order || positions.length + 1),
     };
 
     let savedId = editing?.id;
 
     if (editing) {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from("positions")
         .update(payload)
         .eq("id", editing.id)
         .select("id")
         .single();
+      if (isMissingPositionOrderError(error)) {
+        const fallback = await supabase
+          .from("positions")
+          .update({
+            election_id: payload.election_id,
+            name: payload.name,
+            max_votes: payload.max_votes,
+          })
+          .eq("id", editing.id)
+          .select("id")
+          .single();
+        data = fallback.data;
+        error = fallback.error;
+      }
       if (error) {
         prompt.error(error.message || "Failed to update position.");
         return;
@@ -162,11 +202,24 @@ function BoardPositions() {
       savedId = data?.id || editing.id;
       prompt.success("Position updated.");
     } else {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from("positions")
         .insert([payload])
         .select("id")
         .single();
+      if (isMissingPositionOrderError(error)) {
+        const fallback = await supabase
+          .from("positions")
+          .insert([{
+            election_id: payload.election_id,
+            name: payload.name,
+            max_votes: payload.max_votes,
+          }])
+          .select("id")
+          .single();
+        data = fallback.data;
+        error = fallback.error;
+      }
       if (error) {
         prompt.error(error.message || "Failed to create position.");
         return;
@@ -295,6 +348,9 @@ function BoardPositions() {
   }
 
   const visiblePositions = positions.filter((position) => {
+    if (focusedElectionId && Number(position.election_id) !== Number(focusedElectionId)) {
+      return false;
+    }
     if (!positionLifecycleReady && positionFilter === "retired") return false;
     const status = position.status || "active";
     if (positionFilter === "active") return status !== "retired";
@@ -308,6 +364,17 @@ function BoardPositions() {
   const retiredPositionCount = positions.filter(
     (position) => position.status === "retired"
   ).length;
+  const positionsByElection = elections
+    .filter(
+      (election) => !focusedElectionId || Number(election.id) === Number(focusedElectionId)
+    )
+    .map((election) => ({
+      ...election,
+      positions: visiblePositions.filter(
+        (position) => Number(position.election_id) === Number(election.id)
+      ),
+    }))
+    .filter((election) => focusedElectionId || election.positions.length > 0);
 
   return (
     <div>
@@ -336,6 +403,15 @@ function BoardPositions() {
       ) : null}
 
       <div className="mt-6 flex flex-wrap gap-2">
+        {focusedElectionId ? (
+          <button
+            type="button"
+            onClick={() => setSearchParams({})}
+            className="filter-pill filter-pill-active"
+          >
+            Showing Selected Election
+          </button>
+        ) : null}
         {[
           ["active", `Active (${activePositionCount})`],
           ["retired", `Retired (${retiredPositionCount})`],
@@ -353,39 +429,74 @@ function BoardPositions() {
         ))}
       </div>
 
-      {visiblePositions.length === 0 ? (
+      {!focusedElectionId && visiblePositions.length === 0 ? (
         <div className="empty-state mt-8">
           No {positionFilter === "all" ? "" : positionFilter} positions found.
         </div>
       ) : (
-        <div className="entity-grid">
-          {visiblePositions.map((position) => (
-            <div key={position.id} className="entity-card lift-card">
-              <div className="flex items-start justify-between gap-3">
+        <div className="mt-8 space-y-5">
+          {positionsByElection.map((election) => (
+            <section key={election.id} className="entity-card">
+              <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#ff7a35]">
-                    {position.elections?.title || "Unknown election"}
+                    Election Folder
                   </p>
-                  <h2 className="entity-card-title mt-2">{position.name}</h2>
+                  <h2 className="entity-card-title mt-2">{election.title}</h2>
                 </div>
-                <span className="status-pill">{position.max_votes} vote{position.max_votes > 1 ? "s" : ""}</span>
+                <span className="status-pill">
+                  {election.positions.length} position{election.positions.length === 1 ? "" : "s"}
+                </span>
               </div>
-              <p className="entity-meta">Set the number of choices students may submit for this role.</p>
-              <div className="entity-actions">
-                {position.status === "retired" ? (
-                  <span className="status-pill !bg-orange-100 !text-orange-700">
-                    <Archive size={14} />
-                    Retired
-                  </span>
-                ) : null}
-                <button onClick={() => openEdit(position)} className="icon-action">
-                  <Pencil size={16} />
-                </button>
-                <button onClick={() => handleDelete(position.id)} className="icon-action icon-action-danger">
-                  <Trash2 size={16} />
-                </button>
+
+              <div className="space-y-3">
+                {election.positions.length === 0 ? (
+                  <div className="rounded-[16px] border border-dashed border-[rgba(24,54,49,0.16)] bg-white/60 p-5 text-sm text-gray-500">
+                    No positions configured for this election yet.
+                  </div>
+                ) : election.positions.map((position, index) => (
+                  <div
+                    key={position.id}
+                    className="flex flex-col gap-4 rounded-[16px] border border-[rgba(24,54,49,0.08)] bg-white/70 p-4 md:flex-row md:items-center md:justify-between"
+                  >
+                    <div>
+                      <h3 className="text-lg font-black">
+                        <span className="mr-2 text-sm text-[#d35a25]">
+                          {position.display_order || index + 1}.
+                        </span>
+                        {position.name}
+                      </h3>
+                      <p className="mt-1 text-sm text-gray-500">
+                        Students may select up to {position.max_votes} candidate{position.max_votes > 1 ? "s" : ""}.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {position.status === "retired" ? (
+                        <span className="status-pill !bg-orange-100 !text-orange-700">
+                          <Archive size={14} />
+                          Retired
+                        </span>
+                      ) : null}
+                      <button onClick={() => openEdit(position)} className="icon-action">
+                        <Pencil size={16} />
+                      </button>
+                      <button onClick={() => handleDelete(position.id)} className="icon-action icon-action-danger">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
+
+              <button
+                type="button"
+                onClick={openCreate}
+                className="secondary-btn mt-4"
+              >
+                <Plus size={16} />
+                Add Position
+              </button>
+            </section>
           ))}
         </div>
       )}
@@ -413,7 +524,13 @@ function BoardPositions() {
                 required
                 value={form.election_id}
                 onChange={(e) =>
-                  setForm({ ...form, election_id: e.target.value })
+                  setForm({
+                    ...form,
+                    election_id: e.target.value,
+                    display_order: editing
+                      ? form.display_order
+                      : getNextDisplayOrder(e.target.value),
+                  })
                 }
                 className="field-shell w-full"
               >
@@ -450,6 +567,21 @@ function BoardPositions() {
                 placeholder="Max votes"
                 className="field-shell w-full"
               />
+              </div>
+
+              <div>
+                <label className="field-label">Order</label>
+                <input
+                  required
+                  type="number"
+                  min="1"
+                  value={form.display_order}
+                  onChange={(e) =>
+                    setForm({ ...form, display_order: e.target.value })
+                  }
+                  placeholder="Order"
+                  className="field-shell w-full"
+                />
               </div>
 
               <button className="primary-btn w-full">

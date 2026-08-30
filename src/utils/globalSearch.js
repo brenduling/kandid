@@ -280,7 +280,7 @@ function electionResult(record, role, query) {
       ["Campaign Starts", formatDate(record.campaign_start)],
       ["Voting Starts", formatDate(record.start_date)],
       ["Voting Ends", formatDate(record.end_date)],
-      ["Results", resultVisibilityLabel(record.student_result_visibility)],
+      ["Results", resultVisibilityLabel(record.student_result_visibility, record.results_released_at)],
     ],
     sections: [
       {
@@ -288,7 +288,7 @@ function electionResult(record, role, query) {
         fields: [
           ["Organization", organizationName],
           ["Status", record.status],
-          ["Result Visibility", resultVisibilityLabel(record.student_result_visibility)],
+          ["Result Visibility", resultVisibilityLabel(record.student_result_visibility, record.results_released_at)],
         ],
       },
       {
@@ -553,7 +553,9 @@ function formatDate(value) {
   return value ? new Date(value).toLocaleString() : null;
 }
 
-function resultVisibilityLabel(value) {
+function resultVisibilityLabel(value, releasedAt) {
+  if (releasedAt) return "Released";
+  if (value === "realtime") return "Live while voting";
   if (value === "after_close") return "Visible after close";
   if (value === "public") return "Visible";
   return "Hidden until released";
@@ -659,7 +661,10 @@ async function queryElections(user, query, role, limit) {
   if (role === "student") {
     const ids = await getStudentElectionOrganizationIds(user);
     if (ids.length === 0) return [];
-    request = request.in("organization_id", ids);
+    request = request
+      .in("organization_id", ids)
+      .neq("status", "draft")
+      .neq("status", "archived");
   } else if (role === "electoral_board") {
     if (!user?.organization_id) return [];
     request = request.eq("organization_id", user.organization_id);
@@ -951,7 +956,7 @@ async function queryResults(user, query, role, limit) {
   return elections
     .filter((item) => {
       const visibility = item.fields.find(([label]) => label === "Results")?.[1];
-      return role !== "student" || visibility !== "Hidden until released";
+      return role !== "student" || visibility === "Released" || visibility === "Live while voting";
     })
     .map((item) => {
       const visibility = item.fields.find(([label]) => label === "Results")?.[1];

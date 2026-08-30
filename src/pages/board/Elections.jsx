@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, X, QrCode, Power } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { CheckCircle2, Plus, Pencil, Trash2, X, QrCode, Power } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { KandidButtonLoader, KandidInlineLoader } from "../../components/KandidLoader";
 import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
-import { formatLocalDateTime, getElectionPhase } from "../../utils/elections";
+import {
+  formatLocalDateTime,
+  getElectionPhase,
+  validateElectionSchedule,
+} from "../../utils/elections";
 import {
   generateAccessToken,
   getAccessQrImageUrl,
@@ -18,10 +22,12 @@ import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/delete
 
 function BoardElections() {
   const prompt = usePrompt();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [elections, setElections] = useState([]);
   const [accessTokens, setAccessTokens] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
+  const [createdElection, setCreatedElection] = useState(null);
   const [editing, setEditing] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -34,6 +40,7 @@ function BoardElections() {
   const [form, setForm] = useState({
     title: "",
     campaign_start: "",
+    campaign_end: "",
     start_date: "",
     end_date: "",
     status: "draft",
@@ -125,6 +132,7 @@ function BoardElections() {
     setForm({
       title: "",
       campaign_start: "",
+      campaign_end: "",
       start_date: "",
       end_date: "",
       status: "draft",
@@ -155,6 +163,9 @@ function BoardElections() {
       title: election.title || "",
       campaign_start: election.campaign_start
         ? election.campaign_start.slice(0, 16)
+        : "",
+      campaign_end: election.campaign_end
+        ? election.campaign_end.slice(0, 16)
         : "",
       start_date: election.start_date ? election.start_date.slice(0, 16) : "",
       end_date: election.end_date ? election.end_date.slice(0, 16) : "",
@@ -188,9 +199,20 @@ function BoardElections() {
 
     setSubmitting(true);
 
+    const validationMessage = validateElectionSchedule({
+      ...form,
+      organization_id: orgId,
+    });
+    if (validationMessage) {
+      prompt.error(validationMessage);
+      setSubmitting(false);
+      return;
+    }
+
     const payload = {
       ...form,
       campaign_start: form.campaign_start || null,
+      campaign_end: form.campaign_end || null,
       organization_id: orgId,
       location_label: form.location_label || null,
       geo_lat: form.geo_lat === "" ? null : Number(form.geo_lat),
@@ -219,7 +241,9 @@ function BoardElections() {
       return;
     }
 
-    prompt.success(editing ? "Election updated." : "Election created.");
+    if (editing) {
+      prompt.success("Election updated.");
+    }
     await logAuditEvent({
       action: editing ? "election_updated" : "election_created",
       entityType: "election",
@@ -236,6 +260,13 @@ function BoardElections() {
     setFormOpen(false);
     setSubmitting(false);
     await refreshElections();
+
+    if (!editing && result?.data?.id) {
+      setCreatedElection({
+        ...payload,
+        id: result.data.id,
+      });
+    }
   }
 
   async function handleCreateAccessToken() {
@@ -421,7 +452,18 @@ function BoardElections() {
             ) : (
               filteredElections.map((election) => (
                 <tr key={election.id} className="border-b">
-                  <td className="px-6 py-4 font-bold">{election.title}</td>
+                  <td className="px-6 py-4 font-bold">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/board/positions?election=${election.id}`)}
+                      className="block w-full text-left font-black transition-colors hover:text-[#ff5a1f]"
+                    >
+                      {election.title}
+                      <span className="mt-1 block text-xs font-normal text-gray-400">
+                        Click to manage setup
+                      </span>
+                    </button>
+                  </td>
                   <td className="px-6 py-4 text-sm">
                     <span className="status-pill">
                       {getElectionPhase(election)}
@@ -448,6 +490,14 @@ function BoardElections() {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <button
+                      type="button"
+                      onClick={() => navigate(`/board/positions?election=${election.id}`)}
+                      className="secondary-btn mr-2 !px-3 !py-2 text-xs"
+                    >
+                      Manage Setup
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => openEdit(election)}
                       className="mr-2 rounded bg-gray-100 p-2"
                     >
@@ -455,6 +505,7 @@ function BoardElections() {
                     </button>
 
                     <button
+                      type="button"
                       onClick={() => handleDelete(election.id)}
                       className="rounded bg-red-100 p-2 text-red-600"
                     >
@@ -492,9 +543,20 @@ function BoardElections() {
 
               <input
                 type="datetime-local"
+                required={form.status !== "draft"}
                 value={form.campaign_start}
                 onChange={(e) =>
                   setForm({ ...form, campaign_start: e.target.value })
+                }
+                className="w-full rounded-xl border p-3"
+              />
+
+              <input
+                type="datetime-local"
+                required={form.status !== "draft"}
+                value={form.campaign_end}
+                onChange={(e) =>
+                  setForm({ ...form, campaign_end: e.target.value })
                 }
                 className="w-full rounded-xl border p-3"
               />
@@ -633,6 +695,44 @@ function BoardElections() {
                 {submitting ? <KandidButtonLoader label="Saving..." /> : "Save"}
               </button>
             </form>
+          </div>
+        </PopupOverlay>
+      )}
+
+      {createdElection && (
+        <PopupOverlay>
+          <div className="modal-card max-w-lg text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
+              <CheckCircle2 size={28} />
+            </div>
+            <p className="field-label mt-5">Configuration Complete</p>
+            <h2 className="mt-2 text-2xl font-black">Election created successfully</h2>
+            <p className="mt-3 text-sm leading-6 text-gray-500">
+              {createdElection.title} has been created. Continue configuring the ballot by adding positions and candidates.
+            </p>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setCreatedElection(null);
+                  openEdit(createdElection);
+                }}
+                className="secondary-btn justify-center"
+              >
+                View Election
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const election = createdElection;
+                  setCreatedElection(null);
+                  navigate(`/board/positions?election=${election.id}`);
+                }}
+                className="primary-btn justify-center"
+              >
+                Continue Setup
+              </button>
+            </div>
           </div>
         </PopupOverlay>
       )}

@@ -1,45 +1,55 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
+import { usePrompt } from "../../context/PromptContext";
 import { buildElectionAnalytics } from "../../utils/results";
+import { isMissingPositionOrderError } from "../../utils/positionOrder";
+import { fetchAuthoritativeNow } from "../../utils/elections";
+
+const RELEASE_COLUMN_SELECT = "id, title, organization_id, results_released_at, organizations(name)";
+const BASE_ELECTION_SELECT = "id, title, organization_id, organizations(name)";
+
+function isMissingReleaseColumn(error) {
+  const message = error?.message || "";
+  return /results_released_at|schema cache|column .*does not exist/i.test(message);
+}
+
+async function fetchResultVotes(includeDisplayOrder = true) {
+  const positionColumns = includeDisplayOrder ? "id, name, display_order" : "id, name";
+
+  return supabase
+    .from("votes")
+    .select(`
+      *,
+      students (
+        program,
+        year_level
+      ),
+      candidates (
+        id,
+        students (first_name, last_name)
+      ),
+      positions (${positionColumns}),
+      elections (
+        id,
+        title,
+        organization_id,
+        organizations(name)
+      )
+    `);
+}
 
 function Results() {
+  const prompt = usePrompt();
   const [votes, setVotes] = useState([]);
   const [elections, setElections] = useState([]);
   const [selectedElection, setSelectedElection] = useState("");
+  const [releaseColumnReady, setReleaseColumnReady] = useState(true);
 
   useEffect(() => {
     let active = true;
 
     async function loadData() {
-      const { data: votesData } = await supabase
-        .from("votes")
-        .select(`
-          *,
-          students (
-            program,
-            year_level
-          ),
-          candidates (
-            id,
-            students (first_name, last_name)
-          ),
-          positions (id, name),
-          elections (
-            id,
-            title,
-            organization_id,
-            organizations(name)
-          )
-        `);
-
-      const { data: electionsData } = await supabase
-        .from("elections")
-        .select("id, title, organization_id, organizations(name)");
-
-      if (!active) return;
-
-      setVotes(votesData || []);
-      setElections(electionsData || []);
+      await fetchData(active);
     }
 
     loadData();
@@ -49,6 +59,51 @@ function Results() {
     };
   }, []);
 
+  async function fetchData(active = true) {
+      let { data: votesData, error: votesError } = await fetchResultVotes();
+
+      if (isMissingPositionOrderError(votesError)) {
+        const fallback = await fetchResultVotes(false);
+        votesData = (fallback.data || []).map((vote) => ({
+          ...vote,
+          positions: {
+            ...vote.positions,
+            display_order: vote.position_id,
+          },
+        }));
+        votesError = fallback.error;
+      }
+
+      let { data: electionsData, error: electionsError } = await supabase
+        .from("elections")
+        .select(RELEASE_COLUMN_SELECT);
+
+      if (isMissingReleaseColumn(electionsError)) {
+        setReleaseColumnReady(false);
+        const fallback = await supabase
+          .from("elections")
+          .select(BASE_ELECTION_SELECT);
+        electionsData = fallback.data?.map((election) => ({
+          ...election,
+          results_released_at: null,
+        }));
+        electionsError = fallback.error;
+      } else {
+        setReleaseColumnReady(true);
+      }
+
+      if (!active) return;
+
+      setVotes(votesError ? [] : votesData || []);
+      if (electionsError) {
+        prompt.error(electionsError.message || "Failed to load elections.");
+        setElections([]);
+        return;
+      }
+
+      setElections(electionsData || []);
+  }
+
   const filteredVotes = votes.filter(
     (v) => v.election_id === Number(selectedElection)
   );
@@ -56,6 +111,38 @@ function Results() {
     (election) => election.id === Number(selectedElection)
   );
   const analytics = buildElectionAnalytics(filteredVotes, activeElection);
+
+  async function releaseResults() {
+    if (!activeElection) return;
+
+    if (!releaseColumnReady) {
+      prompt.error("Apply the result release migration in Supabase before releasing results.");
+      return;
+    }
+
+    const confirmed = await prompt.confirm({
+      title: activeElection.results_released_at ? "Update Result Release?" : "Release Results?",
+      message: `Make ${activeElection.title} results visible to eligible students?`,
+      type: "primary",
+      confirmText: activeElection.results_released_at ? "Update Release" : "Release Results",
+    });
+
+    if (!confirmed) return;
+
+    const serverNow = await fetchAuthoritativeNow();
+    const { error } = await supabase
+      .from("elections")
+      .update({ results_released_at: serverNow.toISOString() })
+      .eq("id", activeElection.id);
+
+    if (error) {
+      prompt.error(error.message || "Failed to release results.");
+      return;
+    }
+
+    prompt.success("Results are now visible to eligible students.");
+    await fetchData();
+  }
 
   return (
     <div>
@@ -77,6 +164,20 @@ function Results() {
             </option>
           ))}
         </select>
+        {activeElection ? (
+          <button
+            type="button"
+            onClick={releaseResults}
+            className="primary-btn ml-3 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={!releaseColumnReady}
+          >
+            {!releaseColumnReady
+              ? "Release Setup Required"
+              : activeElection.results_released_at
+                ? "Results Released"
+                : "Release Results"}
+          </button>
+        ) : null}
       </div>
 
       <div className="mt-8 space-y-6">

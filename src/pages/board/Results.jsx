@@ -1,12 +1,54 @@
 import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
+import { usePrompt } from "../../context/PromptContext";
 import { buildElectionAnalytics } from "../../utils/results";
+import { isMissingPositionOrderError } from "../../utils/positionOrder";
+import { fetchAuthoritativeNow } from "../../utils/elections";
+
+const RELEASE_COLUMN_SELECT = "id, title, organization_id, results_released_at, organizations(name)";
+const BASE_ELECTION_SELECT = "id, title, organization_id, organizations(name)";
+
+function isMissingReleaseColumn(error) {
+  const message = error?.message || "";
+  return /results_released_at|schema cache|column .*does not exist/i.test(message);
+}
+
+async function fetchBoardVotes(electionIds, includeDisplayOrder = true) {
+  const positionColumns = includeDisplayOrder ? "id, name, display_order" : "id, name";
+
+  return supabase
+    .from("votes")
+    .select(`
+      *,
+      students (
+        program,
+        year_level
+      ),
+      candidates (
+        id,
+        students (
+          first_name,
+          last_name
+        )
+      ),
+      positions (
+        ${positionColumns}
+      ),
+      elections (
+        id,
+        title
+      )
+    `)
+    .in("election_id", electionIds);
+}
 
 function BoardResults() {
+  const prompt = usePrompt();
   const [votes, setVotes] = useState([]);
   const [elections, setElections] = useState([]);
   const [selectedElection, setSelectedElection] = useState("");
+  const [releaseColumnReady, setReleaseColumnReady] = useState(true);
 
   const user = JSON.parse(localStorage.getItem("user"));
   const orgId = user?.organization_id;
@@ -17,14 +59,36 @@ function BoardResults() {
     async function loadData() {
       if (!orgId) return;
 
-      const { data: orgElections } = await supabase
+      let { data: orgElections, error: electionsError } = await supabase
         .from("elections")
-        .select("id, title, organization_id, organizations(name)")
+        .select(RELEASE_COLUMN_SELECT)
         .eq("organization_id", orgId);
+
+      if (isMissingReleaseColumn(electionsError)) {
+        setReleaseColumnReady(false);
+        const fallback = await supabase
+          .from("elections")
+          .select(BASE_ELECTION_SELECT)
+          .eq("organization_id", orgId);
+        orgElections = fallback.data?.map((election) => ({
+          ...election,
+          results_released_at: null,
+        }));
+        electionsError = fallback.error;
+      } else {
+        setReleaseColumnReady(true);
+      }
 
       const electionIds = orgElections?.map((e) => e.id) || [];
 
       if (!active) return;
+      if (electionsError) {
+        prompt.error(electionsError.message || "Failed to load elections.");
+        setElections([]);
+        setVotes([]);
+        return;
+      }
+
       setElections(orgElections || []);
 
       if (electionIds.length === 0) {
@@ -32,31 +96,19 @@ function BoardResults() {
         return;
       }
 
-      const { data: voteData, error } = await supabase
-        .from("votes")
-        .select(`
-          *,
-          students (
-            program,
-            year_level
-          ),
-          candidates (
-            id,
-            students (
-              first_name,
-              last_name
-            )
-          ),
-          positions (
-            id,
-            name
-          ),
-          elections (
-            id,
-            title
-          )
-        `)
-        .in("election_id", electionIds);
+      let { data: voteData, error } = await fetchBoardVotes(electionIds);
+
+      if (isMissingPositionOrderError(error)) {
+        const fallback = await fetchBoardVotes(electionIds, false);
+        voteData = (fallback.data || []).map((vote) => ({
+          ...vote,
+          positions: {
+            ...vote.positions,
+            display_order: vote.position_id,
+          },
+        }));
+        error = fallback.error;
+      }
 
       if (!active) return;
 
@@ -74,12 +126,34 @@ function BoardResults() {
   async function fetchData() {
     if (!orgId) return;
 
-    const { data: orgElections } = await supabase
+    let { data: orgElections, error: electionsError } = await supabase
       .from("elections")
-      .select("id, title, organization_id, organizations(name)")
+      .select(RELEASE_COLUMN_SELECT)
       .eq("organization_id", orgId);
 
+    if (isMissingReleaseColumn(electionsError)) {
+      setReleaseColumnReady(false);
+      const fallback = await supabase
+        .from("elections")
+        .select(BASE_ELECTION_SELECT)
+        .eq("organization_id", orgId);
+      orgElections = fallback.data?.map((election) => ({
+        ...election,
+        results_released_at: null,
+      }));
+      electionsError = fallback.error;
+    } else {
+      setReleaseColumnReady(true);
+    }
+
     const electionIds = orgElections?.map((e) => e.id) || [];
+
+    if (electionsError) {
+      prompt.error(electionsError.message || "Failed to load elections.");
+      setElections([]);
+      setVotes([]);
+      return;
+    }
 
     setElections(orgElections || []);
 
@@ -88,31 +162,19 @@ function BoardResults() {
       return;
     }
 
-    const { data: voteData, error } = await supabase
-      .from("votes")
-      .select(`
-        *,
-        students (
-          program,
-          year_level
-        ),
-        candidates (
-          id,
-          students (
-            first_name,
-            last_name
-          )
-        ),
-        positions (
-          id,
-          name
-        ),
-        elections (
-          id,
-          title
-        )
-      `)
-      .in("election_id", electionIds);
+    let { data: voteData, error } = await fetchBoardVotes(electionIds);
+
+    if (isMissingPositionOrderError(error)) {
+      const fallback = await fetchBoardVotes(electionIds, false);
+      voteData = (fallback.data || []).map((vote) => ({
+        ...vote,
+        positions: {
+          ...vote.positions,
+          display_order: vote.position_id,
+        },
+      }));
+      error = fallback.error;
+    }
 
     if (!error) setVotes(voteData || []);
     if (error) console.log(error);
@@ -125,6 +187,39 @@ function BoardResults() {
     (election) => election.id === Number(selectedElection)
   );
   const analytics = buildElectionAnalytics(filteredVotes, activeElection);
+
+  async function releaseResults() {
+    if (!activeElection) return;
+
+    if (!releaseColumnReady) {
+      prompt.error("Apply the result release migration in Supabase before releasing results.");
+      return;
+    }
+
+    const confirmed = await prompt.confirm({
+      title: activeElection.results_released_at ? "Update Result Release?" : "Release Results?",
+      message: `Make ${activeElection.title} results visible to eligible students?`,
+      type: "primary",
+      confirmText: activeElection.results_released_at ? "Update Release" : "Release Results",
+    });
+
+    if (!confirmed) return;
+
+    const serverNow = await fetchAuthoritativeNow();
+    const { error } = await supabase
+      .from("elections")
+      .update({ results_released_at: serverNow.toISOString() })
+      .eq("id", activeElection.id)
+      .eq("organization_id", orgId);
+
+    if (error) {
+      prompt.error(error.message || "Failed to release results.");
+      return;
+    }
+
+    prompt.success("Results are now visible to eligible students.");
+    await fetchData();
+  }
 
   return (
     <div>
@@ -158,6 +253,20 @@ function BoardResults() {
             </option>
           ))}
         </select>
+        {activeElection ? (
+          <button
+            type="button"
+            onClick={releaseResults}
+            className="primary-btn ml-3 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={!releaseColumnReady}
+          >
+            {!releaseColumnReady
+              ? "Release Setup Required"
+              : activeElection.results_released_at
+                ? "Results Released"
+                : "Release Results"}
+          </button>
+        ) : null}
       </div>
 
       <div className="mt-8 space-y-6">
