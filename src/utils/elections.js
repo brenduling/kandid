@@ -3,8 +3,8 @@ import {
   formatScheduleDate,
   formatScheduleDateTime,
   formValueToScheduleWallClock,
-  parseAbsoluteTimestamp,
   parseScheduleWallClock,
+  parseUtcTimestamp,
   scheduleWallClockToFormValue,
 } from "./time";
 import { RESULT_VISIBILITY_MODES, normalizeResultVisibilityMode } from "./results";
@@ -148,7 +148,7 @@ export async function fetchAuthoritativeNow() {
   const { data, error } = await supabase.rpc("kandid_server_time");
 
   if (!error && data) {
-    const serverNow = parseAbsoluteTimestamp(data);
+    const serverNow = parseUtcTimestamp(data);
     if (serverNow) return serverNow;
   }
 

@@ -12,6 +12,32 @@ export function parseAbsoluteTimestamp(value) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+export function parseUtcTimestamp(value) {
+  if (!value) return null;
+  const text = String(value).trim();
+
+  if (hasExplicitTimezone(text)) {
+    return parseAbsoluteTimestamp(text);
+  }
+
+  const match = text.match(DATE_TIME_PARTS);
+  if (!match) {
+    return parseAbsoluteTimestamp(text);
+  }
+
+  const [, year, month, day, hour = "00", minute = "00", second = "00"] = match;
+  const date = new Date(Date.UTC(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour),
+    Number(minute),
+    Number(second),
+  ));
+
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 export function parseScheduleWallClock(value) {
   if (!value) return null;
   const text = String(value).trim();

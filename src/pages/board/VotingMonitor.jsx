@@ -82,15 +82,16 @@ function BoardVotingMonitor() {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="page-head">
         <div>
-          <h1 className="text-3xl font-black">Board Voting Monitor</h1>
-          <p className="text-gray-500 mt-1">
+          <div className="page-kicker">Live Vote Activity</div>
+          <h1 className="page-title">Board voting monitor</h1>
+          <p className="page-subtitle">
             Monitor vote activity for your assigned organization.
           </p>
         </div>
 
-        <button onClick={fetchData} className="primary-btn">
+        <button onClick={fetchData} className="primary-btn self-start lg:self-auto">
           <RefreshCw size={18} />
           Refresh
         </button>
@@ -113,62 +114,71 @@ function BoardVotingMonitor() {
 
       <div className="grid grid-cols-1 gap-4 mt-6 sm:grid-cols-2 xl:grid-cols-4 xl:gap-6">
         <div className="metric-card">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">Total Votes</p>
-            <Vote className="text-[#ff5a1f]" size={22} />
+          <div className="flex items-start justify-between gap-3">
+            <p className="field-label">Total Votes</p>
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[rgba(255,90,31,0.1)] text-[#ff5a1f]">
+              <Vote size={18} />
+            </span>
           </div>
-          <h2 className="text-3xl font-black mt-2">{totalVotes}</h2>
+          <h2 className="mt-6 text-4xl font-black leading-none">{totalVotes}</h2>
         </div>
 
         <div className="metric-card">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">Unique Voters</p>
-            <Users className="text-[#ff5a1f]" size={22} />
+          <div className="flex items-start justify-between gap-3">
+            <p className="field-label">Unique Voters</p>
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[rgba(255,90,31,0.1)] text-[#ff5a1f]">
+              <Users size={18} />
+            </span>
           </div>
-          <h2 className="text-3xl font-black mt-2">{totalVoters}</h2>
+          <h2 className="mt-6 text-4xl font-black leading-none">{totalVoters}</h2>
         </div>
 
         <div className="metric-card">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">Candidate Votes</p>
-            <CheckCircle className="text-[#ff5a1f]" size={22} />
+          <div className="flex items-start justify-between gap-3">
+            <p className="field-label">Candidate Votes</p>
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[rgba(255,90,31,0.1)] text-[#ff5a1f]">
+              <CheckCircle size={18} />
+            </span>
           </div>
-          <h2 className="text-3xl font-black mt-2">{candidateVotes}</h2>
+          <h2 className="mt-6 text-4xl font-black leading-none">{candidateVotes}</h2>
         </div>
 
         <div className="metric-card">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">Abstain Votes</p>
-            <Clock className="text-[#ff5a1f]" size={22} />
+          <div className="flex items-start justify-between gap-3">
+            <p className="field-label">Abstain Votes</p>
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[rgba(255,90,31,0.1)] text-[#ff5a1f]">
+              <Clock size={18} />
+            </span>
           </div>
-          <h2 className="text-3xl font-black mt-2">{abstainVotes}</h2>
+          <h2 className="mt-6 text-4xl font-black leading-none">{abstainVotes}</h2>
         </div>
       </div>
 
       <div className="table-shell mt-8">
-        <table className="app-table">
-          <thead>
-            <tr>
-              <th className="px-6 py-4 text-sm">Voter</th>
-              <th className="px-6 py-4 text-sm">Election</th>
-              <th className="px-6 py-4 text-sm">Position</th>
-              <th className="px-6 py-4 text-sm">Vote Type</th>
-              <th className="px-6 py-4 text-sm">Time</th>
-              <th className="px-6 py-4 text-sm">Blockchain</th>
-            </tr>
-          </thead>
+        <div className="overflow-x-auto">
+          <table className="app-table">
+            <thead>
+              <tr>
+                <th>Voter</th>
+                <th>Election</th>
+                <th>Position</th>
+                <th>Vote Type</th>
+                <th>Time</th>
+                <th>Blockchain</th>
+              </tr>
+            </thead>
 
-          <tbody>
+            <tbody>
             {filteredVotes.length === 0 ? (
               <tr>
-                <td colSpan="6" className="px-6 py-10 text-center text-gray-500">
+                <td colSpan="6" className="px-6 py-10 text-center empty-copy">
                   No votes recorded yet.
                 </td>
               </tr>
             ) : (
               filteredVotes.map((vote) => (
-                <tr key={vote.id} className="border-b last:border-b-0">
-                  <td className="px-6 py-4">
+                <tr key={vote.id}>
+                  <td>
                     <p className="font-bold">
                       {vote.students?.first_name} {vote.students?.last_name}
                     </p>
@@ -177,37 +187,37 @@ function BoardVotingMonitor() {
                     </p>
                   </td>
 
-                  <td className="px-6 py-4">
+                  <td>
                     {vote.elections?.title || "-"}
                   </td>
 
-                  <td className="px-6 py-4">
+                  <td>
                     {vote.positions?.name || "-"}
                   </td>
 
-                  <td className="px-6 py-4">
+                  <td>
                     {vote.is_abstain ? (
-                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-700">
+                      <span className="status-pill !bg-slate-100 !text-slate-700">
                         Abstain
                       </span>
                     ) : (
-                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">
+                      <span className="status-pill !bg-emerald-100 !text-emerald-700">
                         Candidate Vote
                       </span>
                     )}
                   </td>
 
-                  <td className="px-6 py-4 text-sm text-gray-600">
+                  <td className="text-sm text-gray-600">
                     {formatLocalDateTime(vote.vote_timestamp, "-")}
                   </td>
 
-                  <td className="px-6 py-4">
+                  <td>
                     {vote.blockchain_tx_id ? (
-                      <span className="text-xs font-bold text-green-600">
+                      <span className="status-pill !bg-emerald-100 !text-emerald-700">
                         Recorded
                       </span>
                     ) : (
-                      <span className="text-xs font-bold text-orange-600">
+                      <span className="status-pill !bg-orange-100 !text-orange-700">
                         Pending
                       </span>
                     )}
@@ -215,8 +225,9 @@ function BoardVotingMonitor() {
                 </tr>
               ))
             )}
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

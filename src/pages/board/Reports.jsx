@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Download, FileText, Vote, Users, BarChart3 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
+import { usePrompt } from "../../context/PromptContext";
 
 function BoardReports() {
+  const prompt = usePrompt();
   const [elections, setElections] = useState([]);
   const [positions, setPositions] = useState([]);
   const [candidates, setCandidates] = useState([]);
@@ -98,7 +100,7 @@ function BoardReports() {
 
   function downloadCSV(filename, rows) {
     if (!rows.length) {
-      alert("No data to export.");
+      prompt.info("No data to export.");
       return;
     }
 
@@ -165,32 +167,55 @@ function BoardReports() {
 
   return (
     <div>
-      <div>
-        <h1 className="text-3xl font-black">Board Reports</h1>
-        <p className="text-gray-500 mt-1">
+      <div className="page-head">
+        <div>
+          <div className="page-kicker">Records Export</div>
+          <h1 className="page-title">Board reports</h1>
+          <p className="page-subtitle">
           Export election records for your assigned organization.
-        </p>
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 mt-8 sm:grid-cols-2 xl:grid-cols-4 xl:gap-6">
         <div className="metric-card">
-          <p className="text-sm text-gray-500">Elections</p>
-          <h2 className="text-3xl font-black mt-2">{elections.length}</h2>
+          <div className="flex items-start justify-between gap-3">
+            <p className="field-label">Elections</p>
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[rgba(255,90,31,0.1)] text-[#ff5a1f]">
+              <Vote size={18} />
+            </span>
+          </div>
+          <h2 className="mt-6 text-4xl font-black leading-none">{elections.length}</h2>
         </div>
 
         <div className="metric-card">
-          <p className="text-sm text-gray-500">Positions</p>
-          <h2 className="text-3xl font-black mt-2">{positions.length}</h2>
+          <div className="flex items-start justify-between gap-3">
+            <p className="field-label">Positions</p>
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[rgba(255,90,31,0.1)] text-[#ff5a1f]">
+              <FileText size={18} />
+            </span>
+          </div>
+          <h2 className="mt-6 text-4xl font-black leading-none">{positions.length}</h2>
         </div>
 
         <div className="metric-card">
-          <p className="text-sm text-gray-500">Candidates</p>
-          <h2 className="text-3xl font-black mt-2">{candidates.length}</h2>
+          <div className="flex items-start justify-between gap-3">
+            <p className="field-label">Candidates</p>
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[rgba(255,90,31,0.1)] text-[#ff5a1f]">
+              <Users size={18} />
+            </span>
+          </div>
+          <h2 className="mt-6 text-4xl font-black leading-none">{candidates.length}</h2>
         </div>
 
         <div className="metric-card">
-          <p className="text-sm text-gray-500">Unique Voters</p>
-          <h2 className="text-3xl font-black mt-2">{uniqueVoters}</h2>
+          <div className="flex items-start justify-between gap-3">
+            <p className="field-label">Unique Voters</p>
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[rgba(255,90,31,0.1)] text-[#ff5a1f]">
+              <BarChart3 size={18} />
+            </span>
+          </div>
+          <h2 className="mt-6 text-4xl font-black leading-none">{uniqueVoters}</h2>
         </div>
       </div>
 
@@ -201,10 +226,10 @@ function BoardReports() {
           return (
             <div
               key={report.title}
-              className="metric-card flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+              className="entity-card lift-card flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
             >
               <div className="flex gap-4">
-                <div className="w-12 h-12 rounded-xl bg-[rgba(194,65,12,0.08)] text-[#ff5a1f] flex items-center justify-center">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[rgba(255,90,31,0.1)] text-[#ff5a1f]">
                   <Icon size={22} />
                 </div>
 

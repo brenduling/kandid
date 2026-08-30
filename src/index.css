@@ -4599,7 +4599,7 @@ textarea:focus {
   .student-content {
     width: 100%;
     min-width: 0;
-    padding: 1rem 0.25rem 1.25rem !important;
+    padding: 5.5rem 0.25rem 1.25rem !important;
   }
 
   .student-content {
@@ -7804,6 +7804,11 @@ textarea:focus {
 }
 
 @media (max-width: 1023px) {
+  .kandid-app-theme .student-topbar,
+  .kandid-app-theme .shell-header {
+    display: none !important;
+  }
+
   .kandid-app-theme .mobile-app-header {
     display: block !important;
   }

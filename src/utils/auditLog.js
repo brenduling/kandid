@@ -1,7 +1,7 @@
 import { supabase } from "../lib/supabaseClient";
 import { getStoredUser } from "./auth";
 import { fetchAuthoritativeNow } from "./elections";
-import { formatRelativeTime } from "./time";
+import { formatRelativeTime, parseUtcTimestamp } from "./time";
 
 const ACTION_LABELS = {
   organization_created: "Organization Created",
@@ -76,8 +76,13 @@ export function relativeTime(value) {
   return formatRelativeTime(value, new Date());
 }
 
+function normalizeAuditTimestamp(value) {
+  const date = parseUtcTimestamp(value);
+  return date ? date.toISOString() : value;
+}
+
 export function normalizeAuditRecord(record = {}) {
-  const createdAt = record.created_at || record.timestamp;
+  const createdAt = normalizeAuditTimestamp(record.created_at || record.timestamp);
   return {
     id: record.id,
     action: record.action || "activity",

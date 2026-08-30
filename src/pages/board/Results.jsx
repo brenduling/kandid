@@ -323,28 +323,29 @@ function BoardResults() {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="page-head">
         <div>
-          <h1 className="text-3xl font-black">Board Results</h1>
-          <p className="text-gray-500 mt-1">
+          <div className="page-kicker">Election Analytics</div>
+          <h1 className="page-title">Board results</h1>
+          <p className="page-subtitle">
             View vote tallies for your organization elections.
           </p>
         </div>
 
         <button
           onClick={fetchData}
-          className="flex items-center gap-2 bg-[#ff5a1f] text-white px-5 py-3 rounded-xl font-bold hover:bg-[#e24d17]"
+          className="primary-btn self-start lg:self-auto"
         >
           <RefreshCw size={18} />
           Refresh
         </button>
       </div>
 
-      <div className="mt-6">
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
         <select
           value={selectedElection}
           onChange={(e) => setSelectedElection(e.target.value)}
-          className="bg-white px-4 py-3 rounded-xl shadow-sm outline-none"
+          className="field-shell w-full sm:w-auto sm:min-w-72"
         >
           <option value="">Select Election</option>
           {elections.map((election) => (
@@ -357,7 +358,7 @@ function BoardResults() {
           <button
             type="button"
             onClick={releaseResults}
-            className="primary-btn ml-3 disabled:cursor-not-allowed disabled:opacity-60"
+            className="primary-btn disabled:cursor-not-allowed disabled:opacity-60"
             disabled={!releaseColumnReady}
           >
             {!releaseColumnReady
@@ -373,11 +374,11 @@ function BoardResults() {
 
       <div className="mt-8 space-y-6">
         {!selectedElection ? (
-          <div className="bg-white p-8 rounded-2xl shadow-sm text-gray-500">
+          <div className="empty-state">
             Select an election to view results.
           </div>
         ) : Object.keys(analytics.groupedResults).length === 0 ? (
-          <div className="bg-white p-8 rounded-2xl shadow-sm text-gray-500">
+          <div className="empty-state">
             No results yet.
           </div>
         ) : (

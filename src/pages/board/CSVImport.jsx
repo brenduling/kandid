@@ -156,26 +156,46 @@ function BoardCSVImport() {
   }
 
   return (
-    <div className="content-section">
-      <h1 className="text-3xl font-black">Board CSV Import</h1>
-      <p className="surface-subcopy mt-1">
-        Upload student records for your assigned organization.
-      </p>
+    <div>
+      <div className="page-head">
+        <div>
+          <div className="page-kicker">Student Records</div>
+          <h1 className="page-title">Board CSV import</h1>
+          <p className="page-subtitle">
+            Upload student records for your assigned organization.
+          </p>
+        </div>
+      </div>
 
       <div className="mt-8 grid gap-4 md:grid-cols-3">
         <div className="metric-card">
-          <p className="surface-subcopy text-sm font-semibold">Total Rows</p>
-          <h2 className="surface-heading mt-2 text-3xl font-black">{rows.length}</h2>
+          <div className="flex items-start justify-between gap-3">
+            <p className="field-label">Total Rows</p>
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[rgba(255,90,31,0.1)] text-[#ff5a1f]">
+              <Upload size={18} />
+            </span>
+          </div>
+          <h2 className="mt-6 text-4xl font-black leading-none">{rows.length}</h2>
         </div>
 
         <div className="metric-card">
-          <p className="surface-subcopy text-sm font-semibold">Valid Rows</p>
-          <h2 className="mt-2 text-3xl font-black text-green-600">{validRows.length}</h2>
+          <div className="flex items-start justify-between gap-3">
+            <p className="field-label">Valid Rows</p>
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+              <CheckCircle size={18} />
+            </span>
+          </div>
+          <h2 className="mt-6 text-4xl font-black leading-none">{validRows.length}</h2>
         </div>
 
         <div className="metric-card">
-          <p className="surface-subcopy text-sm font-semibold">Invalid Rows</p>
-          <h2 className="mt-2 text-3xl font-black text-red-600">{invalidRows.length}</h2>
+          <div className="flex items-start justify-between gap-3">
+            <p className="field-label">Invalid Rows</p>
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-rose-100 text-rose-700">
+              <XCircle size={18} />
+            </span>
+          </div>
+          <h2 className="mt-6 text-4xl font-black leading-none">{invalidRows.length}</h2>
         </div>
       </div>
 

@@ -115,7 +115,7 @@ export const boardPrimaryNav = [
   { name: "Home", path: "/board/dashboard", icon: LayoutDashboard },
   { name: "Elections", path: "/board/elections", icon: Vote },
   { name: "Students", path: "/board/students", icon: Users },
-  { name: "Monitor", path: "/board/voting-monitor", icon: BarChart3 },
+  { name: "Reports", path: "/board/reports", icon: ScrollText },
 ];
 
 export const studentPrimaryNav = [

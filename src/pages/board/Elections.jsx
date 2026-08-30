@@ -421,7 +421,7 @@ function BoardElections() {
       <div className="page-head">
         <div>
           <div className="page-kicker">Election Setup</div>
-          <h1 className="page-title">Board Elections</h1>
+          <h1 className="page-title">Board elections</h1>
           <p className="page-subtitle">
             Create and manage elections for your assigned organization.
           </p>
@@ -437,114 +437,118 @@ function BoardElections() {
       </div>
 
       <div className="table-shell mt-8">
-        <table className="app-table">
-          <thead>
-            <tr>
-              <th className="px-6 py-4">Title</th>
-              <th className="px-6 py-4">Phase</th>
-              <th className="px-6 py-4">Campaign</th>
-              <th className="px-6 py-4">Start</th>
-              <th className="px-6 py-4">End</th>
-              <th className="px-6 py-4">Student Results</th>
-              <th className="px-6 py-4">Voting Access</th>
-              <th className="px-6 py-4 text-right">Actions</th>
-            </tr>
-          </thead>
+        <div className="overflow-x-auto">
+          <table className="app-table min-w-[980px]">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Phase</th>
+                <th>Campaign</th>
+                <th>Start</th>
+                <th>End</th>
+                <th>Student Results</th>
+                <th>Voting Access</th>
+                <th className="text-right">Actions</th>
+              </tr>
+            </thead>
 
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan="8" className="p-6 text-center">
-                  <KandidInlineLoader message="Loading elections..." />
-                </td>
-              </tr>
-            ) : loadError ? (
-              <tr>
-                <td colSpan="8" className="p-6 text-center">
-                  <div className="mx-auto max-w-md space-y-3">
-                    <p className="font-bold text-rose-600">Unable to load elections.</p>
-                    <p className="text-sm text-gray-500">{loadError}</p>
-                    <button type="button" onClick={refreshElections} className="secondary-btn">
-                      Retry
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ) : filteredElections.length === 0 ? (
-              <tr>
-                <td colSpan="8" className="p-6 text-center text-gray-500">
-                  {searchQuery ? "No elections match your search." : "No elections yet."}
-                </td>
-              </tr>
-            ) : (
-              filteredElections.map((election) => (
-                <tr key={election.id} className="border-b">
-                  <td className="px-6 py-4 font-bold">
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/board/positions?election=${election.id}`)}
-                      className="block w-full text-left font-black transition-colors hover:text-[#ff5a1f]"
-                    >
-                      {election.title}
-                      <span className="mt-1 block text-xs font-normal text-gray-400">
-                        Click to manage setup
-                      </span>
-                    </button>
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    <span className="status-pill">
-                      {getElectionPhase(election)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    {formatLocalDateTime(election.campaign_start)}
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    {formatLocalDateTime(election.start_date)}
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    {formatLocalDateTime(election.end_date)}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold">
-                      {resultVisibilityLabel(
-                        election.student_result_visibility,
-                        election.results_released_at,
-                      )}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    {getVotingAccessModeLabel(election.voting_access_mode)}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/board/positions?election=${election.id}`)}
-                      className="secondary-btn mr-2 !px-3 !py-2 text-xs"
-                    >
-                      Manage Setup
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => openEdit(election)}
-                      className="mr-2 rounded bg-gray-100 p-2"
-                    >
-                      <Pencil size={16} />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(election.id)}
-                      className="rounded bg-red-100 p-2 text-red-600"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan="8" className="p-6 text-center">
+                    <KandidInlineLoader message="Loading elections..." />
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : loadError ? (
+                <tr>
+                  <td colSpan="8" className="p-6 text-center">
+                    <div className="mx-auto max-w-md space-y-3">
+                      <p className="font-bold text-rose-600">Unable to load elections.</p>
+                      <p className="text-sm text-gray-500">{loadError}</p>
+                      <button type="button" onClick={refreshElections} className="secondary-btn">
+                        Retry
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredElections.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className="p-6 text-center empty-copy">
+                    {searchQuery ? "No elections match your search." : "No elections yet."}
+                  </td>
+                </tr>
+              ) : (
+                filteredElections.map((election) => (
+                  <tr key={election.id}>
+                    <td className="font-bold">
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/board/positions?election=${election.id}`)}
+                        className="block w-full text-left font-black transition-colors hover:text-[#ff5a1f]"
+                      >
+                        {election.title}
+                        <span className="mt-1 block text-xs font-normal text-gray-400">
+                          Click to manage setup
+                        </span>
+                      </button>
+                    </td>
+                    <td className="text-sm">
+                      <span className="status-pill">
+                        {getElectionPhase(election)}
+                      </span>
+                    </td>
+                    <td className="text-sm">
+                      {formatLocalDateTime(election.campaign_start)}
+                    </td>
+                    <td className="text-sm">
+                      {formatLocalDateTime(election.start_date)}
+                    </td>
+                    <td className="text-sm">
+                      {formatLocalDateTime(election.end_date)}
+                    </td>
+                    <td>
+                      <span className="status-pill !bg-slate-100 !text-slate-700">
+                        {resultVisibilityLabel(
+                          election.student_result_visibility,
+                          election.results_released_at,
+                        )}
+                      </span>
+                    </td>
+                    <td className="text-sm">
+                      {getVotingAccessModeLabel(election.voting_access_mode)}
+                    </td>
+                    <td className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/board/positions?election=${election.id}`)}
+                          className="secondary-btn !px-3 !py-2 text-xs"
+                        >
+                          Manage Setup
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openEdit(election)}
+                          className="icon-action"
+                        >
+                          <Pencil size={16} />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(election.id)}
+                          className="icon-action icon-action-danger"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {formOpen && (
