@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AlertCircle, Eye, EyeOff, Home, Mail, UserRound } from "lucide-react";
-import StudentAuthShell from "../../components/StudentAuthShell";
+import AuthLayout from "../../components/AuthLayout";
 import { supabase } from "../../lib/supabaseClient";
 import { syncStudentOrganizationMemberships } from "../../utils/organizationAccess";
 
@@ -172,16 +172,15 @@ function StudentSetup() {
 
 
   return (
-    <StudentAuthShell>
-      <div className="student-auth-card student-setup-card">
+    <AuthLayout
+      roleLabel="Student Portal"
+      title={student ? "Complete Account Setup" : "Student Setup"}
+      copy="Verify your student record and create your portal access."
+      backTo="/student-login"
+    >
+      <div className="student-auth-card student-setup-card kandid-auth-form-card">
         {!student ? (
           <form onSubmit={handleCheckStudent}>
-            <h2>Student Login</h2>
-            <p className="student-auth-subcopy">
-              Welcome back. Please enter your credentials to securely access
-              your student organization dashboard.
-            </p>
-
             <div className="student-auth-fields">
               <label>
                 <span>Student ID Number</span>
@@ -375,7 +374,7 @@ function StudentSetup() {
           </form>
         )}
       </div>
-    </StudentAuthShell>
+    </AuthLayout>
   );
 }
 

@@ -1,0 +1,33 @@
+import{n as e,s as t,t as n}from"./jsx-runtime-2UHhqg_S.js";import{t as r}from"./calendar-days-Cfm14m6N.js";import{t as i}from"./chart-column-en70cdrC.js";import{t as a}from"./circle-check-big-wDJ56ISU.js";import{t as o}from"./map-pin-B88yKJqs.js";import{t as s}from"./vote-BUy-Osgl.js";import{A as c,O as l,S as u,g as d,l as f}from"./index-Bmt1ePF0.js";import{t as p}from"./supabaseClient-P-032-pS.js";import{d as m}from"./organizationAccess-Bez5-qfm.js";import{c as h,m as g,n as _,o as v,s as y,t as b}from"./elections-D5w5aAZR.js";var x=u(`clock-3`,[[`circle`,{cx:`12`,cy:`12`,r:`10`,key:`1mglay`}],[`path`,{d:`M12 6v6h4`,key:`135r8i`}]]),S=t(e(),1),C=n();function w(e){return e===`campaign_upcoming`?`Campaign Upcoming`:e===`campaign`?`Campaign Period`:e===`waiting`?`Waiting for Election`:e===`voting`?`Voting Open`:e===`closed`?`Closed`:e===`draft`?`Draft`:`Upcoming`}var T=`
+  id,
+  title,
+  organization_id,
+  campaign_start,
+  campaign_end,
+  start_date,
+  end_date,
+  status,
+  voting_access_mode,
+  location_label,
+  student_result_visibility,
+  results_released_at,
+  organizations(name)
+`,E=`
+  id,
+  title,
+  organization_id,
+  campaign_start,
+  campaign_end,
+  start_date,
+  end_date,
+  status,
+  voting_access_mode,
+  location_label,
+  student_result_visibility,
+  organizations(name)
+`;function D(e){return e?T:E}async function O(e,t=!0){let{data:n,error:r}=await p.from(`votes`).select(`
+      election_id,
+      elections (
+        ${D(t)}
+      )
+    `).eq(`student_id`,e);return{data:(n||[]).map(e=>({...e,elections:e.elections?{...e.elections,results_released_at:e.elections.results_released_at||null}:null})),error:r}}function k(){let[e,t]=(0,S.useState)([]),[n,u]=(0,S.useState)([]),[T,E]=(0,S.useState)(!0),[k,A]=(0,S.useState)(``),[j,M]=(0,S.useState)(0),N=JSON.parse(localStorage.getItem(`user`)),P=l(),[F]=c(),I=(F.get(`q`)||``).trim().toLowerCase();(0,S.useEffect)(()=>{let e=!0;async function n(){E(!0),A(``);let n=await m(N),r=await O(N.id);if(g(r.error)&&(r=await O(N.id,!1)),r.error){console.error(`Failed to load student voting status:`,r.error),e&&(A(r.error.message||`Unable to load your voting status.`),t([]),u([]),E(!1));return}let i=r.data||[],a=[...new Set((i||[]).map(e=>e.election_id).filter(Boolean))];if(n.length===0&&a.length===0){e&&(t([]),u([]),E(!1));return}let o=(e=!0)=>{let t=[];return n.length>0&&t.push(p.from(`elections`).select(D(e)).in(`organization_id`,n).neq(`status`,`draft`).neq(`status`,`archived`).order(`start_date`,{ascending:!1})),a.length>0&&t.push(p.from(`elections`).select(D(e)).in(`id`,a).neq(`status`,`draft`).neq(`status`,`archived`).order(`start_date`,{ascending:!1})),t},s=await Promise.all(o());if(s.some(e=>g(e.error))&&(s=await Promise.all(o(!1))),!e)return;let c=new Map,l=[];if(s.forEach(({data:e,error:t})=>{t&&(console.error(`Failed to load student election overview:`,t),l.push(t)),(e||[]).forEach(e=>{c.set(e.id,{...e,results_released_at:e.results_released_at||null})})}),l.length>0){A(l[0].message||`Unable to load elections for your account.`),t([]),u(i||[]),E(!1);return}(i||[]).forEach(e=>{let t=e.elections;t&&t.status!==`draft`&&t.status!==`archived`&&c.set(t.id,t)}),t([...c.values()].sort((e,t)=>_(t.start_date,e.start_date))),u(i||[]),E(!1)}return n(),()=>{e=!1}},[N.id,j]);function L(e){return n.some(t=>t.election_id===e)}function R(e){let t=h(e);return t===`campaign`?(0,C.jsx)(`button`,{onClick:()=>P(`/student/elections/${e.id}/campaign`),className:`student-election-action`,children:`Overview`}):t===`voting`&&!L(e.id)?(0,C.jsx)(`button`,{onClick:()=>P(`/student/vote/${e.id}`),className:`student-election-action`,children:`Vote Now`}):t===`voting`?(0,C.jsxs)(`div`,{className:`student-election-note student-election-note-green`,children:[(0,C.jsx)(a,{size:16}),`Already voted.`]}):b(e)?(0,C.jsxs)(`div`,{className:`flex flex-wrap gap-3`,children:[(0,C.jsx)(`button`,{type:`button`,onClick:()=>P(`/student/elections/${e.id}/campaign`),className:`student-election-action`,children:`Overview`}),(0,C.jsx)(`button`,{type:`button`,onClick:()=>P(`/student/results?election=${e.id}`),className:`student-election-action`,children:`View Results`})]}):(0,C.jsxs)(`div`,{className:`student-election-note`,children:[(0,C.jsx)(d,{size:16}),t===`campaign_upcoming`?`Campaign begins ${v(e.campaign_start)}.`:t===`waiting`?`Voting opens ${v(e.start_date)}.`:`Voting is not currently available.`]})}let z=(0,S.useMemo)(()=>I?e.filter(e=>[e.title,e.organizations?.name,e.status,w(h(e))].filter(Boolean).join(` `).toLowerCase().includes(I)):e,[e,I]);return(0,C.jsxs)(`div`,{children:[(0,C.jsxs)(`div`,{className:`student-module-banner`,children:[(0,C.jsx)(`div`,{className:`student-module-icon`,children:(0,C.jsx)(i,{size:22})}),(0,C.jsxs)(`div`,{children:[(0,C.jsx)(`h1`,{children:`Election Overview`}),(0,C.jsx)(`p`,{children:`View and manage ongoing and upcoming elections.`})]})]}),T?(0,C.jsx)(`div`,{className:`student-empty-card`,children:(0,C.jsx)(f,{message:`Loading elections...`})}):k?(0,C.jsx)(`div`,{className:`student-empty-card`,children:(0,C.jsxs)(`div`,{className:`space-y-3`,children:[(0,C.jsx)(`p`,{className:`font-bold text-rose-600`,children:`Unable to load elections.`}),(0,C.jsx)(`p`,{className:`text-sm text-gray-500`,children:k}),(0,C.jsx)(`button`,{type:`button`,onClick:()=>M(e=>e+1),className:`student-outline-btn`,children:`Retry`})]})}):z.length===0?(0,C.jsx)(`div`,{className:`student-empty-card`,children:I?`No elections match your search.`:`No elections available for your account.`}):(0,C.jsx)(`div`,{className:`student-election-grid`,children:z.map(e=>{let t=h(e);return(0,C.jsxs)(`article`,{className:`student-election-card`,children:[(0,C.jsx)(`div`,{className:`student-election-art`}),(0,C.jsx)(`h2`,{children:e.title}),(0,C.jsxs)(`span`,{className:`student-election-status`,children:[`Status: `,w(t)]}),(0,C.jsxs)(`div`,{className:`student-election-meta`,children:[(0,C.jsxs)(`p`,{children:[(0,C.jsx)(r,{size:16}),`Campaign Date: `,v(e.campaign_start)]}),(0,C.jsxs)(`p`,{children:[(0,C.jsx)(r,{size:16}),`Election Date: `,v(e.start_date)]}),(0,C.jsxs)(`p`,{children:[(0,C.jsx)(x,{size:16}),`Time: `,v(e.start_date),` -`,` `,v(e.end_date)]}),(0,C.jsxs)(`p`,{children:[(0,C.jsx)(o,{size:16}),`Venue: `,y(e)]})]}),(0,C.jsxs)(`div`,{className:`student-election-note`,children:[(0,C.jsx)(s,{size:16}),`Eligible students can review candidates and vote during active election windows.`]}),R(e)]},e.id)})})]})}export{k as default};

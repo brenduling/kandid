@@ -7435,16 +7435,18 @@ textarea:focus {
 
 .kandid-app-theme .student-sidebar-logout,
 .kandid-app-theme .sidebar-logout-btn {
+  margin-inline: auto !important;
+  width: calc(100% - 0.7rem) !important;
   min-height: 3.2rem !important;
   border-radius: var(--kandid-radius-lg) !important;
-  background: rgba(255, 255, 255, 0.07) !important;
+  background: rgba(239, 78, 35, 0.13) !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   color: #ffffff !important;
 }
 
 .kandid-app-theme .student-sidebar-logout:hover,
 .kandid-app-theme .sidebar-logout-btn:hover {
-  background: rgba(239, 78, 35, 0.22) !important;
+  background: rgba(239, 78, 35, 0.2) !important;
 }
 
 .kandid-app-theme .page-head,
@@ -8759,6 +8761,7 @@ textarea:focus {
   .kandid-app-theme .student-sidebar:hover .student-sidebar-logout,
   .kandid-app-theme .shell-sidebar:hover .sidebar-logout-btn {
     justify-content: flex-start !important;
+    width: calc(100% - 0.7rem) !important;
     padding-inline: 0.5rem 0.8rem !important;
   }
 
@@ -9374,6 +9377,88 @@ body {
   font-size: 16px;
 }
 
+.kandid-auth-screen .kandid-auth-form-card,
+.kandid-auth-screen .student-auth-card,
+.kandid-auth-screen .student-setup-card {
+  width: 100% !important;
+}
+
+.kandid-auth-screen .student-auth-card h2,
+.kandid-auth-screen .student-auth-subcopy {
+  display: none;
+}
+
+.kandid-auth-screen .student-auth-fields {
+  margin-top: 1.45rem;
+  gap: 1rem;
+}
+
+.kandid-auth-screen .student-auth-card label,
+.kandid-auth-screen .student-setup-label {
+  gap: 0.5rem;
+}
+
+.kandid-auth-screen .student-auth-card label span,
+.kandid-auth-screen .student-setup-label span,
+.kandid-auth-screen .field-label {
+  color: var(--kandid-text-muted, #667085) !important;
+  font-size: var(--kandid-text-xs, 0.72rem) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+}
+
+.kandid-auth-screen .student-auth-card input,
+.kandid-auth-screen .field-shell {
+  min-height: 3.35rem !important;
+  border: 1px solid var(--kandid-border, #e7ebf0) !important;
+  border-radius: var(--kandid-radius-md, 0.85rem) !important;
+  background: #ffffff !important;
+  color: var(--kandid-text, #111827) !important;
+  box-shadow: none !important;
+}
+
+.kandid-auth-screen .student-auth-card input:focus,
+.kandid-auth-screen .field-shell:focus {
+  border-color: rgba(239, 78, 35, 0.45) !important;
+  box-shadow: 0 0 0 4px rgba(239, 78, 35, 0.1) !important;
+}
+
+.kandid-auth-screen .student-auth-password {
+  border: 1px solid var(--kandid-border, #e7ebf0) !important;
+  border-radius: var(--kandid-radius-md, 0.85rem) !important;
+  background: #ffffff !important;
+  padding-right: 0.35rem !important;
+}
+
+.kandid-auth-screen .student-auth-password:focus-within {
+  border-color: rgba(239, 78, 35, 0.45) !important;
+  box-shadow: 0 0 0 4px rgba(239, 78, 35, 0.1) !important;
+}
+
+.kandid-auth-screen .student-auth-password input {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.kandid-auth-screen .student-auth-submit,
+.kandid-auth-screen .primary-btn {
+  min-height: 3.25rem !important;
+  border-radius: var(--kandid-radius-md, 0.85rem) !important;
+  background: var(--kandid-primary, #ef4e23) !important;
+  box-shadow: 0 14px 28px rgba(239, 78, 35, 0.2) !important;
+}
+
+.kandid-auth-screen .student-auth-divider {
+  margin: 1.55rem 0;
+}
+
+.kandid-auth-screen .student-auth-setup-link {
+  min-height: 3.45rem;
+  border-radius: var(--kandid-radius-md, 0.85rem);
+  background: var(--kandid-surface-soft, #f9fafb);
+}
+
 .field-shell {
   font-size: 1rem;
 }
@@ -9748,7 +9833,7 @@ body {
   .kandid-app-theme .shell-sidebar:hover .nav-item,
   .kandid-app-theme .student-sidebar:hover .student-sidebar-logout,
   .kandid-app-theme .shell-sidebar:hover .sidebar-logout-btn {
-    width: 100% !important;
+    width: calc(100% - 0.7rem) !important;
     min-height: 2.75rem !important;
     padding-inline: 0.45rem 0.65rem !important;
   }
