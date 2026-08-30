@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { X, ChevronDown, LogOut } from "lucide-react";
 import { getProfileRoute } from "../utils/profile";
+import { StudentAvatar } from "./KandidImage";
 
 function MobileMenu({
   isOpen,
@@ -85,7 +86,12 @@ function MobileMenu({
               onClick={handleProfileClick}
               className="mb-6 flex w-full items-center gap-3 rounded-2xl bg-gray-50 p-3 text-left transition hover:bg-gray-100"
             >
-              {user.photo_url ? (
+              {user.role === "student" ? (
+                <StudentAvatar
+                  student={user}
+                  className="!h-12 !w-12 shrink-0 !rounded-full ring-2 ring-white shadow-sm"
+                />
+              ) : user.photo_url ? (
                 <img
                   src={user.photo_url}
                   alt={user.full_name || "Profile"}

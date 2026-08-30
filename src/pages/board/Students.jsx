@@ -7,14 +7,23 @@ import { StudentAvatar } from "../../components/KandidImage";
 import { supabase } from "../../lib/supabaseClient";
 import { usePrompt } from "../../context/PromptContext";
 import { readFileAsDataUrl } from "../../utils/files";
-import { syncStudentOrganizationMemberships } from "../../utils/organizationAccess";
+import {
+  deactivateStudentOrganizationMembership,
+  findOrCreateStudentByNumber,
+  reactivateStudentOrganizationMembership,
+  removeStudentOrganizationMembership,
+  selectOrganizationMembershipsForManagement,
+  syncStudentOrganizationMemberships,
+} from "../../utils/organizationAccess";
+import { logAuditEvent } from "../../utils/auditLog";
+import { analyzeMembershipDependencies, dependencyMessage } from "../../utils/deleteGuards";
 
 function BoardStudents() {
   const prompt = usePrompt();
   const [searchParams] = useSearchParams();
   const [students, setStudents] = useState([]);
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState("name_asc");
+  const [sortBy, setSortBy] = useState("newest");
   const [formOpen, setFormOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -36,6 +45,7 @@ function BoardStudents() {
 
   const user = JSON.parse(localStorage.getItem("user"));
   const orgId = user?.organization_id;
+  const orgName = user?.organization_name || user?.organizations?.name || "your organization";
 
   useEffect(() => {
     const query = searchParams.get("q") || "";
@@ -56,24 +66,8 @@ function BoardStudents() {
       setLoading(true);
       setLoadError("");
 
-      const { data, error } = await supabase
-        .from("student_organizations")
-        .select(`
-          students (
-            id,
-            student_number,
-            first_name,
-            last_name,
-            email,
-            photo_url,
-            program,
-            year_level,
-            is_shs,
-            status,
-            created_at
-          )
-        `)
-        .eq("organization_id", orgId);
+      const { data, error } =
+        await selectOrganizationMembershipsForManagement(orgId);
 
       if (!active) return;
 
@@ -85,7 +79,17 @@ function BoardStudents() {
         return;
       }
 
-      const list = data.map((item) => item.students).filter(Boolean);
+      const list = data
+        .map((item) =>
+          item.students
+            ? {
+                ...item.students,
+                membership_status: item.membership_status || "active",
+                deactivation_reason: item.deactivation_reason || "",
+              }
+            : null,
+        )
+        .filter(Boolean);
       setStudents(list);
       setLoading(false);
     }
@@ -108,24 +112,8 @@ function BoardStudents() {
     setLoading(true);
     setLoadError("");
 
-    const { data, error } = await supabase
-      .from("student_organizations")
-      .select(`
-        students (
-          id,
-          student_number,
-          first_name,
-          last_name,
-          email,
-          photo_url,
-          program,
-          year_level,
-          is_shs,
-          status,
-          created_at
-        )
-      `)
-      .eq("organization_id", orgId);
+    const { data, error } =
+      await selectOrganizationMembershipsForManagement(orgId);
 
     if (error) {
       console.error("Failed to refresh board students:", error);
@@ -135,7 +123,17 @@ function BoardStudents() {
       return;
     }
 
-    const list = data.map((item) => item.students).filter(Boolean);
+    const list = data
+      .map((item) =>
+        item.students
+          ? {
+              ...item.students,
+              membership_status: item.membership_status || "active",
+              deactivation_reason: item.deactivation_reason || "",
+            }
+          : null,
+      )
+      .filter(Boolean);
     setStudents(list);
     setLoading(false);
   }
@@ -152,19 +150,17 @@ function BoardStudents() {
 
     setSubmitting(true);
 
-    const { data: insertedStudent, error: studentError } = await supabase
-      .from("students")
-      .insert([
-        {
-          ...form,
-          photo_url: form.photo_url || null,
-          year_level: Number(form.year_level),
-          precinct_code: form.precinct_code || null,
-          batch_code: form.batch_code || null,
-        },
-      ])
-      .select("id, student_number, first_name, last_name, email, photo_url, program, year_level, is_shs, status, created_at")
-      .single();
+    const {
+      data: insertedStudent,
+      created: createdStudent,
+      error: studentError,
+    } = await findOrCreateStudentByNumber({
+      ...form,
+      photo_url: form.photo_url || null,
+      year_level: Number(form.year_level),
+      precinct_code: form.precinct_code || null,
+      batch_code: form.batch_code || null,
+    });
 
     if (studentError) {
       console.error("Board student insert failed:", studentError);
@@ -173,7 +169,11 @@ function BoardStudents() {
       return;
     }
 
-    const { error: orgError } = await syncStudentOrganizationMemberships({
+    const {
+      error: orgError,
+      createdOrganizationIds = [],
+      existingOrganizationIds = [],
+    } = await syncStudentOrganizationMemberships({
       studentId: insertedStudent.id,
       program: insertedStudent.program,
       explicitOrganizationIds: [orgId],
@@ -186,7 +186,18 @@ function BoardStudents() {
       return;
     }
 
-    prompt.success("Student added and linked to your organization.");
+    if (
+      existingOrganizationIds.includes(Number(orgId)) &&
+      !createdOrganizationIds.includes(Number(orgId))
+    ) {
+      prompt.info("This central student record is already linked to your organization.", "Already a Member");
+    } else {
+      prompt.success(
+        createdStudent
+          ? "Student registered and linked to your organization."
+          : "Existing student linked to your organization."
+      );
+    }
     setFormOpen(false);
     setSubmitting(false);
     await fetchStudents();
@@ -197,6 +208,163 @@ function BoardStudents() {
 
     const dataUrl = await readFileAsDataUrl(file);
     setForm({ ...form, photo_url: dataUrl });
+  }
+
+  function studentDisplayName(student) {
+    return (
+      [student.first_name, student.last_name].filter(Boolean).join(" ") ||
+      student.student_number ||
+      "this student"
+    );
+  }
+
+  async function handleDeactivateMembership(student) {
+    if (!orgId || !student?.id) return;
+
+    const label = studentDisplayName(student);
+    const confirmed = await prompt.confirm({
+      title: `Deactivate ${orgName} Access?`,
+      message:
+        `${label} will stay in the central student registry, but their membership in ${orgName} will be marked inactive.`,
+      confirmText: "Deactivate Access",
+      cancelText: "Cancel",
+      type: "warning",
+    });
+
+    if (!confirmed) return;
+
+    const { error } = await deactivateStudentOrganizationMembership({
+      studentId: student.id,
+      organizationId: orgId,
+      reason: "Deactivated by electoral board",
+    });
+
+    if (error) {
+      console.error("Failed to deactivate board membership:", error);
+      prompt.error(error.message || "Failed to deactivate student access.");
+      return;
+    }
+
+    await logAuditEvent({
+      action: "membership_deactivated",
+      entityType: "student_organization",
+      entityId: `${student.id}:${orgId}`,
+      entityLabel: label,
+      organizationId: orgId,
+      organizationName: orgName,
+      metadata: {
+        student_id: student.id,
+        student_number: student.student_number,
+      },
+    });
+
+    prompt.success(`${orgName} access deactivated for ${label}.`);
+    await fetchStudents();
+  }
+
+  async function handleReactivateMembership(student) {
+    if (!orgId || !student?.id) return;
+
+    const label = studentDisplayName(student);
+    const confirmed = await prompt.confirm({
+      title: `Reactivate ${orgName} Access?`,
+      message: `${label} will regain active membership access for ${orgName}.`,
+      confirmText: "Reactivate Access",
+      cancelText: "Cancel",
+      type: "info",
+    });
+
+    if (!confirmed) return;
+
+    const { error } = await reactivateStudentOrganizationMembership({
+      studentId: student.id,
+      organizationId: orgId,
+    });
+
+    if (error) {
+      console.error("Failed to reactivate board membership:", error);
+      prompt.error(error.message || "Failed to reactivate student access.");
+      return;
+    }
+
+    await logAuditEvent({
+      action: "membership_reactivated",
+      entityType: "student_organization",
+      entityId: `${student.id}:${orgId}`,
+      entityLabel: label,
+      organizationId: orgId,
+      organizationName: orgName,
+      metadata: {
+        student_id: student.id,
+        student_number: student.student_number,
+      },
+    });
+
+    prompt.success(`${orgName} access reactivated for ${label}.`);
+    await fetchStudents();
+  }
+
+  async function handleRemoveMembership(student) {
+    if (!orgId || !student?.id) return;
+
+    const label = studentDisplayName(student);
+    const analysis = await analyzeMembershipDependencies({
+      studentId: student.id,
+      organizationId: orgId,
+    });
+
+    if (analysis.error) {
+      console.error("Failed to analyze board membership dependencies:", analysis.error);
+      prompt.error(analysis.error.message || "Unable to verify membership dependencies.");
+      return;
+    }
+
+    if (analysis.blocked) {
+      prompt.alert({
+        title: `Do Not Remove from ${orgName}`,
+        message: dependencyMessage(analysis),
+        type: "warning",
+      });
+      return;
+    }
+
+    const confirmed = await prompt.confirm({
+      title: `Remove from ${orgName}?`,
+      message:
+        `${label} will be removed only from ${orgName}. The central student record will remain available for other organizations.`,
+      confirmText: `Remove from ${orgName}`,
+      cancelText: "Cancel",
+      type: "danger",
+    });
+
+    if (!confirmed) return;
+
+    const { error } = await removeStudentOrganizationMembership({
+      studentId: student.id,
+      organizationId: orgId,
+    });
+
+    if (error) {
+      console.error("Failed to remove board membership:", error);
+      prompt.error(error.message || "Failed to remove student from organization.");
+      return;
+    }
+
+    await logAuditEvent({
+      action: "membership_removed",
+      entityType: "student_organization",
+      entityId: `${student.id}:${orgId}`,
+      entityLabel: label,
+      organizationId: orgId,
+      organizationName: orgName,
+      metadata: {
+        student_id: student.id,
+        student_number: student.student_number,
+      },
+    });
+
+    prompt.success(`${label} removed from ${orgName}.`);
+    await fetchStudents();
   }
 
   const filteredStudents = useMemo(() => {
@@ -288,19 +456,20 @@ function BoardStudents() {
               <th>Year</th>
               <th>Status</th>
               <th>Date Added</th>
+              <th className="text-right">Membership</th>
             </tr>
           </thead>
 
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="6" className="px-6 py-10 text-center">
+                <td colSpan="7" className="px-6 py-10 text-center">
                   <KandidInlineLoader message="Loading students..." />
                 </td>
               </tr>
             ) : loadError ? (
               <tr>
-                <td colSpan="6" className="px-6 py-10 text-center">
+                <td colSpan="7" className="px-6 py-10 text-center">
                   <div className="mx-auto max-w-md space-y-3">
                     <p className="font-bold text-rose-600">Unable to load students.</p>
                     <p className="text-sm text-gray-500">{loadError}</p>
@@ -312,7 +481,7 @@ function BoardStudents() {
               </tr>
             ) : filteredStudents.length === 0 ? (
               <tr>
-                <td colSpan="6" className="px-6 py-10 text-center empty-copy">
+                <td colSpan="7" className="px-6 py-10 text-center empty-copy">
                   No students found.
                 </td>
               </tr>
@@ -342,6 +511,37 @@ function BoardStudents() {
                     {student.created_at
                       ? new Date(student.created_at).toLocaleDateString()
                       : "-"}
+                  </td>
+                  <td>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-bold ${
+                          student.membership_status === "inactive"
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-emerald-100 text-emerald-700"
+                        }`}
+                      >
+                        {student.membership_status === "inactive" ? "Inactive" : "Active"}
+                      </span>
+                      <button
+                        type="button"
+                        className="secondary-btn min-h-[2.35rem] px-3 text-xs"
+                        onClick={() =>
+                          student.membership_status === "inactive"
+                            ? handleReactivateMembership(student)
+                            : handleDeactivateMembership(student)
+                        }
+                      >
+                        {student.membership_status === "inactive" ? "Reactivate" : "Deactivate"}
+                      </button>
+                      <button
+                        type="button"
+                        className="danger-btn min-h-[2.35rem] px-3 text-xs"
+                        onClick={() => handleRemoveMembership(student)}
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))

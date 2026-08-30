@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ImagePlus, Save } from "lucide-react";
 import { KandidButtonLoader, KandidInlineLoader } from "../../components/KandidLoader";
+import { StudentAvatar } from "../../components/KandidImage";
 import { fetchCurrentUserProfile, updateCurrentUserProfile } from "../../utils/profile";
 import { getStoredUser } from "../../utils/auth";
 import { readFileAsDataUrl } from "../../utils/files";
@@ -264,7 +265,13 @@ function ProfilePage() {
         <div className="section-grid grid-cols-1 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.2fr)]">
           <div className="glass-panel-strong rounded-[30px] p-6">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-              {form.photo_url ? (
+              {user?.role === "student" ? (
+                <StudentAvatar
+                  student={{ ...user, photo_url: form.photo_url }}
+                  className="!h-28 !w-28 !rounded-[28px]"
+                  loading="eager"
+                />
+              ) : form.photo_url ? (
                 <img
                   src={form.photo_url}
                   alt="Profile"

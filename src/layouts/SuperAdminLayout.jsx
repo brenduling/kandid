@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   ChevronDown,
@@ -20,12 +20,26 @@ import { logAuditEvent } from "../utils/auditLog";
 function SuperAdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const user = getStoredUser();
+  const [user, setUser] = useState(() => getStoredUser());
   const prompt = usePrompt();
   const [openGroups, setOpenGroups] = useState(() =>
     Object.fromEntries(superAdminMenuGroups.map((group) => [group.label, true])),
   );
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    function handleUserUpdated(event) {
+      setUser(event.detail || getStoredUser());
+    }
+
+    window.addEventListener("kandid-user-updated", handleUserUpdated);
+    window.addEventListener("storage", handleUserUpdated);
+
+    return () => {
+      window.removeEventListener("kandid-user-updated", handleUserUpdated);
+      window.removeEventListener("storage", handleUserUpdated);
+    };
+  }, []);
   async function handleLogout() {
     const ok = await prompt.confirm({
       title: "Logout Confirmation",

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Search } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import KandidImage from "../../components/KandidImage";
 import { KandidInlineLoader, KandidSkeleton } from "../../components/KandidLoader";
 import {
   findSearchResult,
@@ -14,27 +15,14 @@ import {
 } from "../../utils/globalSearch";
 
 function SearchAvatar({ result }) {
-  const Icon = searchCategoryMeta[result.category]?.icon || Search;
-  const initials = String(result.title || "K")
-    .split(" ")
-    .map((word) => word[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-
-  if (result.image) {
-    return (
-      <span className="search-result-avatar">
-        <img src={result.image} alt="" />
-      </span>
-    );
-  }
-
   return (
-    <span className="search-result-avatar">
-      <Icon size={20} />
-      <small>{initials}</small>
-    </span>
+    <KandidImage
+      src={result.image}
+      alt={result.title}
+      label={result.title}
+      className="search-result-avatar"
+      fit={result.imageFit || "cover"}
+    />
   );
 }
 
@@ -50,6 +38,13 @@ function ResultRow({ result, selected, onOpen }) {
         <strong>{result.title}</strong>
         <small>{result.subtitle || result.meta}</small>
         {result.meta ? <em>{result.meta}</em> : null}
+        {result.badges?.length ? (
+          <span className="search-result-badges">
+            {result.badges.slice(0, 3).map((badge) => (
+              <span key={badge}>{badge}</span>
+            ))}
+          </span>
+        ) : null}
       </span>
       <ArrowRight size={18} />
     </button>
@@ -87,6 +82,13 @@ function DetailPanel({ result, onBack, onRelated }) {
           <span>{result.type}</span>
           <h2>{result.title}</h2>
           <p>{result.subtitle}</p>
+          {result.badges?.length ? (
+            <div className="search-detail-badges">
+              {result.badges.slice(0, 4).map((badge) => (
+                <span key={badge}>{badge}</span>
+              ))}
+            </div>
+          ) : null}
         </div>
       </div>
 

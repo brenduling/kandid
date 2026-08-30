@@ -10,6 +10,11 @@ export function getStoredUser() {
 
 export function setStoredUser(user) {
   localStorage.setItem("user", JSON.stringify(user));
+  window.dispatchEvent(
+    new CustomEvent("kandid-user-updated", {
+      detail: user,
+    }),
+  );
 }
 
 export function clearStoredUser() {
@@ -21,6 +26,7 @@ export function clearStoredUser() {
   localStorage.removeItem("kandid-login-student-number");
   localStorage.removeItem("kandid-login-password");
   clearSessionCache();
+  window.dispatchEvent(new CustomEvent("kandid-user-updated", { detail: null }));
 }
 
 export function getDefaultRouteForUser(user) {

@@ -20,7 +20,7 @@ import { logAuditEvent } from "../utils/auditLog";
 function BoardLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const user = getStoredUser();
+  const [user, setUser] = useState(() => getStoredUser());
   const prompt = usePrompt();
   const [openGroups, setOpenGroups] = useState(() =>
     Object.fromEntries(boardMenuGroups.map((group) => [group.label, true])),
@@ -32,6 +32,20 @@ function BoardLayout() {
       navigate("/eb-login");
     }
   }, [navigate, user]);
+
+  useEffect(() => {
+    function handleUserUpdated(event) {
+      setUser(event.detail || getStoredUser());
+    }
+
+    window.addEventListener("kandid-user-updated", handleUserUpdated);
+    window.addEventListener("storage", handleUserUpdated);
+
+    return () => {
+      window.removeEventListener("kandid-user-updated", handleUserUpdated);
+      window.removeEventListener("storage", handleUserUpdated);
+    };
+  }, []);
 
   async function handleLogout() {
     const ok = await prompt.confirm({

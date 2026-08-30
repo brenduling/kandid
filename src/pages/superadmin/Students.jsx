@@ -5,7 +5,10 @@ import PopupOverlay from "../../components/PopupOverlay";
 import { OrganizationLogo, StudentAvatar } from "../../components/KandidImage";
 import { supabase } from "../../lib/supabaseClient";
 import { readFileAsDataUrl } from "../../utils/files";
-import { syncStudentOrganizationMemberships } from "../../utils/organizationAccess";
+import {
+  findOrCreateStudentByNumber,
+  syncStudentOrganizationMemberships,
+} from "../../utils/organizationAccess";
 import { usePrompt } from "../../context/PromptContext";
 import { logAuditEvent } from "../../utils/auditLog";
 import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
@@ -35,7 +38,7 @@ function Students() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [organizationFilter, setOrganizationFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [sortBy, setSortBy] = useState("name_asc");
+  const [sortBy, setSortBy] = useState("newest");
   const [page, setPage] = useState(1);
   const [totalStudents, setTotalStudents] = useState(0);
   const [loadingStudents, setLoadingStudents] = useState(true);
@@ -294,6 +297,8 @@ function Students() {
     let result;
     let savedStudentId =
       editingStudent?.id || null;
+    let savedStudent = editingStudent || null;
+    let createdStudent = false;
 
     // ============================================================
     // SAVE STUDENT
@@ -305,11 +310,9 @@ function Students() {
         .update(payload)
         .eq("id", editingStudent.id);
     } else {
-      result = await supabase
-        .from("students")
-        .insert([payload])
-        .select("id")
-        .single();
+      result = await findOrCreateStudentByNumber(payload);
+      savedStudent = result?.data || null;
+      createdStudent = Boolean(result?.created);
     }
 
     const error = result?.error;
@@ -340,10 +343,14 @@ function Students() {
       return;
     }
 
-    const { error: syncError } =
+    const {
+      error: syncError,
+      createdOrganizationIds = [],
+      existingOrganizationIds = [],
+    } =
       await syncStudentOrganizationMemberships({
         studentId: savedStudentId,
-        program: form.program,
+        program: savedStudent?.program || form.program,
         explicitOrganizationIds: form.organization_id
           ? [form.organization_id]
           : [],
@@ -363,14 +370,42 @@ function Students() {
       return;
     }
 
-    prompt.success(
-      editingStudent
-        ? "Student record updated."
-        : "Student record created."
-    );
+    const selectedOrganizationName =
+      organizations.find((org) => String(org.id) === String(form.organization_id))?.name ||
+      "the selected organization";
+
+    if (editingStudent) {
+      prompt.success("Student record updated.");
+    } else if (
+      form.organization_id &&
+      existingOrganizationIds.includes(Number(form.organization_id)) &&
+      !createdOrganizationIds.includes(Number(form.organization_id))
+    ) {
+      prompt.info(
+        `${savedStudent?.first_name || form.first_name} ${savedStudent?.last_name || form.last_name}`.trim() ||
+          form.student_number,
+        "Already a Member"
+      );
+    } else if (!createdStudent) {
+      prompt.success(
+        form.organization_id
+          ? `Existing student linked to ${selectedOrganizationName}.`
+          : "Existing student record reused and departmental memberships synced."
+      );
+    } else {
+      prompt.success(
+        form.organization_id
+          ? `Student registered and added to ${selectedOrganizationName}.`
+          : "Student record created."
+      );
+    }
 
     await logAuditEvent({
-      action: editingStudent ? "student_updated" : "student_created",
+      action: editingStudent
+        ? "student_updated"
+        : createdStudent
+        ? "student_created"
+        : "student_existing_linked",
       entityType: "student",
       entityId: savedStudentId,
       entityLabel: `${form.first_name} ${form.last_name}`.trim() || form.student_number,
@@ -383,6 +418,9 @@ function Students() {
         program: form.program,
         year_level: Number(form.year_level),
         student_status: form.status,
+        created_student: createdStudent,
+        linked_organizations: createdOrganizationIds,
+        existing_organizations: existingOrganizationIds,
       },
     });
 
@@ -1104,9 +1142,9 @@ function Students() {
                     </select>
 
                     <div className="mt-3 rounded-xl bg-blue-50 p-3 text-xs leading-5 text-blue-700">
-                      Non-departmental organizations are synced for every student.
                       Departmental organizations are synced from their covered
-                      programs.
+                      programs. Non-departmental organizations require an
+                      explicit membership assignment.
                       <br />
                       <strong>
                         Specific Organization:

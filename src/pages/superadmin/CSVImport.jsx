@@ -2,7 +2,10 @@ import { useState } from "react";
 import Papa from "papaparse";
 import { Upload, CheckCircle, XCircle } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
-import { syncStudentOrganizationMemberships } from "../../utils/organizationAccess";
+import {
+  findOrCreateStudentByNumber,
+  syncStudentOrganizationMemberships,
+} from "../../utils/organizationAccess";
 import { logAuditEvent } from "../../utils/auditLog";
 import { usePrompt } from "../../context/PromptContext";
 
@@ -74,18 +77,23 @@ function CSVImport() {
 
     setImporting(true);
 
-    const { data: insertedStudents, error: studentError } = await supabase
-      .from("students")
-      .insert(validRows)
-      .select();
+    const importedStudents = [];
+    let createdCount = 0;
+    let linkedExistingCount = 0;
 
-    if (studentError) {
-      setImporting(false);
-      prompt.error(studentError.message || "Student import failed.");
-      return;
-    }
+    for (const row of validRows) {
+      const {
+        data: student,
+        created,
+        error: studentError,
+      } = await findOrCreateStudentByNumber(row);
 
-    for (const student of insertedStudents || []) {
+      if (studentError || !student) {
+        setImporting(false);
+        prompt.error(studentError?.message || "Student import failed.");
+        return;
+      }
+
       const { error: membershipError } = await syncStudentOrganizationMemberships({
         studentId: student.id,
         program: student.program,
@@ -96,17 +104,28 @@ function CSVImport() {
         prompt.error(membershipError.message || "Student organization sync failed.");
         return;
       }
+
+      importedStudents.push(student);
+      if (created) {
+        createdCount += 1;
+      } else {
+        linkedExistingCount += 1;
+      }
     }
 
     setImporting(false);
-    prompt.success("Students imported and assigned to organizations successfully.");
+    prompt.success(
+      `Student import completed. ${createdCount} created, ${linkedExistingCount} existing synced.`
+    );
     await logAuditEvent({
       action: "student_batch_imported",
       entityType: "student",
       entityLabel: "CSV Import",
       status: "completed",
       metadata: {
-        imported_count: insertedStudents?.length || 0,
+        imported_count: importedStudents.length,
+        created_count: createdCount,
+        linked_existing_count: linkedExistingCount,
         invalid_count: invalidRows.length,
       },
     });

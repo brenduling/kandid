@@ -32,7 +32,7 @@ const roleQuickActions = {
     { label: "Programs", type: "programs", icon: Building2 },
     { label: "Elections", type: "elections", icon: Vote },
     { label: "Organizations", type: "organizations", icon: Building2 },
-    { label: "People", type: "officers", icon: Users },
+    { label: "People", type: "students", icon: Users },
     { label: "Results", type: "results", icon: BarChart3 },
     { label: "Receipts", path: "/student/receipt", icon: FileText },
   ],
@@ -354,7 +354,7 @@ function GlobalSearch({
                                 alt={result.title}
                                 label={result.title}
                                 className="global-result-thumb"
-                                fit={result.category === "organizations" || result.category === "partylists" ? "contain" : "cover"}
+                                fit={result.imageFit || (result.category === "organizations" || result.category === "partylists" ? "contain" : "cover")}
                               />
                             ) : (
                               <span className="global-result-icon">

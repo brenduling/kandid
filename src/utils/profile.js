@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabaseClient";
 import { getStoredUser, setStoredUser } from "./auth";
+import { getStudentExplicitOrganizations } from "./organizationAccess";
 
 function getProfileSelect(role) {
   if (role === "student") {
@@ -47,7 +48,19 @@ export async function fetchCurrentUserProfile() {
     .single();
 
   if (!error && data) {
-    const nextUser = { ...user, ...data, role: user.role };
+    const studentOrganizations =
+      user.role === "student"
+        ? await getStudentExplicitOrganizations(data.id)
+        : data.student_organizations;
+
+    const nextUser = {
+      ...user,
+      ...data,
+      role: user.role,
+      ...(user.role === "student"
+        ? { student_organizations: studentOrganizations }
+        : {}),
+    };
     setStoredUser(nextUser);
     return { data: nextUser, error: null };
   }

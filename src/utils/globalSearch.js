@@ -15,6 +15,7 @@ import {
   fetchEligibleStudentsForOrganization,
   getEligibleStudentOrganizations,
   getStudentElectionOrganizationIds,
+  selectActiveMemberships,
 } from "./organizationAccess";
 
 export const SEARCH_MIN_LENGTH = 2;
@@ -49,7 +50,7 @@ const categoryOrder = [
 ];
 
 const roleCategories = {
-  student: ["programs", "organizations", "elections", "candidates", "officers", "results"],
+  student: ["programs", "organizations", "students", "elections", "candidates", "officers", "results"],
   electoral_board: [
     "programs",
     "students",
@@ -185,17 +186,22 @@ function resultBase(role, category, record, query) {
 function organizationResult(record, role, query) {
   const programs = programText(record);
   const memberCount = record.member_count ?? 0;
+  const typeLabel =
+    record.organization_type === "non_departmental"
+      ? "Non-departmental"
+      : "Departmental";
+  const description =
+    record.description || "No organization description has been added yet.";
+
   return {
     ...resultBase(role, "organizations", record, query),
     title: record.name || "Organization",
-    subtitle:
-      record.organization_type === "non_departmental"
-        ? "Organization - Non-departmental"
-        : `Organization - ${programs || "Departmental"}`,
-    meta: record.description || `${memberCount} members` || programs || "Organization profile",
+    subtitle: ["Organization", typeLabel, programs].filter(Boolean).join(" - "),
+    meta: description,
     image: record.logo_url,
+    imageFit: "contain",
     fields: [
-      ["Type", record.organization_type === "non_departmental" ? "Non-departmental" : "Departmental"],
+      ["Type", typeLabel],
       ["Programs", programs],
       ["Members", memberCount],
       ["Description", record.description],
@@ -211,7 +217,7 @@ function organizationResult(record, role, query) {
       },
       {
         title: "About",
-        fields: [["Description", record.description || "No description available"]],
+        fields: [["Description", description]],
       },
     ],
     related: [],
@@ -266,6 +272,8 @@ function electionResult(record, role, query) {
     meta: [record.status, record.start_date && `Starts ${new Date(record.start_date).toLocaleString()}`]
       .filter(Boolean)
       .join(" - "),
+    image: record.organizations?.logo_url,
+    imageFit: "contain",
     fields: [
       ["Organization", organizationName],
       ["Status", record.status],
@@ -299,18 +307,30 @@ function electionResult(record, role, query) {
 }
 
 function studentResult(record, role, query) {
+  const badges = [
+    record.current_officer_role,
+    record.past_officer_role,
+    record.candidate_role,
+  ].filter(Boolean);
+  const publicContext = [record.program, record.year_level && `Year ${record.year_level}`, ...badges]
+    .filter(Boolean)
+    .join(" - ");
+
   return {
     ...resultBase(role, "students", record, query),
     title: fullName(record) || record.student_number || "Student",
-    subtitle: ["Student", record.program, record.year_level && `Year ${record.year_level}`]
-      .filter(Boolean)
-      .join(" - "),
-    meta: role === "student" ? record.program || "Student profile" : record.student_number || record.program,
+    subtitle: ["Student", publicContext].filter(Boolean).join(" - "),
+    meta: role === "student" ? publicContext || "Student profile" : record.student_number || publicContext,
     image: record.photo_url,
+    imageFit: "cover",
+    badges,
     fields: [
       ["Student Number", role === "student" ? null : record.student_number],
       ["Program", record.program],
       ["Year Level", record.year_level],
+      ["Current Officer Role", record.current_officer_role],
+      ["Previous Officer Role", record.past_officer_role],
+      ["Candidate Role", record.candidate_role],
       ["Status", role === "student" ? null : record.status],
     ],
     sections: [
@@ -321,6 +341,18 @@ function studentResult(record, role, query) {
           ["Year Level", record.year_level],
         ],
       },
+      ...(badges.length
+        ? [
+            {
+              title: "Public Roles",
+              fields: [
+                ["Current Officer", record.current_officer_role],
+                ["Previous Officer", record.past_officer_role],
+                ["Candidate", record.candidate_role],
+              ],
+            },
+          ]
+        : []),
       ...(role === "student"
         ? []
         : [
@@ -346,6 +378,7 @@ function candidateResult(record, role, query) {
     subtitle: ["Candidate", record.positions?.name, election?.title].filter(Boolean).join(" - "),
     meta: [record.partylists?.name, record.platform].filter(Boolean).join(" - "),
     image: record.photo || record.students?.photo_url,
+    imageFit: "cover",
     fields: [
       ["Position", record.positions?.name],
       ["Election", election?.title],
@@ -395,6 +428,8 @@ function officerResult(record, role, query) {
     subtitle: ["Officer", record.position_title, record.organizations?.name].filter(Boolean).join(" - "),
     meta: [record.term_label, record.is_current ? "Current" : "Previous"].filter(Boolean).join(" - "),
     image: record.photo_url || record.students?.photo_url,
+    imageFit: "cover",
+    badges: [record.is_current ? "Current Officer" : "Past Officer", record.position_title].filter(Boolean),
     fields: [
       ["Position", record.position_title],
       ["Organization", record.organizations?.name],
@@ -436,6 +471,7 @@ function partylistResult(record, role, query) {
       .join(" - "),
     meta: record.description || "Election partylist",
     image: record.logo_url,
+    imageFit: "contain",
     fields: [
       ["Election", record.elections?.title],
       ["Organization", record.elections?.organizations?.name],
@@ -524,19 +560,15 @@ function resultVisibilityLabel(value) {
 }
 
 async function queryOrganizations(user, query, role, limit) {
-  let rows = [];
+  const { data, error } = await supabase
+    .from("organizations")
+    .select("id, name, description, logo_url, organization_type, created_at")
+    .order("name", { ascending: true })
+    .limit(120);
 
-  if (role === "student") {
-    rows = await getEligibleStudentOrganizations(user);
-  } else {
-    const { data, error } = await supabase
-      .from("organizations")
-      .select("id, name, description, logo_url, organization_type, created_at")
-      .order("name", { ascending: true })
-      .limit(80);
-    if (error) throw error;
-    rows = await attachProgramCoverage(data || []);
-  }
+  if (error) throw error;
+
+  const rows = await attachProgramCoverage(data || []);
 
   const filteredRows = rows
     .filter((org) => matchesQuery([org.name, org.description, org.organization_type, programText(org)], query))
@@ -567,10 +599,11 @@ async function countStudentsForProgram(programCode) {
 
 async function countOrganizationMembers(organizationId) {
   if (!organizationId) return 0;
-  const { count, error } = await supabase
-    .from("student_organizations")
-    .select("student_id", { count: "exact", head: true })
-    .eq("organization_id", organizationId);
+  const { count, error } = await selectActiveMemberships(
+    "student_id",
+    [["organization_id", organizationId]],
+    { count: "exact", head: true },
+  );
   if (error) return 0;
   return count || 0;
 }
@@ -618,7 +651,7 @@ async function queryElections(user, query, role, limit) {
   let request = supabase
     .from("elections")
     .select(
-      "id, title, organization_id, campaign_start, campaign_end, start_date, end_date, status, student_result_visibility, organizations(id, name)",
+      "id, title, organization_id, campaign_start, campaign_end, start_date, end_date, status, student_result_visibility, organizations(id, name, logo_url)",
     )
     .order("start_date", { ascending: false })
     .limit(90);
@@ -646,29 +679,119 @@ async function queryElections(user, query, role, limit) {
 }
 
 async function queryStudents(user, query, role, limit) {
-  if (role === "student") return [];
-
   let rows = [];
   if (role === "electoral_board") {
     rows = await fetchEligibleStudentsForOrganization(user?.organization_id);
   } else {
+    const selectFields =
+      role === "student"
+        ? "id, first_name, last_name, photo_url, program, year_level, status"
+        : "id, student_number, first_name, last_name, photo_url, program, year_level, status";
+
     const { data, error } = await supabase
       .from("students")
-      .select("id, student_number, first_name, last_name, photo_url, program, year_level, status")
+      .select(selectFields)
       .order("last_name", { ascending: true })
       .limit(120);
     if (error) throw error;
     rows = data || [];
   }
 
+  const filteredStudents = rows
+    .filter((student) =>
+      matchesQuery(
+        [
+          fullName(student),
+          role === "student" ? null : student.student_number,
+          student.program,
+          student.year_level,
+        ],
+        query,
+      ),
+    )
+    .slice(0, limit);
+
+  const enrichedStudents = await attachPublicStudentRoles(filteredStudents);
+
   return sortResults(
-    rows
-      .filter((student) =>
-        matchesQuery([fullName(student), student.student_number, student.program, student.year_level], query),
-      )
-      .map((student) => studentResult(student, role, query)),
+    enrichedStudents.map((student) => studentResult(student, role, query)),
     query,
   ).slice(0, limit);
+}
+
+async function attachPublicStudentRoles(students = []) {
+  const studentIds = students.map((student) => student.id).filter(Boolean);
+  if (studentIds.length === 0) return students;
+
+  const [officerResultRows, candidateResultRows] = await Promise.allSettled([
+    supabase
+      .from("officers")
+      .select("student_id, position_title, term_label, is_current, organizations(name)")
+      .in("student_id", studentIds)
+      .order("is_current", { ascending: false })
+      .limit(120),
+    supabase
+      .from("candidates")
+      .select("student_id, positions(name, elections(title, organizations(name)))")
+      .in("student_id", studentIds)
+      .limit(120),
+  ]);
+
+  const officersByStudent = new Map();
+  if (officerResultRows.status === "fulfilled" && !officerResultRows.value.error) {
+    (officerResultRows.value.data || []).forEach((officer) => {
+      const current = officersByStudent.get(officer.student_id) || {
+        current: null,
+        past: null,
+      };
+
+      if (officer.is_current && !current.current) {
+        current.current = officer;
+      } else if (!officer.is_current && !current.past) {
+        current.past = officer;
+      }
+
+      officersByStudent.set(officer.student_id, current);
+    });
+  }
+
+  const candidatesByStudent = new Map();
+  if (candidateResultRows.status === "fulfilled" && !candidateResultRows.value.error) {
+    (candidateResultRows.value.data || []).forEach((candidate) => {
+      if (!candidatesByStudent.has(candidate.student_id)) {
+        candidatesByStudent.set(candidate.student_id, candidate);
+      }
+    });
+  }
+
+  return students.map((student) => {
+    const officerRoles = officersByStudent.get(student.id) || {};
+    const candidate = candidatesByStudent.get(student.id);
+    const currentOfficer = officerRoles.current;
+    const pastOfficer = officerRoles.past;
+
+    return {
+      ...student,
+      current_officer_role: currentOfficer
+        ? [currentOfficer.position_title || "Officer", currentOfficer.organizations?.name]
+            .filter(Boolean)
+            .join(" - ")
+        : null,
+      past_officer_role: pastOfficer
+        ? [pastOfficer.position_title || "Past Officer", pastOfficer.term_label]
+            .filter(Boolean)
+            .join(" - ")
+        : null,
+      candidate_role: candidate
+        ? [
+            candidate.positions?.name || "Candidate",
+            candidate.positions?.elections?.organizations?.name,
+          ]
+            .filter(Boolean)
+            .join(" - ")
+        : null,
+    };
+  });
 }
 
 async function scopedElectionIds(user, role) {

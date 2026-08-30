@@ -2048,11 +2048,12 @@ a:active {
 }
 
 .student-explore-card {
-  min-height: 13.2rem;
+  min-height: clamp(18.5rem, 27vw, 20.5rem);
   display: grid;
   place-items: center;
   align-content: center;
   gap: 0.8rem;
+  padding: 1rem;
   border-style: dashed;
   border-width: 2px;
   color: #ef4e23;
@@ -2060,6 +2061,422 @@ a:active {
   font-size: 0.75rem;
   font-weight: 950;
   letter-spacing: 0.16em;
+}
+
+.student-directory-filter-bar {
+  margin-top: 0.9rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.student-directory-filter-chip {
+  display: inline-flex;
+  min-height: 2.35rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid #e3e8ef;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.94);
+  padding: 0.5rem 0.9rem;
+  color: #526174;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.045);
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.student-directory-filter-chip:hover {
+  border-color: rgba(239, 78, 35, 0.24);
+  color: #182033;
+  transform: translateY(-1px);
+}
+
+.student-directory-filter-chip strong {
+  display: inline-grid;
+  min-width: 1.35rem;
+  min-height: 1.35rem;
+  place-items: center;
+  border-radius: 9999px;
+  background: #f1f4f8;
+  color: #667085;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.student-directory-filter-chip-active {
+  border-color: #182033;
+  background: #182033;
+  color: #ffffff;
+  box-shadow: 0 12px 24px rgba(24, 32, 51, 0.16);
+}
+
+.student-directory-filter-chip-active strong {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
+.student-directory-card {
+  display: flex;
+  min-height: clamp(18.5rem, 27vw, 20.5rem);
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #e7ebf0;
+  border-radius: 1.25rem;
+  background: #ffffff;
+  padding: 1rem;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  transition:
+    transform 190ms ease,
+    box-shadow 190ms ease,
+    border-color 190ms ease;
+}
+
+.student-directory-card:hover {
+  border-color: rgba(239, 78, 35, 0.16);
+  box-shadow: 0 16px 38px rgba(15, 23, 42, 0.1);
+  transform: translateY(-2px);
+}
+
+.student-directory-card-art {
+  position: relative;
+  display: flex;
+  min-height: clamp(11.75rem, 16vw, 13.5rem);
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, #fffaf7 0%, #ffffff 48%, #f5f7fb 100%);
+}
+
+.student-directory-card-art::before,
+.student-directory-card-art::after {
+  content: "";
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+}
+
+.student-directory-card-art::before {
+  top: -2.5rem;
+  left: -2.75rem;
+  width: 7rem;
+  height: 7rem;
+  background: rgba(239, 78, 35, 0.06);
+}
+
+.student-directory-card-art::after {
+  right: -2.5rem;
+  bottom: -2.75rem;
+  width: 7.75rem;
+  height: 7.75rem;
+  background: rgba(59, 130, 246, 0.045);
+}
+
+.student-directory-logo {
+  width: clamp(7rem, 8vw, 8.7rem) !important;
+  height: clamp(7rem, 8vw, 8.7rem) !important;
+  padding: 0.65rem !important;
+  z-index: 1;
+}
+
+.student-directory-type-chip,
+.student-directory-state-chip {
+  display: inline-flex;
+  min-height: 1.55rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.58rem;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.student-directory-type-chip {
+  position: absolute;
+  top: 0.8rem;
+  left: 0.8rem;
+  z-index: 2;
+  border: 1px solid #e3e8ef;
+  background: rgba(255, 255, 255, 0.96);
+  color: #667085;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+}
+
+.student-directory-card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding: 1.05rem 0.75rem 0.35rem;
+}
+
+.student-directory-card-title-row {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.student-directory-card-title-row h2 {
+  display: -webkit-box;
+  min-width: 0;
+  overflow: hidden;
+  color: #182033;
+  font-size: 1.05rem;
+  font-weight: 950;
+  line-height: 1.18;
+  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.student-directory-card-description {
+  display: -webkit-box;
+  min-height: 2.55rem;
+  margin: 0.55rem 0 0;
+  overflow: hidden;
+  color: #667085;
+  font-size: 0.78rem;
+  font-weight: 650;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.student-directory-state-chip-member {
+  background: #e5fbf0;
+  color: #047857;
+}
+
+.student-directory-state-chip-explore {
+  background: #f1f4f8;
+  color: #5f6c7d;
+}
+
+.student-directory-card-footer {
+  display: flex;
+  margin-top: auto;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.9rem;
+  border-top: 1px solid #edf1f5;
+  padding-top: 0.95rem;
+}
+
+.student-directory-card-label {
+  color: #98a2b3;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.student-directory-card-value {
+  margin-top: 0.25rem;
+  color: #364152;
+  font-size: 0.78rem;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
+.student-directory-view-btn {
+  display: inline-flex;
+  min-height: 2.45rem;
+  min-width: 4.4rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.8rem;
+  background: #ef4e23;
+  padding: 0.65rem 1rem;
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: 0 10px 22px rgba(239, 78, 35, 0.16);
+  transition:
+    background-color 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.student-directory-view-btn:hover {
+  background: #d94118;
+  transform: translateY(-1px);
+}
+
+.student-explore-grid {
+  margin-top: 1.25rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.student-explore-grid .student-directory-card {
+  min-height: 19rem;
+}
+
+.student-org-about {
+  display: grid;
+  gap: 0.7rem;
+  max-width: 52rem;
+}
+
+.student-org-about h2 {
+  margin: 0;
+  color: #182033;
+  font-size: clamp(1.4rem, 2vw, 2rem);
+  font-weight: 950;
+  line-height: 1.12;
+}
+
+.student-org-about p:last-child {
+  margin: 0;
+  color: #526174;
+  font-size: 0.98rem;
+  line-height: 1.75;
+}
+
+@media (max-width: 640px) {
+  .student-directory-filter-bar {
+    gap: 0.5rem;
+    margin-top: 0.85rem;
+  }
+
+  .student-directory-filter-chip {
+    min-height: 2.25rem;
+    padding: 0.48rem 0.78rem;
+    font-size: 0.66rem;
+    letter-spacing: 0.06em;
+  }
+
+  .student-directory-card,
+  .student-explore-card {
+    min-height: 19rem;
+  }
+
+  .student-directory-card-art {
+    min-height: 11rem;
+  }
+
+  .student-directory-card-body {
+    padding: 0.95rem 0.45rem 0.2rem;
+  }
+
+  .student-directory-card-title-row {
+    align-items: flex-start;
+    gap: 0.55rem;
+  }
+
+  .student-directory-card-title-row h2 {
+    font-size: 1rem;
+  }
+
+  .student-directory-card-footer {
+    gap: 0.65rem;
+  }
+
+  .student-explore-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .student-explore-grid .student-directory-card {
+    min-height: 17rem;
+    padding: 0.65rem;
+    border-radius: 1rem;
+  }
+
+  .student-explore-grid .student-directory-card-art {
+    min-height: 7.8rem;
+    border-radius: 0.85rem;
+  }
+
+  .student-explore-grid .student-directory-logo {
+    width: 5.2rem !important;
+    height: 5.2rem !important;
+    padding: 0.45rem !important;
+  }
+
+  .student-explore-grid .student-directory-type-chip {
+    top: 0.45rem;
+    left: 0.45rem;
+    max-width: calc(100% - 0.9rem);
+    min-height: 1.25rem;
+    padding: 0.28rem 0.45rem;
+    font-size: 0.48rem;
+    letter-spacing: 0.06em;
+  }
+
+  .student-explore-grid .student-directory-card-body {
+    padding: 0.7rem 0.2rem 0.1rem;
+  }
+
+  .student-explore-grid .student-directory-card-title-row {
+    display: grid;
+    gap: 0.4rem;
+  }
+
+  .student-explore-grid .student-directory-card-title-row h2 {
+    font-size: 0.9rem;
+    line-height: 1.18;
+  }
+
+  .student-explore-grid .student-directory-state-chip {
+    justify-self: start;
+    min-height: 1.35rem;
+    padding: 0.28rem 0.5rem;
+    font-size: 0.5rem;
+  }
+
+  .student-explore-grid .student-directory-card-description {
+    min-height: 2.25rem;
+    font-size: 0.68rem;
+    line-height: 1.35;
+  }
+
+  .student-explore-grid .student-directory-card-footer {
+    display: grid;
+    gap: 0.55rem;
+    padding-top: 0.65rem;
+  }
+
+  .student-explore-grid .student-directory-card-label {
+    font-size: 0.52rem;
+  }
+
+  .student-explore-grid .student-directory-card-value {
+    font-size: 0.68rem;
+  }
+
+  .student-explore-grid .student-directory-view-btn {
+    width: 100%;
+    min-height: 2.2rem;
+    font-size: 0.72rem;
+  }
+}
+
+@media (max-width: 340px) {
+  .student-explore-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .student-empty-card {
@@ -5057,6 +5474,11 @@ textarea:focus {
   flex-direction: column;
 }
 
+.kandid-app-theme .student-org-grid > .student-directory-card,
+.kandid-app-theme .student-org-grid > .student-explore-card {
+  min-height: clamp(18.5rem, 27vw, 20.5rem) !important;
+}
+
 .kandid-app-theme .student-org-grid > article > div:first-child {
   border-radius: var(--kandid-radius-lg) !important;
 }
@@ -5839,18 +6261,8 @@ textarea:focus {
   color: var(--kandid-primary, #ef4e23);
 }
 
-.search-result-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.search-result-avatar small {
-  position: absolute;
-  right: 0.18rem;
-  bottom: 0.08rem;
-  color: var(--kandid-primary, #ef4e23);
-  font-size: 0.56rem;
+.search-result-avatar .kandid-image-fallback {
+  font-size: 0.86rem;
   font-weight: 950;
 }
 
@@ -5879,6 +6291,30 @@ textarea:focus {
   line-height: 1.3;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.search-result-badges,
+.search-detail-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.25rem;
+}
+
+.search-result-badges span,
+.search-detail-badges span {
+  display: inline-flex;
+  min-height: 1.45rem;
+  align-items: center;
+  border-radius: 999px;
+  background: rgba(4, 120, 87, 0.1);
+  padding: 0.22rem 0.55rem;
+  color: #047857;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
 }
 
 .search-detail-panel {

@@ -16,6 +16,7 @@ const BoardLayout = lazy(() => import("./layouts/BoardLayout"));
 
 const StudentDashboard = lazy(() => import("./pages/student/Dashboard"));
 const StudentElections = lazy(() => import("./pages/student/Elections"));
+const StudentOrganizations = lazy(() => import("./pages/student/Organizations"));
 const StudentVotePage = lazy(() => import("./pages/student/VotePage"));
 const StudentReceipt = lazy(() => import("./pages/student/Receipt"));
 const StudentCampaign = lazy(() => import("./pages/student/Campaign"));
@@ -353,6 +354,11 @@ function App() {
             <Route
               path="elections"
               element={<StudentElections />}
+            />
+
+            <Route
+              path="organizations"
+              element={<StudentOrganizations />}
             />
 
             <Route

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, BarChart3, ChevronRight, UserRound, UsersRound, Vote } from "lucide-react";
+import { ArrowLeft, BarChart3, ChevronRight, UsersRound, Vote } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
+import KandidImage from "../../components/KandidImage";
 import { supabase } from "../../lib/supabaseClient";
 import { formatLocalDateTime, getElectionPhase } from "../../utils/elections";
 import { getStudentElectionOrganizationIds } from "../../utils/organizationAccess";
@@ -16,6 +17,10 @@ function StudentCampaign() {
   const [loading, setLoading] = useState(true);
   const [accessDenied, setAccessDenied] = useState(false);
   const user = JSON.parse(localStorage.getItem("user"));
+
+  function candidateName(candidate) {
+    return `${candidate?.students?.first_name || ""} ${candidate?.students?.last_name || ""}`.trim();
+  }
 
   useEffect(() => {
     let active = true;
@@ -168,16 +173,13 @@ function StudentCampaign() {
         </select>
 
         <article className="student-candidate-detail">
-          <div className="student-candidate-photo">
-            {selectedCandidate.photo || selectedCandidate.students?.photo_url ? (
-              <img
-                src={selectedCandidate.photo || selectedCandidate.students?.photo_url}
-                alt="Candidate"
-              />
-            ) : (
-              <UserRound size={120} />
-            )}
-          </div>
+          <KandidImage
+            src={selectedCandidate.photo || selectedCandidate.students?.photo_url}
+            alt={candidateName(selectedCandidate) || "Candidate"}
+            label={candidateName(selectedCandidate) || "Candidate"}
+            className="student-candidate-photo"
+            fit="cover"
+          />
 
           <div className="student-candidate-facts">
             {[
@@ -268,16 +270,13 @@ function StudentCampaign() {
                 ) : (
                   position.candidates.map((candidate) => (
                     <article key={candidate.id} className="student-candidate-card">
-                      <div className="student-candidate-avatar">
-                        {candidate.photo || candidate.students?.photo_url ? (
-                          <img
-                            src={candidate.photo || candidate.students?.photo_url}
-                            alt="Candidate"
-                          />
-                        ) : (
-                          <UserRound size={42} />
-                        )}
-                      </div>
+                      <KandidImage
+                        src={candidate.photo || candidate.students?.photo_url}
+                        alt={candidateName(candidate) || "Candidate"}
+                        label={candidateName(candidate) || "Candidate"}
+                        className="student-candidate-avatar"
+                        fit="cover"
+                      />
                       <div>
                         <h3>
                           {candidate.students?.first_name} {candidate.students?.last_name}

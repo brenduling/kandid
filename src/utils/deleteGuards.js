@@ -42,6 +42,131 @@ async function getElectionPhaseCounts(electionId) {
   return { votes, tokens };
 }
 
+async function countRowsByFilters(table, filters = []) {
+  let query = supabase
+    .from(table)
+    .select("id", { count: "exact", head: true });
+
+  filters.forEach(([column, value]) => {
+    query = query.eq(column, value);
+  });
+
+  const { count, error } = await query;
+
+  if (error) {
+    console.warn(`Dependency count failed for ${table}:`, error);
+    return 0;
+  }
+
+  return count || 0;
+}
+
+async function getElectionIdsByOrganization(organizationId) {
+  if (!organizationId) return [];
+  const { data, error } = await supabase
+    .from("elections")
+    .select("id, status")
+    .eq("organization_id", organizationId);
+
+  if (error) return [];
+  return data || [];
+}
+
+async function getPositionIdsByElections(electionIds = []) {
+  if (electionIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from("positions")
+    .select("id")
+    .in("election_id", electionIds);
+
+  if (error) return [];
+  return (data || []).map((item) => item.id).filter(Boolean);
+}
+
+export async function analyzeMembershipDependencies({ studentId, organizationId }) {
+  const dependencies = [];
+  let severity = "remove";
+  let recommendation = "This organization membership can be removed after confirmation.";
+
+  if (!studentId || !organizationId) {
+    return { dependencies, blocked: false, severity, recommendation };
+  }
+
+  const elections = await getElectionIdsByOrganization(organizationId);
+  const electionIds = elections.map((election) => election.id).filter(Boolean);
+  const positionIds = await getPositionIdsByElections(electionIds);
+
+  const [currentOfficers, pastOfficers, votes] = await Promise.all([
+    countRowsByFilters("officers", [
+      ["student_id", studentId],
+      ["organization_id", organizationId],
+      ["is_current", true],
+    ]),
+    countRowsByFilters("officers", [
+      ["student_id", studentId],
+      ["organization_id", organizationId],
+      ["is_current", false],
+    ]),
+    electionIds.length
+      ? supabase
+          .from("votes")
+          .select("id", { count: "exact", head: true })
+          .eq("student_id", studentId)
+          .in("election_id", electionIds)
+          .then(({ count, error }) => {
+            if (error) {
+              console.warn("Membership vote dependency count failed:", error);
+              return 0;
+            }
+            return count || 0;
+          })
+      : 0,
+  ]);
+
+  let candidates = 0;
+  if (positionIds.length > 0) {
+    const { count, error } = await supabase
+      .from("candidates")
+      .select("id", { count: "exact", head: true })
+      .eq("student_id", studentId)
+      .in("position_id", positionIds);
+    candidates = error ? 0 : count || 0;
+  }
+
+  const activeElections = elections.filter((election) =>
+    ["active", "ongoing", "open", "scheduled", "draft"].includes(
+      String(election.status || "").toLowerCase(),
+    ),
+  ).length;
+
+  [
+    ["Current officer role", currentOfficers],
+    ["Past officer history", pastOfficers],
+    ["Candidate records", candidates],
+    ["Vote records", votes],
+    ["Active or upcoming elections", activeElections],
+  ].forEach(([label, count]) => {
+    if (count > 0) dependencies.push({ label, count });
+  });
+
+  if (votes > 0 || candidates > 0 || currentOfficers > 0 || pastOfficers > 0) {
+    severity = "deactivate";
+    recommendation =
+      "This membership is connected to election or officer history. Preserve the relationship and use deactivation after the membership lifecycle migration is applied.";
+  } else if (activeElections > 0) {
+    severity = "warning";
+    recommendation =
+      "This organization has active or upcoming elections. Confirm the impact before removing access.";
+  }
+
+  return {
+    dependencies,
+    blocked: severity === "deactivate",
+    severity,
+    recommendation,
+  };
+}
+
 export async function analyzeDeleteDependencies(entityType, entity) {
   const id = typeof entity === "object" ? entity?.id : entity;
   const dependencies = [];

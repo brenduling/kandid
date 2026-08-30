@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { StudentAvatar } from "../../components/KandidImage";
 import { supabase } from "../../lib/supabaseClient";
 import { getEligibleStudentOrganizationIds } from "../../utils/organizationAccess";
 
@@ -35,7 +36,8 @@ function StudentOfficers() {
           students (
             first_name,
             last_name,
-            student_number
+            student_number,
+            photo_url
           )
         `)
         .in("organization_id", organizationIds)
@@ -136,6 +138,12 @@ function StudentOfficers() {
                 style={{ animationDelay: `${index * 40}ms` }}
               >
                 <div className="flex items-start justify-between gap-3">
+                  {officer.students ? (
+                    <StudentAvatar
+                      student={officer.students}
+                      className="!h-14 !w-14 shrink-0 !rounded-2xl"
+                    />
+                  ) : null}
                   <div>
                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#d35a25]">
                       {officer.organizations?.name || "Organization"}

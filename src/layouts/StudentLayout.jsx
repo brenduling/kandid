@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   ChevronDown,
@@ -10,6 +10,7 @@ import MobileNav from "../components/MobileNav";
 import MobileHeader from "../components/MobileHeader";
 import MobileMenu from "../components/MobileMenu";
 import NotificationCenter from "../components/NotificationCenter";
+import { StudentAvatar } from "../components/KandidImage";
 
 
 import logo from "../assets/kandidlogo.png";
@@ -37,14 +38,7 @@ function StudentLayout() {
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  /*
-   * Keep the stored user stable for the lifetime
-   * of the layout.
-   */
-  const user = useMemo(
-    () => getStoredUser(),
-    []
-  );
+  const [user, setUser] = useState(() => getStoredUser());
 
   const prompt = usePrompt();
 
@@ -63,6 +57,20 @@ function StudentLayout() {
       );
     }
   }, [navigate, user]);
+
+  useEffect(() => {
+    function handleUserUpdated(event) {
+      setUser(event.detail || getStoredUser());
+    }
+
+    window.addEventListener("kandid-user-updated", handleUserUpdated);
+    window.addEventListener("storage", handleUserUpdated);
+
+    return () => {
+      window.removeEventListener("kandid-user-updated", handleUserUpdated);
+      window.removeEventListener("storage", handleUserUpdated);
+    };
+  }, []);
 
   /*
    * ============================================================
@@ -218,22 +226,11 @@ function StudentLayout() {
               </div>
 
               {/* PROFILE IMAGE */}
-              {user?.photo_url ? (
-                <img
-                  src={user.photo_url}
-                  alt="Student profile"
-                  loading="lazy"
-                  decoding="async"
-                />
-              ) : (
-                <span className="student-profile-avatar">
-                  {user?.first_name?.[0] ||
-                    "S"}
-
-                  {user?.last_name?.[0] ||
-                    "A"}
-                </span>
-              )}
+              <StudentAvatar
+                student={user}
+                className="student-profile-avatar"
+                loading="lazy"
+              />
 
               <ChevronDown
                 size={15}

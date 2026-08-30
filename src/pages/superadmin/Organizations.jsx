@@ -9,18 +9,28 @@ import {
 } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import PopupOverlay from "../../components/PopupOverlay";
+import { StudentAvatar } from "../../components/KandidImage";
 import { supabase } from "../../lib/supabaseClient";
 import { readFileAsDataUrl } from "../../utils/files";
 import {
   attachProgramCoverage,
   clearOrganizationAccessCache,
+  deactivateStudentOrganizationMembership,
   ensureProgram,
   getPrograms,
+  reactivateStudentOrganizationMembership,
+  removeStudentOrganizationMembership,
+  selectActiveMemberships,
+  selectOrganizationMembershipsForManagement,
   syncStudentsForOrganizationCoverage,
 } from "../../utils/organizationAccess";
 import { usePrompt } from "../../context/PromptContext";
 import { logAuditEvent } from "../../utils/auditLog";
-import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
+import {
+  analyzeDeleteDependencies,
+  analyzeMembershipDependencies,
+  dependencyMessage,
+} from "../../utils/deleteGuards";
 
 function Organizations() {
   const prompt = usePrompt();
@@ -120,9 +130,9 @@ function Organizations() {
       return;
     }
 
-    const { data, error } = await supabase
-      .from("student_organizations")
-      .select("student_id, organization_id");
+    const { data, error } = await selectActiveMemberships(
+      "student_id, organization_id",
+    );
 
     if (error) {
       console.error(
@@ -183,25 +193,8 @@ function Organizations() {
 
     // Organization membership is stored in the
     // student_organizations junction table.
-    const { data, error } = await supabase
-      .from("student_organizations")
-      .select(`
-        student_id,
-        organization_id,
-        role,
-        students (
-          id,
-          student_number,
-          first_name,
-          last_name,
-          email,
-          program,
-          year_level,
-          photo_url,
-          status
-        )
-      `)
-      .eq("organization_id", org.id);
+    const { data, error } =
+      await selectOrganizationMembershipsForManagement(org.id);
 
     if (error) {
       console.error(
@@ -237,6 +230,8 @@ function Organizations() {
         return {
           ...item.students,
           organization_role: item.role,
+          membership_status: item.membership_status || "active",
+          deactivation_reason: item.deactivation_reason || "",
         };
       })
       .filter(Boolean)
@@ -249,10 +244,12 @@ function Organizations() {
 
     setOrganizationStudents(students);
 
-    // Keep the card count synchronized with the actual list.
+    // Keep the card count synchronized with active members.
     setOrganizationCounts((previous) => ({
       ...previous,
-      [org.id]: students.length,
+      [org.id]: students.filter(
+        (student) => student.membership_status !== "inactive",
+      ).length,
     }));
 
     setStudentsLoading(false);
@@ -261,6 +258,166 @@ function Organizations() {
   function closeOrganizationDetails() {
     setSelectedOrg(null);
     setOrganizationStudents([]);
+  }
+
+  function studentDisplayName(student) {
+    return (
+      [student?.first_name, student?.last_name]
+        .filter(Boolean)
+        .join(" ") ||
+      student?.student_number ||
+      "Student"
+    );
+  }
+
+  async function handleDeactivateMembership(student) {
+    if (!selectedOrg?.id || !student?.id) return;
+
+    const label = studentDisplayName(student);
+    const confirmed = await prompt.confirm({
+      title: `Deactivate ${selectedOrg.name} Access?`,
+      message: `${label} will remain in KANDID and other organization memberships will not be changed.`,
+      type: "warning",
+      confirmText: "Deactivate Access",
+    });
+
+    if (!confirmed) return;
+
+    const { error } = await deactivateStudentOrganizationMembership({
+      studentId: student.id,
+      organizationId: selectedOrg.id,
+      reason: "Deactivated from organization directory",
+    });
+
+    if (error) {
+      prompt.error(error.message || `Failed to deactivate ${selectedOrg.name} access.`);
+      return;
+    }
+
+    prompt.success(`${selectedOrg.name} access deactivated for ${label}.`);
+
+    await logAuditEvent({
+      action: "membership_deactivated",
+      entityType: "student_organization",
+      entityId: student.id,
+      entityLabel: label,
+      organizationId: selectedOrg.id,
+      organizationName: selectedOrg.name,
+      status: "completed",
+      metadata: {
+        student_id: student.id,
+        organization_id: selectedOrg.id,
+      },
+    });
+
+    openOrganizationDetails(selectedOrg);
+    fetchOrganizationCounts();
+  }
+
+  async function handleReactivateMembership(student) {
+    if (!selectedOrg?.id || !student?.id) return;
+
+    const label = studentDisplayName(student);
+    const confirmed = await prompt.confirm({
+      title: `Reactivate ${selectedOrg.name} Access?`,
+      message: `${label} will regain active membership access for ${selectedOrg.name}.`,
+      type: "info",
+      confirmText: "Reactivate Access",
+    });
+
+    if (!confirmed) return;
+
+    const { error } = await reactivateStudentOrganizationMembership({
+      studentId: student.id,
+      organizationId: selectedOrg.id,
+    });
+
+    if (error) {
+      prompt.error(error.message || `Failed to reactivate ${selectedOrg.name} access.`);
+      return;
+    }
+
+    prompt.success(`${selectedOrg.name} access reactivated for ${label}.`);
+
+    await logAuditEvent({
+      action: "membership_reactivated",
+      entityType: "student_organization",
+      entityId: student.id,
+      entityLabel: label,
+      organizationId: selectedOrg.id,
+      organizationName: selectedOrg.name,
+      status: "completed",
+      metadata: {
+        student_id: student.id,
+        organization_id: selectedOrg.id,
+      },
+    });
+
+    openOrganizationDetails(selectedOrg);
+    fetchOrganizationCounts();
+  }
+
+  async function handleRemoveMembership(student) {
+    if (!selectedOrg?.id || !student?.id) return;
+
+    const label = studentDisplayName(student);
+    const analysis = await analyzeMembershipDependencies({
+      studentId: student.id,
+      organizationId: selectedOrg.id,
+    });
+
+    if (analysis.blocked) {
+      await prompt.alert({
+        title: `Do Not Remove from ${selectedOrg.name}`,
+        message: `${analysis.recommendation}\n\nRelated records: ${
+          analysis.dependencies
+            .map((dependency) => `${dependency.label}: ${dependency.count}`)
+            .join(", ") || "None"
+        }`,
+        type: "warning",
+        confirmText: "Review",
+      });
+      return;
+    }
+
+    const confirmed = await prompt.confirm({
+      title: `Remove from ${selectedOrg.name}?`,
+      message: `${label} will remain in KANDID. Only the ${selectedOrg.name} membership will be removed.`,
+      type: analysis.severity === "warning" ? "warning" : "danger",
+      confirmText: `Remove from ${selectedOrg.name}`,
+    });
+
+    if (!confirmed) return;
+
+    const { error } = await removeStudentOrganizationMembership({
+      studentId: student.id,
+      organizationId: selectedOrg.id,
+    });
+
+    if (error) {
+      prompt.error(error.message || `Failed to remove student from ${selectedOrg.name}.`);
+      return;
+    }
+
+    prompt.success(`${label} removed from ${selectedOrg.name}.`);
+
+    await logAuditEvent({
+      action: "membership_removed",
+      entityType: "student_organization",
+      entityId: student.id,
+      entityLabel: label,
+      organizationId: selectedOrg.id,
+      organizationName: selectedOrg.name,
+      status: "completed",
+      metadata: {
+        student_id: student.id,
+        organization_id: selectedOrg.id,
+        dependencies: analysis.dependencies,
+      },
+    });
+
+    openOrganizationDetails(selectedOrg);
+    fetchOrganizationCounts();
   }
 
   function openCreateForm() {
@@ -646,11 +803,7 @@ function Organizations() {
           <button
             key={type}
             onClick={() => setFilter(type)}
-            className={`rounded-full px-4 py-1.5 text-xs font-black uppercase tracking-[0.12em] transition-colors ${
-              filter === type
-                ? "bg-[#18212b] text-white shadow-sm"
-                : "bg-black/5 text-[#556987] hover:bg-black/10"
-            }`}
+            className={`filter-pill ${filter === type ? "filter-pill-active" : ""}`}
           >
             {type === "all"
               ? "All Organizations"
@@ -985,6 +1138,10 @@ function Organizations() {
                             <th className="px-5 py-4 text-xs font-black uppercase tracking-[0.12em] text-gray-500">
                               Status
                             </th>
+
+                            <th className="px-5 py-4 text-right text-xs font-black uppercase tracking-[0.12em] text-gray-500">
+                              Membership
+                            </th>
                           </tr>
                         </thead>
 
@@ -998,21 +1155,11 @@ function Organizations() {
                                 {/* STUDENT */}
                                 <td className="px-5 py-4">
                                   <div className="flex items-center gap-3">
-                                    {student.photo_url ? (
-                                      <img
-                                        src={
-                                          student.photo_url
-                                        }
-                                        alt={`${student.first_name} ${student.last_name}`}
-                                        className="h-10 w-10 rounded-xl object-cover"
-                                        loading="lazy"
-                                        decoding="async"
-                                      />
-                                    ) : (
-                                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[rgba(37,99,235,0.08)] text-xs font-black text-[#2563eb]">
-                                        {`${student.first_name?.[0] || ""}${student.last_name?.[0] || ""}`}
-                                      </div>
-                                    )}
+                                    <StudentAvatar
+                                      student={student}
+                                      loading="lazy"
+                                      className="!h-10 !w-10 !rounded-xl"
+                                    />
 
                                     <div>
                                       <p className="font-black">
@@ -1072,6 +1219,44 @@ function Organizations() {
                                     {student.status ||
                                       "pending"}
                                   </span>
+                                </td>
+
+                                <td className="px-5 py-4">
+                                  <div className="flex flex-wrap items-center justify-end gap-2">
+                                    <span
+                                      className={`rounded-full px-3 py-1 text-xs font-bold ${
+                                        student.membership_status === "inactive"
+                                          ? "bg-amber-100 text-amber-700"
+                                          : "bg-emerald-100 text-emerald-700"
+                                      }`}
+                                    >
+                                      {student.membership_status === "inactive"
+                                        ? "Inactive"
+                                        : "Active"}
+                                    </span>
+
+                                    <button
+                                      type="button"
+                                      className="secondary-btn min-h-[2.35rem] px-3 text-xs"
+                                      onClick={() =>
+                                        student.membership_status === "inactive"
+                                          ? handleReactivateMembership(student)
+                                          : handleDeactivateMembership(student)
+                                      }
+                                    >
+                                      {student.membership_status === "inactive"
+                                        ? `Reactivate ${selectedOrg?.name}`
+                                        : `Deactivate ${selectedOrg?.name}`}
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      className="danger-btn min-h-[2.35rem] px-3 text-xs"
+                                      onClick={() => handleRemoveMembership(student)}
+                                    >
+                                      Remove from {selectedOrg?.name}
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             )

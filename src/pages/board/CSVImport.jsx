@@ -2,7 +2,10 @@ import { useState } from "react";
 import Papa from "papaparse";
 import { Upload, CheckCircle, XCircle } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
-import { syncStudentOrganizationMemberships } from "../../utils/organizationAccess";
+import {
+  findOrCreateStudentByNumber,
+  syncStudentOrganizationMemberships,
+} from "../../utils/organizationAccess";
 import { logAuditEvent } from "../../utils/auditLog";
 import { usePrompt } from "../../context/PromptContext";
 
@@ -81,19 +84,29 @@ function BoardCSVImport() {
 
     setImporting(true);
 
-    const { data: insertedStudents, error: studentError } = await supabase
-      .from("students")
-      .insert(validRows)
-      .select();
+    const importedStudents = [];
+    let createdCount = 0;
+    let linkedExistingCount = 0;
+    let alreadyMemberCount = 0;
 
-    if (studentError) {
-      prompt.error(studentError.message || "Student import failed.");
-      setImporting(false);
-      return;
-    }
+    for (const row of validRows) {
+      const {
+        data: student,
+        created,
+        error: studentError,
+      } = await findOrCreateStudentByNumber(row);
 
-    for (const student of insertedStudents || []) {
-      const { error: membershipError } = await syncStudentOrganizationMemberships({
+      if (studentError || !student) {
+        prompt.error(studentError?.message || "Student import failed.");
+        setImporting(false);
+        return;
+      }
+
+      const {
+        error: membershipError,
+        createdOrganizationIds = [],
+        existingOrganizationIds = [],
+      } = await syncStudentOrganizationMemberships({
         studentId: student.id,
         program: student.program,
         explicitOrganizationIds: [orgId],
@@ -104,9 +117,22 @@ function BoardCSVImport() {
         setImporting(false);
         return;
       }
+
+      importedStudents.push(student);
+      if (created) createdCount += 1;
+      else linkedExistingCount += 1;
+
+      if (
+        existingOrganizationIds.includes(Number(orgId)) &&
+        !createdOrganizationIds.includes(Number(orgId))
+      ) {
+        alreadyMemberCount += 1;
+      }
     }
 
-    prompt.success("Students imported and assigned to your organization successfully.");
+    prompt.success(
+      `Student import completed. ${createdCount} created, ${linkedExistingCount} existing processed, ${alreadyMemberCount} already members.`
+    );
     await logAuditEvent({
       action: "student_batch_imported",
       entityType: "student",
@@ -115,7 +141,10 @@ function BoardCSVImport() {
       organizationName: orgName,
       status: "completed",
       metadata: {
-        imported_count: insertedStudents?.length || 0,
+        imported_count: importedStudents.length,
+        created_count: createdCount,
+        linked_existing_count: linkedExistingCount,
+        already_member_count: alreadyMemberCount,
         invalid_count: invalidRows.length,
       },
     });

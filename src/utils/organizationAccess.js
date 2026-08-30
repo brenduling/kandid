@@ -17,6 +17,7 @@ function isMissingSchemaError(error) {
 
   return (
     code === "42P01" ||
+    code === "42703" ||
     code === "PGRST205" ||
     message.includes("could not find the table") ||
     message.includes("could not find a relationship") ||
@@ -28,6 +29,109 @@ function migrationRequiredError() {
   return new Error(
     "Apply the organization program sync migration before saving program coverage.",
   );
+}
+
+function membershipLifecycleRequiredError() {
+  return new Error(
+    "Apply the student membership lifecycle migration before deactivating or reactivating organization access.",
+  );
+}
+
+async function runActiveMembershipQuery(buildQuery, fallbackQuery) {
+  const { data, error, count } = await buildQuery((query) =>
+    query.eq("membership_status", "active"),
+  );
+
+  if (!error) return { data, error, count };
+
+  const message = String(error.message || "").toLowerCase();
+  const missingMembershipStatus =
+    error.code === "42703" ||
+    message.includes("membership_status") ||
+    isMissingSchemaError(error);
+
+  if (!missingMembershipStatus || !fallbackQuery) {
+    return { data, error, count };
+  }
+
+  return fallbackQuery();
+}
+
+export function activeMembershipQuery(query) {
+  return query.eq("membership_status", "active");
+}
+
+export async function selectActiveMemberships(select, filters = [], options = {}) {
+  const buildBaseQuery = () => {
+    let query = supabase.from("student_organizations").select(select, options);
+    filters.forEach(([column, value]) => {
+      query = query.eq(column, value);
+    });
+    return query;
+  };
+
+  return runActiveMembershipQuery(
+    (applyActiveFilter) => applyActiveFilter(buildBaseQuery()),
+    () => buildBaseQuery(),
+  );
+}
+
+export async function selectOrganizationMembershipsForManagement(organizationId) {
+  if (!organizationId) return { data: [], error: null };
+
+  const baseStudentSelect = `
+    student_id,
+    organization_id,
+    role,
+    students (
+      id,
+      student_number,
+      first_name,
+      last_name,
+      email,
+      photo_url,
+      program,
+      year_level,
+      is_shs,
+      status,
+      created_at
+    )
+  `;
+
+  const fullSelect = `
+    ${baseStudentSelect},
+    membership_status,
+    deactivated_at,
+    deactivation_reason,
+    reactivated_at
+  `;
+
+  const query = (selectText) =>
+    supabase
+      .from("student_organizations")
+      .select(selectText)
+      .eq("organization_id", organizationId);
+
+  const { data, error } = await query(fullSelect);
+
+  if (!error) return { data: data || [], error: null };
+
+  const message = String(error.message || "").toLowerCase();
+  const missingMembershipStatus =
+    error.code === "42703" ||
+    message.includes("membership_status") ||
+    isMissingSchemaError(error);
+
+  if (!missingMembershipStatus) return { data: [], error };
+
+  const fallback = await query(baseStudentSelect);
+  return {
+    data: (fallback.data || []).map((membership) => ({
+      ...membership,
+      membership_status: "active",
+    })),
+    error: fallback.error,
+  };
 }
 
 function getCoveredPrograms(organization) {
@@ -115,8 +219,81 @@ export function organizationCoversStudentProgram(organization, studentProgram) {
 
 export function isOrganizationEligibleForStudent(organization, student) {
   if (!organization || !student) return false;
-  if (organization.organization_type === "non_departmental") return true;
+  if (organization.organization_type === "non_departmental") return false;
   return organizationCoversStudentProgram(organization, student.program);
+}
+
+export async function findStudentByNumber(studentNumber) {
+  const cleanedStudentNumber = String(studentNumber || "").trim();
+  if (!cleanedStudentNumber) {
+    return { data: null, error: new Error("Student ID is required.") };
+  }
+
+  const { data, error } = await supabase
+    .from("students")
+    .select(
+      "id, student_number, first_name, last_name, email, photo_url, program, year_level, is_shs, status, created_at",
+    )
+    .eq("student_number", cleanedStudentNumber)
+    .limit(2);
+
+  if (error) return { data: null, error };
+
+  if ((data || []).length > 1) {
+    return {
+      data: null,
+      error: new Error(
+        `Multiple central student records use Student ID ${cleanedStudentNumber}. Resolve duplicates before linking memberships.`,
+      ),
+    };
+  }
+
+  return { data: data?.[0] || null, error: null };
+}
+
+export async function findOrCreateStudentByNumber(payload) {
+  const cleanedStudentNumber = String(payload?.student_number || "").trim();
+  const lookup = await findStudentByNumber(cleanedStudentNumber);
+
+  if (lookup.error) return { data: null, created: false, error: lookup.error };
+
+  if (lookup.data) {
+    return { data: lookup.data, created: false, error: null };
+  }
+
+  const insertPayload = {
+    ...payload,
+    student_number: cleanedStudentNumber,
+  };
+
+  const { data, error } = await supabase
+    .from("students")
+    .insert([insertPayload])
+    .select(
+      "id, student_number, first_name, last_name, email, photo_url, program, year_level, is_shs, status, created_at",
+    )
+    .single();
+
+  if (!error) {
+    return { data, created: true, error: null };
+  }
+
+  const code = String(error.code || "");
+  const message = String(error.message || "").toLowerCase();
+  const duplicateStudentNumber =
+    code === "23505" ||
+    (message.includes("duplicate") && message.includes("student_number"));
+
+  if (!duplicateStudentNumber) {
+    return { data: null, created: false, error };
+  }
+
+  const retryLookup = await findStudentByNumber(cleanedStudentNumber);
+  return {
+    data: retryLookup.data,
+    created: false,
+    error: retryLookup.error,
+  };
 }
 
 export async function getPrograms() {
@@ -183,7 +360,7 @@ export async function getOrganizationCatalog() {
 
   const { data, error } = await supabase
     .from("organizations")
-    .select("id, name, organization_type")
+    .select("id, name, description, organization_type")
     .order("name", { ascending: true });
 
   if (error) {
@@ -195,6 +372,35 @@ export async function getOrganizationCatalog() {
   return setCachedValue("organization-catalog", organizations);
 }
 
+export async function getStudentOrganizationDirectory(student) {
+  if (!student?.id) {
+    return {
+      memberOrganizations: [],
+      otherOrganizations: [],
+      memberIds: new Set(),
+    };
+  }
+
+  const [memberOrganizations, organizations] = await Promise.all([
+    getEligibleStudentOrganizations(student),
+    getOrganizationCatalog(),
+  ]);
+
+  const memberIds = new Set(
+    (memberOrganizations || []).map((organization) => Number(organization.id)),
+  );
+
+  const otherOrganizations = (organizations || []).filter(
+    (organization) => !memberIds.has(Number(organization.id)),
+  );
+
+  return {
+    memberOrganizations: memberOrganizations || [],
+    otherOrganizations,
+    memberIds,
+  };
+}
+
 export async function getStudentExplicitOrganizations(studentId) {
   if (!studentId) return [];
 
@@ -202,9 +408,8 @@ export async function getStudentExplicitOrganizations(studentId) {
   const cached = getCachedValue(cacheKey);
   if (cached) return cached;
 
-  const { data, error } = await supabase
-    .from("student_organizations")
-    .select(`
+  const { data, error } = await selectActiveMemberships(
+    `
       organization_id,
       role,
       organizations (
@@ -212,8 +417,9 @@ export async function getStudentExplicitOrganizations(studentId) {
         name,
         organization_type
       )
-    `)
-    .eq("student_id", studentId);
+    `,
+    [["student_id", studentId]],
+  );
 
   if (error) {
     console.error("Failed to load student organizations:", error);
@@ -305,10 +511,7 @@ export async function getStudentElectionOrganizationIds(student) {
     organizations,
   ] = await Promise.all([
     getEligibleStudentOrganizationIds(studentProfile),
-    supabase
-      .from("student_organizations")
-      .select("organization_id")
-      .eq("student_id", studentProfile.id),
+    selectActiveMemberships("organization_id", [["student_id", studentProfile.id]]),
     getOrganizationCatalog(),
   ]);
 
@@ -344,7 +547,14 @@ export async function syncStudentOrganizationMemberships({
   program,
   explicitOrganizationIds = [],
 }) {
-  if (!studentId) return { error: null, organizationIds: [] };
+  if (!studentId) {
+    return {
+      error: null,
+      organizationIds: [],
+      createdOrganizationIds: [],
+      existingOrganizationIds: [],
+    };
+  }
 
   const organizations = await getOrganizationCatalog();
   const derivedIds = organizations
@@ -362,8 +572,36 @@ export async function syncStudentOrganizationMemberships({
   ];
 
   if (organizationIds.length === 0) {
-    return { error: null, organizationIds: [] };
+    return {
+      error: null,
+      organizationIds: [],
+      createdOrganizationIds: [],
+      existingOrganizationIds: [],
+    };
   }
+
+  const { data: existingMemberships, error: existingError } = await supabase
+    .from("student_organizations")
+    .select("organization_id")
+    .eq("student_id", studentId)
+    .in("organization_id", organizationIds);
+
+  if (existingError) {
+    return {
+      error: existingError,
+      organizationIds,
+      createdOrganizationIds: [],
+      existingOrganizationIds: [],
+    };
+  }
+
+  const existingOrganizationIds = [
+    ...new Set(
+      (existingMemberships || [])
+        .map((membership) => Number(membership.organization_id))
+        .filter(Boolean),
+    ),
+  ];
 
   const rows = organizationIds.map((organizationId) => ({
     student_id: studentId,
@@ -382,7 +620,16 @@ export async function syncStudentOrganizationMemberships({
     clearCachedValue(`student-memberships:${studentId}`);
   }
 
-  return { error, organizationIds };
+  const createdOrganizationIds = organizationIds.filter(
+    (organizationId) => !existingOrganizationIds.includes(Number(organizationId)),
+  );
+
+  return {
+    error,
+    organizationIds,
+    createdOrganizationIds: error ? [] : createdOrganizationIds,
+    existingOrganizationIds,
+  };
 }
 
 export async function syncStudentsForOrganizationCoverage(organizationId) {
@@ -442,6 +689,88 @@ export async function syncStudentsForOrganizationCoverage(organizationId) {
   };
 }
 
+export async function deactivateStudentOrganizationMembership({
+  studentId,
+  organizationId,
+  reason = "",
+}) {
+  if (!studentId || !organizationId) {
+    return { error: new Error("Student and organization are required.") };
+  }
+
+  const { error } = await supabase
+    .from("student_organizations")
+    .update({
+      membership_status: "inactive",
+      deactivated_at: new Date().toISOString(),
+      deactivation_reason: reason || null,
+      reactivated_at: null,
+    })
+    .eq("student_id", studentId)
+    .eq("organization_id", organizationId);
+
+  if (error && isMissingSchemaError(error)) {
+    return { error: membershipLifecycleRequiredError() };
+  }
+
+  if (!error) {
+    clearCachedValue(`student-memberships:${studentId}`);
+  }
+
+  return { error };
+}
+
+export async function reactivateStudentOrganizationMembership({
+  studentId,
+  organizationId,
+}) {
+  if (!studentId || !organizationId) {
+    return { error: new Error("Student and organization are required.") };
+  }
+
+  const { error } = await supabase
+    .from("student_organizations")
+    .update({
+      membership_status: "active",
+      deactivated_at: null,
+      deactivation_reason: null,
+      reactivated_at: new Date().toISOString(),
+    })
+    .eq("student_id", studentId)
+    .eq("organization_id", organizationId);
+
+  if (error && isMissingSchemaError(error)) {
+    return { error: membershipLifecycleRequiredError() };
+  }
+
+  if (!error) {
+    clearCachedValue(`student-memberships:${studentId}`);
+  }
+
+  return { error };
+}
+
+export async function removeStudentOrganizationMembership({
+  studentId,
+  organizationId,
+}) {
+  if (!studentId || !organizationId) {
+    return { error: new Error("Student and organization are required.") };
+  }
+
+  const { error } = await supabase
+    .from("student_organizations")
+    .delete()
+    .eq("student_id", studentId)
+    .eq("organization_id", organizationId);
+
+  if (!error) {
+    clearCachedValue(`student-memberships:${studentId}`);
+  }
+
+  return { error };
+}
+
 export async function fetchEligibleStudentsForOrganization(organizationId) {
   if (!organizationId) return [];
 
@@ -453,23 +782,24 @@ export async function fetchEligibleStudentsForOrganization(organizationId) {
     getOrganizationCatalog(),
     supabase
       .from("students")
-      .select("id, student_number, first_name, last_name, program, year_level, status")
+      .select("id, student_number, first_name, last_name, photo_url, program, year_level, status")
       .order("last_name", { ascending: true }),
-    supabase
-      .from("student_organizations")
-      .select(`
+    selectActiveMemberships(
+      `
         student_id,
         students (
           id,
           student_number,
           first_name,
           last_name,
+          photo_url,
           program,
           year_level,
           status
         )
-      `)
-      .eq("organization_id", organizationId),
+      `,
+      [["organization_id", organizationId]],
+    ),
   ]);
 
   if (studentsError) {

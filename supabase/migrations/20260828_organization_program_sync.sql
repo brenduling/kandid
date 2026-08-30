@@ -65,12 +65,8 @@ join public.programs
   on upper(trim(programs.code)) = legacy_map.program_code
 on conflict do nothing;
 
-insert into public.student_organizations (student_id, organization_id, role)
-select students.id, organizations.id, 'member'
-from public.students
-cross join public.organizations
-where organizations.organization_type = 'non_departmental'
-on conflict (student_id, organization_id) do nothing;
+-- Non-departmental memberships are explicit-only.
+-- Do not bootstrap every student into every non-departmental organization.
 
 insert into public.student_organizations (student_id, organization_id, role)
 select students.id, organization_programs.organization_id, 'member'

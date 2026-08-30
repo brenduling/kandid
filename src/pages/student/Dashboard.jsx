@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -10,33 +10,38 @@ import {
   UsersRound,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { OrganizationLogo as BaseOrganizationLogo } from "../../components/KandidImage";
+import {
+  OrganizationLogo as BaseOrganizationLogo,
+  StudentAvatar,
+} from "../../components/KandidImage";
+import StudentOrganizationCard, {
+  getOrganizationDescription,
+  getOrganizationTypeLabel,
+} from "../../components/student/StudentOrganizationCard";
 import { supabase } from "../../lib/supabaseClient";
 import {
-  getEligibleStudentOrganizations,
-  getOrganizationCatalog,
+  getStudentOrganizationDirectory,
+  selectActiveMemberships,
 } from "../../utils/organizationAccess";
 
-function OrganizationLogo({ organization }) {
-  return (
-    <BaseOrganizationLogo
-      organization={organization}
-      className="!h-[clamp(7rem,9vw,10rem)] !w-[clamp(7rem,9vw,10rem)] !p-2.5"
-      loading="lazy"
-    />
-  );
-}
+const ORGANIZATION_FILTERS = [
+  { value: "all", label: "All" },
+  { value: "departmental", label: "Departmental" },
+  { value: "non_departmental", label: "Non-Departmental" },
+];
+
 
 function StudentDashboard() {
   const [myOrganizations, setMyOrganizations] = useState([]);
   const [otherOrganizations, setOtherOrganizations] = useState([]);
   const [selectedOrganization, setSelectedOrganization] = useState(null);
+  const [organizationFilter, setOrganizationFilter] = useState("all");
 
   const [organizationOfficers, setOrganizationOfficers] = useState([]);
   const [organizationElections, setOrganizationElections] = useState([]);
   const [organizationMemberCount, setOrganizationMemberCount] = useState(0);
 
-  const [organizationTab, setOrganizationTab] = useState("officers");
+  const [organizationTab, setOrganizationTab] = useState("about");
 
   const [detailLoading, setDetailLoading] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -75,33 +80,18 @@ function StudentDashboard() {
         /*
          * Run both queries at the same time.
          */
-        const [memberOrganizations, organizations] = await Promise.all([
-          getEligibleStudentOrganizations(user),
-          getOrganizationCatalog(),
-        ]);
+        const {
+          memberOrganizations,
+          otherOrganizations: explorableOrganizations,
+        } = await getStudentOrganizationDirectory(user);
 
         if (!active) return;
-
-        const memberIds = new Set(
-          memberOrganizations.map((organization) => organization.id)
-        );
-
-        /*
-         * Other departmental organizations only.
-         */
-        const otherDepartmentalOrganizations = (
-          organizations || []
-        ).filter(
-          (organization) =>
-            !memberIds.has(organization.id) &&
-            organization.organization_type !== "non_departmental"
-        );
 
         /*
          * Set lightweight data immediately.
          */
         setMyOrganizations(memberOrganizations);
-        setOtherOrganizations(otherDepartmentalOrganizations);
+        setOtherOrganizations(explorableOrganizations);
 
         /*
          * Initial UI can now render without waiting for Base64 logos.
@@ -115,13 +105,26 @@ function StudentDashboard() {
          *
          * We only need:
          * - logos for the student's organizations
-         * - first 3 other departmental organizations
+         * - first 3 organizations for each discovery filter
          *
          * This prevents the dashboard from downloading every
          * organization's image.
          */
-        const visibleOtherOrganizations =
-          otherDepartmentalOrganizations.slice(0, 3);
+        const visibleOtherOrganizations = [
+          ...explorableOrganizations.slice(0, 3),
+          ...explorableOrganizations
+            .filter(
+              (organization) =>
+                organization.organization_type !== "non_departmental"
+            )
+            .slice(0, 3),
+          ...explorableOrganizations
+            .filter(
+              (organization) =>
+                organization.organization_type === "non_departmental"
+            )
+            .slice(0, 3),
+        ];
 
         const visibleOrganizationIds = [
           ...memberOrganizations.map((organization) => organization.id),
@@ -197,6 +200,44 @@ function StudentDashboard() {
     };
   }, [user?.id]);
 
+  const filteredOtherOrganizations = useMemo(() => {
+    if (organizationFilter === "all") {
+      return otherOrganizations;
+    }
+
+    return otherOrganizations.filter(
+      (organization) =>
+        organization.organization_type === organizationFilter
+    );
+  }, [organizationFilter, otherOrganizations]);
+
+  const visibleOtherOrganizations = useMemo(
+    () => filteredOtherOrganizations.slice(0, 3),
+    [filteredOtherOrganizations]
+  );
+
+  const organizationFilterCounts = useMemo(
+    () => ({
+      all: otherOrganizations.length,
+      departmental: otherOrganizations.filter(
+        (organization) =>
+          organization.organization_type !== "non_departmental"
+      ).length,
+      non_departmental: otherOrganizations.filter(
+        (organization) =>
+          organization.organization_type === "non_departmental"
+      ).length,
+    }),
+    [otherOrganizations]
+  );
+
+  const emptyDiscoveryMessage =
+    organizationFilter === "non_departmental"
+      ? "No non-departmental organizations available."
+      : organizationFilter === "departmental"
+      ? "No departmental organizations available."
+      : "No other organizations available.";
+
   /*
    * ============================================================
    * OPEN ORGANIZATION DETAILS
@@ -204,7 +245,7 @@ function StudentDashboard() {
    */
   async function handleViewOrganization(organization) {
     setSelectedOrganization(organization);
-    setOrganizationTab("officers");
+    setOrganizationTab("about");
 
     setOrganizationOfficers([]);
     setOrganizationElections([]);
@@ -245,13 +286,14 @@ function StudentDashboard() {
           .neq("status", "archived")
           .order("start_date", { ascending: false }),
 
-        supabase
-          .from("student_organizations")
-          .select("student_id", {
+        selectActiveMemberships(
+          "student_id",
+          [["organization_id", organization.id]],
+          {
             count: "exact",
             head: true,
-          })
-          .eq("organization_id", organization.id),
+          },
+        ),
       ]);
 
       if (officersError) {
@@ -338,6 +380,14 @@ function StudentDashboard() {
 
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-white/80 px-3 py-1 text-sm font-bold text-gray-700">
+                  {myOrganizations.some(
+                    (organization) => organization.id === selectedOrganization.id,
+                  )
+                    ? "Member"
+                    : "Explore"}
+                </span>
+
+                <span className="rounded-full bg-white/80 px-3 py-1 text-sm font-bold text-gray-700">
                   {organizationMemberCount} active member
                   {organizationMemberCount === 1 ? "" : "s"}
                 </span>
@@ -353,6 +403,20 @@ function StudentDashboard() {
 
         {/* TABS */}
         <div className="student-campaign-tabs w-full">
+          <button
+            type="button"
+            className={
+              organizationTab === "about"
+                ? "active"
+                : ""
+            }
+            onClick={() =>
+              setOrganizationTab("about")
+            }
+          >
+            About
+          </button>
+
           <button
             type="button"
             className={
@@ -387,6 +451,12 @@ function StudentDashboard() {
           {detailLoading ? (
             <div className="student-empty-card flex min-h-[280px] w-full items-center justify-center">
               Loading organization details...
+            </div>
+          ) : organizationTab === "about" ? (
+            <div className="student-org-about">
+              <p className="student-directory-card-label">About</p>
+              <h2>{selectedOrganization.name}</h2>
+              <p>{getOrganizationDescription(selectedOrganization)}</p>
             </div>
           ) : organizationTab === "officers" ? (
             <>
@@ -431,20 +501,16 @@ function StudentDashboard() {
                         </h2>
 
                         <div className="student-officer-row w-full min-h-[110px] px-5 py-5 md:min-h-[130px] md:px-7 md:py-6 lg:min-h-[150px]">
-                          <div className="student-officer-avatar !h-[clamp(4rem,6vw,6rem)] !w-[clamp(4rem,6vw,6rem)]">
-                            {officer.students?.photo_url ? (
-                              <img
-                                src={
-                                  officer.students.photo_url
-                                }
-                                alt={fullName}
-                                loading="lazy"
-                                decoding="async"
-                              />
-                            ) : (
+                          {officer.students ? (
+                            <StudentAvatar
+                              student={officer.students}
+                              className="student-officer-avatar !h-[clamp(4rem,6vw,6rem)] !w-[clamp(4rem,6vw,6rem)]"
+                            />
+                          ) : (
+                            <div className="student-officer-avatar !h-[clamp(4rem,6vw,6rem)] !w-[clamp(4rem,6vw,6rem)]">
                               <UserRound size={34} />
-                            )}
-                          </div>
+                            </div>
+                          )}
 
                           <div>
                             <strong>
@@ -580,155 +646,72 @@ function StudentDashboard() {
                 </div>
               ) : (
                 myOrganizations.map((organization) => (
-                  <article
+                  <StudentOrganizationCard
                     key={organization.id}
-                    className="group w-full min-w-0 overflow-hidden rounded-3xl border border-gray-200/80 bg-white p-4 shadow-[0_8px_30px_rgba(15,23,42,0.06)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_16px_38px_rgba(15,23,42,0.10)]"
-                  >
-                    {/* CARD IMAGE */}
-                    <div className="relative flex h-[clamp(13rem,18vw,18rem)] items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-[#fffaf7] via-white to-[#f5f7fb]">
-                      <div className="absolute -left-10 -top-10 h-28 w-28 rounded-full bg-[#f4511e]/[0.06]" />
-
-                      <div className="absolute -bottom-12 -right-8 h-32 w-32 rounded-full bg-blue-500/[0.04]" />
-
-                      <OrganizationLogo
-                        organization={organization}
-                      />
-
-                      <span className="absolute left-3 top-3 rounded-full border border-gray-200 bg-white/95 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-gray-500 shadow-sm backdrop-blur">
-                        {organization.organization_type ===
-                          "non_departmental"
-                          ? "Non-Departmental"
-                          : "Departmental"}
-                      </span>
-                    </div>
-
-                    {/* CARD CONTENT */}
-                    <div className="px-3 pb-2 pt-5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <h2 className="text-lg font-black leading-tight text-[#182033]">
-                            {organization.name}
-                          </h2>
-                        </div>
-
-                        <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-emerald-700">
-                          Member
-                        </span>
-                      </div>
-
-                      <div className="mt-3 flex items-center justify-between gap-3 border-t border-gray-100 pt-3">
-                        <div>
-                          <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-gray-400">
-                            Organization Type
-                          </p>
-
-                          <p className="mt-0.5 text-xs font-bold text-gray-700">
-                            {organization.organization_type ===
-                              "non_departmental"
-                              ? "Non-Departmental"
-                              : "Departmental"}
-                          </p>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleViewOrganization(
-                              organization
-                            )
-                          }
-                          className="shrink-0 rounded-xl bg-[#f4511e] px-4 py-2 text-xs font-black text-white shadow-sm transition hover:bg-[#d94718] focus:outline-none focus:ring-2 focus:ring-[#f4511e]/30"
-                        >
-                          View
-                        </button>
-                      </div>
-                    </div>
-                  </article>
+                    organization={organization}
+                    membershipState="member"
+                    onView={handleViewOrganization}
+                  />
                 ))
               )}
             </div>
           </section>
 
           {/* ==================================================
-              OTHER DEPARTMENTAL ORGANIZATIONS
+              OTHER ORGANIZATIONS
               ================================================== */}
           <section className="student-section">
             <div className="student-section-title">
               <Globe2 size={16} />
-              Other Departmental Organizations
+              Other Organizations
+            </div>
+
+            <div
+              className="student-directory-filter-bar"
+              aria-label="Organization filters"
+            >
+              {ORGANIZATION_FILTERS.map((filter) => (
+                <button
+                  key={filter.value}
+                  type="button"
+                  onClick={() =>
+                    setOrganizationFilter(filter.value)
+                  }
+                  className={`student-directory-filter-chip ${
+                    organizationFilter === filter.value
+                      ? "student-directory-filter-chip-active"
+                      : ""
+                  }`}
+                >
+                  <span>{filter.label}</span>
+                  <strong>
+                    {organizationFilterCounts[filter.value]}
+                  </strong>
+                </button>
+              ))}
             </div>
 
             <div className="student-org-grid grid w-full grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3 xl:gap-7">
-              {otherOrganizations.length === 0 ? (
+              {visibleOtherOrganizations.length === 0 ? (
                 <div className="student-empty-card">
-                  No other departmental organizations available.
+                  {emptyDiscoveryMessage}
                 </div>
               ) : (
                 <>
-                  {otherOrganizations
-                    .slice(0, 3)
-                    .map((organization) => (
-                      <article
-                        key={organization.id}
-                        className="group w-full min-w-0 overflow-hidden rounded-3xl border border-gray-200/80 bg-white p-4 shadow-[0_8px_30px_rgba(15,23,42,0.05)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_16px_38px_rgba(15,23,42,0.09)]"
-                      >
-                        {/* CARD IMAGE */}
-                        <div className="relative flex h-[clamp(11rem,15vw,15rem)] items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-[#fffaf7] via-white to-[#f5f7fb]">
-                          <OrganizationLogo
-                            organization={organization}
-                          />
-
-                          <span className="absolute left-3 top-3 rounded-full border border-gray-200 bg-white/95 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.1em] text-gray-500 shadow-sm backdrop-blur">
-                            Departmental
-                          </span>
-                        </div>
-
-                        {/* CARD CONTENT */}
-                        <div className="px-3 pb-2 pt-4">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <h2 className="text-base font-black leading-tight text-[#182033]">
-                                {organization.name}
-                              </h2>
-                            </div>
-
-                            <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.1em] text-gray-500">
-                              Explore
-                            </span>
-                          </div>
-
-                          <div className="mt-3 flex items-center justify-between gap-3 border-t border-gray-100 pt-3">
-                            <div>
-                              <p className="text-[8px] font-bold uppercase tracking-[0.12em] text-gray-400">
-                                Organization Type
-                              </p>
-
-                              <p className="mt-0.5 text-xs font-bold text-gray-700">
-                                Departmental
-                              </p>
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleViewOrganization(
-                                  organization
-                                )
-                              }
-                              className="shrink-0 rounded-xl bg-[#f4511e] px-3.5 py-2 text-xs font-black text-white transition hover:bg-[#d94718] focus:outline-none focus:ring-2 focus:ring-[#f4511e]/30"
-                            >
-                              View
-                            </button>
-                          </div>
-                        </div>
-                      </article>
-                    ))}
+                  {visibleOtherOrganizations.map((organization) => (
+                    <StudentOrganizationCard
+                      key={organization.id}
+                      organization={organization}
+                      membershipState="explore"
+                      onView={handleViewOrganization}
+                    />
+                  ))}
 
                   {/* EXPLORE ALL */}
                   <button
                     type="button"
                     onClick={() =>
-                      navigate("/student/elections")
+                      navigate("/student/organizations")
                     }
                     className="student-explore-card"
                   >
