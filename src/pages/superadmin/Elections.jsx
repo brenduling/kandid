@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, Plus, Pencil, Trash2, X, QrCode, Power } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
 import {
@@ -23,10 +24,15 @@ import {
   fetchOrderedPositions,
   isMissingPositionOrderError,
 } from "../../utils/positionOrder";
-import { resultVisibilityLabel } from "../../utils/results";
+import { copyLatestOrganizationPositions } from "../../utils/positionReuse";
+import {
+  resultVisibilityLabel,
+  serializeResultVisibilityForDatabase,
+} from "../../utils/results";
 
 function Elections() {
   const prompt = usePrompt();
+  const navigate = useNavigate();
   const [elections, setElections] = useState([]);
   const [organizations, setOrganizations] = useState([]);
   const [accessTokens, setAccessTokens] = useState([]);
@@ -181,6 +187,9 @@ function Elections() {
       display_order: Number(positionForm.display_order || positions.length + 1),
     };
 
+    const creatingPosition = !editingPosition;
+    let savedPositionId = editingPosition?.id;
+
     if (editingPosition) {
       let { error } = await supabase
         .from("positions")
@@ -210,9 +219,11 @@ function Elections() {
 
       prompt.success("Position updated.");
     } else {
-      let { error } = await supabase
+      let { data, error } = await supabase
         .from("positions")
-        .insert([payload]);
+        .insert([payload])
+        .select("id")
+        .single();
 
       if (isMissingPositionOrderError(error)) {
         const fallback = await supabase
@@ -221,7 +232,10 @@ function Elections() {
             election_id: payload.election_id,
             name: payload.name,
             max_votes: payload.max_votes,
-          }]);
+          }])
+          .select("id")
+          .single();
+        data = fallback.data;
         error = fallback.error;
       }
 
@@ -231,6 +245,7 @@ function Elections() {
         return;
       }
 
+      savedPositionId = data?.id;
       prompt.success("Position created.");
     }
 
@@ -242,6 +257,21 @@ function Elections() {
     });
 
     await fetchPositions(selectedElection.id);
+
+    if (creatingPosition && savedPositionId) {
+      const addCandidateNow = await prompt.confirm({
+        title: "Add Candidate Now?",
+        message: `${name} was created. You can add candidates now or continue setting up positions.`,
+        type: "success",
+        confirmText: "Add Candidate",
+        cancelText: "Continue Setup",
+      });
+
+      if (addCandidateNow) {
+        closePositions();
+        navigate(`/super-admin/candidates?position=${savedPositionId}`);
+      }
+    }
   }
 
   async function handleDeletePosition(position) {
@@ -397,7 +427,9 @@ function Elections() {
       start_date: formValueToScheduleTimestamp(form.start_date),
       end_date: formValueToScheduleTimestamp(form.end_date),
       status: form.status,
-      student_result_visibility: form.student_result_visibility,
+      student_result_visibility: serializeResultVisibilityForDatabase(
+        form.student_result_visibility,
+      ),
       voting_access_mode: form.voting_access_mode,
       location_label: form.location_label || null,
       geo_lat: form.geo_lat === "" ? null : Number(form.geo_lat),
@@ -430,8 +462,19 @@ function Elections() {
       (org) => String(org.id) === String(payload.organization_id),
     );
 
+    let reusedPositions = { copiedCount: 0, sourceElection: null };
+
     if (editingElection) {
       prompt.success("Election updated.");
+    } else if (result?.data?.id) {
+      reusedPositions = await copyLatestOrganizationPositions(supabase, {
+        organizationId: payload.organization_id,
+        targetElectionId: result.data.id,
+      });
+
+      if (reusedPositions.error) {
+        console.warn("Unable to reuse previous election positions:", reusedPositions.error);
+      }
     }
     await logAuditEvent({
       action: editingElection ? "election_updated" : "election_created",
@@ -454,6 +497,8 @@ function Elections() {
         ...payload,
         id: result.data.id,
         organizations: organization ? { name: organization.name } : null,
+        reusedPositionCount: reusedPositions.copiedCount || 0,
+        reusedFromElectionTitle: reusedPositions.sourceElection?.title || "",
       });
     }
   }
@@ -1193,6 +1238,15 @@ function Elections() {
             <p className="mt-3 text-sm leading-6 text-gray-500">
               {createdElection.title} has been created. Continue configuring the ballot by adding positions and candidates.
             </p>
+            {createdElection.reusedPositionCount > 0 ? (
+              <p className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
+                {createdElection.reusedPositionCount} position
+                {createdElection.reusedPositionCount === 1 ? "" : "s"} reused
+                {createdElection.reusedFromElectionTitle
+                  ? ` from ${createdElection.reusedFromElectionTitle}`
+                  : ""}.
+              </p>
+            ) : null}
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               <button
                 type="button"

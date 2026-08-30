@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
+  ArrowLeft,
   ChevronDown,
   LogOut,
 } from "lucide-react";
@@ -22,6 +23,8 @@ function SuperAdminLayout() {
   const location = useLocation();
   const [user, setUser] = useState(() => getStoredUser());
   const prompt = usePrompt();
+  const homePath = "/super-admin/dashboard";
+  const showBackButton = location.pathname !== homePath;
   const [openGroups, setOpenGroups] = useState(() =>
     Object.fromEntries(superAdminMenuGroups.map((group) => [group.label, true])),
   );
@@ -67,6 +70,15 @@ function SuperAdminLayout() {
     }));
   }
 
+  function handleBack() {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+
+    navigate(homePath);
+  }
+
   return (
     <div className="super-admin-theme kandid-app-theme app-shell relative overflow-hidden">
       <div className="ambient-orb left-[-120px] top-16 h-96 w-96 bg-[rgba(17,128,106,0.16)]" />
@@ -76,7 +88,12 @@ function SuperAdminLayout() {
         <aside className="glass-panel-dark shell-sidebar shell-sidebar-collapsible">
           <div className="sidebar-brand-block border-b border-white/10 pb-5">
             <div className="flex items-center justify-center gap-3 lg:justify-start">
-              <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => navigate(homePath)}
+                className="kandid-sidebar-brand-button flex items-center gap-3"
+                aria-label="Go to super admin home"
+              >
                 <img
                   src={logo}
                   alt="KANDID Logo"
@@ -87,7 +104,7 @@ function SuperAdminLayout() {
                   <p className="menu-brand-title">KANDID</p>
                   <p className="menu-brand-copy">Super Admin Portal</p>
                 </div>
-              </div>
+              </button>
             </div>
           </div>
 
@@ -192,6 +209,17 @@ function SuperAdminLayout() {
           </header>
 
           <section className="content-stack pb-24 pt-20 lg:pb-8 lg:pt-8">
+            {showBackButton ? (
+              <button
+                type="button"
+                onClick={handleBack}
+                className="app-page-back-button"
+              >
+                <ArrowLeft size={15} />
+                Back
+              </button>
+            ) : null}
+
             <TransitionWrapper>
               <Outlet />
             </TransitionWrapper>
@@ -202,6 +230,7 @@ function SuperAdminLayout() {
       <MobileHeader
         user={user}
         onMenuClick={() => setIsMobileMenuOpen(true)}
+        homePath={homePath}
       />
 
       <MobileMenu

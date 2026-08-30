@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
 import {
@@ -13,6 +14,8 @@ import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/delete
 
 function BoardCandidates() {
   const prompt = usePrompt();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const handledPreselectRef = useRef("");
   const [candidates, setCandidates] = useState([]);
   const [positions, setPositions] = useState([]);
   const [students, setStudents] = useState([]);
@@ -32,6 +35,7 @@ function BoardCandidates() {
 
   const user = JSON.parse(localStorage.getItem("user"));
   const orgId = user?.organization_id;
+  const preselectedPositionId = searchParams.get("position") || "";
 
   useEffect(() => {
     let active = true;
@@ -131,6 +135,16 @@ function BoardCandidates() {
     };
   }, [orgId]);
 
+  useEffect(() => {
+    if (!preselectedPositionId) return;
+    if (handledPreselectRef.current === preselectedPositionId) return;
+    if (!positions.some((position) => String(position.id) === preselectedPositionId)) return;
+
+    handledPreselectRef.current = preselectedPositionId;
+    openCreateForm(preselectedPositionId);
+    setSearchParams({}, { replace: true });
+  }, [preselectedPositionId, positions, setSearchParams]);
+
   async function refreshCandidates() {
     if (!orgId) return;
 
@@ -200,10 +214,10 @@ function BoardCandidates() {
     setPartylists(partyData || []);
   }
 
-  function openCreateForm() {
+  function openCreateForm(positionId = "") {
     setEditingCandidate(null);
     setForm({
-      position_id: "",
+      position_id: positionId,
       student_id: "",
       partylist_id: "",
       photo: "",
@@ -381,7 +395,7 @@ function BoardCandidates() {
         </div>
 
         <button
-          onClick={openCreateForm}
+          onClick={() => openCreateForm()}
           className="primary-btn self-start lg:self-auto"
         >
           <Plus size={18} />

@@ -149,7 +149,7 @@ function StudentElections() {
               .in("organization_id", organizationIds)
               .neq("status", "draft")
               .neq("status", "archived")
-              .order("start_date", { ascending: true })
+              .order("start_date", { ascending: false })
           );
         }
 
@@ -161,7 +161,7 @@ function StudentElections() {
               .in("id", votedElectionIds)
               .neq("status", "draft")
               .neq("status", "archived")
-              .order("start_date", { ascending: true })
+              .order("start_date", { ascending: false })
           );
         }
 
@@ -215,7 +215,7 @@ function StudentElections() {
       setElections(
         [...electionMap.values()].sort(
           (first, second) =>
-            compareElectionScheduleValues(first.start_date, second.start_date)
+            compareElectionScheduleValues(second.start_date, first.start_date)
         )
       );
       setVotes(voteData || []);

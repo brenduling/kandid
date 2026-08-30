@@ -20,6 +20,12 @@ export function resultVisibilityLabel(value, releasedAt) {
   return "After voting ends";
 }
 
+export function serializeResultVisibilityForDatabase(value) {
+  const mode = normalizeResultVisibilityMode(value);
+  if (mode === RESULT_VISIBILITY_MODES.REALTIME) return RESULT_VISIBILITY_MODES.REALTIME;
+  return "hidden";
+}
+
 export function isMissingResultReleaseColumn(error) {
   const message = String(error?.message || "");
   return /results_released_at|results_released_by|schema cache|column .*does not exist/i.test(message);
@@ -38,8 +44,36 @@ export function getResultVerificationSummary(votes = []) {
   };
 }
 
-export function buildGroupedResults(votes = []) {
+export function buildGroupedResults(votes = [], candidates = []) {
   const grouped = {};
+
+  candidates.forEach((candidate) => {
+    const positionId = candidate.position_id || candidate.positions?.id;
+
+    if (!positionId) return;
+
+    if (!grouped[positionId]) {
+      grouped[positionId] = {
+        positionId,
+        position: candidate.positions?.name || "Position",
+        displayOrder: candidate.positions?.display_order || 0,
+        candidates: {},
+        abstain: 0,
+      };
+    }
+
+    const student = candidate.students;
+    const candidateName = `${student?.first_name || ""} ${student?.last_name || ""}`.trim();
+
+    grouped[positionId].candidates[candidate.id] = {
+      id: candidate.id,
+      name: candidateName || "Candidate",
+      position: candidate.positions?.name || grouped[positionId].position,
+      partylistName: candidate.partylists?.name || "Independent",
+      photoUrl: candidate.photo || student?.photo_url || null,
+      votes: 0,
+    };
+  });
 
   sortVotesByPositionOrder(votes).forEach((vote) => {
     if (!grouped[vote.position_id]) {
@@ -64,10 +98,16 @@ export function buildGroupedResults(votes = []) {
     const candidateId = vote.candidate_id;
 
     if (!grouped[vote.position_id].candidates[candidateId]) {
+      const student = vote.candidates?.students;
+
       grouped[vote.position_id].candidates[candidateId] = {
-        name: `${vote.candidates?.students?.first_name || ""} ${
-          vote.candidates?.students?.last_name || ""
+        id: candidateId,
+        name: `${student?.first_name || ""} ${
+          student?.last_name || ""
         }`.trim(),
+        position: vote.positions?.name || "Position",
+        partylistName: vote.candidates?.partylists?.name || "Independent",
+        photoUrl: vote.candidates?.photo || student?.photo_url || null,
         votes: 0,
       };
     }
@@ -78,8 +118,8 @@ export function buildGroupedResults(votes = []) {
   return grouped;
 }
 
-export function buildElectionAnalytics(votes = [], election = null) {
-  const groupedResults = buildGroupedResults(votes);
+export function buildElectionAnalytics(votes = [], election = null, candidates = []) {
+  const groupedResults = buildGroupedResults(votes, candidates);
   const uniqueVoters = new Map();
   let abstainCount = 0;
 

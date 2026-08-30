@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
+  ArrowLeft,
   ChevronDown,
   LogOut,
 } from "lucide-react";
@@ -22,6 +23,8 @@ function BoardLayout() {
   const location = useLocation();
   const [user, setUser] = useState(() => getStoredUser());
   const prompt = usePrompt();
+  const homePath = "/board/dashboard";
+  const showBackButton = location.pathname !== homePath;
   const [openGroups, setOpenGroups] = useState(() =>
     Object.fromEntries(boardMenuGroups.map((group) => [group.label, true])),
   );
@@ -76,6 +79,15 @@ function BoardLayout() {
     }));
   }
 
+  function handleBack() {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+
+    navigate(homePath);
+  }
+
   return (
     <div className="board-theme kandid-app-theme app-shell relative overflow-hidden">
       <div className="ambient-orb left-[-100px] top-32 h-80 w-80 bg-[rgba(25,162,140,0.16)]" />
@@ -84,7 +96,12 @@ function BoardLayout() {
       <div className="shell-layout">
         <aside className="glass-panel-dark shell-sidebar shell-sidebar-collapsible">
           <div className="sidebar-brand-block border-b border-white/10 pb-5">
-            <div className="flex items-center justify-center gap-3 lg:justify-start">
+            <button
+              type="button"
+              onClick={() => navigate(homePath)}
+              className="kandid-sidebar-brand-button flex items-center justify-center gap-3 lg:justify-start"
+              aria-label="Go to electoral board home"
+            >
               <img
                 src={logo}
                 alt="KANDID Logo"
@@ -95,7 +112,7 @@ function BoardLayout() {
                 <p className="menu-brand-title">KANDID</p>
                 <p className="menu-brand-copy">Electoral Board</p>
               </div>
-            </div>
+            </button>
             <div className="sidebar-brand-copy">
               <p className="mt-4 menu-brand-copy">Set up Elections and Monitor the Organization.</p>
             </div>
@@ -207,6 +224,17 @@ function BoardLayout() {
           </header>
 
           <section className="content-stack pb-24 pt-20 lg:pb-8 lg:pt-8">
+            {showBackButton ? (
+              <button
+                type="button"
+                onClick={handleBack}
+                className="app-page-back-button"
+              >
+                <ArrowLeft size={15} />
+                Back
+              </button>
+            ) : null}
+
             <TransitionWrapper>
               <Outlet />
             </TransitionWrapper>
@@ -217,6 +245,7 @@ function BoardLayout() {
       <MobileHeader
         user={user}
         onMenuClick={() => setIsMobileMenuOpen(true)}
+        homePath={homePath}
       />
 
       <MobileMenu

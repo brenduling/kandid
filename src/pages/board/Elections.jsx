@@ -21,7 +21,11 @@ import {
 import { usePrompt } from "../../context/PromptContext";
 import { logAuditEvent } from "../../utils/auditLog";
 import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
-import { resultVisibilityLabel } from "../../utils/results";
+import { copyLatestOrganizationPositions } from "../../utils/positionReuse";
+import {
+  resultVisibilityLabel,
+  serializeResultVisibilityForDatabase,
+} from "../../utils/results";
 
 function BoardElections() {
   const prompt = usePrompt();
@@ -221,6 +225,9 @@ function BoardElections() {
       start_date: formValueToScheduleTimestamp(form.start_date),
       end_date: formValueToScheduleTimestamp(form.end_date),
       organization_id: orgId,
+      student_result_visibility: serializeResultVisibilityForDatabase(
+        form.student_result_visibility,
+      ),
       location_label: form.location_label || null,
       geo_lat: form.geo_lat === "" ? null : Number(form.geo_lat),
       geo_lng: form.geo_lng === "" ? null : Number(form.geo_lng),
@@ -248,8 +255,19 @@ function BoardElections() {
       return;
     }
 
+    let reusedPositions = { copiedCount: 0, sourceElection: null };
+
     if (editing) {
       prompt.success("Election updated.");
+    } else if (result?.data?.id) {
+      reusedPositions = await copyLatestOrganizationPositions(supabase, {
+        organizationId: orgId,
+        targetElectionId: result.data.id,
+      });
+
+      if (reusedPositions.error) {
+        console.warn("Unable to reuse previous election positions:", reusedPositions.error);
+      }
     }
     await logAuditEvent({
       action: editing ? "election_updated" : "election_created",
@@ -272,6 +290,8 @@ function BoardElections() {
       setCreatedElection({
         ...payload,
         id: result.data.id,
+        reusedPositionCount: reusedPositions.copiedCount || 0,
+        reusedFromElectionTitle: reusedPositions.sourceElection?.title || "",
       });
     }
   }
@@ -719,6 +739,15 @@ function BoardElections() {
             <p className="mt-3 text-sm leading-6 text-gray-500">
               {createdElection.title} has been created. Continue configuring the ballot by adding positions and candidates.
             </p>
+            {createdElection.reusedPositionCount > 0 ? (
+              <p className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
+                {createdElection.reusedPositionCount} position
+                {createdElection.reusedPositionCount === 1 ? "" : "s"} reused
+                {createdElection.reusedFromElectionTitle
+                  ? ` from ${createdElection.reusedFromElectionTitle}`
+                  : ""}.
+              </p>
+            ) : null}
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               <button
                 type="button"

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Archive, Plus, Pencil, Trash2, X } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { Archive, ChevronDown, Plus, Pencil, Trash2, X } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
 import { usePrompt } from "../../context/PromptContext";
@@ -19,6 +19,7 @@ function isMissingPositionStatusError(error) {
 
 function BoardPositions() {
   const prompt = usePrompt();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const focusedElectionId = searchParams.get("election") || "";
   const [positions, setPositions] = useState([]);
@@ -27,6 +28,7 @@ function BoardPositions() {
   const [editing, setEditing] = useState(null);
   const [positionFilter, setPositionFilter] = useState("active");
   const [positionLifecycleReady, setPositionLifecycleReady] = useState(true);
+  const [expandedElectionIds, setExpandedElectionIds] = useState({});
 
   const [form, setForm] = useState({
     election_id: "",
@@ -172,6 +174,7 @@ function BoardPositions() {
       display_order: Number(form.display_order || positions.length + 1),
     };
 
+    const creatingPosition = !editing;
     let savedId = editing?.id;
 
     if (editing) {
@@ -240,7 +243,21 @@ function BoardPositions() {
     });
 
     setFormOpen(false);
-    fetchPositions();
+    await fetchPositions();
+
+    if (creatingPosition && savedId) {
+      const addCandidateNow = await prompt.confirm({
+        title: "Add Candidate Now?",
+        message: `${payload.name} was created. You can add a candidate now or finish setup later from Candidate Management.`,
+        type: "success",
+        confirmText: "Add Candidate",
+        cancelText: "Done",
+      });
+
+      if (addCandidateNow) {
+        navigate(`/board/candidates?position=${savedId}`);
+      }
+    }
   }
 
   async function handleDelete(id) {
@@ -376,6 +393,20 @@ function BoardPositions() {
     }))
     .filter((election) => focusedElectionId || election.positions.length > 0);
 
+  function isElectionExpanded(electionId, index) {
+    if (Object.prototype.hasOwnProperty.call(expandedElectionIds, electionId)) {
+      return expandedElectionIds[electionId];
+    }
+    return Boolean(focusedElectionId) || index === 0;
+  }
+
+  function toggleElectionGroup(electionId, currentlyExpanded) {
+    setExpandedElectionIds((current) => ({
+      ...current,
+      [electionId]: !currentlyExpanded,
+    }));
+  }
+
   return (
     <div>
       <div className="page-head">
@@ -435,69 +466,86 @@ function BoardPositions() {
         </div>
       ) : (
         <div className="mt-8 space-y-5">
-          {positionsByElection.map((election) => (
+          {positionsByElection.map((election, electionIndex) => {
+            const expanded = isElectionExpanded(election.id, electionIndex);
+            return (
             <section key={election.id} className="entity-card">
-              <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
+              <button
+                type="button"
+                onClick={() => toggleElectionGroup(election.id, expanded)}
+                className="flex w-full flex-col gap-2 text-left sm:flex-row sm:items-center sm:justify-between"
+                aria-expanded={expanded}
+              >
+                <div className="min-w-0">
                   <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#ff7a35]">
                     Election Folder
                   </p>
-                  <h2 className="entity-card-title mt-2">{election.title}</h2>
+                  <h2 className="entity-card-title mt-2 truncate">{election.title}</h2>
                 </div>
-                <span className="status-pill">
-                  {election.positions.length} position{election.positions.length === 1 ? "" : "s"}
-                </span>
-              </div>
-
-              <div className="space-y-3">
-                {election.positions.length === 0 ? (
-                  <div className="rounded-[16px] border border-dashed border-[rgba(24,54,49,0.16)] bg-white/60 p-5 text-sm text-gray-500">
-                    No positions configured for this election yet.
-                  </div>
-                ) : election.positions.map((position, index) => (
-                  <div
-                    key={position.id}
-                    className="flex flex-col gap-4 rounded-[16px] border border-[rgba(24,54,49,0.08)] bg-white/70 p-4 md:flex-row md:items-center md:justify-between"
-                  >
-                    <div>
-                      <h3 className="text-lg font-black">
-                        <span className="mr-2 text-sm text-[#d35a25]">
-                          {position.display_order || index + 1}.
-                        </span>
-                        {position.name}
-                      </h3>
-                      <p className="mt-1 text-sm text-gray-500">
-                        Students may select up to {position.max_votes} candidate{position.max_votes > 1 ? "s" : ""}.
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {position.status === "retired" ? (
-                        <span className="status-pill !bg-orange-100 !text-orange-700">
-                          <Archive size={14} />
-                          Retired
-                        </span>
-                      ) : null}
-                      <button onClick={() => openEdit(position)} className="icon-action">
-                        <Pencil size={16} />
-                      </button>
-                      <button onClick={() => handleDelete(position.id)} className="icon-action icon-action-danger">
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <button
-                type="button"
-                onClick={openCreate}
-                className="secondary-btn mt-4"
-              >
-                <Plus size={16} />
-                Add Position
+                <div className="flex items-center gap-2">
+                  <span className="status-pill">
+                    {election.positions.length} position{election.positions.length === 1 ? "" : "s"}
+                  </span>
+                  <span className={`icon-action transition-transform ${expanded ? "rotate-180" : ""}`}>
+                    <ChevronDown size={16} />
+                  </span>
+                </div>
               </button>
+
+              {expanded ? (
+                <>
+                  <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    {election.positions.length === 0 ? (
+                      <div className="rounded-[16px] border border-dashed border-[rgba(24,54,49,0.16)] bg-white/60 p-5 text-sm text-gray-500">
+                        No positions configured for this election yet.
+                      </div>
+                    ) : election.positions.map((position, index) => (
+                      <div
+                        key={position.id}
+                        className="flex h-full flex-col gap-4 rounded-[16px] border border-[rgba(24,54,49,0.08)] bg-white/70 p-4"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <h3 className="text-lg font-black">
+                            <span className="mr-2 text-sm text-[#d35a25]">
+                              {position.display_order || index + 1}.
+                            </span>
+                            {position.name}
+                          </h3>
+                          <p className="mt-1 text-sm text-gray-500">
+                            Students may select up to {position.max_votes} candidate{position.max_votes > 1 ? "s" : ""}.
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {position.status === "retired" ? (
+                            <span className="status-pill !bg-orange-100 !text-orange-700">
+                              <Archive size={14} />
+                              Retired
+                            </span>
+                          ) : null}
+                          <button onClick={() => openEdit(position)} className="icon-action">
+                            <Pencil size={16} />
+                          </button>
+                          <button onClick={() => handleDelete(position.id)} className="icon-action icon-action-danger">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={openCreate}
+                    className="secondary-btn mt-4"
+                  >
+                    <Plus size={16} />
+                    Add Position
+                  </button>
+                </>
+              ) : null}
             </section>
-          ))}
+            );
+          })}
         </div>
       )}
 

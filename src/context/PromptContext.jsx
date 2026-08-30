@@ -200,13 +200,13 @@ export function PromptProvider({ children }) {
   const getToastIcon = (type) => {
     switch (type) {
       case "success":
-        return <CheckCircle2 className="h-5 w-5 text-emerald-400 flex-shrink-0" />;
+        return <CheckCircle2 className="h-5 w-5 flex-shrink-0" />;
       case "error":
-        return <XCircle className="h-5 w-5 text-rose-400 flex-shrink-0" />;
+        return <XCircle className="h-5 w-5 flex-shrink-0" />;
       case "warning":
-        return <AlertTriangle className="h-5 w-5 text-amber-400 flex-shrink-0" />;
+        return <AlertTriangle className="h-5 w-5 flex-shrink-0" />;
       default:
-        return <Info className="h-5 w-5 text-cyan-400 flex-shrink-0" />;
+        return <Info className="h-5 w-5 flex-shrink-0" />;
     }
   };
 
@@ -230,7 +230,7 @@ export function PromptProvider({ children }) {
       {/* Modal Dialog */}
       <AnimatePresence>
         {modal && (
-          <div className="modal-overlay z-[9999]">
+          <div className="modal-overlay prompt-overlay">
             {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
@@ -319,7 +319,7 @@ export function PromptProvider({ children }) {
       </AnimatePresence>
 
       {/* Floating Toasts */}
-      <div className="fixed bottom-5 right-5 z-[99999] flex max-w-sm flex-col gap-2.5 pointer-events-none">
+      <div className="kandid-toast-viewport">
         <AnimatePresence>
           {toasts.map((t) => (
             <motion.div
@@ -328,23 +328,28 @@ export function PromptProvider({ children }) {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, x: 40, scale: 0.95 }}
               transition={{ duration: 0.2 }}
-              className="pointer-events-auto flex items-start gap-3 rounded-2xl border border-white/15 bg-[#0e131d]/95 p-4 text-white shadow-2xl backdrop-blur-xl"
+              className={`kandid-toast kandid-toast-${t.type || "info"}`}
+              role={t.type === "error" ? "alert" : "status"}
+              aria-live={t.type === "error" ? "assertive" : "polite"}
             >
-              {getToastIcon(t.type)}
-              <div className="min-w-0 flex-1">
+              <div className="kandid-toast-icon">
+                {getToastIcon(t.type)}
+              </div>
+              <div className="kandid-toast-copy">
                 {t.title && (
-                  <h4 className="text-sm font-bold text-white tracking-tight">
+                  <h4 className="kandid-toast-title">
                     {t.title}
                   </h4>
                 )}
-                <p className="text-xs leading-relaxed text-slate-300 mt-0.5">
+                <p className="kandid-toast-message">
                   {t.message}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => removeToast(t.id)}
-                className="text-slate-400 hover:text-white transition p-1"
+                className="kandid-toast-close"
+                aria-label="Dismiss notification"
               >
                 <X size={14} />
               </button>

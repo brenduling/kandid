@@ -11,6 +11,10 @@ import {
 import { isMissingPositionOrderError } from "../../utils/positionOrder";
 import { fetchAuthoritativeNow, getElectionPhase } from "../../utils/elections";
 import { logAuditEvent } from "../../utils/auditLog";
+import {
+  ElectionResultsChart,
+  HorizontalStatChart,
+} from "../../components/ResultsVisualization";
 
 const RELEASE_COLUMN_SELECT =
   "id, title, status, end_date, organization_id, student_result_visibility, results_released_at, results_released_by, organizations(name)";
@@ -34,7 +38,9 @@ async function fetchResultVotes(includeDisplayOrder = true) {
       ),
       candidates (
         id,
-        students (first_name, last_name)
+        photo,
+        students (first_name, last_name, photo_url),
+        partylists (name)
       ),
       positions (${positionColumns}),
       elections (
@@ -46,9 +52,30 @@ async function fetchResultVotes(includeDisplayOrder = true) {
     `);
 }
 
+async function fetchResultCandidates(electionIds, includeDisplayOrder = true) {
+  const positionColumns = includeDisplayOrder ? "id, name, display_order, election_id" : "id, name, election_id";
+
+  if (!electionIds.length) {
+    return { data: [], error: null };
+  }
+
+  return supabase
+    .from("candidates")
+    .select(`
+      id,
+      photo,
+      position_id,
+      students (first_name, last_name, photo_url),
+      partylists (name),
+      positions!inner (${positionColumns})
+    `)
+    .in("positions.election_id", electionIds);
+}
+
 function Results() {
   const prompt = usePrompt();
   const [votes, setVotes] = useState([]);
+  const [candidates, setCandidates] = useState([]);
   const [elections, setElections] = useState([]);
   const [selectedElection, setSelectedElection] = useState("");
   const [releaseColumnReady, setReleaseColumnReady] = useState(true);
@@ -84,13 +111,15 @@ function Results() {
 
       let { data: electionsData, error: electionsError } = await supabase
         .from("elections")
-        .select(RELEASE_COLUMN_SELECT);
+        .select(RELEASE_COLUMN_SELECT)
+        .order("end_date", { ascending: false });
 
       if (isMissingReleaseColumn(electionsError)) {
         setReleaseColumnReady(false);
         const fallback = await supabase
           .from("elections")
-          .select(BASE_ELECTION_SELECT);
+          .select(BASE_ELECTION_SELECT)
+          .order("id", { ascending: false });
         electionsData = fallback.data?.map((election) => ({
           ...election,
           results_released_at: null,
@@ -106,19 +135,41 @@ function Results() {
       if (electionsError) {
         prompt.error(electionsError.message || "Failed to load elections.");
         setElections([]);
+        setCandidates([]);
         return;
       }
 
       setElections(electionsData || []);
+      setSelectedElection((current) => current || String(electionsData?.[0]?.id || ""));
+
+      const electionIds = (electionsData || []).map((election) => election.id);
+      let { data: candidateData, error: candidateError } = await fetchResultCandidates(electionIds);
+
+      if (isMissingPositionOrderError(candidateError)) {
+        const fallback = await fetchResultCandidates(electionIds, false);
+        candidateData = (fallback.data || []).map((candidate) => ({
+          ...candidate,
+          positions: {
+            ...candidate.positions,
+            display_order: candidate.position_id,
+          },
+        }));
+        candidateError = fallback.error;
+      }
+
+      setCandidates(candidateError ? [] : candidateData || []);
   }
 
   const filteredVotes = votes.filter(
     (v) => v.election_id === Number(selectedElection)
   );
+  const filteredCandidates = candidates.filter(
+    (candidate) => candidate.positions?.election_id === Number(selectedElection)
+  );
   const activeElection = elections.find(
     (election) => election.id === Number(selectedElection)
   );
-  const analytics = buildElectionAnalytics(filteredVotes, activeElection);
+  const analytics = buildElectionAnalytics(filteredVotes, activeElection, filteredCandidates);
   const verification = getResultVerificationSummary(filteredVotes);
   const activeVisibilityMode = normalizeResultVisibilityMode(
     activeElection?.student_result_visibility,
@@ -272,29 +323,14 @@ function Results() {
             </div>
 
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-              <div className="soft-card">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8b6e5c]">
-                      {analytics.allocationLabel}
-                    </p>
-                    <h3 className="mt-2 text-2xl font-black">Voter distribution</h3>
-                  </div>
-                  <span className="status-pill">{analytics.organizationName}</span>
-                </div>
-
-                <div className="mt-6 space-y-4">
-                  {analytics.allocationItems.map((item) => (
-                    <div key={item.label} className="info-row">
-                      <div>
-                        <p className="text-sm font-bold text-[#1d262f]">{item.label}</p>
-                        <p className="mt-1 text-xs text-gray-500">{item.percentage}% of voters</p>
-                      </div>
-                      <span className="text-lg font-black text-[#d35a25]">{item.count}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <HorizontalStatChart
+                eyebrow={analytics.allocationLabel}
+                title="Voter distribution"
+                subtitle="Unique voters grouped from the existing election vote records."
+                badge={analytics.organizationName}
+                items={analytics.allocationItems}
+                mode={analytics.allocationMode}
+              />
 
               <div className="glass-panel-dark rounded-[30px] p-7 text-white">
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">
@@ -308,55 +344,10 @@ function Results() {
               </div>
             </div>
 
-            {Object.values(analytics.groupedResults).map((group, idx) => {
-            const sortedCandidates = Object.values(group.candidates).sort(
-              (a, b) => b.votes - a.votes
-            );
-
-            return (
-              <div key={idx} className="bg-white p-6 rounded-2xl shadow-sm">
-                <h2 className="text-xl font-black mb-4">
-                  {group.position}
-                </h2>
-
-                <table className="w-full text-left">
-                  <thead>
-                    <tr>
-                      <th className="py-2">Candidate</th>
-                      <th className="py-2">Votes</th>
-                      <th className="py-2">Status</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {sortedCandidates.map((c, i) => (
-                      <tr key={i}>
-                        <td className="py-2 font-semibold">{c.name}</td>
-                        <td className="py-2">{c.votes}</td>
-                        <td className="py-2">
-                          {i === 0 ? (
-                            <span className="text-green-600 font-bold">
-                              Leading
-                            </span>
-                          ) : (
-                            "-"
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-
-                    <tr>
-                      <td className="py-2 font-semibold text-gray-500">
-                        Abstain
-                      </td>
-                      <td className="py-2">{group.abstain}</td>
-                      <td>-</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            );
-            })}
+            <ElectionResultsChart
+              groups={Object.values(analytics.groupedResults)}
+              totalVoters={analytics.totalUniqueVoters}
+            />
           </>
         )}
       </div>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
+  ArrowLeft,
   ChevronDown,
   LogOut,
 } from "lucide-react";
@@ -36,11 +37,14 @@ import { logAuditEvent } from "../utils/auditLog";
 
 function StudentLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const [user, setUser] = useState(() => getStoredUser());
 
   const prompt = usePrompt();
+  const homePath = "/student/dashboard";
+  const showBackButton = location.pathname !== homePath;
 
   /*
    * ============================================================
@@ -108,6 +112,15 @@ function StudentLayout() {
     );
   }
 
+  function handleBack() {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+
+    navigate(homePath);
+  }
+
   return (
     <div className="student-theme kandid-app-theme min-h-screen bg-[#f6f7f9] text-[#111827]">
       {/* ======================================================
@@ -115,7 +128,12 @@ function StudentLayout() {
           ====================================================== */}
       <aside className="student-sidebar shell-sidebar-collapsible">
         {/* BRAND */}
-        <div className="student-sidebar-brand">
+        <button
+          type="button"
+          onClick={() => navigate(homePath)}
+          className="student-sidebar-brand kandid-sidebar-brand-button"
+          aria-label="Go to student home"
+        >
           <img
             src={logo}
             alt="KANDID Logo"
@@ -130,7 +148,7 @@ function StudentLayout() {
               Student Portal
             </span>
           </div>
-        </div>
+        </button>
 
         {/* NAVIGATION */}
         <nav className="student-sidebar-nav">
@@ -243,6 +261,17 @@ function StudentLayout() {
             PAGE CONTENT
             ==================================================== */}
         <section className="student-content pb-24 pt-20 lg:pb-8 lg:pt-8">
+          {showBackButton ? (
+            <button
+              type="button"
+              onClick={handleBack}
+              className="app-page-back-button"
+            >
+              <ArrowLeft size={15} />
+              Back
+            </button>
+          ) : null}
+
           <Outlet />
         </section>
       </main>
@@ -253,6 +282,7 @@ function StudentLayout() {
       <MobileHeader
         user={user}
         onMenuClick={() => setIsMobileMenuOpen(true)}
+        homePath={homePath}
       />
 
       {/* ======================================================

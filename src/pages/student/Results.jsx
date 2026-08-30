@@ -9,6 +9,10 @@ import {
   resultVisibilityLabel,
 } from "../../utils/results";
 import { isMissingPositionOrderError } from "../../utils/positionOrder";
+import {
+  ElectionResultsChart,
+  HorizontalStatChart,
+} from "../../components/ResultsVisualization";
 
 async function fetchResultVotes(electionIds, includeDisplayOrder = true) {
   const positionColumns = includeDisplayOrder ? "id, name, display_order" : "id, name";
@@ -23,11 +27,33 @@ async function fetchResultVotes(electionIds, includeDisplayOrder = true) {
       ),
       candidates (
         id,
-        students (first_name, last_name)
+        photo,
+        students (first_name, last_name, photo_url),
+        partylists (name)
       ),
       positions (${positionColumns})
     `)
     .in("election_id", electionIds);
+}
+
+async function fetchResultCandidates(electionId, includeDisplayOrder = true) {
+  const positionColumns = includeDisplayOrder ? "id, name, display_order, election_id" : "id, name, election_id";
+
+  if (!electionId) {
+    return { data: [], error: null };
+  }
+
+  return supabase
+    .from("candidates")
+    .select(`
+      id,
+      photo,
+      position_id,
+      students (first_name, last_name, photo_url),
+      partylists (name),
+      positions!inner (${positionColumns})
+    `)
+    .eq("positions.election_id", electionId);
 }
 
 const electionSelectWithRelease =
@@ -57,6 +83,7 @@ function StudentResults() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [elections, setElections] = useState([]);
   const [votes, setVotes] = useState([]);
+  const [candidates, setCandidates] = useState([]);
   const [voteLoadError, setVoteLoadError] = useState("");
   const [selectedElection, setSelectedElection] = useState(
     searchParams.get("election") || ""
@@ -83,7 +110,12 @@ function StudentResults() {
 
       if (!active) return;
 
-      setElections(electionError ? [] : electionData || []);
+      const visibleElections = electionError ? [] : electionData || [];
+      setElections(visibleElections);
+      setSelectedElection((current) => {
+        if (current) return current;
+        return String(visibleElections.find((election) => canStudentViewResults(election))?.id || "");
+      });
     }
 
     loadResults();
@@ -102,6 +134,7 @@ function StudentResults() {
 
     async function loadSelectedVotes() {
       setVotes([]);
+      setCandidates([]);
       setVoteLoadError("");
 
       if (!activeElection || !canStudentViewResults(activeElection)) return;
@@ -130,6 +163,29 @@ function StudentResults() {
       }
 
       setVotes(voteData || []);
+
+      let { data: candidateData, error: candidateError } = await fetchResultCandidates(activeElection.id);
+
+      if (isMissingPositionOrderError(candidateError)) {
+        const fallback = await fetchResultCandidates(activeElection.id, false);
+        candidateData = (fallback.data || []).map((candidate) => ({
+          ...candidate,
+          positions: {
+            ...candidate.positions,
+            display_order: candidate.position_id,
+          },
+        }));
+        candidateError = fallback.error;
+      }
+
+      if (!active) return;
+
+      if (candidateError) {
+        setVoteLoadError(candidateError.message || "Unable to load candidate totals.");
+        return;
+      }
+
+      setCandidates(candidateData || []);
     }
 
     loadSelectedVotes();
@@ -156,8 +212,8 @@ function StudentResults() {
       (vote) => vote.election_id === Number(selectedElection)
     );
 
-    return buildElectionAnalytics(filteredVotes, activeElection);
-  }, [activeElection, selectedElection, votes]);
+    return buildElectionAnalytics(filteredVotes, activeElection, candidates);
+  }, [activeElection, candidates, selectedElection, votes]);
 
   function handleSelectElection(value) {
     setSelectedElection(value);
@@ -236,29 +292,14 @@ function StudentResults() {
             </div>
 
             <div className="section-grid grid-cols-1 xl:grid-cols-[0.9fr_1.1fr]">
-              <div className="soft-card">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8b6e5c]">
-                      {analytics.allocationLabel}
-                    </p>
-                    <h3 className="mt-2 text-2xl font-black">Voter distribution</h3>
-                  </div>
-                  <span className="status-pill">{analytics.organizationName}</span>
-                </div>
-
-                <div className="mt-6 space-y-4">
-                  {analytics.allocationItems.map((item) => (
-                    <div key={item.label} className="info-row">
-                      <div>
-                        <p className="text-sm font-bold text-[#1d262f]">{item.label}</p>
-                        <p className="mt-1 text-xs text-gray-500">{item.percentage}% of voters</p>
-                      </div>
-                      <span className="text-lg font-black text-[#d35a25]">{item.count}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <HorizontalStatChart
+                eyebrow={analytics.allocationLabel}
+                title="Voter distribution"
+                subtitle="Published aggregate voter demographics for this election."
+                badge={analytics.organizationName}
+                items={analytics.allocationItems}
+                mode={analytics.allocationMode}
+              />
 
               <div className="glass-panel-dark rounded-[30px] p-7 text-white">
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">
@@ -273,68 +314,10 @@ function StudentResults() {
               </div>
             </div>
 
-            {Object.values(analytics.groupedResults).map((group, index) => {
-            const sortedCandidates = Object.values(group.candidates).sort(
-              (a, b) => b.votes - a.votes
-            );
-
-            return (
-              <div
-                key={group.position}
-                className="table-shell fade-up"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                <div className="border-b border-[rgba(104,86,72,0.08)] px-6 py-5">
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8b6e5c]">
-                    Position
-                  </p>
-                  <h2 className="mt-2 text-2xl font-black">{group.position}</h2>
-                </div>
-
-                <table className="w-full text-left">
-                  <thead className="bg-white/35">
-                    <tr>
-                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-[#8b6e5c]">
-                        Candidate
-                      </th>
-                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-[#8b6e5c]">
-                        Vote Count
-                      </th>
-                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-[#8b6e5c]">
-                        Standing
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedCandidates.map((candidate, rowIndex) => (
-                      <tr
-                        key={`${group.position}-${candidate.name}`}
-                        className="border-b border-[rgba(104,86,72,0.08)] last:border-b-0"
-                      >
-                        <td className="px-6 py-4 font-semibold">{candidate.name}</td>
-                        <td className="px-6 py-4">{candidate.votes}</td>
-                        <td className="px-6 py-4">
-                          {rowIndex === 0 ? (
-                            <span className="status-pill !bg-[rgba(47,143,131,0.12)] !text-[#2f8f83]">
-                              Leading
-                            </span>
-                          ) : (
-                            "-"
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-
-                    <tr>
-                      <td className="px-6 py-4 font-semibold text-gray-500">Abstain</td>
-                      <td className="px-6 py-4">{group.abstain}</td>
-                      <td className="px-6 py-4">-</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            );
-            })}
+            <ElectionResultsChart
+              groups={Object.values(analytics.groupedResults)}
+              totalVoters={analytics.totalUniqueVoters}
+            />
           </>
         )}
       </div>

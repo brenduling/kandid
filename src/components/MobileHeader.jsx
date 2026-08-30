@@ -1,5 +1,6 @@
 import React from "react";
 import { Menu } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import GlobalSearch from "./GlobalSearch";
 import NotificationCenter from "./NotificationCenter";
 import logo from "../assets/kandidlogo.png";
@@ -10,11 +11,18 @@ function getMobilePlaceholder(role) {
   return "Search users, organizations, elections...";
 }
 
-function MobileHeader({ user, onMenuClick }) {
+function MobileHeader({ user, onMenuClick, homePath = "/" }) {
+  const navigate = useNavigate();
+
   return (
     <header className="mobile-app-header fixed inset-x-0 top-0 z-40 border-b border-gray-100 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-xl lg:hidden">
       <div className="mobile-app-header-row">
-        <div className="mobile-header-brand">
+        <button
+          type="button"
+          onClick={() => navigate(homePath)}
+          className="mobile-header-brand"
+          aria-label="Go to home"
+        >
           <img
             src={logo}
             alt="KANDID Logo"
@@ -24,7 +32,7 @@ function MobileHeader({ user, onMenuClick }) {
           <span className="text-lg font-black tracking-tight text-[#111827]">
             KANDID
           </span>
-        </div>
+        </button>
 
         {user ? (
           <GlobalSearch

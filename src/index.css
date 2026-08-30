@@ -3327,6 +3327,63 @@ a:active {
   box-shadow: 0 20px 60px rgba(15, 23, 42, 0.1);
 }
 
+.student-receipt-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-radius: var(--kandid-radius-lg, 1.25rem);
+  text-align: left;
+}
+
+.student-receipt-toggle svg {
+  flex: 0 0 auto;
+  color: var(--kandid-text-muted, #667085);
+  transition: transform 180ms ease;
+}
+
+.student-receipt-paper.is-expanded .student-receipt-toggle > svg {
+  transform: rotate(180deg);
+}
+
+.student-receipt-toggle-main {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.student-receipt-toggle-main div:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 0.15rem;
+}
+
+.student-receipt-toggle-main span {
+  color: var(--kandid-primary, #ef4e23);
+  font-size: 0.7rem;
+  font-weight: 950;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.student-receipt-toggle-main strong {
+  color: var(--kandid-text, #111827);
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  font-weight: 950;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.student-receipt-toggle-main em {
+  color: var(--kandid-text-muted, #667085);
+  font-size: 0.82rem;
+  font-style: normal;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
 .student-receipt-brand {
   display: grid;
   place-items: center;
@@ -4922,6 +4979,52 @@ textarea:focus {
   animation: kandidBackdropIn 190ms ease-out both;
 }
 
+.prompt-overlay {
+  z-index: 10020 !important;
+}
+
+.app-page-back-button {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 2.45rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  margin-bottom: 1rem;
+  border: 1px solid transparent;
+  border-radius: var(--kandid-radius-md, 0.9rem);
+  background: transparent;
+  padding: 0 0.15rem;
+  color: var(--kandid-primary, #ef4e23);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.app-page-back-button:hover {
+  background: var(--kandid-primary-soft, rgba(239, 78, 35, 0.1));
+  border-color: var(--kandid-primary-border, rgba(239, 78, 35, 0.18));
+  padding-inline: 0.75rem;
+}
+
+.kandid-sidebar-brand-button,
+.mobile-header-brand {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+}
+
+.kandid-sidebar-brand-button {
+  width: 100%;
+}
+
+.kandid-sidebar-brand-button:hover,
+.mobile-header-brand:hover {
+  transform: none;
+}
+
 .modal-card,
 .popup-sheet,
 .config-modal {
@@ -5030,6 +5133,467 @@ textarea:focus {
   margin-top: 1.35rem;
   padding-top: 1rem;
   border-top: 1px solid var(--kandid-border, #e7ebf0);
+}
+
+.kandid-toast-viewport {
+  position: fixed;
+  right: clamp(1rem, 2vw, 1.5rem);
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  z-index: 99999;
+  display: flex;
+  width: min(24rem, calc(100vw - 2rem));
+  max-width: calc(100vw - 2rem);
+  flex-direction: column;
+  gap: 0.65rem;
+  pointer-events: none;
+}
+
+.kandid-toast {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: flex-start;
+  gap: 0.8rem;
+  overflow: hidden;
+  border: 1px solid var(--kandid-border, #e7ebf0);
+  border-radius: var(--kandid-radius-lg, 1.25rem);
+  background: rgba(255, 255, 255, 0.98);
+  padding: 0.95rem;
+  color: var(--kandid-text, #111827);
+  box-shadow: var(--kandid-shadow-lg, 0 24px 70px rgba(15, 23, 42, 0.14));
+  pointer-events: auto;
+}
+
+.kandid-toast::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0.28rem;
+  background: var(--kandid-primary, #ef4e23);
+}
+
+.kandid-toast-icon {
+  display: inline-grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: 0 0 2.25rem;
+  place-items: center;
+  border: 1px solid var(--kandid-primary-border, rgba(239, 78, 35, 0.18));
+  border-radius: var(--kandid-radius-md, 0.9rem);
+  background: var(--kandid-primary-soft, rgba(239, 78, 35, 0.1));
+  color: var(--kandid-primary, #ef4e23);
+}
+
+.kandid-toast-copy {
+  min-width: 0;
+  padding-top: 0.1rem;
+}
+
+.kandid-toast-title {
+  margin: 0;
+  color: var(--kandid-text, #111827);
+  font-size: 0.92rem;
+  font-weight: 900;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.kandid-toast-message {
+  margin: 0.2rem 0 0;
+  color: var(--kandid-text-muted, #667085);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.kandid-toast-close {
+  display: inline-grid;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 2rem;
+  place-items: center;
+  border-radius: var(--kandid-radius-sm, 0.75rem);
+  color: var(--kandid-text-muted, #667085);
+}
+
+.kandid-toast-close:hover {
+  background: var(--kandid-surface-soft, #f8fafc);
+  color: var(--kandid-text, #111827);
+}
+
+.kandid-toast-success::before {
+  background: #16a34a;
+}
+
+.kandid-toast-success .kandid-toast-icon {
+  border-color: rgba(22, 163, 74, 0.18);
+  background: rgba(22, 163, 74, 0.1);
+  color: #15803d;
+}
+
+.kandid-toast-error::before {
+  background: #e11d48;
+}
+
+.kandid-toast-error .kandid-toast-icon {
+  border-color: rgba(225, 29, 72, 0.18);
+  background: rgba(225, 29, 72, 0.1);
+  color: #be123c;
+}
+
+.kandid-toast-warning::before {
+  background: #f59e0b;
+}
+
+.kandid-toast-warning .kandid-toast-icon {
+  border-color: rgba(245, 158, 11, 0.2);
+  background: rgba(245, 158, 11, 0.1);
+  color: #b45309;
+}
+
+.notifications-page {
+  display: grid;
+  gap: 1rem;
+}
+
+.notifications-page .page-hero {
+  align-items: center;
+}
+
+.notifications-page-actions {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.notifications-count-pill {
+  display: inline-flex;
+  min-height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--kandid-primary-border, rgba(239, 78, 35, 0.18));
+  border-radius: var(--kandid-radius-md, 0.9rem);
+  background: var(--kandid-primary-soft, rgba(239, 78, 35, 0.1));
+  padding: 0 0.9rem;
+  color: var(--kandid-primary, #ef4e23);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.notifications-list-panel {
+  overflow: hidden;
+  border: 1px solid var(--kandid-border, #e7ebf0);
+  border-radius: var(--kandid-radius-xl, 1.5rem);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--kandid-shadow-md, 0 18px 50px rgba(15, 23, 42, 0.08));
+}
+
+.notifications-list {
+  display: grid;
+}
+
+.notification-page-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.95rem;
+  width: 100%;
+  border-bottom: 1px solid var(--kandid-border, #e7ebf0);
+  background: rgba(255, 255, 255, 0.74);
+  padding: 1rem;
+  text-align: left;
+  transition:
+    background 180ms ease,
+    transform 180ms ease;
+}
+
+.notification-page-row:last-child {
+  border-bottom: 0;
+}
+
+.notification-page-row:hover {
+  background: rgba(248, 250, 252, 0.96);
+}
+
+.notification-page-row.is-unread {
+  background: rgba(239, 78, 35, 0.08);
+}
+
+.notification-page-row-icon {
+  display: inline-grid;
+  width: 2.65rem;
+  height: 2.65rem;
+  place-items: center;
+  border: 1px solid var(--kandid-primary-border, rgba(239, 78, 35, 0.18));
+  border-radius: var(--kandid-radius-md, 0.9rem);
+  background: var(--kandid-primary-soft, rgba(239, 78, 35, 0.1));
+  color: var(--kandid-primary, #ef4e23);
+}
+
+.notification-page-row-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.25rem;
+}
+
+.notification-page-row-copy strong {
+  color: var(--kandid-text, #111827);
+  font-size: 0.95rem;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.notification-page-row-copy small {
+  color: var(--kandid-text-muted, #667085);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.notification-page-row-copy em {
+  color: var(--kandid-text-soft, #94a3b8);
+  font-size: 0.7rem;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.notifications-empty-state {
+  display: flex;
+  min-height: 9rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  padding: 1.5rem;
+  color: var(--kandid-text-muted, #667085);
+  font-size: 0.92rem;
+}
+
+.horizontal-chart-panel,
+.position-result-chart {
+  overflow: hidden;
+  border: 1px solid var(--kandid-border, #e7ebf0);
+  border-radius: var(--kandid-radius-xl, 1.5rem);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: var(--kandid-shadow-md, 0 18px 50px rgba(15, 23, 42, 0.08));
+}
+
+.horizontal-chart-panel {
+  padding: 1.35rem;
+}
+
+.horizontal-chart-head,
+.position-result-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.horizontal-chart-head h3,
+.position-result-title h2 {
+  margin-top: 0.35rem;
+  color: var(--kandid-text, #111827);
+  font-size: clamp(1.25rem, 2vw, 1.75rem);
+  font-weight: 950;
+  line-height: 1.1;
+  letter-spacing: 0;
+}
+
+.horizontal-chart-head p:not(.chart-eyebrow) {
+  margin-top: 0.35rem;
+  color: var(--kandid-text-muted, #667085);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.chart-eyebrow {
+  color: var(--kandid-primary, #ef4e23);
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.horizontal-chart-list,
+.candidate-result-list {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 1.25rem;
+}
+
+.horizontal-chart-row {
+  display: grid;
+  grid-template-columns: minmax(3.5rem, 7rem) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.horizontal-chart-label {
+  min-width: 0;
+  color: var(--kandid-text, #111827);
+  font-size: 0.84rem;
+  font-weight: 900;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.horizontal-chart-label.is-year {
+  display: inline-grid;
+  width: 2.35rem;
+  height: 2.35rem;
+  place-items: center;
+  border: 1px solid var(--kandid-primary-border, rgba(239, 78, 35, 0.18));
+  border-radius: 0.8rem;
+  background: var(--kandid-primary-soft, rgba(239, 78, 35, 0.1));
+  color: var(--kandid-primary, #ef4e23);
+  font-size: 1rem;
+}
+
+.horizontal-chart-track,
+.candidate-result-track {
+  position: relative;
+  height: 0.9rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, rgba(15, 23, 42, 0.06) 1px, transparent 1px) 0 0 / 20% 100%,
+    rgba(148, 163, 184, 0.15);
+}
+
+.horizontal-chart-fill,
+.candidate-result-fill {
+  display: block;
+  height: 100%;
+  min-width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--kandid-primary, #ef4e23), #c53a12);
+  transform-origin: left center;
+  animation: kandidBarIn 320ms ease-out both;
+}
+
+.horizontal-chart-row > strong,
+.candidate-result-value {
+  min-width: 2.25rem;
+  color: var(--kandid-text, #111827);
+  font-size: 0.95rem;
+  font-weight: 950;
+  text-align: right;
+}
+
+.horizontal-chart-empty {
+  display: flex;
+  min-height: 5.5rem;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 1rem;
+  color: var(--kandid-text-muted, #667085);
+  font-size: 0.9rem;
+}
+
+.election-results-chart {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--kandid-border, #e7ebf0);
+  border-radius: var(--kandid-radius-xl, 1.5rem);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: var(--kandid-shadow-md, 0 18px 50px rgba(15, 23, 42, 0.08));
+}
+
+.election-results-chart .position-result-chart {
+  border: 0;
+  border-bottom: 1px solid var(--kandid-border, #e7ebf0);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.election-results-chart .position-result-chart:last-child {
+  border-bottom: 0;
+}
+
+.position-result-chart {
+  padding: 1.2rem;
+}
+
+.position-result-title {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.position-result-title > div > span {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--kandid-text-muted, #667085);
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.position-result-leader,
+.candidate-result-avatar {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--kandid-border, #e7ebf0);
+  border-radius: 999px;
+  background: var(--kandid-primary-soft, rgba(239, 78, 35, 0.1));
+  color: var(--kandid-primary, #ef4e23);
+}
+
+.position-result-leader {
+  width: 4.5rem;
+  height: 4.5rem;
+}
+
+.candidate-result-avatar {
+  width: 2.7rem;
+  height: 2.7rem;
+}
+
+.candidate-result-row {
+  display: grid;
+  grid-template-columns: auto minmax(8rem, 13rem) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.candidate-result-row.is-abstain .candidate-result-fill {
+  background: linear-gradient(90deg, #94a3b8, #64748b);
+}
+
+.candidate-result-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.15rem;
+}
+
+.candidate-result-copy strong {
+  color: var(--kandid-text, #111827);
+  font-size: 0.9rem;
+  font-weight: 900;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.candidate-result-copy small {
+  color: var(--kandid-text-muted, #667085);
+  font-size: 0.74rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+@keyframes kandidBarIn {
+  from {
+    transform: scaleX(0);
+  }
 }
 
 .config-panel,
@@ -5221,6 +5785,144 @@ textarea:focus {
     flex: 1 1 100%;
     justify-content: center;
   }
+
+  .kandid-toast-viewport {
+    right: 0.75rem;
+    bottom: max(0.75rem, env(safe-area-inset-bottom));
+    width: calc(100vw - 1.5rem);
+    max-width: calc(100vw - 1.5rem);
+  }
+
+  .kandid-toast {
+    border-radius: 1rem;
+    padding: 0.85rem;
+  }
+
+  .kandid-toast-icon {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .kandid-toast-title {
+    font-size: 0.86rem;
+  }
+
+  .kandid-toast-message {
+    font-size: 0.78rem;
+  }
+
+  .notifications-page .page-hero {
+    align-items: flex-start;
+  }
+
+  .notifications-page-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .notification-page-row {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: flex-start;
+    padding: 0.85rem;
+  }
+
+  .notification-page-row > svg {
+    display: none;
+  }
+
+  .notification-page-row-icon {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.75rem;
+  }
+
+  .notification-page-row-copy strong {
+    font-size: 0.86rem;
+  }
+
+  .notification-page-row-copy small {
+    font-size: 0.76rem;
+  }
+
+  .horizontal-chart-panel,
+  .position-result-chart {
+    border-radius: 1.1rem;
+    padding: 0.95rem;
+  }
+
+  .horizontal-chart-head {
+    display: grid;
+  }
+
+  .horizontal-chart-row {
+    grid-template-columns: minmax(2.4rem, 4.8rem) minmax(0, 1fr) auto;
+    gap: 0.55rem;
+  }
+
+  .horizontal-chart-label {
+    font-size: 0.72rem;
+  }
+
+  .horizontal-chart-label.is-year {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.7rem;
+    font-size: 0.88rem;
+  }
+
+  .horizontal-chart-track,
+  .candidate-result-track {
+    height: 0.72rem;
+  }
+
+  .candidate-result-row {
+    grid-template-columns: auto minmax(0, 1fr) 2.3rem;
+    gap: 0.55rem;
+  }
+
+  .candidate-result-track {
+    grid-column: 2 / -1;
+    width: 100%;
+  }
+
+  .candidate-result-avatar {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .position-result-title {
+    gap: 0.75rem;
+  }
+
+  .position-result-leader {
+    width: 3.5rem;
+    height: 3.5rem;
+  }
+
+  .candidate-result-copy strong {
+    font-size: 0.78rem;
+  }
+
+  .candidate-result-copy small {
+    font-size: 0.68rem;
+  }
+
+  .candidate-result-value {
+    min-width: 2rem;
+    font-size: 0.84rem;
+  }
+
+  .student-receipt-toggle-main {
+    gap: 0.65rem;
+  }
+
+  .student-receipt-toggle-main strong {
+    font-size: 0.95rem;
+  }
+
+  .student-receipt-toggle-main em {
+    font-size: 0.74rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -5229,6 +5931,8 @@ textarea:focus {
   .popup-sheet,
   .config-modal,
   .inline-kandid-loader span,
+  .horizontal-chart-fill,
+  .candidate-result-fill,
   .config-skeleton-row::before,
   .config-skeleton-row::after {
     animation: none !important;
@@ -5492,6 +6196,12 @@ textarea:focus {
   white-space: nowrap;
 }
 
+.kandid-app-theme .student-page-actions .student-dashboard-vote-action {
+  min-width: 8.75rem;
+  min-height: 2.65rem !important;
+  padding-inline: 1.1rem !important;
+}
+
 .kandid-app-theme .student-sidebar-logout {
   width: calc(100% - 1.5rem);
   margin: auto 0.75rem 0.75rem !important;
@@ -5605,6 +6315,13 @@ textarea:focus {
   .kandid-app-theme .student-page-actions .student-solid-btn {
     width: 100%;
     min-width: 0;
+  }
+
+  .kandid-app-theme .student-page-actions .student-dashboard-vote-action {
+    width: auto;
+    min-width: 8.5rem;
+    min-height: 2.55rem !important;
+    padding-inline: 1rem !important;
   }
 
   .kandid-app-theme .student-election-meta {
@@ -8801,6 +9518,170 @@ body {
 
   .kandid-app-theme .superadmin-org-card.metric-card {
     padding: 0.7rem !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .kandid-app-theme .student-page-head .student-page-actions {
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+    width: auto !important;
+  }
+
+  .kandid-app-theme .student-page-head .student-dashboard-vote-action {
+    width: auto !important;
+    min-width: 8.5rem !important;
+    min-height: 2.45rem !important;
+    flex: 0 0 auto !important;
+    padding: 0 0.95rem !important;
+    border-radius: 0.8rem !important;
+    font-size: 0.78rem !important;
+    line-height: 1 !important;
+  }
+
+  .kandid-app-theme .grid:has(> .metric-card),
+  .kandid-app-theme .section-grid:has(> .metric-card),
+  .kandid-app-theme .section-grid:has(> .entity-card),
+  .kandid-app-theme .entity-grid,
+  .kandid-app-theme .student-org-grid,
+  .kandid-app-theme .student-org-grid-primary,
+  .kandid-app-theme .student-election-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.75rem !important;
+    max-width: none !important;
+    overflow: visible !important;
+    padding-bottom: 0 !important;
+    scroll-snap-type: none !important;
+  }
+
+  .kandid-app-theme .student-org-grid > *,
+  .kandid-app-theme .student-org-grid-primary > * {
+    width: auto !important;
+    min-width: 0 !important;
+    scroll-snap-align: none !important;
+  }
+
+  .kandid-app-theme .metric-card,
+  .kandid-app-theme .entity-card {
+    min-width: 0 !important;
+    min-height: 8.75rem !important;
+    padding: 0.95rem !important;
+    border-radius: 1rem !important;
+  }
+
+  .kandid-app-theme .metric-card h2,
+  .kandid-app-theme .metric-card h3 {
+    margin-top: 0.7rem !important;
+    font-size: clamp(1.85rem, 12vw, 2.55rem) !important;
+    line-height: 1 !important;
+  }
+
+  .kandid-app-theme .metric-card p,
+  .kandid-app-theme .entity-card p {
+    overflow-wrap: anywhere;
+  }
+
+  .kandid-app-theme .metric-card svg,
+  .kandid-app-theme .entity-card svg {
+    flex-shrink: 0;
+  }
+
+  .kandid-app-theme .student-org-grid > .student-directory-card,
+  .kandid-app-theme .student-org-grid > .student-explore-card,
+  .kandid-app-theme .student-directory-card,
+  .kandid-app-theme .student-explore-card {
+    min-height: 13.5rem !important;
+    border-radius: 1rem !important;
+    padding: 0.75rem !important;
+  }
+
+  .kandid-app-theme .student-directory-card-art {
+    min-height: 6.8rem !important;
+    border-radius: 0.85rem !important;
+  }
+
+  .kandid-app-theme .student-directory-logo {
+    width: 4.7rem !important;
+    height: 4.7rem !important;
+  }
+
+  .kandid-app-theme .student-directory-type-chip {
+    top: 0.45rem !important;
+    left: 0.45rem !important;
+    max-width: calc(100% - 0.9rem);
+    padding: 0.22rem 0.45rem !important;
+    font-size: 0.55rem !important;
+    letter-spacing: 0.07em !important;
+  }
+
+  .kandid-app-theme .student-directory-card-body {
+    padding: 0.7rem 0 0 !important;
+  }
+
+  .kandid-app-theme .student-directory-card-title-row {
+    display: grid !important;
+    gap: 0.35rem !important;
+  }
+
+  .kandid-app-theme .student-directory-card-title-row h2 {
+    font-size: 0.92rem !important;
+    line-height: 1.12 !important;
+  }
+
+  .kandid-app-theme .student-directory-state-chip {
+    width: fit-content;
+    padding: 0.22rem 0.5rem !important;
+    font-size: 0.55rem !important;
+  }
+
+  .kandid-app-theme .student-directory-card-description {
+    min-height: 2rem !important;
+    font-size: 0.68rem !important;
+    line-height: 1.35 !important;
+    -webkit-line-clamp: 2;
+  }
+
+  .kandid-app-theme .student-directory-card-footer {
+    display: grid !important;
+    gap: 0.45rem !important;
+  }
+
+  .kandid-app-theme .student-directory-card-label {
+    font-size: 0.52rem !important;
+  }
+
+  .kandid-app-theme .student-directory-card-value {
+    font-size: 0.68rem !important;
+  }
+
+  .kandid-app-theme .student-directory-view-btn {
+    width: 100%;
+    min-height: 2.15rem !important;
+    border-radius: 0.7rem !important;
+    font-size: 0.72rem !important;
+  }
+
+  .kandid-app-theme .student-election-card {
+    min-width: 0 !important;
+    padding: 0.95rem !important;
+    text-align: left !important;
+  }
+
+  .kandid-app-theme .student-election-art {
+    width: 4.5rem !important;
+    height: 4.5rem !important;
+    margin: 0 0 0.85rem !important;
+  }
+
+  .kandid-app-theme .student-election-card h2 {
+    font-size: 0.98rem !important;
+    overflow-wrap: anywhere;
+  }
+
+  .kandid-app-theme .student-election-meta,
+  .kandid-app-theme .student-election-note {
+    font-size: 0.7rem !important;
   }
 }
 

@@ -19,7 +19,7 @@ import StudentOrganizationCard, {
   getOrganizationTypeLabel,
 } from "../../components/student/StudentOrganizationCard";
 import { supabase } from "../../lib/supabaseClient";
-import { formatLocalDate } from "../../utils/elections";
+import { compareElectionScheduleValues, formatLocalDate, getElectionPhase } from "../../utils/elections";
 import {
   getStudentOrganizationDirectory,
   selectActiveMemberships,
@@ -239,6 +239,50 @@ function StudentDashboard() {
       : organizationFilter === "departmental"
       ? "No departmental organizations available."
       : "No other organizations available.";
+
+  async function handleCastVoteShortcut() {
+    const organizationIds = myOrganizations.map((organization) => organization.id);
+
+    if (organizationIds.length === 0) {
+      navigate("/student/elections");
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("elections")
+      .select("id, campaign_start, campaign_end, start_date, end_date, status")
+      .in("organization_id", organizationIds)
+      .neq("status", "draft")
+      .neq("status", "archived")
+      .order("start_date", { ascending: false });
+
+    if (error) {
+      navigate("/student/elections");
+      return;
+    }
+
+    const sortedElections = [...(data || [])].sort((first, second) =>
+      compareElectionScheduleValues(second.start_date, first.start_date)
+    );
+    const openElection = sortedElections.find(
+      (election) => getElectionPhase(election) === "voting",
+    );
+    const campaignElection = sortedElections.find(
+      (election) => getElectionPhase(election) === "campaign",
+    );
+
+    if (openElection) {
+      navigate(`/student/vote/${openElection.id}`);
+      return;
+    }
+
+    if (campaignElection) {
+      navigate(`/student/elections/${campaignElection.id}/campaign`);
+      return;
+    }
+
+    navigate("/student/elections");
+  }
 
   /*
    * ============================================================
@@ -604,21 +648,8 @@ function StudentDashboard() {
         <div className="student-page-actions">
           <button
             type="button"
-            onClick={() =>
-              navigate("/student/elections")
-            }
-            className="student-outline-btn"
-          >
-            <CalendarDays size={16} />
-            View Election Schedule
-          </button>
-
-          <button
-            type="button"
-            onClick={() =>
-              navigate("/student/elections")
-            }
-            className="student-solid-btn"
+            onClick={handleCastVoteShortcut}
+            className="student-solid-btn student-dashboard-vote-action"
           >
             Cast Your Vote
           </button>

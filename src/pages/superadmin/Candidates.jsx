@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
 import {
@@ -13,6 +14,8 @@ import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/delete
 
 function Candidates() {
   const prompt = usePrompt();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const handledPreselectRef = useRef("");
   const [candidates, setCandidates] = useState([]);
   const [positions, setPositions] = useState([]);
   const [students, setStudents] = useState([]);
@@ -35,6 +38,18 @@ function Candidates() {
     fetchPositions();
     fetchPartylists();
   }, []);
+
+  const preselectedPositionId = searchParams.get("position") || "";
+
+  useEffect(() => {
+    if (!preselectedPositionId) return;
+    if (handledPreselectRef.current === preselectedPositionId) return;
+    if (!positions.some((position) => String(position.id) === preselectedPositionId)) return;
+
+    handledPreselectRef.current = preselectedPositionId;
+    openCreateForm(preselectedPositionId);
+    setSearchParams({}, { replace: true });
+  }, [preselectedPositionId, positions, setSearchParams]);
 
   async function fetchCandidates() {
     const { data, error } = await supabase
@@ -126,11 +141,15 @@ function Candidates() {
     setStudents(data.map((item) => item.students).filter(Boolean));
   }
 
-  function openCreateForm() {
+  async function openCreateForm(positionId = "") {
     setEditingCandidate(null);
-    setStudents([]);
+    if (positionId) {
+      await fetchStudentsByPosition(positionId);
+    } else {
+      setStudents([]);
+    }
     setForm({
-      position_id: "",
+      position_id: positionId,
       student_id: "",
       partylist_id: "",
       photo: "",

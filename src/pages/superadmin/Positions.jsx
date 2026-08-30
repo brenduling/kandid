@@ -4,6 +4,7 @@ import {
   Pencil,
   Trash2,
   X,
+  ChevronDown,
   Unlink,
   Archive,
   Eye,
@@ -74,6 +75,7 @@ function Positions() {
   const [positionsLoading, setPositionsLoading] = useState(true);
   const [positionsError, setPositionsError] = useState("");
   const [positionLifecycleReady, setPositionLifecycleReady] = useState(true);
+  const [expandedElectionIds, setExpandedElectionIds] = useState({});
 
   useEffect(() => {
     loadInitialData();
@@ -279,6 +281,9 @@ function Positions() {
       display_order: displayOrder,
     };
 
+    const creatingPosition = !editingPosition;
+    let savedPositionId = editingPosition?.id;
+
     if (editingPosition) {
       let { error } = await supabase
         .from("positions")
@@ -307,9 +312,11 @@ function Positions() {
 
       prompt.success("Position updated.");
     } else {
-      let { error } = await supabase
+      let { data, error } = await supabase
         .from("positions")
-        .insert([payload]);
+        .insert([payload])
+        .select("id")
+        .single();
 
       if (isMissingPositionOrderError(error)) {
         const fallback = await supabase
@@ -318,7 +325,10 @@ function Positions() {
             election_id: payload.election_id,
             name: payload.name,
             max_votes: payload.max_votes,
-          }]);
+          }])
+          .select("id")
+          .single();
+        data = fallback.data;
         error = fallback.error;
       }
 
@@ -327,11 +337,30 @@ function Positions() {
         return;
       }
 
+      savedPositionId = data?.id;
       prompt.success("Position created.");
     }
 
     closePositionForm();
     await fetchPositions();
+
+    if (creatingPosition && savedPositionId) {
+      const addCandidateNow = await prompt.confirm({
+        title: "Add Candidate Now?",
+        message: `${name} was created. You can add a candidate now or finish setup later from Candidate Management.`,
+        type: "success",
+        confirmText: "Add Candidate",
+        cancelText: "Done",
+      });
+
+      if (addCandidateNow) {
+        await openCandidates({
+          ...payload,
+          id: savedPositionId,
+          status: "active",
+        });
+      }
+    }
   }
 
   // ------------------------------------------------------------
@@ -1217,6 +1246,20 @@ function Positions() {
     }))
     .filter((election) => election.positions.length > 0);
 
+  function isElectionExpanded(electionId, index) {
+    if (Object.prototype.hasOwnProperty.call(expandedElectionIds, electionId)) {
+      return expandedElectionIds[electionId];
+    }
+    return index === 0;
+  }
+
+  function toggleElectionGroup(electionId, currentlyExpanded) {
+    setExpandedElectionIds((current) => ({
+      ...current,
+      [electionId]: !currentlyExpanded,
+    }));
+  }
+
   return (
     <div>
       <div className="page-head">
@@ -1283,75 +1326,91 @@ function Positions() {
         </div>
       ) : (
         <div className="mt-8 space-y-5">
-          {positionsByElection.map((election) => (
-            <section key={election.id} className="entity-card">
-              <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#ff7a35]">
-                    Election Folder
-                  </p>
-                  <h2 className="entity-card-title mt-2">{election.title}</h2>
-                  <p className="mt-1 text-sm text-gray-500">
-                    {election.organizations?.name || "Organization"}
-                  </p>
-                </div>
-                <span className="status-pill">
-                  {election.positions.length} position{election.positions.length === 1 ? "" : "s"}
-                </span>
-              </div>
+          {positionsByElection.map((election, electionIndex) => {
+            const expanded = isElectionExpanded(election.id, electionIndex);
 
-              <div className="space-y-3">
-                {election.positions.map((position, index) => (
-                  <div
-                    key={position.id}
-                    className="flex flex-col gap-4 rounded-[16px] border border-[rgba(24,54,49,0.08)] bg-white/70 p-4 md:flex-row md:items-center md:justify-between"
-                  >
-              <button
-                type="button"
-                onClick={() => openCandidates(position)}
-                className="min-w-0 flex-1 text-left"
-              >
-                <h3 className="truncate text-lg font-black">
-                  <span className="mr-2 text-sm text-[#d35a25]">
-                    {position.display_order || index + 1}.
-                  </span>
-                  {position.name}
-                </h3>
-                <p className="entity-meta">
-                  Voters can select up to {position.max_votes} candidate
-                  {position.max_votes > 1 ? "s" : ""}. Click to manage candidates.
-                </p>
-              </button>
-
-              <div className="flex items-center gap-2">
-                <span className="status-pill">
-                  {position.status === "retired"
-                    ? "Retired"
-                    : `${position.max_votes} vote${position.max_votes > 1 ? "s" : ""}`}
-                </span>
+            return (
+              <section key={election.id} className="entity-card">
                 <button
                   type="button"
-                  onClick={() => openEditForm(position)}
-                  className="icon-action"
-                  title="Edit position"
+                  onClick={() => toggleElectionGroup(election.id, expanded)}
+                  className="flex w-full flex-col gap-2 text-left sm:flex-row sm:items-center sm:justify-between"
+                  aria-expanded={expanded}
                 >
-                  <Pencil size={16} />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => openDeleteConfiguration(position)}
-                  className="icon-action icon-action-danger"
-                  title="Delete position"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#ff7a35]">
+                      Election Folder
+                    </p>
+                    <h2 className="entity-card-title mt-2 truncate">{election.title}</h2>
+                    <p className="mt-1 truncate text-sm text-gray-500">
+                      {election.organizations?.name || "Organization"}
+                    </p>
                   </div>
-                ))}
-              </div>
-            </section>
-          ))}
+                  <div className="flex items-center gap-2">
+                    <span className="status-pill">
+                      {election.positions.length} position{election.positions.length === 1 ? "" : "s"}
+                    </span>
+                    <span className={`icon-action transition-transform ${expanded ? "rotate-180" : ""}`}>
+                      <ChevronDown size={16} />
+                    </span>
+                  </div>
+                </button>
+
+                {expanded ? (
+                  <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    {election.positions.map((position, index) => (
+                      <div
+                        key={position.id}
+                        className="flex h-full flex-col gap-4 rounded-[16px] border border-[rgba(24,54,49,0.08)] bg-white/70 p-4"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => openCandidates(position)}
+                          className="min-w-0 flex-1 text-left"
+                        >
+                          <h3 className="truncate text-lg font-black">
+                            <span className="mr-2 text-sm text-[#d35a25]">
+                              {position.display_order || index + 1}.
+                            </span>
+                            {position.name}
+                          </h3>
+                          <p className="entity-meta">
+                            Voters can select up to {position.max_votes} candidate
+                            {position.max_votes > 1 ? "s" : ""}. Click to manage candidates.
+                          </p>
+                        </button>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="status-pill">
+                            {position.status === "retired"
+                              ? "Retired"
+                              : `${position.max_votes} vote${position.max_votes > 1 ? "s" : ""}`}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => openEditForm(position)}
+                            className="icon-action"
+                            title="Edit position"
+                          >
+                            <Pencil size={16} />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => openDeleteConfiguration(position)}
+                            className="icon-action icon-action-danger"
+                            title="Delete position"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </section>
+            );
+          })}
         </div>
       )}
 

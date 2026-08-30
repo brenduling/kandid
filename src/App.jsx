@@ -26,6 +26,7 @@ const StudentSetup = lazy(() => import("./pages/auth/StudentSetup"));
 const ProfilePage = lazy(() => import("./pages/shared/Profile"));
 const KioskVoting = lazy(() => import("./pages/shared/KioskVoting"));
 const SearchPage = lazy(() => import("./pages/shared/SearchPage"));
+const NotificationsPage = lazy(() => import("./pages/shared/NotificationsPage"));
 
 const BoardDashboard = lazy(() => import("./pages/board/Dashboard"));
 const BoardElections = lazy(() => import("./pages/board/Elections"));
@@ -152,6 +153,11 @@ function App() {
             />
 
             <Route
+              path="notifications"
+              element={<NotificationsPage />}
+            />
+
+            <Route
               path="students"
               element={<Students />}
             />
@@ -272,6 +278,11 @@ function App() {
             />
 
             <Route
+              path="notifications"
+              element={<NotificationsPage />}
+            />
+
+            <Route
               path="positions"
               element={<BoardPositions />}
             />
@@ -364,6 +375,11 @@ function App() {
             <Route
               path="search"
               element={<SearchPage />}
+            />
+
+            <Route
+              path="notifications"
+              element={<NotificationsPage />}
             />
 
             <Route
