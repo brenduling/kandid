@@ -7,6 +7,7 @@ import {
   Globe2,
   Plus,
   UserRound,
+  UsersRound,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { OrganizationLogo as BaseOrganizationLogo } from "../../components/KandidImage";
