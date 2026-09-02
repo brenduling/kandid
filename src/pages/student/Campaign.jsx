@@ -12,11 +12,13 @@ import {
   OrganizationLogo,
   StudentAvatar,
 } from "../../components/KandidImage";
+import ElectionCover from "../../components/ElectionCover";
 import { supabase } from "../../lib/supabaseClient";
 import {
   canStudentViewResults,
   formatLocalDateTime,
   getElectionPhase,
+  isMissingElectionCoverColumn,
 } from "../../utils/elections";
 import { getStudentElectionOrganizationIds } from "../../utils/organizationAccess";
 import { isMissingResultReleaseColumn } from "../../utils/results";
@@ -24,6 +26,7 @@ import { isMissingResultReleaseColumn } from "../../utils/results";
 const electionSelectWithRelease = `
   id,
   title,
+  cover_url,
   organization_id,
   campaign_start,
   campaign_end,
@@ -38,6 +41,7 @@ const electionSelectWithRelease = `
 const electionSelectWithoutRelease = `
   id,
   title,
+  cover_url,
   organization_id,
   campaign_start,
   campaign_end,
@@ -48,10 +52,22 @@ const electionSelectWithoutRelease = `
   organizations(id, name, description, logo_url, organization_type)
 `;
 
-async function fetchElection(electionId, includeReleaseColumn = true) {
+function electionSelect(includeReleaseColumn, includeCoverColumn = true) {
+  const columns = includeReleaseColumn
+    ? electionSelectWithRelease
+    : electionSelectWithoutRelease;
+
+  return includeCoverColumn ? columns : columns.replace(/\n\s*cover_url,\n/, "\n");
+}
+
+async function fetchElection(
+  electionId,
+  includeReleaseColumn = true,
+  includeCoverColumn = true,
+) {
   const { data, error } = await supabase
     .from("elections")
-    .select(includeReleaseColumn ? electionSelectWithRelease : electionSelectWithoutRelease)
+    .select(electionSelect(includeReleaseColumn, includeCoverColumn))
     .eq("id", electionId)
     .single();
 
@@ -90,15 +106,25 @@ function StudentCampaign() {
       setAccessDenied(false);
       setLoadError("");
 
+      let includeReleaseColumn = true;
+      let includeCoverColumn = true;
       const [electionResponse, eligibleOrganizationIds] = await Promise.all([
-        fetchElection(electionId),
+        fetchElection(electionId, includeReleaseColumn, includeCoverColumn),
         getStudentElectionOrganizationIds(user),
       ]);
 
       let { data: electionData, error: electionError } = electionResponse;
 
       if (isMissingResultReleaseColumn(electionError)) {
-        const fallback = await fetchElection(electionId, false);
+        includeReleaseColumn = false;
+        const fallback = await fetchElection(electionId, includeReleaseColumn, includeCoverColumn);
+        electionData = fallback.data;
+        electionError = fallback.error;
+      }
+
+      if (isMissingElectionCoverColumn(electionError)) {
+        includeCoverColumn = false;
+        const fallback = await fetchElection(electionId, includeReleaseColumn, includeCoverColumn);
         electionData = fallback.data;
         electionError = fallback.error;
       }
@@ -289,11 +315,15 @@ function StudentCampaign() {
       </button>
 
       <section className="student-campaign-hero student-org-detail-hero">
-        <OrganizationLogo
-          organization={organization}
-          className="!h-[clamp(5.5rem,8vw,8rem)] !w-[clamp(5.5rem,8vw,8rem)] !p-2.5"
-          loading="eager"
-        />
+        {election.cover_url ? (
+          <ElectionCover election={election} compact className="student-campaign-cover" />
+        ) : (
+          <OrganizationLogo
+            organization={organization}
+            className="!h-[clamp(5.5rem,8vw,8rem)] !w-[clamp(5.5rem,8vw,8rem)] !p-2.5"
+            loading="eager"
+          />
+        )}
         <div>
           <span className="mb-2 inline-flex rounded-full bg-white/80 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#f4511e]">
             Election Overview

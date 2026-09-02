@@ -9,6 +9,15 @@ import {
 } from "./time";
 import { RESULT_VISIBILITY_MODES, normalizeResultVisibilityMode } from "./results";
 
+const SERVER_TIME_CACHE_MS = 5 * 60 * 1000;
+const SERVER_TIME_RPC_ENABLED =
+  String(import.meta.env.VITE_KANDID_SERVER_TIME_RPC || "").toLowerCase() === "enabled";
+let serverTimeOffsetMs = 0;
+let serverTimeSyncedAt = 0;
+let serverTimeRequest = null;
+let serverTimeRpcUnavailable = false;
+let serverTimeRpcWarningShown = false;
+
 export function formatLocalDateTime(value) {
   return formatScheduleDateTime(value, "-");
 }
@@ -40,6 +49,11 @@ export function compareElectionScheduleValues(first, second) {
   const firstDate = parseScheduleWallClock(first);
   const secondDate = parseScheduleWallClock(second);
   return (firstDate?.getTime() || 0) - (secondDate?.getTime() || 0);
+}
+
+export function isMissingElectionCoverColumn(error) {
+  const message = error?.message || "";
+  return /cover_url|schema cache|column .*does not exist/i.test(message);
 }
 
 export function validateElectionSchedule(form, { requireCampaign = true } = {}) {
@@ -145,14 +159,54 @@ export function getElectionPhase(election, now = new Date()) {
 }
 
 export async function fetchAuthoritativeNow() {
-  const { data, error } = await supabase.rpc("kandid_server_time");
+  const now = Date.now();
 
-  if (!error && data) {
-    const serverNow = parseUtcTimestamp(data);
-    if (serverNow) return serverNow;
+  if (!SERVER_TIME_RPC_ENABLED) {
+    return new Date();
   }
 
-  return new Date();
+  if (serverTimeRpcUnavailable) {
+    return new Date();
+  }
+
+  if (serverTimeSyncedAt && now - serverTimeSyncedAt < SERVER_TIME_CACHE_MS) {
+    return new Date(Date.now() + serverTimeOffsetMs);
+  }
+
+  if (serverTimeRequest) {
+    return serverTimeRequest;
+  }
+
+  serverTimeRequest = supabase
+    .rpc("kandid_server_time")
+    .then(({ data, error, status }) => {
+      if (!error && data) {
+        const serverNow = parseUtcTimestamp(data);
+        if (serverNow) {
+          serverTimeOffsetMs = serverNow.getTime() - Date.now();
+          serverTimeSyncedAt = Date.now();
+          return serverNow;
+        }
+      }
+
+      if (status === 404 || error?.code === "PGRST202") {
+        serverTimeRpcUnavailable = true;
+        if (!serverTimeRpcWarningShown) {
+          console.warn(
+            "kandid_server_time RPC is unavailable in Supabase; using browser time for UI-only clock calculations.",
+            error,
+          );
+          serverTimeRpcWarningShown = true;
+        }
+      }
+
+      return new Date();
+    })
+    .finally(() => {
+      serverTimeRequest = null;
+    });
+
+  return serverTimeRequest;
 }
 
 export function canStudentViewResults(election, now = new Date()) {

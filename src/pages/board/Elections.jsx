@@ -1,16 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Plus, Pencil, Trash2, X, QrCode, Power } from "lucide-react";
+import { CheckCircle2, Plus, Pencil, Trash2, X, QrCode, Power, ImagePlus } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { KandidButtonLoader, KandidInlineLoader } from "../../components/KandidLoader";
 import PopupOverlay from "../../components/PopupOverlay";
+import ElectionCover from "../../components/ElectionCover";
+import ElectionManagementCard from "../../components/ElectionManagementCard";
+import ScheduleDateTimePicker, {
+  currentDateTimeInputValue,
+} from "../../components/ScheduleDateTimePicker";
 import { supabase } from "../../lib/supabaseClient";
 import {
   formatLocalDateTime,
   formValueToScheduleTimestamp,
   getElectionPhase,
+  isMissingElectionCoverColumn,
   scheduleTimestampToFormValue,
   validateElectionSchedule,
 } from "../../utils/elections";
+import { uploadPublicImage } from "../../utils/files";
 import {
   generateAccessToken,
   getAccessQrImageUrl,
@@ -23,8 +30,10 @@ import { logAuditEvent } from "../../utils/auditLog";
 import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
 import { copyLatestOrganizationPositions } from "../../utils/positionReuse";
 import {
+  isResultVisibilityConstraintError,
   resultVisibilityLabel,
   serializeResultVisibilityForDatabase,
+  serializeResultVisibilityForLegacyDatabase,
 } from "../../utils/results";
 
 function BoardElections() {
@@ -39,6 +48,7 @@ function BoardElections() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [coverUploading, setCoverUploading] = useState(false);
   const [tokenForm, setTokenForm] = useState({
     scope_type: "general",
     scope_value: "",
@@ -46,6 +56,7 @@ function BoardElections() {
   });
   const [form, setForm] = useState({
     title: "",
+    cover_url: "",
     campaign_start: "",
     campaign_end: "",
     start_date: "",
@@ -63,6 +74,7 @@ function BoardElections() {
   const orgId = user?.organization_id;
   const orgName = user?.organizations?.name;
   const searchQuery = (searchParams.get("q") || "").trim().toLowerCase();
+  const scheduleMin = editing ? "" : currentDateTimeInputValue();
 
   useEffect(() => {
     let active = true;
@@ -80,7 +92,13 @@ function BoardElections() {
 
       const { data, error } = await supabase
         .from("elections")
-        .select("*")
+        .select(`
+          *,
+          organizations (
+            name,
+            logo_url
+          )
+        `)
         .eq("organization_id", orgId)
         .order("created_at", { ascending: false });
 
@@ -118,7 +136,13 @@ function BoardElections() {
 
     const { data, error } = await supabase
       .from("elections")
-      .select("*")
+      .select(`
+        *,
+        organizations (
+          name,
+          logo_url
+        )
+      `)
       .eq("organization_id", orgId)
       .order("created_at", { ascending: false });
 
@@ -138,6 +162,7 @@ function BoardElections() {
     setEditing(null);
     setForm({
       title: "",
+      cover_url: "",
       campaign_start: "",
       campaign_end: "",
       start_date: "",
@@ -168,6 +193,7 @@ function BoardElections() {
     setEditing(election);
     setForm({
       title: election.title || "",
+      cover_url: election.cover_url || "",
       campaign_start: election.campaign_start
         ? scheduleTimestampToFormValue(election.campaign_start)
         : "",
@@ -220,6 +246,7 @@ function BoardElections() {
 
     const payload = {
       ...form,
+      cover_url: form.cover_url || null,
       campaign_start: formValueToScheduleTimestamp(form.campaign_start),
       campaign_end: formValueToScheduleTimestamp(form.campaign_end),
       start_date: formValueToScheduleTimestamp(form.start_date),
@@ -235,22 +262,48 @@ function BoardElections() {
         form.geo_radius_meters === "" ? null : Number(form.geo_radius_meters),
     };
 
-    let result;
+    const saveElection = (nextPayload) =>
+      editing
+        ? supabase
+            .from("elections")
+            .update(nextPayload)
+            .eq("id", editing.id)
+            .select("id")
+            .single()
+        : supabase.from("elections").insert([nextPayload]).select("id").single();
 
-    if (editing) {
-      result = await supabase
-        .from("elections")
-        .update(payload)
-        .eq("id", editing.id)
-        .select("id")
-        .single();
-    } else {
-      result = await supabase.from("elections").insert([payload]).select("id").single();
+    let result = await saveElection(payload);
+
+    if (
+      isResultVisibilityConstraintError(result?.error) &&
+      form.student_result_visibility !== "manual"
+    ) {
+      result = await saveElection({
+        ...payload,
+        student_result_visibility: serializeResultVisibilityForLegacyDatabase(
+          form.student_result_visibility,
+        ),
+      });
+    }
+
+    if (isMissingElectionCoverColumn(result.error)) {
+      const payloadWithoutCover = { ...payload };
+      delete payloadWithoutCover.cover_url;
+      result = await saveElection(payloadWithoutCover);
+      if (!result.error) {
+        prompt.info(
+          "Election saved without a cover. Apply the election cover migration in Supabase to enable cover photos.",
+        );
+      }
     }
 
     if (result.error) {
       console.error("Board election save failed:", result.error);
-      prompt.error(result.error.message || "Failed to save election.");
+      prompt.error(
+        isResultVisibilityConstraintError(result.error) && form.student_result_visibility === "manual"
+          ? "Manual admin release requires the updated result visibility schema in Supabase."
+          : result.error.message || "Failed to save election."
+      );
       setSubmitting(false);
       return;
     }
@@ -293,6 +346,27 @@ function BoardElections() {
         reusedPositionCount: reusedPositions.copiedCount || 0,
         reusedFromElectionTitle: reusedPositions.sourceElection?.title || "",
       });
+    }
+  }
+
+  async function handleCoverUpload(file) {
+    if (!file) return;
+
+    setCoverUploading(true);
+    try {
+      const publicUrl = await uploadPublicImage(supabase, file, {
+        bucket: "election-covers",
+        folder: "covers",
+      });
+      setForm((currentForm) => ({ ...currentForm, cover_url: publicUrl }));
+      prompt.success("Election cover uploaded.");
+    } catch (error) {
+      console.error("Board election cover upload failed:", error);
+      prompt.error(
+        `${error.message || "Failed to upload cover image."} Make sure the election-covers storage bucket migration is applied.`,
+      );
+    } finally {
+      setCoverUploading(false);
     }
   }
 
@@ -436,124 +510,70 @@ function BoardElections() {
         </button>
       </div>
 
-      <div className="table-shell mt-8">
-        <div className="overflow-x-auto">
-          <table className="app-table min-w-[980px]">
-            <thead>
-              <tr>
-                <th>Title</th>
-                <th>Phase</th>
-                <th>Campaign</th>
-                <th>Start</th>
-                <th>End</th>
-                <th>Student Results</th>
-                <th>Voting Access</th>
-                <th className="text-right">Actions</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan="8" className="p-6 text-center">
-                    <KandidInlineLoader message="Loading elections..." />
-                  </td>
-                </tr>
-              ) : loadError ? (
-                <tr>
-                  <td colSpan="8" className="p-6 text-center">
-                    <div className="mx-auto max-w-md space-y-3">
-                      <p className="font-bold text-rose-600">Unable to load elections.</p>
-                      <p className="text-sm text-gray-500">{loadError}</p>
-                      <button type="button" onClick={refreshElections} className="secondary-btn">
-                        Retry
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ) : filteredElections.length === 0 ? (
-                <tr>
-                  <td colSpan="8" className="p-6 text-center empty-copy">
-                    {searchQuery ? "No elections match your search." : "No elections yet."}
-                  </td>
-                </tr>
-              ) : (
-                filteredElections.map((election) => (
-                  <tr key={election.id}>
-                    <td className="font-bold">
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/board/positions?election=${election.id}`)}
-                        className="block w-full text-left font-black transition-colors hover:text-[#ff5a1f]"
-                      >
-                        {election.title}
-                        <span className="mt-1 block text-xs font-normal text-gray-400">
-                          Click to manage setup
-                        </span>
-                      </button>
-                    </td>
-                    <td className="text-sm">
-                      <span className="status-pill">
-                        {getElectionPhase(election)}
-                      </span>
-                    </td>
-                    <td className="text-sm">
-                      {formatLocalDateTime(election.campaign_start)}
-                    </td>
-                    <td className="text-sm">
-                      {formatLocalDateTime(election.start_date)}
-                    </td>
-                    <td className="text-sm">
-                      {formatLocalDateTime(election.end_date)}
-                    </td>
-                    <td>
-                      <span className="status-pill !bg-slate-100 !text-slate-700">
-                        {resultVisibilityLabel(
-                          election.student_result_visibility,
-                          election.results_released_at,
-                        )}
-                      </span>
-                    </td>
-                    <td className="text-sm">
-                      {getVotingAccessModeLabel(election.voting_access_mode)}
-                    </td>
-                    <td className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => navigate(`/board/positions?election=${election.id}`)}
-                          className="secondary-btn !px-3 !py-2 text-xs"
-                        >
-                          Manage Setup
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openEdit(election)}
-                          className="icon-action"
-                        >
-                          <Pencil size={16} />
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(election.id)}
-                          className="icon-action icon-action-danger"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {loading ? (
+        <div className="empty-state mt-8">
+          <KandidInlineLoader message="Loading elections..." />
         </div>
-      </div>
+      ) : loadError ? (
+        <div className="empty-state mt-8">
+          <p className="font-bold text-rose-600">Unable to load elections.</p>
+          <p className="text-sm text-gray-500">{loadError}</p>
+          <button type="button" onClick={refreshElections} className="secondary-btn mt-3">
+            Retry
+          </button>
+        </div>
+      ) : filteredElections.length === 0 ? (
+        <div className="empty-state mt-8">
+          {searchQuery ? "No elections match your search." : "No elections yet."}
+        </div>
+      ) : (
+        <div className="election-management-grid mt-8">
+          {filteredElections.map((election) => (
+            <article key={election.id} className="entity-card">
+              <ElectionManagementCard
+                election={election}
+                organization={election.organizations || user?.organizations}
+                eyebrow="Election Setup"
+                onClick={() => navigate(`/board/positions?election=${election.id}`)}
+              />
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="status-pill">{getElectionPhase(election)}</span>
+                <span className="status-pill">
+                  {resultVisibilityLabel(
+                    election.student_result_visibility,
+                    election.results_released_at,
+                  )}
+                </span>
+                <span className="status-pill">
+                  {getVotingAccessModeLabel(election.voting_access_mode)}
+                </span>
+              </div>
+
+              <div className="mt-4 grid gap-2 text-sm text-[#5f6f86]">
+                <p><span className="font-black text-[#111827]">Campaign:</span> {formatLocalDateTime(election.campaign_start)}</p>
+                <p><span className="font-black text-[#111827]">Voting:</span> {formatLocalDateTime(election.start_date)} - {formatLocalDateTime(election.end_date)}</p>
+              </div>
+
+              <div className="mt-5 flex flex-wrap justify-end gap-2">
+                <button type="button" onClick={() => navigate(`/board/positions?election=${election.id}`)} className="secondary-btn !px-3 !py-2 text-xs">
+                  Manage Setup
+                </button>
+                <button type="button" onClick={() => openEdit(election)} className="icon-action">
+                  <Pencil size={16} />
+                </button>
+                <button type="button" onClick={() => handleDelete(election.id)} className="icon-action icon-action-danger">
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
 
       {formOpen && (
         <PopupOverlay>
-          <div className="modal-card max-w-md">
+          <div className="modal-card max-w-xl">
             <div className="mb-4 flex justify-between">
               <h2 className="text-xl font-black">
                 {editing ? "Edit Election" : "Create Election"}
@@ -565,54 +585,103 @@ function BoardElections() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              <input
-                required
-                placeholder="Title"
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                className="w-full rounded-xl border p-3"
-              />
+              <div className="upload-shell">
+                <div className="grid gap-4">
+                  <ElectionCover
+                    election={{ title: form.title || "Election", cover_url: form.cover_url }}
+                    compact
+                  />
+                  <div className="min-w-0">
+                    <label className="field-label">Election Cover Photo</label>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <label className="secondary-btn cursor-pointer">
+                        <ImagePlus size={16} />
+                        {form.cover_url ? "Change Cover" : "Add Cover"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          disabled={coverUploading}
+                          onChange={(event) => handleCoverUpload(event.target.files?.[0])}
+                          className="sr-only"
+                        />
+                      </label>
+                      {form.cover_url ? (
+                        <button
+                          type="button"
+                          onClick={() => setForm({ ...form, cover_url: "" })}
+                          className="secondary-btn"
+                        >
+                          Remove
+                        </button>
+                      ) : null}
+                    </div>
+                    <input
+                      value={form.cover_url}
+                      onChange={(event) =>
+                        setForm({ ...form, cover_url: event.target.value })
+                      }
+                      placeholder="Cover image URL optional"
+                      className="field-shell mt-3 w-full"
+                    />
+                    <p className="mt-2 text-xs font-semibold text-gray-500">
+                      {coverUploading ? "Uploading cover..." : "Stored as a public image URL."}
+                    </p>
+                  </div>
+                </div>
+              </div>
 
-              <input
-                type="datetime-local"
-                required={form.status !== "draft"}
-                value={form.campaign_start}
-                onChange={(e) =>
-                  setForm({ ...form, campaign_start: e.target.value })
-                }
-                className="w-full rounded-xl border p-3"
-              />
+              <div>
+                <label className="field-label">Election Title</label>
+                <input
+                  required
+                  placeholder="Election Title"
+                  value={form.title}
+                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                  className="field-shell w-full"
+                />
+              </div>
 
-              <input
-                type="datetime-local"
-                required={form.status !== "draft"}
-                value={form.campaign_end}
-                onChange={(e) =>
-                  setForm({ ...form, campaign_end: e.target.value })
-                }
-                className="w-full rounded-xl border p-3"
-              />
+              <div className="grid gap-4 md:grid-cols-2">
+                <ScheduleDateTimePicker
+                  label="Campaign Start Date & Time"
+                  required={form.status !== "draft"}
+                  value={form.campaign_start}
+                  min={scheduleMin}
+                  max={form.campaign_end || form.start_date}
+                  onChange={(value) => setForm({ ...form, campaign_start: value })}
+                />
 
-              <input
-                type="datetime-local"
-                value={form.start_date}
-                onChange={(e) =>
-                  setForm({ ...form, start_date: e.target.value })
-                }
-                className="w-full rounded-xl border p-3"
-              />
+                <ScheduleDateTimePicker
+                  label="Campaign End Date & Time"
+                  required={form.status !== "draft"}
+                  value={form.campaign_end}
+                  min={form.campaign_start || scheduleMin}
+                  max={form.start_date}
+                  onChange={(value) => setForm({ ...form, campaign_end: value })}
+                />
 
-              <input
-                type="datetime-local"
-                value={form.end_date}
-                onChange={(e) => setForm({ ...form, end_date: e.target.value })}
-                className="w-full rounded-xl border p-3"
-              />
+                <ScheduleDateTimePicker
+                  label="Voting Start Date & Time"
+                  required
+                  value={form.start_date}
+                  min={form.campaign_end || scheduleMin}
+                  max={form.end_date}
+                  onChange={(value) => setForm({ ...form, start_date: value })}
+                />
+
+                <ScheduleDateTimePicker
+                  label="Voting End Date & Time"
+                  required
+                  value={form.end_date}
+                  min={form.start_date || form.campaign_end || scheduleMin}
+                  onChange={(value) => setForm({ ...form, end_date: value })}
+                />
+              </div>
 
               <select
                 value={form.status}
                 onChange={(e) => setForm({ ...form, status: e.target.value })}
-                className="w-full rounded-xl border p-3"
+                className="field-shell w-full"
               >
                 <option value="draft">Draft</option>
                 <option value="active">Active</option>
@@ -627,7 +696,7 @@ function BoardElections() {
                     student_result_visibility: e.target.value,
                   })
                 }
-                className="w-full rounded-xl border p-3"
+                className="field-shell w-full"
               >
                 <option value="realtime">Real-time results</option>
                 <option value="after_close">Show after voting ends</option>
@@ -644,7 +713,7 @@ function BoardElections() {
                     onChange={(e) =>
                       setForm({ ...form, voting_access_mode: e.target.value })
                     }
-                    className="w-full rounded-xl border p-3"
+                    className="field-shell w-full"
                   >
                     {VOTING_ACCESS_MODES.map((mode) => (
                       <option key={mode.value} value={mode.value}>
@@ -656,15 +725,15 @@ function BoardElections() {
                     value={form.location_label}
                     onChange={(e) => setForm({ ...form, location_label: e.target.value })}
                     placeholder="Location label optional"
-                    className="w-full rounded-xl border p-3"
+                    className="field-shell w-full"
                   />
                 </div>
 
                 {form.voting_access_mode === "location_range" ? (
                   <div className="mt-4 grid gap-4 md:grid-cols-3">
-                    <input type="number" step="any" value={form.geo_lat} onChange={(e) => setForm({ ...form, geo_lat: e.target.value })} placeholder="Latitude" className="w-full rounded-xl border p-3" />
-                    <input type="number" step="any" value={form.geo_lng} onChange={(e) => setForm({ ...form, geo_lng: e.target.value })} placeholder="Longitude" className="w-full rounded-xl border p-3" />
-                    <input type="number" value={form.geo_radius_meters} onChange={(e) => setForm({ ...form, geo_radius_meters: e.target.value })} placeholder="Radius in meters" className="w-full rounded-xl border p-3" />
+                    <input type="number" step="any" value={form.geo_lat} onChange={(e) => setForm({ ...form, geo_lat: e.target.value })} placeholder="Latitude" className="field-shell w-full" />
+                    <input type="number" step="any" value={form.geo_lng} onChange={(e) => setForm({ ...form, geo_lng: e.target.value })} placeholder="Longitude" className="field-shell w-full" />
+                    <input type="number" min="1" value={form.geo_radius_meters} onChange={(e) => setForm({ ...form, geo_radius_meters: e.target.value })} placeholder="Radius in meters" className="field-shell w-full" />
                   </div>
                 ) : null}
               </div>
@@ -679,13 +748,13 @@ function BoardElections() {
                   </div>
 
                   <div className="mt-4 grid gap-4 md:grid-cols-3">
-                    <select value={tokenForm.scope_type} onChange={(e) => setTokenForm({ ...tokenForm, scope_type: e.target.value, scope_value: e.target.value === "general" ? "" : tokenForm.scope_value })} className="w-full rounded-xl border p-3">
+                    <select value={tokenForm.scope_type} onChange={(e) => setTokenForm({ ...tokenForm, scope_type: e.target.value, scope_value: e.target.value === "general" ? "" : tokenForm.scope_value })} className="field-shell w-full">
                       {TOKEN_SCOPE_TYPES.map((scope) => (
                         <option key={scope.value} value={scope.value}>{scope.label}</option>
                       ))}
                     </select>
-                    <input value={tokenForm.scope_value} onChange={(e) => setTokenForm({ ...tokenForm, scope_value: e.target.value })} placeholder="Scope value" disabled={tokenForm.scope_type === "general"} className="w-full rounded-xl border p-3" />
-                    <input type="datetime-local" value={tokenForm.expires_at} onChange={(e) => setTokenForm({ ...tokenForm, expires_at: e.target.value })} className="w-full rounded-xl border p-3" />
+                    <input value={tokenForm.scope_value} onChange={(e) => setTokenForm({ ...tokenForm, scope_value: e.target.value })} placeholder="Scope value" disabled={tokenForm.scope_type === "general"} className="field-shell w-full" />
+                    <input type="datetime-local" value={tokenForm.expires_at} onChange={(e) => setTokenForm({ ...tokenForm, expires_at: e.target.value })} className="field-shell w-full" />
                   </div>
 
                   <button type="button" onClick={handleCreateAccessToken} className="secondary-btn mt-4">

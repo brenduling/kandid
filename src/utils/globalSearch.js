@@ -566,7 +566,7 @@ function resultVisibilityLabel(value, releasedAt) {
   return "Hidden until released";
 }
 
-async function queryOrganizations(user, query, role, limit) {
+async function queryOrganizations(user, query, role, limit, options = {}) {
   const { data, error } = await supabase
     .from("organizations")
     .select("id, name, description, logo_url, organization_type, created_at")
@@ -581,12 +581,14 @@ async function queryOrganizations(user, query, role, limit) {
     .filter((org) => matchesQuery([org.name, org.description, org.organization_type, programText(org)], query))
     .slice(0, limit);
 
-  const countedRows = await Promise.all(
-    filteredRows.map(async (org) => ({
-      ...org,
-      member_count: await countOrganizationMembers(org.id),
-    })),
-  );
+  const countedRows = options.includeCounts === false
+    ? filteredRows
+    : await Promise.all(
+        filteredRows.map(async (org) => ({
+          ...org,
+          member_count: await countOrganizationMembers(org.id),
+        })),
+      );
 
   return sortResults(
     countedRows.map((org) => organizationResult(org, role, query)),
@@ -615,7 +617,7 @@ async function countOrganizationMembers(organizationId) {
   return count || 0;
 }
 
-async function queryPrograms(user, query, role, limit) {
+async function queryPrograms(user, query, role, limit, options = {}) {
   let request = supabase
     .from("programs")
     .select("id, code, name, organization_programs(organization_id, organizations(id, name))")
@@ -641,12 +643,14 @@ async function queryPrograms(user, query, role, limit) {
     .filter((program) => matchesQuery([program.code, program.name], query))
     .slice(0, limit);
 
-  const countedRows = await Promise.all(
-    filteredRows.map(async (program) => ({
-      ...program,
-      student_count: await countStudentsForProgram(program.code),
-    })),
-  );
+  const countedRows = options.includeCounts === false
+    ? filteredRows
+    : await Promise.all(
+        filteredRows.map(async (program) => ({
+          ...program,
+          student_count: await countStudentsForProgram(program.code),
+        })),
+      );
 
   return sortResults(
     countedRows.map((program) => programResult(program, role, query)),
@@ -689,7 +693,7 @@ async function queryElections(user, query, role, limit) {
 }
 
 async function queryStudents(user, query, role, limit) {
-  let rows = [];
+  let rows;
   if (role === "electoral_board") {
     rows = await fetchEligibleStudentsForOrganization(user?.organization_id);
   } else {
@@ -1040,7 +1044,13 @@ const loaders = {
 export async function searchKandid(user, rawQuery, options = {}) {
   const role = user?.role;
   const query = normalizeSearchInput(rawQuery);
-  const categories = getRoleSearchCategories(role);
+  const allowedCategories = getRoleSearchCategories(role);
+  const requestedCategories = Array.isArray(options.categories)
+    ? options.categories
+    : null;
+  const categories = requestedCategories
+    ? requestedCategories.filter((category) => allowedCategories.includes(category))
+    : allowedCategories;
   const perCategoryLimit = options.perCategoryLimit || 8;
   const searchOptions = {
     ...options,

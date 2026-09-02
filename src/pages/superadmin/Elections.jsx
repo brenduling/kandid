@@ -1,15 +1,23 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, Plus, Pencil, Trash2, X, QrCode, Power } from "lucide-react";
+import { CheckCircle2, Plus, Pencil, Trash2, X, QrCode, Power, ImagePlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import PopupOverlay from "../../components/PopupOverlay";
+import ElectionCover from "../../components/ElectionCover";
+import ElectionManagementCard from "../../components/ElectionManagementCard";
+import OrganizationSelect from "../../components/OrganizationSelect";
+import ScheduleDateTimePicker, {
+  currentDateTimeInputValue,
+} from "../../components/ScheduleDateTimePicker";
 import { supabase } from "../../lib/supabaseClient";
 import {
   formatLocalDateTime,
   formValueToScheduleTimestamp,
   getElectionPhase,
+  isMissingElectionCoverColumn,
   scheduleTimestampToFormValue,
   validateElectionSchedule,
 } from "../../utils/elections";
+import { uploadPublicImage } from "../../utils/files";
 import {
   generateAccessToken,
   getAccessQrImageUrl,
@@ -26,8 +34,10 @@ import {
 } from "../../utils/positionOrder";
 import { copyLatestOrganizationPositions } from "../../utils/positionReuse";
 import {
+  isResultVisibilityConstraintError,
   resultVisibilityLabel,
   serializeResultVisibilityForDatabase,
+  serializeResultVisibilityForLegacyDatabase,
 } from "../../utils/results";
 
 function Elections() {
@@ -45,6 +55,7 @@ function Elections() {
   const [positionsOpen, setPositionsOpen] = useState(false);
   const [selectedElection, setSelectedElection] = useState(null);
   const [editingPosition, setEditingPosition] = useState(null);
+  const [coverUploading, setCoverUploading] = useState(false);
   const [positionForm, setPositionForm] = useState({
     name: "",
     max_votes: 1,
@@ -59,6 +70,7 @@ function Elections() {
   const [form, setForm] = useState({
     organization_id: "",
     title: "",
+    cover_url: "",
     campaign_start: "",
     campaign_end: "",
     start_date: "",
@@ -71,6 +83,7 @@ function Elections() {
     geo_lng: "",
     geo_radius_meters: "",
   });
+  const scheduleMin = editingElection ? "" : currentDateTimeInputValue();
 
   useEffect(() => {
     fetchOrganizations();
@@ -80,7 +93,7 @@ function Elections() {
   async function fetchOrganizations() {
     const { data } = await supabase
       .from("organizations")
-      .select("id, name")
+      .select("id, name, logo_url")
       .order("name", { ascending: true });
 
     setOrganizations(data || []);
@@ -92,10 +105,11 @@ function Elections() {
       .select(`
         *,
         organizations (
-          name
+          name,
+          logo_url
         )
       `)
-      .order("id", { ascending: true });
+      .order("created_at", { ascending: false });
 
     if (!error) setElections(data || []);
   }
@@ -344,6 +358,7 @@ function Elections() {
     setForm({
       organization_id: "",
       title: "",
+      cover_url: "",
       campaign_start: "",
       campaign_end: "",
       start_date: "",
@@ -380,6 +395,7 @@ function Elections() {
     setForm({
       organization_id: election.organization_id || "",
       title: election.title || "",
+      cover_url: election.cover_url || "",
       campaign_start: election.campaign_start
         ? scheduleTimestampToFormValue(election.campaign_start)
         : "",
@@ -422,6 +438,7 @@ function Elections() {
     const payload = {
       organization_id: Number(form.organization_id),
       title: form.title,
+      cover_url: form.cover_url || null,
       campaign_start: formValueToScheduleTimestamp(form.campaign_start),
       campaign_end: formValueToScheduleTimestamp(form.campaign_end),
       start_date: formValueToScheduleTimestamp(form.start_date),
@@ -438,23 +455,49 @@ function Elections() {
         form.geo_radius_meters === "" ? null : Number(form.geo_radius_meters),
     };
 
-    let result;
+    const saveElection = (nextPayload) =>
+      editingElection
+        ? supabase
+            .from("elections")
+            .update(nextPayload)
+            .eq("id", editingElection.id)
+            .select("id")
+            .single()
+        : supabase.from("elections").insert([nextPayload]).select("id").single();
 
-    if (editingElection) {
-      result = await supabase
-        .from("elections")
-        .update(payload)
-        .eq("id", editingElection.id)
-        .select("id")
-        .single();
-    } else {
-      result = await supabase.from("elections").insert([payload]).select("id").single();
+    let result = await saveElection(payload);
+
+    if (
+      isResultVisibilityConstraintError(result?.error) &&
+      form.student_result_visibility !== "manual"
+    ) {
+      result = await saveElection({
+        ...payload,
+        student_result_visibility: serializeResultVisibilityForLegacyDatabase(
+          form.student_result_visibility,
+        ),
+      });
+    }
+
+    if (isMissingElectionCoverColumn(result?.error)) {
+      const payloadWithoutCover = { ...payload };
+      delete payloadWithoutCover.cover_url;
+      result = await saveElection(payloadWithoutCover);
+      if (!result?.error) {
+        prompt.info(
+          "Election saved without a cover. Apply the election cover migration in Supabase to enable cover photos.",
+        );
+      }
     }
 
     const error = result?.error;
     if (error) {
       console.error("Election save failed:", error);
-      prompt.error(error.message || "Failed to save election.");
+      prompt.error(
+        isResultVisibilityConstraintError(error) && form.student_result_visibility === "manual"
+          ? "Manual admin release requires the updated result visibility schema in Supabase."
+          : error.message || "Failed to save election."
+      );
       return;
     }
 
@@ -496,10 +539,31 @@ function Elections() {
       setCreatedElection({
         ...payload,
         id: result.data.id,
-        organizations: organization ? { name: organization.name } : null,
+        organizations: organization ? { name: organization.name, logo_url: organization.logo_url } : null,
         reusedPositionCount: reusedPositions.copiedCount || 0,
         reusedFromElectionTitle: reusedPositions.sourceElection?.title || "",
       });
+    }
+  }
+
+  async function handleCoverUpload(file) {
+    if (!file) return;
+
+    setCoverUploading(true);
+    try {
+      const publicUrl = await uploadPublicImage(supabase, file, {
+        bucket: "election-covers",
+        folder: "covers",
+      });
+      setForm((currentForm) => ({ ...currentForm, cover_url: publicUrl }));
+      prompt.success("Election cover uploaded.");
+    } catch (error) {
+      console.error("Election cover upload failed:", error);
+      prompt.error(
+        `${error.message || "Failed to upload cover image."} Make sure the election-covers storage bucket migration is applied.`,
+      );
+    } finally {
+      setCoverUploading(false);
     }
   }
 
@@ -628,104 +692,51 @@ function Elections() {
         </button>
       </div>
 
-      <div className="table-shell mt-8">
-        <table className="w-full text-left">
-          <thead className="table-head text-white">
-            <tr>
-              <th className="px-6 py-4 text-sm">Election</th>
-              <th className="px-6 py-4 text-sm">Organization</th>
-              <th className="px-6 py-4 text-sm">Phase</th>
-              <th className="px-6 py-4 text-sm">Campaign Starts</th>
-              <th className="px-6 py-4 text-sm">Start</th>
-              <th className="px-6 py-4 text-sm">End</th>
-              <th className="px-6 py-4 text-sm">Student Results</th>
-              <th className="px-6 py-4 text-sm">Voting Access</th>
-              <th className="px-6 py-4 text-sm text-right">Actions</th>
-            </tr>
-          </thead>
+      {elections.length === 0 ? (
+        <div className="empty-state mt-8">No elections found.</div>
+      ) : (
+        <div className="election-management-grid mt-8">
+          {elections.map((election) => (
+            <article key={election.id} className="entity-card">
+              <ElectionManagementCard
+                election={election}
+                eyebrow="Election Setup"
+                onClick={() => openPositions(election)}
+              />
 
-          <tbody>
-            {elections.length === 0 ? (
-              <tr>
-                <td colSpan="9" className="px-6 py-10 text-center text-gray-500">
-                  No elections found.
-                </td>
-              </tr>
-            ) : (
-              elections.map((election) => (
-                <tr key={election.id} className="border-b last:border-b-0">
-                  <td className="px-6 py-4 font-bold">
-                    <button
-                      type="button"
-                      onClick={() => openPositions(election)}
-                      className="text-left font-black transition-colors hover:text-[#ff5a1f]"
-                    >
-                      {election.title}
-                      <span className="mt-1 block text-xs font-normal text-gray-400">
-                        Click to manage positions
-                      </span>
-                    </button>
-                  </td>
-                  <td className="px-6 py-4">
-                    {election.organizations?.name || "Unknown"}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-700">
-                      {getElectionPhase(election)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    {formatLocalDateTime(election.campaign_start)}
-                  </td>
-                  <td className="px-6 py-4">
-                    {formatLocalDateTime(election.start_date)}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    {formatLocalDateTime(election.end_date)}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-700">
-                      {resultVisibilityLabel(
-                        election.student_result_visibility,
-                        election.results_released_at,
-                      )}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    {getVotingAccessModeLabel(election.voting_access_mode)}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => openPositions(election)}
-                        className="secondary-btn !px-3 !py-2 text-xs"
-                      >
-                        Manage Setup
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => openEditForm(election)}
-                        className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200"
-                      >
-                        <Pencil size={16} />
-                      </button>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="status-pill">{getElectionPhase(election)}</span>
+                <span className="status-pill">
+                  {resultVisibilityLabel(
+                    election.student_result_visibility,
+                    election.results_released_at,
+                  )}
+                </span>
+                <span className="status-pill">
+                  {getVotingAccessModeLabel(election.voting_access_mode)}
+                </span>
+              </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(election.id)}
-                        className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-200"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              <div className="mt-4 grid gap-2 text-sm text-[#5f6f86]">
+                <p><span className="font-black text-[#111827]">Campaign:</span> {formatLocalDateTime(election.campaign_start)}</p>
+                <p><span className="font-black text-[#111827]">Voting:</span> {formatLocalDateTime(election.start_date)} - {formatLocalDateTime(election.end_date)}</p>
+              </div>
+
+              <div className="mt-5 flex flex-wrap justify-end gap-2">
+                <button type="button" onClick={() => openPositions(election)} className="secondary-btn !px-3 !py-2 text-xs">
+                  Manage Setup
+                </button>
+                <button type="button" onClick={() => openEditForm(election)} className="icon-action">
+                  <Pencil size={16} />
+                </button>
+                <button type="button" onClick={() => handleDelete(election.id)} className="icon-action icon-action-danger">
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
 
       {positionsOpen && selectedElection && (
         <PopupOverlay>
@@ -861,16 +872,13 @@ function Elections() {
                 </div>
               ) : (
                 <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
-                  {positions.map((position, index) => (
+                  {positions.map((position) => (
                     <div
                       key={position.id}
-                      className="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between"
+                      className="position-card-tile position-card-tile-row"
                     >
                       <div>
                         <h4 className="text-lg font-black">
-                          <span className="mr-2 text-sm text-[#d35a25]">
-                            {position.display_order || index + 1}.
-                          </span>
                           {position.name}
                         </h4>
                         <p className="mt-1 text-sm text-gray-500">
@@ -943,22 +951,58 @@ function Elections() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="field-label">Organization</label>
-                <select
-                  required
+                <OrganizationSelect
+                  organizations={organizations}
                   value={form.organization_id}
-                  onChange={(e) =>
-                    setForm({ ...form, organization_id: e.target.value })
+                  onChange={(organizationId) =>
+                    setForm({ ...form, organization_id: organizationId })
                   }
-                  className="field-shell w-full"
-                >
-                  <option value="">Select Organization</option>
-                  {organizations.map((org) => (
-                    <option key={org.id} value={org.id}>
-                      {org.name}
-                    </option>
-                  ))}
-                </select>
+                />
+              </div>
+
+              <div className="upload-shell">
+                <div className="grid gap-4">
+                  <ElectionCover
+                    election={{ title: form.title || "Election", cover_url: form.cover_url }}
+                    compact
+                  />
+                  <div className="min-w-0">
+                    <label className="field-label">Election Cover Photo</label>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <label className="secondary-btn cursor-pointer">
+                        <ImagePlus size={16} />
+                        {form.cover_url ? "Change Cover" : "Add Cover"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          disabled={coverUploading}
+                          onChange={(event) => handleCoverUpload(event.target.files?.[0])}
+                          className="sr-only"
+                        />
+                      </label>
+                      {form.cover_url ? (
+                        <button
+                          type="button"
+                          onClick={() => setForm({ ...form, cover_url: "" })}
+                          className="secondary-btn"
+                        >
+                          Remove
+                        </button>
+                      ) : null}
+                    </div>
+                    <input
+                      value={form.cover_url}
+                      onChange={(event) =>
+                        setForm({ ...form, cover_url: event.target.value })
+                      }
+                      placeholder="Cover image URL optional"
+                      className="field-shell mt-3 w-full"
+                    />
+                    <p className="mt-2 text-xs font-semibold text-gray-500">
+                      {coverUploading ? "Uploading cover..." : "Stored as a public image URL."}
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <div>
@@ -973,57 +1017,40 @@ function Elections() {
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="field-label">Campaign Start Date & Time</label>
-                  <input
-                    required={form.status !== "draft" && form.status !== "archived"}
-                    type="datetime-local"
-                    value={form.campaign_start}
-                    onChange={(e) =>
-                      setForm({ ...form, campaign_start: e.target.value })
-                    }
-                    className="field-shell w-full"
-                  />
-                </div>
+                <ScheduleDateTimePicker
+                  label="Campaign Start Date & Time"
+                  required={form.status !== "draft" && form.status !== "archived"}
+                  value={form.campaign_start}
+                  min={scheduleMin}
+                  max={form.campaign_end || form.start_date}
+                  onChange={(value) => setForm({ ...form, campaign_start: value })}
+                />
 
-                <div>
-                  <label className="field-label">Campaign End Date & Time</label>
-                  <input
-                    required={form.status !== "draft" && form.status !== "archived"}
-                    type="datetime-local"
-                    value={form.campaign_end}
-                    onChange={(e) =>
-                      setForm({ ...form, campaign_end: e.target.value })
-                    }
-                    className="field-shell w-full"
-                  />
-                </div>
+                <ScheduleDateTimePicker
+                  label="Campaign End Date & Time"
+                  required={form.status !== "draft" && form.status !== "archived"}
+                  value={form.campaign_end}
+                  min={form.campaign_start || scheduleMin}
+                  max={form.start_date}
+                  onChange={(value) => setForm({ ...form, campaign_end: value })}
+                />
 
-                <div>
-                  <label className="field-label">Voting Start Date & Time</label>
-                  <input
-                    required
-                    type="datetime-local"
-                    value={form.start_date}
-                    onChange={(e) =>
-                      setForm({ ...form, start_date: e.target.value })
-                    }
-                    className="field-shell w-full"
-                  />
-                </div>
+                <ScheduleDateTimePicker
+                  label="Voting Start Date & Time"
+                  required
+                  value={form.start_date}
+                  min={form.campaign_end || scheduleMin}
+                  max={form.end_date}
+                  onChange={(value) => setForm({ ...form, start_date: value })}
+                />
 
-                <div>
-                  <label className="field-label">Voting End Date & Time</label>
-                  <input
-                    required
-                    type="datetime-local"
-                    value={form.end_date}
-                    onChange={(e) =>
-                      setForm({ ...form, end_date: e.target.value })
-                    }
-                    className="field-shell w-full"
-                  />
-                </div>
+                <ScheduleDateTimePicker
+                  label="Voting End Date & Time"
+                  required
+                  value={form.end_date}
+                  min={form.start_date || form.campaign_end || scheduleMin}
+                  onChange={(value) => setForm({ ...form, end_date: value })}
+                />
               </div>
 
               <select
@@ -1099,6 +1126,7 @@ function Elections() {
                     />
                     <input
                       type="number"
+                      min="1"
                       value={form.geo_radius_meters}
                       onChange={(e) =>
                         setForm({ ...form, geo_radius_meters: e.target.value })

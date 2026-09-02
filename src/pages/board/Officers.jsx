@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
 import PopupOverlay from "../../components/PopupOverlay";
+import StudentSearchPicker from "../../components/StudentSearchPicker";
 import { supabase } from "../../lib/supabaseClient";
 import { usePrompt } from "../../context/PromptContext";
 import { logAuditEvent } from "../../utils/auditLog";
@@ -22,6 +23,7 @@ function BoardOfficers() {
   const prompt = usePrompt();
   const [officers, setOfficers] = useState([]);
   const [students, setStudents] = useState([]);
+  const [studentQuery, setStudentQuery] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editingOfficer, setEditingOfficer] = useState(null);
   const [form, setForm] = useState(emptyForm);
@@ -42,7 +44,10 @@ function BoardOfficers() {
             id,
             first_name,
             last_name,
-            student_number
+            student_number,
+            photo_url,
+            program,
+            year_level
           )
         `)
         .eq("organization_id", orgId);
@@ -98,6 +103,7 @@ function BoardOfficers() {
 
   function openCreateForm() {
     setEditingOfficer(null);
+    setStudentQuery("");
     setForm(emptyForm);
     setFormOpen(true);
   }
@@ -115,6 +121,11 @@ function BoardOfficers() {
       is_current: Boolean(officer.is_current),
       display_order: officer.display_order || 0,
     });
+    setStudentQuery(
+      officer.students
+        ? `${officer.students.first_name || ""} ${officer.students.last_name || ""}`.trim()
+        : ""
+    );
     setFormOpen(true);
   }
 
@@ -304,18 +315,16 @@ function BoardOfficers() {
 
             <form onSubmit={handleSubmit} className="popup-content">
               <div className="popup-form-grid-compact !md:grid-cols-3 !xl:grid-cols-4">
-                <select
+                <StudentSearchPicker
+                  label="Linked Student"
+                  students={students}
                   value={form.student_id}
-                  onChange={(e) => setForm({ ...form, student_id: e.target.value })}
-                  className="field-shell w-full"
-                >
-                  <option value="">Select Student (optional)</option>
-                  {students.map((student) => (
-                    <option key={student.id} value={student.id}>
-                      {student.last_name}, {student.first_name} - {student.student_number}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(studentId) => setForm({ ...form, student_id: studentId })}
+                  query={studentQuery}
+                  onQueryChange={setStudentQuery}
+                  placeholder="Search linked student"
+                  emptyText="No students found for this organization."
+                />
 
                 <input
                   value={form.officer_name}

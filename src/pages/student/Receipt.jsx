@@ -1,12 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronDown, ExternalLink, ReceiptText, RefreshCw, ShieldCheck } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { getBlockchainExplorerTxUrl } from "../../utils/blockchain";
 import { KandidInlineLoader } from "../../components/KandidLoader";
-import {
-  isMissingPositionOrderError,
-  sortVotesByPositionOrder,
-} from "../../utils/positionOrder";
+import { sortVotesByPositionOrder } from "../../utils/positionOrder";
 import { formatLocalDateTime, parseAbsoluteTimestamp } from "../../utils/time";
 
 function getReceiptGroupKey(vote) {
@@ -18,15 +15,19 @@ function getBlockchainStatus(vote) {
   return "Pending";
 }
 
-async function fetchStudentVotes(studentId, includeDisplayOrder = true) {
-  const positionColumns = includeDisplayOrder
-    ? "id, name, display_order"
-    : "id, name";
-
+async function fetchStudentVotes(studentId) {
   return supabase
     .from("votes")
     .select(`
-      *,
+      id,
+      student_id,
+      election_id,
+      position_id,
+      candidate_id,
+      is_abstain,
+      vote_hash,
+      blockchain_tx_id,
+      vote_timestamp,
       elections (
         title,
         organizations (
@@ -34,7 +35,8 @@ async function fetchStudentVotes(studentId, includeDisplayOrder = true) {
         )
       ),
       positions (
-        ${positionColumns}
+        id,
+        name
       )
     `)
     .eq("student_id", studentId)
@@ -48,77 +50,42 @@ function StudentReceipt() {
   const [expandedReceipts, setExpandedReceipts] = useState({});
   const user = JSON.parse(localStorage.getItem("user"));
 
-  useEffect(() => {
-    let active = true;
-
-    async function loadVotes() {
-      setLoading(true);
-      setLoadError("");
-
-      let { data, error } = await fetchStudentVotes(user.id);
-
-      if (isMissingPositionOrderError(error)) {
-        const fallback = await fetchStudentVotes(user.id, false);
-        data = (fallback.data || []).map((vote) => ({
-          ...vote,
-          positions: {
-            ...vote.positions,
-            display_order: vote.position_id,
-          },
-        }));
-        error = fallback.error;
-      }
-
-      if (!active) return;
-
-      if (error) {
-        console.error("Failed to load student receipts:", error);
-        setLoadError(error.message || "Unable to load vote receipts.");
-        setVotes([]);
-        setLoading(false);
-        return;
-      }
-
-      setVotes(data || []);
-      setLoading(false);
-    }
-
-    loadVotes();
-
-    return () => {
-      active = false;
-    };
-  }, [user.id]);
-
-  async function fetchVotes() {
+  const loadVotes = useCallback(async ({ active = () => true } = {}) => {
     setLoading(true);
     setLoadError("");
 
-    let { data, error } = await fetchStudentVotes(user.id);
+    const { data, error } = await fetchStudentVotes(user.id);
 
-    if (isMissingPositionOrderError(error)) {
-      const fallback = await fetchStudentVotes(user.id, false);
-      data = (fallback.data || []).map((vote) => ({
-        ...vote,
-        positions: {
-          ...vote.positions,
-          display_order: vote.position_id,
-        },
-      }));
-      error = fallback.error;
-    }
+    if (!active()) return;
 
     if (error) {
-      console.error("Failed to refresh student receipts:", error);
+      console.error("Failed to load student receipts:", error);
       setLoadError(error.message || "Unable to load vote receipts.");
       setVotes([]);
       setLoading(false);
       return;
     }
 
-    setVotes(data || []);
+    setVotes(
+      (data || []).map((vote) => ({
+        ...vote,
+        positions: {
+          ...vote.positions,
+          display_order: vote.position_id,
+        },
+      })),
+    );
     setLoading(false);
-  }
+  }, [user.id]);
+
+  useEffect(() => {
+    let mounted = true;
+    loadVotes({ active: () => mounted });
+
+    return () => {
+      mounted = false;
+    };
+  }, [loadVotes]);
 
   const receiptGroups = useMemo(() => {
     const groups = new Map();
@@ -186,7 +153,8 @@ function StudentReceipt() {
         </div>
 
         <button
-          onClick={fetchVotes}
+          onClick={() => loadVotes()}
+          disabled={loading}
           className="primary-btn self-start lg:self-auto"
         >
           <RefreshCw size={18} />
@@ -204,7 +172,7 @@ function StudentReceipt() {
             <div className="space-y-3">
               <p className="font-bold text-rose-600">Unable to load receipts.</p>
               <p className="text-sm text-gray-500">{loadError}</p>
-              <button type="button" onClick={fetchVotes} className="secondary-btn">
+              <button type="button" onClick={() => loadVotes()} className="secondary-btn">
                 Retry
               </button>
             </div>

@@ -129,49 +129,20 @@ export async function logAuditEvent({
   const serverNow = await fetchAuthoritativeNow();
   const authoritativeTimestamp = serverNow.toISOString();
 
-  const richPayload = {
+  const legacyPayload = {
     user_id: user?.id || null,
-    actor_name:
-      user?.full_name ||
-      [user?.first_name, user?.last_name].filter(Boolean).join(" ") ||
-      user?.email ||
-      user?.student_number ||
-      "System",
-    actor_role: user?.role || "system",
-    action,
-    entity_type: entityType || null,
-    entity_id: entityId == null ? null : String(entityId),
-    entity_label: entityLabel || null,
-    organization_id: organizationId || user?.organization_id || null,
-    organization_name:
-      organizationName ||
-      user?.organizations?.name ||
-      null,
-    status,
-    metadata: safeMetadata,
+    action: humanizeAction(action),
     timestamp: authoritativeTimestamp,
-    created_at: authoritativeTimestamp,
   };
 
-  const { error } = await supabase.from("audit_logs").insert([richPayload]);
+  const { error } = await supabase.from("audit_logs").insert([legacyPayload]);
   if (!error) {
     window.dispatchEvent(new CustomEvent("kandid-audit-updated"));
     return { error: null };
   }
 
-  const fallbackPayload = {
-    user_id: richPayload.user_id,
-    action: humanizeAction(action),
-    timestamp: richPayload.timestamp,
-  };
-
-  const fallback = await supabase.from("audit_logs").insert([fallbackPayload]);
-  if (!fallback.error) {
-    window.dispatchEvent(new CustomEvent("kandid-audit-updated"));
-  } else {
-    console.warn("Audit event was not recorded:", fallback.error);
-  }
-  return fallback;
+  console.warn("Audit event was not recorded:", error);
+  return { error };
 }
 
 export async function fetchAuditLogs({
@@ -185,54 +156,34 @@ export async function fetchAuditLogs({
   status,
 } = {}) {
   const end = to ?? from + limit - 1;
-  const hasRichFilters = Boolean(search || organizationId || entityType || status);
   let query = supabase
     .from("audit_logs")
-    .select("*")
-    .order("created_at", { ascending: false })
+    .select("id, user_id, action, timestamp")
+    .order("timestamp", { ascending: false })
     .range(from, end);
 
-  if (organizationId) query = query.eq("organization_id", organizationId);
   if (action) query = query.ilike("action", `%${action}%`);
-  if (entityType) query = query.eq("entity_type", entityType);
-  if (status) query = query.eq("status", status);
-  if (search) {
-    query = query.or(
-      `action.ilike.%${search}%,actor_name.ilike.%${search}%,entity_label.ilike.%${search}%,organization_name.ilike.%${search}%`,
-    );
-  }
 
-  let { data, error } = await query;
-  if (error) {
-    if (organizationId) {
-      return { data: [], error };
-    }
+  const { data, error } = await query;
 
-    let fallback = supabase
-      .from("audit_logs")
-      .select("id, user_id, action, timestamp")
-      .order("timestamp", { ascending: false })
-      .range(from, end);
-    if (action) fallback = fallback.ilike("action", `%${action}%`);
-    ({ data, error } = await fallback);
-
-    if (!error && hasRichFilters) {
-      const normalizedSearch = String(search || "").trim().toLowerCase();
-      data = (data || []).filter((record) => {
-        const normalized = normalizeAuditRecord(record);
-        const matchesSearch =
-          !normalizedSearch ||
-          [normalized.event, normalized.actor, normalized.action]
-            .join(" ")
-            .toLowerCase()
-            .includes(normalizedSearch);
-        return matchesSearch;
-      });
-    }
-  }
+  const normalizedSearch = String(search || "").trim().toLowerCase();
+  const filtered = (data || []).filter((record) => {
+    const normalized = normalizeAuditRecord(record);
+    const matchesSearch =
+      !normalizedSearch ||
+      [normalized.event, normalized.actor, normalized.action]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedSearch);
+    const matchesEntityType = !entityType || normalized.entityType === entityType;
+    const matchesStatus = !status || normalized.status === status;
+    const matchesOrganization =
+      !organizationId || Number(normalized.organizationId) === Number(organizationId);
+    return matchesSearch && matchesEntityType && matchesStatus && matchesOrganization;
+  });
 
   return {
-    data: (data || []).map(normalizeAuditRecord),
+    data: filtered.map(normalizeAuditRecord),
     error,
   };
 }

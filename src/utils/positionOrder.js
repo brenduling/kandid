@@ -1,4 +1,4 @@
-export const POSITION_ORDER_SELECT = "id, name, election_id, max_votes, display_order";
+export const POSITION_ORDER_SELECT = "id, name, election_id, max_votes";
 export const POSITION_BASE_SELECT = "id, name, election_id, max_votes";
 
 export function isMissingPositionOrderError(error) {
@@ -30,7 +30,6 @@ export async function fetchOrderedPositions(supabase, electionId) {
   let query = supabase
     .from("positions")
     .select(POSITION_ORDER_SELECT)
-    .order("display_order", { ascending: true })
     .order("id", { ascending: true });
 
   if (electionId !== undefined && electionId !== null && electionId !== "") {
@@ -39,26 +38,11 @@ export async function fetchOrderedPositions(supabase, electionId) {
 
   let { data, error } = await query;
 
-  if (isMissingPositionOrderError(error)) {
-    let fallbackQuery = supabase
-      .from("positions")
-      .select(POSITION_BASE_SELECT)
-      .order("id", { ascending: true });
-
-    if (electionId !== undefined && electionId !== null && electionId !== "") {
-      fallbackQuery = fallbackQuery.eq("election_id", electionId);
-    }
-
-    const fallback = await fallbackQuery;
-    data = (fallback.data || []).map((position, index) => ({
+  return {
+    data: (data || []).map((position, index) => ({
       ...position,
       display_order: index + 1,
-    }));
-    error = fallback.error;
-  }
-
-  return {
-    data: sortPositions(data || []),
+    })),
     error,
   };
 }

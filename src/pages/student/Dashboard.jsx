@@ -14,12 +14,18 @@ import {
   OrganizationLogo as BaseOrganizationLogo,
   StudentAvatar,
 } from "../../components/KandidImage";
+import ElectionManagementCard from "../../components/ElectionManagementCard";
 import StudentOrganizationCard, {
   getOrganizationDescription,
   getOrganizationTypeLabel,
 } from "../../components/student/StudentOrganizationCard";
 import { supabase } from "../../lib/supabaseClient";
-import { compareElectionScheduleValues, formatLocalDate, getElectionPhase } from "../../utils/elections";
+import {
+  compareElectionScheduleValues,
+  formatLocalDate,
+  getElectionPhase,
+  isMissingElectionCoverColumn,
+} from "../../utils/elections";
 import {
   getStudentOrganizationDirectory,
   selectActiveMemberships,
@@ -301,12 +307,25 @@ function StudentDashboard() {
     setDetailLoading(true);
 
     try {
+      const buildOrganizationElectionQuery = (includeCoverColumn = true) =>
+        supabase
+          .from("elections")
+          .select(
+            includeCoverColumn
+              ? "id, title, cover_url, start_date, end_date, status"
+              : "id, title, start_date, end_date, status"
+          )
+          .eq("organization_id", organization.id)
+          .neq("status", "draft")
+          .neq("status", "archived")
+          .order("start_date", { ascending: false });
+
       /*
        * All three requests run simultaneously.
        */
       const [
         { data: officers, error: officersError },
-        { data: elections, error: electionsError },
+        { data: electionRows, error: initialElectionsError },
         { data: memberships, error: countError },
       ] = await Promise.all([
         supabase
@@ -320,19 +339,11 @@ function StudentDashboard() {
               photo_url
             )
           `)
-          .eq("organization_id", organization.id)
-          .order("is_current", { ascending: false })
-          .order("display_order", { ascending: true }),
+            .eq("organization_id", organization.id)
+            .order("is_current", { ascending: false })
+            .order("display_order", { ascending: true }),
 
-        supabase
-          .from("elections")
-          .select(
-            "id, title, start_date, end_date, status"
-          )
-          .eq("organization_id", organization.id)
-          .neq("status", "draft")
-          .neq("status", "archived")
-          .order("start_date", { ascending: false }),
+        buildOrganizationElectionQuery(true),
 
         selectActiveMemberships(
           "organization_id",
@@ -344,7 +355,16 @@ function StudentDashboard() {
         console.error(
           "Failed to load organization officers:",
           officersError
-        );
+          );
+      }
+
+      let elections = electionRows || [];
+      let electionsError = initialElectionsError;
+
+      if (isMissingElectionCoverColumn(initialElectionsError)) {
+        const fallback = await buildOrganizationElectionQuery(false);
+        elections = fallback.data || [];
+        electionsError = fallback.error;
       }
 
       if (electionsError) {
@@ -598,17 +618,24 @@ function StudentDashboard() {
                 organizationElections.map((election) => (
                   <article
                     key={election.id}
-                    className="student-org-election-card w-full min-w-0 min-h-[140px] px-6 py-6 lg:min-h-[170px] lg:px-8 lg:py-8"
+                    className="student-org-election-card w-full min-w-0 p-0"
                   >
-                    <div>
-                      <h2>{election.title}</h2>
-
-                      <p>
-                        {election.start_date
-                          ? formatLocalDate(election.start_date)
-                          : "No start date"}
-                      </p>
-                    </div>
+                    <ElectionManagementCard
+                      election={{
+                        ...election,
+                        organizations: selectedOrganization,
+                      }}
+                      organization={selectedOrganization}
+                      eyebrow="Election"
+                      counts={[
+                        {
+                          label: election.start_date
+                            ? formatLocalDate(election.start_date)
+                            : "No start date",
+                          value: "",
+                        },
+                      ]}
+                    />
 
                     <button
                       type="button"

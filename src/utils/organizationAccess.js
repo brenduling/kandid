@@ -37,28 +37,15 @@ function membershipLifecycleRequiredError() {
   );
 }
 
-async function runActiveMembershipQuery(buildQuery, fallbackQuery) {
-  const { data, error, count } = await buildQuery((query) =>
-    query.eq("membership_status", "active"),
-  );
-
-  if (!error) return { data, error, count };
-
-  const message = String(error.message || "").toLowerCase();
-  const missingMembershipStatus =
-    error.code === "42703" ||
-    message.includes("membership_status") ||
-    isMissingSchemaError(error);
-
-  if (!missingMembershipStatus || !fallbackQuery) {
-    return { data, error, count };
-  }
-
-  return fallbackQuery();
-}
+const REQUIRED_STUDENT_ORGANIZATION_NAMES = [
+  "WITSG",
+  "WIT-SG",
+  "WIT SG",
+  "Western Institute of Technology Student Government",
+];
 
 export function activeMembershipQuery(query) {
-  return query.eq("membership_status", "active");
+  return query;
 }
 
 export async function selectActiveMemberships(select, filters = [], options = {}) {
@@ -70,10 +57,7 @@ export async function selectActiveMemberships(select, filters = [], options = {}
     return query;
   };
 
-  return runActiveMembershipQuery(
-    (applyActiveFilter) => applyActiveFilter(buildBaseQuery()),
-    () => buildBaseQuery(),
-  );
+  return buildBaseQuery();
 }
 
 export async function selectOrganizationMembershipsForManagement(organizationId) {
@@ -98,31 +82,11 @@ export async function selectOrganizationMembershipsForManagement(organizationId)
     )
   `;
 
-  const fullSelect = `
-    ${baseStudentSelect},
-    membership_status,
-    deactivated_at,
-    deactivation_reason,
-    reactivated_at
-  `;
-
   const query = (selectText) =>
     supabase
       .from("student_organizations")
       .select(selectText)
       .eq("organization_id", organizationId);
-
-  const { data, error } = await query(fullSelect);
-
-  if (!error) return { data: data || [], error: null };
-
-  const message = String(error.message || "").toLowerCase();
-  const missingMembershipStatus =
-    error.code === "42703" ||
-    message.includes("membership_status") ||
-    isMissingSchemaError(error);
-
-  if (!missingMembershipStatus) return { data: [], error };
 
   const fallback = await query(baseStudentSelect);
   return {
@@ -201,6 +165,7 @@ export function clearOrganizationAccessCache(studentId) {
   clearCachedValue("organization-catalog");
   clearCachedValue("organization-program-links");
   clearCachedValue("organization-program-schema-missing");
+  clearCachedValue("required-student-organization-ids");
   if (studentId) {
     clearCachedValue(`student-memberships:${studentId}`);
   }
@@ -372,6 +337,64 @@ export async function getOrganizationCatalog() {
   return setCachedValue("organization-catalog", organizations);
 }
 
+async function getRequiredStudentOrganizationIds() {
+  const cached = getCachedValue("required-student-organization-ids");
+  if (cached) return cached;
+
+  const { data, error } = await supabase
+    .from("organizations")
+    .select("id, name")
+    .in("name", REQUIRED_STUDENT_ORGANIZATION_NAMES);
+
+  if (error) {
+    console.warn("Required student organization lookup failed:", error.message);
+    return setCachedValue("required-student-organization-ids", []);
+  }
+
+  return setCachedValue(
+    "required-student-organization-ids",
+    (data || []).map((organization) => Number(organization.id)).filter(Boolean),
+  );
+}
+
+async function getProgramCoveredOrganizationIds(program) {
+  const normalizedProgram = normalizeProgram(program);
+  if (!normalizedProgram) return [];
+
+  const { data: programRecord, error: programError } =
+    await ensureProgram(normalizedProgram);
+
+  if (programError || !programRecord?.id) {
+    if (programError) {
+      console.warn("Program lookup failed for membership sync:", programError.message);
+    }
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("organization_programs")
+    .select("organization_id")
+    .eq("program_id", programRecord.id);
+
+  if (error) {
+    if (isMissingSchemaError(error)) {
+      setCachedValue("organization-program-schema-missing", true);
+      return [];
+    }
+
+    console.warn("Program organization lookup failed:", error.message);
+    return [];
+  }
+
+  return [
+    ...new Set(
+      (data || [])
+        .map((link) => Number(link.organization_id))
+        .filter(Boolean),
+    ),
+  ];
+}
+
 export async function getStudentOrganizationDirectory(student) {
   if (!student?.id) {
     return {
@@ -489,54 +512,11 @@ export async function getEligibleStudentOrganizationIds(student) {
 export async function getStudentElectionOrganizationIds(student) {
   if (!student?.id) return [];
 
-  let studentProfile = student;
-
-  if (!studentProfile.program) {
-    const { data, error } = await supabase
-      .from("students")
-      .select("id, program")
-      .eq("id", student.id)
-      .maybeSingle();
-
-    if (error) {
-      console.error("Failed to load student program:", error);
-    } else if (data) {
-      studentProfile = { ...studentProfile, ...data };
-    }
-  }
-
-  const [
-    eligibleOrganizationIds,
-    { data: directMemberships, error: membershipError },
-    organizations,
-  ] = await Promise.all([
-    getEligibleStudentOrganizationIds(studentProfile),
-    selectActiveMemberships("organization_id", [["student_id", studentProfile.id]]),
-    getOrganizationCatalog(),
-  ]);
-
-  if (membershipError) {
-    console.error("Failed to load direct student organization memberships:", membershipError);
-  }
-
-  const directOrganizationIds = (directMemberships || [])
-    .map((membership) => membership.organization_id)
-    .filter(Boolean);
-
-  const programCoveredOrganizationIds = (organizations || [])
-    .filter((organization) =>
-      isOrganizationEligibleForStudent(organization, studentProfile),
-    )
-    .map((organization) => organization.id);
-
+  const organizations = await getEligibleStudentOrganizations(student);
   return [
     ...new Set(
-      [
-        ...eligibleOrganizationIds,
-        ...directOrganizationIds,
-        ...programCoveredOrganizationIds,
-      ]
-        .map((id) => Number(id))
+      (organizations || [])
+        .map((organization) => Number(organization.id))
         .filter(Boolean),
     ),
   ];
@@ -556,16 +536,14 @@ export async function syncStudentOrganizationMemberships({
     };
   }
 
-  const organizations = await getOrganizationCatalog();
-  const derivedIds = organizations
-    .filter((organization) =>
-      isOrganizationEligibleForStudent(organization, { id: studentId, program }),
-    )
-    .map((organization) => organization.id);
+  const [requiredIds, derivedIds] = await Promise.all([
+    getRequiredStudentOrganizationIds(),
+    getProgramCoveredOrganizationIds(program),
+  ]);
 
   const organizationIds = [
     ...new Set(
-      [...derivedIds, ...explicitOrganizationIds]
+      [...requiredIds, ...derivedIds, ...explicitOrganizationIds]
         .map((id) => Number(id))
         .filter(Boolean),
     ),
@@ -698,26 +676,7 @@ export async function deactivateStudentOrganizationMembership({
     return { error: new Error("Student and organization are required.") };
   }
 
-  const { error } = await supabase
-    .from("student_organizations")
-    .update({
-      membership_status: "inactive",
-      deactivated_at: new Date().toISOString(),
-      deactivation_reason: reason || null,
-      reactivated_at: null,
-    })
-    .eq("student_id", studentId)
-    .eq("organization_id", organizationId);
-
-  if (error && isMissingSchemaError(error)) {
-    return { error: membershipLifecycleRequiredError() };
-  }
-
-  if (!error) {
-    clearCachedValue(`student-memberships:${studentId}`);
-  }
-
-  return { error };
+  return { error: membershipLifecycleRequiredError() };
 }
 
 export async function reactivateStudentOrganizationMembership({
@@ -728,26 +687,7 @@ export async function reactivateStudentOrganizationMembership({
     return { error: new Error("Student and organization are required.") };
   }
 
-  const { error } = await supabase
-    .from("student_organizations")
-    .update({
-      membership_status: "active",
-      deactivated_at: null,
-      deactivation_reason: null,
-      reactivated_at: new Date().toISOString(),
-    })
-    .eq("student_id", studentId)
-    .eq("organization_id", organizationId);
-
-  if (error && isMissingSchemaError(error)) {
-    return { error: membershipLifecycleRequiredError() };
-  }
-
-  if (!error) {
-    clearCachedValue(`student-memberships:${studentId}`);
-  }
-
-  return { error };
+  return { error: membershipLifecycleRequiredError() };
 }
 
 export async function removeStudentOrganizationMembership({

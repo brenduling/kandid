@@ -6,7 +6,7 @@ import PopupOverlay from "../../components/PopupOverlay";
 import { StudentAvatar } from "../../components/KandidImage";
 import { supabase } from "../../lib/supabaseClient";
 import { usePrompt } from "../../context/PromptContext";
-import { readFileAsDataUrl } from "../../utils/files";
+import { readImageFileAsCompressedDataUrl } from "../../utils/files";
 import {
   deactivateStudentOrganizationMembership,
   findOrCreateStudentByNumber,
@@ -206,7 +206,7 @@ function BoardStudents() {
   async function handlePhotoUpload(file) {
     if (!file) return;
 
-    const dataUrl = await readFileAsDataUrl(file);
+    const dataUrl = await readImageFileAsCompressedDataUrl(file);
     setForm({ ...form, photo_url: dataUrl });
   }
 

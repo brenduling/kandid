@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Menu } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import GlobalSearch from "./GlobalSearch";
@@ -13,6 +13,24 @@ function getMobilePlaceholder(role) {
 
 function MobileHeader({ user, onMenuClick, homePath = "/" }) {
   const navigate = useNavigate();
+  const [isMobileViewport, setIsMobileViewport] = useState(() =>
+    typeof window === "undefined"
+      ? false
+      : window.matchMedia("(max-width: 1023px)").matches,
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const query = window.matchMedia("(max-width: 1023px)");
+    const update = () => setIsMobileViewport(query.matches);
+    update();
+    query.addEventListener("change", update);
+
+    return () => {
+      query.removeEventListener("change", update);
+    };
+  }, []);
 
   return (
     <header className="mobile-app-header fixed inset-x-0 top-0 z-40 border-b border-gray-100 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-xl lg:hidden">
@@ -43,7 +61,7 @@ function MobileHeader({ user, onMenuClick, homePath = "/" }) {
         ) : null}
 
         <div className="mobile-header-actions">
-          {user && <NotificationCenter user={user} />}
+          {user && isMobileViewport ? <NotificationCenter user={user} /> : null}
 
           <button
             type="button"

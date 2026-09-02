@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { BarChart3, CalendarDays, CheckCircle, Clock3, Info, MapPin, Vote } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import ElectionManagementCard from "../../components/ElectionManagementCard";
 import { KandidInlineLoader } from "../../components/KandidLoader";
 import { supabase } from "../../lib/supabaseClient";
 import {
@@ -9,6 +10,7 @@ import {
   formatLocalDateTime,
   getElectionPhase,
   getElectionLocationLabel,
+  isMissingElectionCoverColumn,
 } from "../../utils/elections";
 import { getStudentElectionOrganizationIds } from "../../utils/organizationAccess";
 import { isMissingResultReleaseColumn } from "../../utils/results";
@@ -26,6 +28,7 @@ function friendlyPhase(phase) {
 const electionColumnsWithRelease = `
   id,
   title,
+  cover_url,
   organization_id,
   campaign_start,
   campaign_end,
@@ -36,12 +39,13 @@ const electionColumnsWithRelease = `
   location_label,
   student_result_visibility,
   results_released_at,
-  organizations(name)
+  organizations(name, logo_url)
 `;
 
 const electionColumnsWithoutRelease = `
   id,
   title,
+  cover_url,
   organization_id,
   campaign_start,
   campaign_end,
@@ -51,20 +55,28 @@ const electionColumnsWithoutRelease = `
   voting_access_mode,
   location_label,
   student_result_visibility,
-  organizations(name)
+  organizations(name, logo_url)
 `;
 
-function electionColumns(includeReleaseColumn) {
-  return includeReleaseColumn ? electionColumnsWithRelease : electionColumnsWithoutRelease;
+function electionColumns(includeReleaseColumn, includeCoverColumn = true) {
+  const columns = includeReleaseColumn
+    ? electionColumnsWithRelease
+    : electionColumnsWithoutRelease;
+
+  return includeCoverColumn ? columns : columns.replace(/\n\s*cover_url,\n/, "\n");
 }
 
-async function fetchVoteStatus(studentId, includeReleaseColumn = true) {
+async function fetchVoteStatus(
+  studentId,
+  includeReleaseColumn = true,
+  includeCoverColumn = true,
+) {
   const { data, error } = await supabase
     .from("votes")
     .select(`
       election_id,
       elections (
-        ${electionColumns(includeReleaseColumn)}
+        ${electionColumns(includeReleaseColumn, includeCoverColumn)}
       )
     `)
     .eq("student_id", studentId);
@@ -102,10 +114,22 @@ function StudentElections() {
       setLoadError("");
 
       const organizationIds = await getStudentElectionOrganizationIds(user);
-      let voteResponse = await fetchVoteStatus(user.id);
+      let includeReleaseColumn = true;
+      let includeCoverColumn = true;
+      let voteResponse = await fetchVoteStatus(
+        user.id,
+        includeReleaseColumn,
+        includeCoverColumn,
+      );
 
       if (isMissingResultReleaseColumn(voteResponse.error)) {
-        voteResponse = await fetchVoteStatus(user.id, false);
+        includeReleaseColumn = false;
+        voteResponse = await fetchVoteStatus(user.id, includeReleaseColumn, includeCoverColumn);
+      }
+
+      if (isMissingElectionCoverColumn(voteResponse.error)) {
+        includeCoverColumn = false;
+        voteResponse = await fetchVoteStatus(user.id, includeReleaseColumn, includeCoverColumn);
       }
 
       if (voteResponse.error) {
@@ -138,14 +162,17 @@ function StudentElections() {
         return;
       }
 
-      const buildElectionQueries = (includeReleaseColumn = true) => {
+      const buildElectionQueries = (
+        nextIncludeReleaseColumn = includeReleaseColumn,
+        nextIncludeCoverColumn = includeCoverColumn,
+      ) => {
         const queries = [];
 
         if (organizationIds.length > 0) {
           queries.push(
             supabase
               .from("elections")
-              .select(electionColumns(includeReleaseColumn))
+              .select(electionColumns(nextIncludeReleaseColumn, nextIncludeCoverColumn))
               .in("organization_id", organizationIds)
               .neq("status", "draft")
               .neq("status", "archived")
@@ -157,7 +184,7 @@ function StudentElections() {
           queries.push(
             supabase
               .from("elections")
-              .select(electionColumns(includeReleaseColumn))
+              .select(electionColumns(nextIncludeReleaseColumn, nextIncludeCoverColumn))
               .in("id", votedElectionIds)
               .neq("status", "draft")
               .neq("status", "archived")
@@ -171,7 +198,13 @@ function StudentElections() {
       let electionResponses = await Promise.all(buildElectionQueries());
 
       if (electionResponses.some((response) => isMissingResultReleaseColumn(response.error))) {
-        electionResponses = await Promise.all(buildElectionQueries(false));
+        includeReleaseColumn = false;
+        electionResponses = await Promise.all(buildElectionQueries(includeReleaseColumn, includeCoverColumn));
+      }
+
+      if (electionResponses.some((response) => isMissingElectionCoverColumn(response.error))) {
+        includeCoverColumn = false;
+        electionResponses = await Promise.all(buildElectionQueries(includeReleaseColumn, includeCoverColumn));
       }
 
       if (!active) return;
@@ -361,11 +394,11 @@ function StudentElections() {
 
             return (
               <article key={election.id} className="student-election-card">
-                <div className="student-election-art" />
-                <h2>{election.title}</h2>
-                <span className="student-election-status">
-                  Status: {friendlyPhase(phase)}
-                </span>
+                <ElectionManagementCard
+                  election={election}
+                  eyebrow="Student Election"
+                  statusLabel={friendlyPhase(phase)}
+                />
 
                 <div className="student-election-meta">
                   <p>

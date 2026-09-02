@@ -1,70 +1,44 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
-import { canStudentViewResults } from "../../utils/elections";
+import {
+  canStudentViewResults,
+  isMissingElectionCoverColumn,
+} from "../../utils/elections";
 import { getStudentElectionOrganizationIds } from "../../utils/organizationAccess";
+import { fetchResultDimensions } from "../../utils/resultDimensions";
+import { fetchElectionResultDataset } from "../../utils/resultDataLoader";
 import {
   buildElectionAnalytics,
   isMissingResultReleaseColumn,
   resultVisibilityLabel,
 } from "../../utils/results";
-import { isMissingPositionOrderError } from "../../utils/positionOrder";
 import {
   ElectionResultsChart,
   HorizontalStatChart,
 } from "../../components/ResultsVisualization";
-
-async function fetchResultVotes(electionIds, includeDisplayOrder = true) {
-  const positionColumns = includeDisplayOrder ? "id, name, display_order" : "id, name";
-
-  return supabase
-    .from("votes")
-    .select(`
-      *,
-      students (
-        program,
-        year_level
-      ),
-      candidates (
-        id,
-        photo,
-        students (first_name, last_name, photo_url),
-        partylists (name)
-      ),
-      positions (${positionColumns})
-    `)
-    .in("election_id", electionIds);
-}
-
-async function fetchResultCandidates(electionId, includeDisplayOrder = true) {
-  const positionColumns = includeDisplayOrder ? "id, name, display_order, election_id" : "id, name, election_id";
-
-  if (!electionId) {
-    return { data: [], error: null };
-  }
-
-  return supabase
-    .from("candidates")
-    .select(`
-      id,
-      photo,
-      position_id,
-      students (first_name, last_name, photo_url),
-      partylists (name),
-      positions!inner (${positionColumns})
-    `)
-    .eq("positions.election_id", electionId);
-}
+import ElectionCover from "../../components/ElectionCover";
 
 const electionSelectWithRelease =
+  "id, title, cover_url, status, start_date, end_date, student_result_visibility, results_released_at, organization_id, organizations(name)";
+const electionSelectWithReleaseWithoutCover =
   "id, title, status, start_date, end_date, student_result_visibility, results_released_at, organization_id, organizations(name)";
 const electionSelectWithoutRelease =
   "id, title, status, start_date, end_date, student_result_visibility, organization_id, organizations(name)";
 
-async function fetchResultElections(organizationIds, includeReleaseColumn = true) {
+async function fetchResultElections(
+  organizationIds,
+  includeReleaseColumn = true,
+  includeCoverColumn = true,
+) {
+  const selectColumns = includeReleaseColumn
+    ? includeCoverColumn
+      ? electionSelectWithRelease
+      : electionSelectWithReleaseWithoutCover
+    : electionSelectWithoutRelease;
   const { data, error } = await supabase
     .from("elections")
-    .select(includeReleaseColumn ? electionSelectWithRelease : electionSelectWithoutRelease)
+    .select(selectColumns)
     .in("organization_id", organizationIds)
     .neq("status", "draft")
     .neq("status", "archived")
@@ -85,6 +59,8 @@ function StudentResults() {
   const [votes, setVotes] = useState([]);
   const [candidates, setCandidates] = useState([]);
   const [voteLoadError, setVoteLoadError] = useState("");
+  const [voterBreakdownMode, setVoterBreakdownMode] = useState("program");
+  const [resultDimensions, setResultDimensions] = useState({ programs: [], yearLevels: [] });
   const [selectedElection, setSelectedElection] = useState(
     searchParams.get("election") || ""
   );
@@ -101,6 +77,12 @@ function StudentResults() {
 
       let { data: electionData, error: electionError } =
         await fetchResultElections(organizationIds);
+
+      if (isMissingElectionCoverColumn(electionError)) {
+        const fallback = await fetchResultElections(organizationIds, true, false);
+        electionData = fallback.data;
+        electionError = fallback.error;
+      }
 
       if (isMissingResultReleaseColumn(electionError)) {
         const fallback = await fetchResultElections(organizationIds, false);
@@ -135,57 +117,28 @@ function StudentResults() {
     async function loadSelectedVotes() {
       setVotes([]);
       setCandidates([]);
+      setResultDimensions({ programs: [], yearLevels: [] });
       setVoteLoadError("");
 
       if (!activeElection || !canStudentViewResults(activeElection)) return;
 
-      let { data: voteData, error: voteError } = await fetchResultVotes([
-        activeElection.id,
+      const [resultDataset, dimensions] = await Promise.all([
+        fetchElectionResultDataset(activeElection),
+        fetchResultDimensions(activeElection),
       ]);
 
-      if (isMissingPositionOrderError(voteError)) {
-        const fallback = await fetchResultVotes([activeElection.id], false);
-        voteData = (fallback.data || []).map((vote) => ({
-          ...vote,
-          positions: {
-            ...vote.positions,
-            display_order: vote.position_id,
-          },
-        }));
-        voteError = fallback.error;
-      }
+      const { votes: voteData, candidates: candidateData, error: resultsError } = resultDataset;
 
       if (!active) return;
 
-      if (voteError) {
-        setVoteLoadError(voteError.message || "Unable to load result totals.");
+      if (resultsError) {
+        setVoteLoadError(resultsError.message || "Unable to load result totals.");
         return;
       }
 
       setVotes(voteData || []);
-
-      let { data: candidateData, error: candidateError } = await fetchResultCandidates(activeElection.id);
-
-      if (isMissingPositionOrderError(candidateError)) {
-        const fallback = await fetchResultCandidates(activeElection.id, false);
-        candidateData = (fallback.data || []).map((candidate) => ({
-          ...candidate,
-          positions: {
-            ...candidate.positions,
-            display_order: candidate.position_id,
-          },
-        }));
-        candidateError = fallback.error;
-      }
-
-      if (!active) return;
-
-      if (candidateError) {
-        setVoteLoadError(candidateError.message || "Unable to load candidate totals.");
-        return;
-      }
-
       setCandidates(candidateData || []);
+      setResultDimensions(dimensions);
     }
 
     loadSelectedVotes();
@@ -204,6 +157,9 @@ function StudentResults() {
         totalAbstains: 0,
         allocationLabel: "Allocation",
         allocationItems: [],
+        programItems: [],
+        yearLevelItems: [],
+        organizationItems: [],
         organizationName: "Organization",
       };
     }
@@ -212,8 +168,29 @@ function StudentResults() {
       (vote) => vote.election_id === Number(selectedElection)
     );
 
-    return buildElectionAnalytics(filteredVotes, activeElection, candidates);
-  }, [activeElection, candidates, selectedElection, votes]);
+    return buildElectionAnalytics(
+      filteredVotes,
+      activeElection ? { ...activeElection, resultDimensions } : activeElection,
+      candidates,
+    );
+  }, [activeElection, candidates, resultDimensions, selectedElection, votes]);
+  const voterBreakdownConfig = {
+    program: {
+      label: "Program Allocation",
+      items: analytics.programItems || analytics.allocationItems,
+      mode: "program",
+    },
+    year_level: {
+      label: "Year Level Allocation",
+      items: analytics.yearLevelItems || [],
+      mode: "year_level",
+    },
+    organization: {
+      label: "Organization Voters",
+      items: analytics.organizationItems || [],
+      mode: "organization",
+    },
+  }[voterBreakdownMode];
 
   function handleSelectElection(value) {
     setSelectedElection(value);
@@ -252,6 +229,11 @@ function StudentResults() {
           </select>
         </div>
       </div>
+      {activeElection?.cover_url ? (
+        <div className="mt-4 max-w-xl">
+          <ElectionCover election={activeElection} />
+        </div>
+      ) : null}
 
       <div className="mt-8 space-y-6">
         {!selectedElection ? (
@@ -293,12 +275,19 @@ function StudentResults() {
 
             <div className="section-grid grid-cols-1 xl:grid-cols-[0.9fr_1.1fr]">
               <HorizontalStatChart
-                eyebrow={analytics.allocationLabel}
+                eyebrow={voterBreakdownConfig.label}
                 title="Voter distribution"
                 subtitle="Published aggregate voter demographics for this election."
                 badge={analytics.organizationName}
-                items={analytics.allocationItems}
-                mode={analytics.allocationMode}
+                items={voterBreakdownConfig.items}
+                mode={voterBreakdownConfig.mode}
+                filters={[
+                  { value: "program", label: "Program" },
+                  { value: "year_level", label: "Year Level" },
+                  { value: "organization", label: "Organization" },
+                ]}
+                activeFilter={voterBreakdownMode}
+                onFilterChange={setVoterBreakdownMode}
               />
 
               <div className="glass-panel-dark rounded-[30px] p-7 text-white">
@@ -317,6 +306,7 @@ function StudentResults() {
             <ElectionResultsChart
               groups={Object.values(analytics.groupedResults)}
               totalVoters={analytics.totalUniqueVoters}
+              dimensions={analytics.resultDimensions}
             />
           </>
         )}

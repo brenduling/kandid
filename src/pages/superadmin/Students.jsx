@@ -4,7 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import PopupOverlay from "../../components/PopupOverlay";
 import { OrganizationLogo, StudentAvatar } from "../../components/KandidImage";
 import { supabase } from "../../lib/supabaseClient";
-import { readFileAsDataUrl } from "../../utils/files";
+import { readImageFileAsCompressedDataUrl } from "../../utils/files";
 import {
   findOrCreateStudentByNumber,
   syncStudentOrganizationMemberships,
@@ -14,6 +14,21 @@ import { logAuditEvent } from "../../utils/auditLog";
 import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
 
 const PAGE_SIZE = 25;
+const STUDENT_DIRECTORY_SELECT = `
+  id,
+  student_number,
+  first_name,
+  last_name,
+  email,
+  photo_url,
+  program,
+  year_level,
+  precinct_code,
+  batch_code,
+  is_shs,
+  status,
+  created_at
+`;
 
 const sortOptions = {
   name_asc: { label: "Name: A-Z", column: "last_name", ascending: true },
@@ -43,6 +58,7 @@ function Students() {
   const [totalStudents, setTotalStudents] = useState(0);
   const [loadingStudents, setLoadingStudents] = useState(true);
   const [studentsError, setStudentsError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const [form, setForm] = useState({
     student_number: "",
@@ -79,6 +95,68 @@ function Students() {
   useEffect(() => {
     fetchStudents();
   }, [debouncedSearch, organizationFilter, statusFilter, sortBy, page]);
+
+  async function attachVisibleStudentOrganizations(studentRows = []) {
+    const studentIds = [
+      ...new Set(
+        studentRows
+          .map((student) => Number(student.id))
+          .filter((id) => Number.isFinite(id) && id > 0),
+      ),
+    ];
+
+    if (studentIds.length === 0) {
+      return { data: studentRows, error: null };
+    }
+
+    let organizationRows = organizations;
+    if (organizationRows.length === 0) {
+      const { data: organizationData, error: organizationError } = await supabase
+        .from("organizations")
+        .select("id, name, description, logo_url, organization_type")
+        .order("name", { ascending: true });
+
+      if (organizationError) {
+        return { data: [], error: organizationError };
+      }
+
+      organizationRows = organizationData || [];
+      setOrganizations(organizationRows);
+    }
+
+    const { data, error } = await supabase
+      .from("student_organizations")
+      .select("student_id, organization_id, role")
+      .in("student_id", studentIds);
+
+    if (error) {
+      return { data: [], error };
+    }
+
+    const organizationById = new Map(
+      organizationRows.map((organization) => [Number(organization.id), organization]),
+    );
+    const membershipsByStudentId = new Map();
+    (data || []).forEach((membership) => {
+      const key = Number(membership.student_id);
+      if (!membershipsByStudentId.has(key)) {
+        membershipsByStudentId.set(key, []);
+      }
+      membershipsByStudentId.get(key).push({
+        organization_id: membership.organization_id,
+        role: membership.role,
+        organizations: organizationById.get(Number(membership.organization_id)) || null,
+      });
+    });
+
+    return {
+      data: studentRows.map((student) => ({
+        ...student,
+        student_organizations: membershipsByStudentId.get(Number(student.id)) || [],
+      })),
+      error: null,
+    };
+  }
 
   async function fetchStudents() {
     setLoadingStudents(true);
@@ -117,32 +195,7 @@ function Students() {
 
     let query = supabase
       .from("students")
-      .select(`
-        id,
-        student_number,
-        first_name,
-        last_name,
-        email,
-        photo_url,
-        program,
-        year_level,
-        precinct_code,
-        batch_code,
-        is_shs,
-        status,
-        created_at,
-        student_organizations (
-          organization_id,
-          role,
-          organizations (
-            id,
-            name,
-            description,
-            logo_url,
-            organization_type
-          )
-        )
-      `, { count: "exact" });
+      .select(STUDENT_DIRECTORY_SELECT, { count: "exact" });
 
     if (allowedStudentIds) {
       query = query.in("id", allowedStudentIds);
@@ -174,7 +227,24 @@ function Students() {
       return;
     }
 
-    setStudents(data || []);
+    const {
+      data: studentsWithOrganizations,
+      error: organizationError,
+    } = await attachVisibleStudentOrganizations(data || []);
+
+    if (organizationError) {
+      console.error("Failed to load visible student organizations:", organizationError);
+      setStudents([]);
+      setTotalStudents(0);
+      setStudentsError(
+        organizationError.message ||
+          "Unable to load student organization assignments. Please try again."
+      );
+      setLoadingStudents(false);
+      return;
+    }
+
+    setStudents(studentsWithOrganizations || []);
     setTotalStudents(count || 0);
     setLoadingStudents(false);
   }
@@ -269,7 +339,7 @@ function Students() {
   async function handlePhotoUpload(file) {
     if (!file) return;
 
-    const dataUrl = await readFileAsDataUrl(file);
+    const dataUrl = await readImageFileAsCompressedDataUrl(file);
 
     setForm((previous) => ({
       ...previous,
@@ -279,6 +349,10 @@ function Students() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+
+    if (submitting) return;
+
+    setSubmitting(true);
 
     const payload = {
       student_number: form.student_number,
@@ -327,6 +401,7 @@ function Students() {
         error.message || "Failed to save student."
       );
 
+      setSubmitting(false);
       return;
     }
 
@@ -340,6 +415,7 @@ function Students() {
         "Student was saved, but the student ID could not be determined."
       );
 
+      setSubmitting(false);
       return;
     }
 
@@ -367,6 +443,7 @@ function Students() {
         "Failed to link student to organizations."
       );
 
+      setSubmitting(false);
       return;
     }
 
@@ -425,6 +502,7 @@ function Students() {
     });
 
     setFormOpen(false);
+    setSubmitting(false);
 
     fetchStudents();
     return;
@@ -1264,8 +1342,11 @@ function Students() {
                 <button
                   type="submit"
                   className="primary-btn min-w-52"
+                  disabled={submitting}
                 >
-                  {editingStudent
+                  {submitting
+                    ? "Saving..."
+                    : editingStudent
                     ? "Save Changes"
                     : "Create Student"}
                 </button>

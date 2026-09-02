@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Pencil, Trash2, X } from "lucide-react";
+import { Plus, Pencil, Trash2, X, UsersRound } from "lucide-react";
 import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
 import { readFileAsDataUrl } from "../../utils/files";
@@ -10,6 +10,7 @@ import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/delete
 function Partylists() {
   const prompt = usePrompt();
   const [partylists, setPartylists] = useState([]);
+  const [candidateCounts, setCandidateCounts] = useState({});
   const [elections, setElections] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -36,6 +37,24 @@ function Partylists() {
       .order("id", { ascending: true });
 
     setPartylists(data || []);
+
+    if (!data?.length) {
+      setCandidateCounts({});
+      return;
+    }
+
+    const { data: candidateRows } = await supabase
+      .from("candidates")
+      .select("partylist_id")
+      .in("partylist_id", data.map((partylist) => partylist.id));
+
+    setCandidateCounts(
+      (candidateRows || []).reduce((counts, candidate) => {
+        if (!candidate.partylist_id) return counts;
+        counts[candidate.partylist_id] = (counts[candidate.partylist_id] || 0) + 1;
+        return counts;
+      }, {}),
+    );
   }
 
   async function fetchElections() {
@@ -180,71 +199,42 @@ function Partylists() {
         </button>
       </div>
 
-      <div className="table-shell mt-8">
-        <table className="app-table">
-          <thead>
-            <tr>
-              <th>Logo</th>
-              <th>Name</th>
-              <th>Election</th>
-              <th>Description</th>
-              <th className="text-right">Actions</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {partylists.length === 0 ? (
-              <tr>
-                <td colSpan="5" className="px-6 py-10 text-center empty-copy">
-                  No partylists found.
-                </td>
-              </tr>
-            ) : (
-              partylists.map((p) => (
-                <tr key={p.id}>
-                  <td>
-                    {p.logo_url ? (
-                      <img
-                        src={p.logo_url}
-                        alt={`${p.name} logo`}
-                        className="h-12 w-12 rounded-2xl object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[rgba(17,128,106,0.12)] text-xs font-black text-[#11806a]">
-                        LOGO
-                      </div>
-                    )}
-                  </td>
-                  <td className="font-bold">{p.name}</td>
-                  <td>
-                    {p.elections?.title || "-"}
-                  </td>
-                  <td className="text-[#5a5548]">
-                    {p.description || "No description"}
-                  </td>
-                  <td>
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => openEdit(p)}
-                        className="icon-action"
-                      >
-                        <Pencil size={16} />
-                      </button>
-
-                      <button
-                        onClick={() => handleDelete(p)}
-                        className="icon-action icon-action-danger"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      {partylists.length === 0 ? (
+        <div className="empty-state mt-8">No partylists found.</div>
+      ) : (
+        <div className="partylist-card-grid mt-8">
+          {partylists.map((p) => (
+            <article key={p.id} className="partylist-card">
+              <div className="partylist-card-logo">
+                {p.logo_url ? (
+                  <img src={p.logo_url} alt={`${p.name} logo`} />
+                ) : (
+                  <span>{p.name?.slice(0, 2).toUpperCase() || "PL"}</span>
+                )}
+              </div>
+              <div className="partylist-card-body">
+                <p className="page-kicker">{p.elections?.title || "Election"}</p>
+                <h2>{p.name}</h2>
+                <p>{p.description || "No description provided."}</p>
+              </div>
+              <div className="partylist-card-footer">
+                <span>
+                  <UsersRound size={16} />
+                  {candidateCounts[p.id] || 0} candidate{candidateCounts[p.id] === 1 ? "" : "s"}
+                </span>
+                <div className="flex gap-2">
+                  <button onClick={() => openEdit(p)} className="icon-action" title="Edit partylist">
+                    <Pencil size={16} />
+                  </button>
+                  <button onClick={() => handleDelete(p)} className="icon-action icon-action-danger" title="Delete partylist">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
 
       {formOpen && (
         <PopupOverlay>

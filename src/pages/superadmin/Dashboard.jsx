@@ -21,6 +21,14 @@ function Dashboard() {
   const [programStats, setProgramStats] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
   const [loading, setLoading] = useState(true);
+  const voteGraphTones = [
+    "linear-gradient(180deg, #ff6a33 0%, #d63d12 100%)",
+    "linear-gradient(180deg, #f59e0b 0%, #c2410c 100%)",
+    "linear-gradient(180deg, #14b8a6 0%, #0f766e 100%)",
+    "linear-gradient(180deg, #64748b 0%, #334155 100%)",
+    "linear-gradient(180deg, #fb7185 0%, #be123c 100%)",
+    "linear-gradient(180deg, #38bdf8 0%, #2563eb 100%)",
+  ];
 
   useEffect(() => {
     fetchDashboardData();
@@ -77,6 +85,7 @@ function Dashboard() {
         .map(([program, count]) => ({
           program,
           count,
+          share: totalPrograms > 0 ? Math.round((count / totalPrograms) * 100) : 0,
           percent:
             totalPrograms > 0 ? Math.max(8, Math.round((count / totalPrograms) * 100)) : 0,
         }))
@@ -144,7 +153,7 @@ function Dashboard() {
 
               {/* Bar Chart */}
               <div className="mt-6">
-                <div className="flex h-[200px] items-end gap-3 overflow-hidden rounded-[24px] bg-slate-50/50 border border-slate-100/80 px-6 pb-6 pt-6">
+                <div className="flex h-[200px] items-end gap-3 overflow-visible rounded-[24px] bg-slate-50/50 border border-slate-100/80 px-6 pb-6 pt-6">
                   {(programStats.length > 0
                     ? programStats
                     : [
@@ -155,11 +164,34 @@ function Dashboard() {
                         { program: "EE", count: 10, percent: 20 },
                         { program: "BBA", count: 10, percent: 20 },
                       ]
-                  ).map((item) => (
-                    <div key={item.program} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-3 h-full">
+                  ).map((item, index) => (
+                    <div
+                      key={item.program}
+                      className="group relative flex min-w-0 flex-1 flex-col items-center justify-end gap-3 h-full"
+                      tabIndex={0}
+                    >
+                      <div className="pointer-events-none absolute bottom-[calc(100%+0.75rem)] left-1/2 z-20 w-44 -translate-x-1/2 rounded-2xl border border-orange-100 bg-white px-4 py-3 text-left opacity-0 shadow-2xl shadow-orange-100/70 transition duration-150 group-hover:opacity-100 group-focus:opacity-100">
+                        <p className="truncate text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+                          {item.program}
+                        </p>
+                        <div className="mt-2 flex items-end justify-between gap-3">
+                          <strong className="text-2xl font-black leading-none text-[#c2410c]">
+                            {item.count.toLocaleString()}
+                          </strong>
+                          <span className="rounded-full bg-orange-50 px-2.5 py-1 text-xs font-black text-[#c2410c]">
+                            {item.share ?? item.percent}%
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs font-semibold text-slate-500">
+                          votes from this program
+                        </p>
+                      </div>
                       <div
-                        className="w-full rounded-t-[10px] bg-gradient-to-t from-[#c2410c] to-[#ea580c] shadow-[0_8px_18px_rgba(194,65,12,0.15)]"
-                        style={{ height: `${Math.max(item.percent * 1.5, 20)}px` }}
+                        className="w-full rounded-t-[10px] shadow-[0_8px_18px_rgba(194,65,12,0.15)] transition duration-150 group-hover:-translate-y-1 group-hover:shadow-[0_14px_28px_rgba(194,65,12,0.24)] group-focus:-translate-y-1 group-focus:shadow-[0_14px_28px_rgba(194,65,12,0.24)]"
+                        style={{
+                          height: `${Math.max(item.percent * 1.5, 20)}px`,
+                          background: voteGraphTones[index % voteGraphTones.length],
+                        }}
                       />
                       <p className="w-full truncate text-center text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
                         {item.program}

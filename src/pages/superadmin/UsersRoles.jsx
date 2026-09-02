@@ -9,6 +9,7 @@ import {
   X,
 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
+import OrganizationSelect from "../../components/OrganizationSelect";
 import { usePrompt } from "../../context/PromptContext";
 import { logAuditEvent } from "../../utils/auditLog";
 import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
@@ -52,7 +53,7 @@ function UsersRoles() {
   async function fetchOrganizations() {
     const { data, error } = await supabase
       .from("organizations")
-      .select("id, name")
+      .select("id, name, logo_url")
       .order("name", { ascending: true });
 
     if (!error) setOrganizations(data || []);
@@ -507,22 +508,15 @@ function UsersRoles() {
               </div>
 
               {form.role === "electoral_board" ? (
-                <div>
-                  <label className="field-label">Assigned Organization</label>
-                  <select
-                    required
-                    value={form.organization_id}
-                    onChange={(e) => setForm({ ...form, organization_id: e.target.value })}
-                    className="field-shell w-full"
-                  >
-                    <option value="">Select organization for this board account</option>
-                    {organizations.map((org) => (
-                      <option key={org.id} value={org.id}>
-                        {org.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <OrganizationSelect
+                  label="Assigned Organization"
+                  organizations={organizations}
+                  value={form.organization_id}
+                  onChange={(organizationId) =>
+                    setForm({ ...form, organization_id: organizationId })
+                  }
+                  placeholder="Select organization for this board account"
+                />
               ) : (
                 <div className="app-panel">
                   <p className="text-sm font-bold text-[#102220]">Organization Scope</p>

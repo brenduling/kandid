@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Archive, ChevronDown, Plus, Pencil, Trash2, X } from "lucide-react";
+import { Archive, ArrowDown, ArrowUp, Plus, Pencil, Trash2, X } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import PopupOverlay from "../../components/PopupOverlay";
+import ElectionManagementCard from "../../components/ElectionManagementCard";
 import { supabase } from "../../lib/supabaseClient";
 import { usePrompt } from "../../context/PromptContext";
 import { logAuditEvent } from "../../utils/auditLog";
@@ -10,6 +11,7 @@ import {
   isMissingPositionOrderError,
   sortPositions,
 } from "../../utils/positionOrder";
+import { getElectionPhase, isMissingElectionCoverColumn } from "../../utils/elections";
 
 function isMissingPositionStatusError(error) {
   return /positions\.status|column positions\.status does not exist/i.test(
@@ -28,7 +30,9 @@ function BoardPositions() {
   const [editing, setEditing] = useState(null);
   const [positionFilter, setPositionFilter] = useState("active");
   const [positionLifecycleReady, setPositionLifecycleReady] = useState(true);
-  const [expandedElectionIds, setExpandedElectionIds] = useState({});
+  const [selectedElectionId, setSelectedElectionId] = useState(focusedElectionId);
+  const [positionCounts, setPositionCounts] = useState({});
+  const [draggedPositionId, setDraggedPositionId] = useState(null);
 
   const [form, setForm] = useState({
     election_id: "",
@@ -43,48 +47,79 @@ function BoardPositions() {
 
   useEffect(() => {
     fetchElections();
-    fetchPositions();
   }, []);
 
-  async function fetchElections() {
-    if (!orgId) return;
+  useEffect(() => {
+    setSelectedElectionId(focusedElectionId);
+  }, [focusedElectionId]);
 
-    const { data } = await supabase
-      .from("elections")
-      .select("id, title")
-      .eq("organization_id", orgId)
-      .order("created_at", { ascending: false });
-
-    setElections(data || []);
-  }
-
-  async function fetchPositions() {
-    if (!orgId) return;
-
-    const { data: orgElections } = await supabase
-      .from("elections")
-      .select("id")
-      .eq("organization_id", orgId);
-
-    const electionIds = orgElections?.map((e) => e.id) || [];
-
-    if (electionIds.length === 0) {
+  useEffect(() => {
+    if (!selectedElectionId) {
       setPositions([]);
       return;
     }
 
-    const lifecycleSelect = `
-        id,
-        election_id,
-        name,
-        max_votes,
-        display_order,
-        status,
-        elections (
-          title,
-          organization_id
-        )
-      `;
+    let cancelled = false;
+    fetchPositions(selectedElectionId, () => cancelled);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedElectionId]);
+
+  async function fetchElections() {
+    if (!orgId) return;
+
+    let { data, error } = await supabase
+      .from("elections")
+      .select("id, title, cover_url, status, campaign_start, campaign_end, start_date, end_date")
+      .eq("organization_id", orgId)
+      .order("created_at", { ascending: false });
+
+    if (isMissingElectionCoverColumn(error)) {
+      const fallback = await supabase
+        .from("elections")
+        .select("id, title, status, campaign_start, campaign_end, start_date, end_date")
+        .eq("organization_id", orgId)
+        .order("created_at", { ascending: false });
+      data = fallback.data;
+      error = fallback.error;
+    }
+
+    if (error) {
+      prompt.error(error.message || "Failed to load elections.");
+      return;
+    }
+
+    setElections(data || []);
+    fetchPositionCounts(data || []);
+  }
+
+  async function fetchPositionCounts(electionRows) {
+    if (!orgId) return;
+    const electionIds = (electionRows || []).map((election) => election.id);
+    if (electionIds.length === 0) {
+      setPositionCounts({});
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("positions")
+      .select("id, election_id")
+      .in("election_id", electionIds);
+
+    if (error) return;
+
+    const counts = Object.fromEntries(electionIds.map((id) => [id, 0]));
+    (data || []).forEach((position) => {
+      counts[position.election_id] = (counts[position.election_id] || 0) + 1;
+    });
+    setPositionCounts(counts);
+  }
+
+  async function fetchPositions(electionId = selectedElectionId, isStale = () => false) {
+    if (!orgId || !electionId) return;
+
     const baseSelect = `
         id,
         election_id,
@@ -96,42 +131,44 @@ function BoardPositions() {
         )
       `;
 
-    let { data, error } = await supabase
+    const { data, error } = await supabase
       .from("positions")
-      .select(lifecycleSelect)
-      .in("election_id", electionIds)
-      .order("display_order", { ascending: true })
+      .select(baseSelect)
+      .eq("election_id", electionId)
       .order("id", { ascending: true });
 
-    if (isMissingPositionStatusError(error) || isMissingPositionOrderError(error)) {
-      console.warn("Position lifecycle migration is not applied yet:", error);
-      setPositionLifecycleReady(!isMissingPositionStatusError(error));
-      const fallback = await supabase
-        .from("positions")
-        .select(baseSelect)
-        .in("election_id", electionIds)
-        .order("id", { ascending: true });
-      data = (fallback.data || []).map((position, index) => ({
-        ...position,
-        status: "active",
-        display_order: index + 1,
-      }));
-      error = fallback.error;
-    } else {
-      setPositionLifecycleReady(true);
-    }
+    setPositionLifecycleReady(false);
 
     if (error) {
       console.error("Failed to load board positions:", error);
+      if (isStale()) return;
       prompt.error("Unable to load positions because the configuration could not be retrieved.");
       return;
     }
 
-    setPositions(sortPositions(data || []));
+    if (isStale()) return;
+    const nextPositions = (data || []).map((position, index) => ({
+      ...position,
+      status: "active",
+      display_order: index + 1,
+    }));
+    setPositions(nextPositions);
+    setPositionCounts((current) => ({
+      ...current,
+      [electionId]: nextPositions.length,
+    }));
   }
 
-  function openCreate() {
-    const defaultElectionId = focusedElectionId || "";
+  function openCreate(electionId = "") {
+    const defaultElectionId = electionId || focusedElectionId || "";
+    const election = elections.find((item) => String(item.id) === String(defaultElectionId));
+    if (
+      election &&
+      ["closed", "archived", "done"].includes(String(getElectionPhase(election)).toLowerCase())
+    ) {
+      prompt.error("This election is closed. Position forms are no longer available.");
+      return;
+    }
     setEditing(null);
     setForm({
       election_id: defaultElectionId,
@@ -150,7 +187,7 @@ function BoardPositions() {
     );
     return existing.length
       ? Math.max(...existing.map((position) => Number(position.display_order || 0))) + 1
-      : 1;
+      : Number(positionCounts[electionId] || 0) + 1;
   }
 
   function openEdit(position) {
@@ -171,33 +208,33 @@ function BoardPositions() {
       election_id: Number(form.election_id),
       name: form.name,
       max_votes: Number(form.max_votes),
-      display_order: Number(form.display_order || positions.length + 1),
     };
+
+    const selectedFormElection = elections.find(
+      (election) => Number(election.id) === Number(payload.election_id)
+    );
+    if (
+      selectedFormElection &&
+      ["closed", "archived", "done"].includes(String(getElectionPhase(selectedFormElection)).toLowerCase())
+    ) {
+      prompt.error("This election is closed. Position forms are no longer available.");
+      return;
+    }
 
     const creatingPosition = !editing;
     let savedId = editing?.id;
 
     if (editing) {
-      let { data, error } = await supabase
+      const { data, error } = await supabase
         .from("positions")
-        .update(payload)
+        .update({
+          election_id: payload.election_id,
+          name: payload.name,
+          max_votes: payload.max_votes,
+        })
         .eq("id", editing.id)
         .select("id")
         .single();
-      if (isMissingPositionOrderError(error)) {
-        const fallback = await supabase
-          .from("positions")
-          .update({
-            election_id: payload.election_id,
-            name: payload.name,
-            max_votes: payload.max_votes,
-          })
-          .eq("id", editing.id)
-          .select("id")
-          .single();
-        data = fallback.data;
-        error = fallback.error;
-      }
       if (error) {
         prompt.error(error.message || "Failed to update position.");
         return;
@@ -205,24 +242,11 @@ function BoardPositions() {
       savedId = data?.id || editing.id;
       prompt.success("Position updated.");
     } else {
-      let { data, error } = await supabase
+      const { data, error } = await supabase
         .from("positions")
         .insert([payload])
         .select("id")
         .single();
-      if (isMissingPositionOrderError(error)) {
-        const fallback = await supabase
-          .from("positions")
-          .insert([{
-            election_id: payload.election_id,
-            name: payload.name,
-            max_votes: payload.max_votes,
-          }])
-          .select("id")
-          .single();
-        data = fallback.data;
-        error = fallback.error;
-      }
       if (error) {
         prompt.error(error.message || "Failed to create position.");
         return;
@@ -365,7 +389,7 @@ function BoardPositions() {
   }
 
   const visiblePositions = positions.filter((position) => {
-    if (focusedElectionId && Number(position.election_id) !== Number(focusedElectionId)) {
+    if (selectedElectionId && Number(position.election_id) !== Number(selectedElectionId)) {
       return false;
     }
     if (!positionLifecycleReady && positionFilter === "retired") return false;
@@ -381,30 +405,94 @@ function BoardPositions() {
   const retiredPositionCount = positions.filter(
     (position) => position.status === "retired"
   ).length;
-  const positionsByElection = elections
-    .filter(
-      (election) => !focusedElectionId || Number(election.id) === Number(focusedElectionId)
-    )
-    .map((election) => ({
-      ...election,
-      positions: visiblePositions.filter(
-        (position) => Number(position.election_id) === Number(election.id)
-      ),
-    }))
-    .filter((election) => focusedElectionId || election.positions.length > 0);
+  const selectedElection = elections.find(
+    (election) => Number(election.id) === Number(selectedElectionId)
+  );
+  const positionCountsByElection = positionCounts;
 
-  function isElectionExpanded(electionId, index) {
-    if (Object.prototype.hasOwnProperty.call(expandedElectionIds, electionId)) {
-      return expandedElectionIds[electionId];
+  async function movePosition(position, direction) {
+    if (!positionLifecycleReady) {
+      prompt.error("Position sequencing requires the display order migration in Supabase.");
+      return;
     }
-    return Boolean(focusedElectionId) || index === 0;
+
+    const siblings = sortPositions(
+      positions.filter(
+        (item) =>
+          Number(item.election_id) === Number(position.election_id) &&
+          (item.status || "active") !== "retired"
+      )
+    );
+    const currentIndex = siblings.findIndex((item) => Number(item.id) === Number(position.id));
+    const targetIndex = currentIndex + direction;
+
+    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= siblings.length) return;
+
+    const target = siblings[targetIndex];
+    const currentOrder = Number(position.display_order || currentIndex + 1);
+    const targetOrder = Number(target.display_order || targetIndex + 1);
+    const tempOrder = 1000000000 + Math.max(Number(position.id || 0), Number(target.id || 0));
+    const first = await supabase
+      .from("positions")
+      .update({ display_order: tempOrder })
+      .eq("id", position.id);
+    const second = first.error
+      ? first
+      : await supabase
+          .from("positions")
+          .update({ display_order: currentOrder })
+          .eq("id", target.id);
+    const third = second.error
+      ? second
+      : await supabase
+          .from("positions")
+          .update({ display_order: targetOrder })
+          .eq("id", position.id);
+    const error = first.error || second.error || third.error;
+
+    if (error) {
+      prompt.error(
+        isMissingPositionOrderError(error)
+          ? "Position sequencing requires the display order migration in Supabase."
+          : error.message || "Failed to move position."
+      );
+      return;
+    }
+
+    await fetchPositions();
   }
 
-  function toggleElectionGroup(electionId, currentlyExpanded) {
-    setExpandedElectionIds((current) => ({
-      ...current,
-      [electionId]: !currentlyExpanded,
-    }));
+  async function dropPosition(targetPosition) {
+    if (!draggedPositionId || Number(draggedPositionId) === Number(targetPosition.id)) {
+      setDraggedPositionId(null);
+      return;
+    }
+
+    const draggedPosition = positions.find(
+      (position) => Number(position.id) === Number(draggedPositionId)
+    );
+    setDraggedPositionId(null);
+
+    if (
+      !draggedPosition ||
+      Number(draggedPosition.election_id) !== Number(targetPosition.election_id)
+    ) {
+      return;
+    }
+
+    const siblings = sortPositions(
+      positions.filter(
+        (position) =>
+          Number(position.election_id) === Number(targetPosition.election_id) &&
+          (position.status || "active") !== "retired"
+      )
+    );
+    const fromIndex = siblings.findIndex((position) => Number(position.id) === Number(draggedPosition.id));
+    const toIndex = siblings.findIndex((position) => Number(position.id) === Number(targetPosition.id));
+
+    if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return;
+
+    await movePosition(draggedPosition, toIndex > fromIndex ? 1 : -1);
   }
 
   return (
@@ -419,7 +507,7 @@ function BoardPositions() {
         </div>
 
         <button
-          onClick={openCreate}
+          onClick={() => openCreate()}
           className="primary-btn self-start lg:self-auto"
         >
           <Plus size={18} />
@@ -433,89 +521,162 @@ function BoardPositions() {
         </div>
       ) : null}
 
-      <div className="mt-6 flex flex-wrap gap-2">
-        {focusedElectionId ? (
-          <button
-            type="button"
-            onClick={() => setSearchParams({})}
-            className="filter-pill filter-pill-active"
-          >
-            Showing Selected Election
-          </button>
-        ) : null}
-        {[
-          ["active", `Active (${activePositionCount})`],
-          ["retired", `Retired (${retiredPositionCount})`],
-          ["all", `All (${positions.length})`],
-        ].map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            disabled={!positionLifecycleReady && value === "retired"}
-            onClick={() => setPositionFilter(value)}
-            className={`filter-pill ${positionFilter === value ? "filter-pill-active" : ""} disabled:cursor-not-allowed disabled:opacity-50`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {!focusedElectionId && visiblePositions.length === 0 ? (
+      {!selectedElectionId ? (
+        elections.length === 0 ? (
+          <div className="empty-state mt-8">No elections available.</div>
+        ) : (
+          <div className="election-management-grid mt-8">
+            {elections.map((election) => (
+              <ElectionManagementCard
+                key={election.id}
+                election={election}
+                organization={user?.organizations}
+                eyebrow="Position Setup"
+                counts={[
+                  {
+                    label: `position${positionCountsByElection[election.id] === 1 ? "" : "s"}`,
+                    value: positionCountsByElection[election.id] || 0,
+                  },
+                ]}
+                onClick={() => {
+                  setSelectedElectionId(String(election.id));
+                  setSearchParams({ election: String(election.id) });
+                }}
+              />
+            ))}
+          </div>
+        )
+      ) : !selectedElection ? (
         <div className="empty-state mt-8">
-          No {positionFilter === "all" ? "" : positionFilter} positions found.
+          Selected election could not be found.
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedElectionId("");
+              setSearchParams({});
+            }}
+            className="primary-btn mt-4"
+          >
+            Back to Elections
+          </button>
         </div>
       ) : (
-        <div className="mt-8 space-y-5">
-          {positionsByElection.map((election, electionIndex) => {
-            const expanded = isElectionExpanded(election.id, electionIndex);
-            return (
-            <section key={election.id} className="entity-card">
+        <div className="mt-8">
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedElectionId("");
+              setSearchParams({});
+            }}
+            className="mb-4 text-sm font-black uppercase tracking-[0.12em] text-[#ef4e23]"
+          >
+            Back to Elections
+          </button>
+
+          <div className="entity-card mb-4 grid gap-4 lg:grid-cols-[minmax(0,15rem)_1fr_auto] lg:items-center">
+            <ElectionManagementCard
+              election={selectedElection}
+              organization={user?.organizations}
+              eyebrow="Selected Election"
+              counts={[
+                {
+                  label: `position${positionCountsByElection[selectedElection.id] === 1 ? "" : "s"}`,
+                  value: positionCountsByElection[selectedElection.id] || 0,
+                },
+              ]}
+            />
+            <div>
+              <p className="page-kicker">Positions</p>
+              <h2 className="entity-card-title mt-2">{selectedElection.title}</h2>
+              <p className="entity-meta mt-2">
+                Manage only the positions assigned to this election.
+              </p>
+            </div>
+            {["closed", "archived", "done"].includes(String(getElectionPhase(selectedElection)).toLowerCase()) ? (
+              <span className="status-pill">Closed</span>
+            ) : (
               <button
                 type="button"
-                onClick={() => toggleElectionGroup(election.id, expanded)}
-                className="flex w-full flex-col gap-2 text-left sm:flex-row sm:items-center sm:justify-between"
-                aria-expanded={expanded}
+                onClick={() => openCreate(selectedElection.id)}
+                className="primary-btn self-start lg:self-auto"
               >
-                <div className="min-w-0">
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#ff7a35]">
-                    Election Folder
-                  </p>
-                  <h2 className="entity-card-title mt-2 truncate">{election.title}</h2>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="status-pill">
-                    {election.positions.length} position{election.positions.length === 1 ? "" : "s"}
-                  </span>
-                  <span className={`icon-action transition-transform ${expanded ? "rotate-180" : ""}`}>
-                    <ChevronDown size={16} />
-                  </span>
-                </div>
+                <Plus size={18} />
+                Add Position
               </button>
+            )}
+          </div>
 
-              {expanded ? (
-                <>
-                  <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    {election.positions.length === 0 ? (
-                      <div className="rounded-[16px] border border-dashed border-[rgba(24,54,49,0.16)] bg-white/60 p-5 text-sm text-gray-500">
-                        No positions configured for this election yet.
-                      </div>
-                    ) : election.positions.map((position, index) => (
+          <div className="mb-4 flex flex-wrap gap-2">
+            {[
+              ["active", `Active (${activePositionCount})`],
+              ["retired", `Retired (${retiredPositionCount})`],
+              ["all", `All (${positions.length})`],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                disabled={!positionLifecycleReady && value === "retired"}
+                onClick={() => setPositionFilter(value)}
+                className={`filter-pill ${positionFilter === value ? "filter-pill-active" : ""} disabled:cursor-not-allowed disabled:opacity-50`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {visiblePositions.length === 0 ? (
+            <div className="empty-state">
+              <p>No positions have been created for this election yet.</p>
+              {["closed", "archived", "done"].includes(String(getElectionPhase(selectedElection)).toLowerCase()) ? null : (
+                <button
+                  type="button"
+                  onClick={() => openCreate(selectedElection.id)}
+                  className="primary-btn mt-4"
+                >
+                  <Plus size={18} />
+                  Add Position
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+              {visiblePositions.map((position) => (
                       <div
                         key={position.id}
-                        className="flex h-full flex-col gap-4 rounded-[16px] border border-[rgba(24,54,49,0.08)] bg-white/70 p-4"
+                        className={`position-card-tile ${Number(draggedPositionId) === Number(position.id) ? "is-dragging" : ""}`}
+                        draggable={(position.status || "active") !== "retired"}
+                        onDragStart={() => setDraggedPositionId(position.id)}
+                        onDragOver={(event) => event.preventDefault()}
+                        onDragEnd={() => setDraggedPositionId(null)}
+                        onDrop={() => dropPosition(position)}
+                        onDoubleClick={() => movePosition(position, 1)}
+                        title="Drag to reorder, or double-click to move down."
                       >
                         <div className="min-w-0 flex-1">
                           <h3 className="text-lg font-black">
-                            <span className="mr-2 text-sm text-[#d35a25]">
-                              {position.display_order || index + 1}.
-                            </span>
                             {position.name}
                           </h3>
                           <p className="mt-1 text-sm text-gray-500">
                             Students may select up to {position.max_votes} candidate{position.max_votes > 1 ? "s" : ""}.
                           </p>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="position-card-actions flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => movePosition(position, -1)}
+                            className="icon-action"
+                            title="Move up"
+                          >
+                            <ArrowUp size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => movePosition(position, 1)}
+                            className="icon-action"
+                            title="Move down"
+                          >
+                            <ArrowDown size={16} />
+                          </button>
                           {position.status === "retired" ? (
                             <span className="status-pill !bg-orange-100 !text-orange-700">
                               <Archive size={14} />
@@ -530,22 +691,9 @@ function BoardPositions() {
                           </button>
                         </div>
                       </div>
-                    ))}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={openCreate}
-                    className="secondary-btn mt-4"
-                  >
-                    <Plus size={16} />
-                    Add Position
-                  </button>
-                </>
-              ) : null}
-            </section>
-            );
-          })}
+              ))}
+            </div>
+          )}
         </div>
       )}
 

@@ -1,0 +1,43 @@
+import{n as e,s as t,t as n}from"./jsx-runtime-2UHhqg_S.js";import{t as r}from"./arrow-left-CyWyS5fs.js";import{t as i}from"./chart-column-DdI1pZJF.js";import{t as a}from"./ElectionCover-BGKOVi4Y.js";import{t as o}from"./trophy-CMsitDru.js";import{t as s}from"./user-round-CE4U02i4.js";import{t as c}from"./users-round-CcBzQXl1.js";import{t as l}from"./vote-CR2SaZek.js";import{O as u,k as d}from"./index-DR7ZTyiF.js";import{n as f,r as p}from"./KandidImage-Cqm3C9_G.js";import{t as m}from"./supabaseClient-OF4_NjqC.js";import{d as h}from"./organizationAccess-D9Vhb5Sy.js";import{c as g,h as _,l as v,o as y,t as b}from"./elections-C59LPJom.js";var x=t(e(),1),S=n(),C=`
+  id,
+  title,
+  cover_url,
+  organization_id,
+  campaign_start,
+  campaign_end,
+  start_date,
+  end_date,
+  status,
+  student_result_visibility,
+  results_released_at,
+  organizations(id, name, description, logo_url, organization_type)
+`,w=`
+  id,
+  title,
+  cover_url,
+  organization_id,
+  campaign_start,
+  campaign_end,
+  start_date,
+  end_date,
+  status,
+  student_result_visibility,
+  organizations(id, name, description, logo_url, organization_type)
+`;function T(e,t=!0){let n=e?C:w;return t?n:n.replace(/\n\s*cover_url,\n/,`
+`)}async function E(e,t=!0,n=!0){let{data:r,error:i}=await m.from(`elections`).select(T(t,n)).eq(`id`,e).single();return{data:r?{...r,results_released_at:r.results_released_at||null}:null,error:i}}function D(e){return e?.students?`${e.students.first_name||``} ${e.students.last_name||``}`.trim():e?.officer_name||`Officer`}function O(){let{electionId:e}=d(),t=u(),[n,C]=(0,x.useState)(null),[w,T]=(0,x.useState)([]),[O,k]=(0,x.useState)([]),[A,j]=(0,x.useState)([]),[M,N]=(0,x.useState)(`officers`),[P,F]=(0,x.useState)(!0),[I,L]=(0,x.useState)(!1),[R,z]=(0,x.useState)(``),B=JSON.parse(localStorage.getItem(`user`));(0,x.useEffect)(()=>{let t=!0;async function n(){F(!0),L(!1),z(``);let n=!0,r=!0,[i,a]=await Promise.all([E(e,n,r),h(B)]),{data:o,error:s}=i;if(_(s)){n=!1;let t=await E(e,n,r);o=t.data,s=t.error}if(v(s)){r=!1;let t=await E(e,n,r);o=t.data,s=t.error}if(s){console.error(`Failed to load student election overview:`,s),t&&(z(s.message||`Unable to load election overview.`),F(!1));return}if(!a.includes(o?.organization_id)){t&&(L(!0),F(!1));return}let[{data:c,error:l},{data:u,error:d}]=await Promise.all([m.from(`officers`).select(`
+            *,
+            students (
+              first_name,
+              last_name,
+              student_number,
+              photo_url,
+              program,
+              year_level
+            )
+          `).eq(`organization_id`,o.organization_id).order(`is_current`,{ascending:!1}).order(`display_order`,{ascending:!0}),m.from(`elections`).select(`id, title, campaign_start, campaign_end, start_date, end_date, status`).eq(`organization_id`,o.organization_id).neq(`status`,`draft`).neq(`status`,`archived`).order(`start_date`,{ascending:!1})]);l&&console.error(`Failed to load organization officers:`,l),d&&console.error(`Failed to load organization elections:`,d);let f=(u||[]).map(e=>e.id),p=[];if(f.length>0){let{data:e,error:t}=await m.from(`votes`).select(`
+            id,
+            election_id,
+            student_id,
+            is_abstain,
+            students(program, year_level)
+          `).in(`election_id`,f);t?console.error(`Failed to load organization election demographics:`,t):p=e||[]}t&&(C(o),k(c||[]),T(u||[]),j(p),F(!1))}return n(),()=>{t=!1}},[e,B.id]);let V=(0,x.useMemo)(()=>({current:O.filter(e=>e.is_current),past:O.filter(e=>!e.is_current)}),[O]),H=(0,x.useMemo)(()=>n?w.map(e=>{let t=A.filter(t=>t.election_id===e.id),r=new Set(t.map(e=>e.student_id).filter(Boolean)),i={};t.forEach(e=>{let t=e.students?.program||`Unspecified`;i[t]=(i[t]||0)+1});let a=Object.entries(i).sort((e,t)=>t[1]-e[1])[0]?.[0]||`No voter data`;return{...e,results_released_at:e.id===n.id&&n.results_released_at||null,student_result_visibility:e.id===n.id?n.student_result_visibility:`manual`,voteEntries:t.length,uniqueVoters:r.size,abstains:t.filter(e=>e.is_abstain).length,topProgram:a}}):[],[n,w,A]);if(P)return(0,S.jsx)(`div`,{className:`student-empty-card`,children:`Loading election overview...`});if(I)return(0,S.jsx)(`div`,{className:`student-empty-card`,children:`This election overview is not available for your organization.`});if(R)return(0,S.jsx)(`div`,{className:`student-empty-card`,children:R});if(!n)return(0,S.jsx)(`div`,{className:`student-empty-card`,children:`Election not found.`});let U=n.organizations,W=g(n);return W===`draft`||W===`archived`?(0,S.jsx)(`div`,{className:`student-empty-card`,children:`This election overview is not available.`}):W!==`campaign`&&!b(n)?(0,S.jsxs)(`div`,{children:[(0,S.jsxs)(`button`,{type:`button`,onClick:()=>t(`/student/elections`),className:`student-back-link`,children:[(0,S.jsx)(r,{size:15}),`Back`]}),(0,S.jsxs)(`div`,{className:`student-module-banner`,children:[(0,S.jsx)(`div`,{className:`student-module-icon`,children:(0,S.jsx)(i,{size:22})}),(0,S.jsxs)(`div`,{children:[(0,S.jsx)(`h1`,{children:`Election Overview`}),(0,S.jsx)(`p`,{children:W===`campaign_upcoming`?`Campaign begins ${y(n.campaign_start)}.`:W===`waiting`?`Campaign has ended. Voting opens ${y(n.start_date)}.`:`Results are being verified before the overview reopens.`})]})]})]}):(0,S.jsxs)(`div`,{children:[(0,S.jsxs)(`button`,{type:`button`,onClick:()=>t(`/student/elections`),className:`student-back-link`,children:[(0,S.jsx)(r,{size:15}),U?.name||`Organization`]}),(0,S.jsxs)(`section`,{className:`student-campaign-hero student-org-detail-hero`,children:[n.cover_url?(0,S.jsx)(a,{election:n,compact:!0,className:`student-campaign-cover`}):(0,S.jsx)(f,{organization:U,className:`!h-[clamp(5.5rem,8vw,8rem)] !w-[clamp(5.5rem,8vw,8rem)] !p-2.5`,loading:`eager`}),(0,S.jsxs)(`div`,{children:[(0,S.jsx)(`span`,{className:`mb-2 inline-flex rounded-full bg-white/80 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#f4511e]`,children:`Election Overview`}),(0,S.jsx)(`h1`,{children:U?.name||`Student Organization`}),(0,S.jsx)(`p`,{children:n.title})]})]}),(0,S.jsxs)(`div`,{className:`student-campaign-tabs`,children:[(0,S.jsx)(`button`,{type:`button`,className:M===`officers`?`active`:``,onClick:()=>N(`officers`),children:`Officers`}),(0,S.jsx)(`button`,{type:`button`,className:M===`elections`?`active`:``,onClick:()=>N(`elections`),children:`Elections`})]}),M===`officers`?(0,S.jsx)(`div`,{className:`student-officer-stack`,children:O.length===0?(0,S.jsx)(`div`,{className:`student-empty-card`,children:`No officers have been published for this organization.`}):[[`Current Officers`,V.current],[`Past Officers`,V.past]].map(([e,t])=>t.length>0?(0,S.jsxs)(`section`,{children:[(0,S.jsx)(`h2`,{children:e}),(0,S.jsx)(`div`,{className:`space-y-4`,children:t.map(e=>(0,S.jsxs)(`div`,{className:`student-officer-row`,children:[e.students?(0,S.jsx)(p,{student:e.students,className:`student-officer-avatar`}):(0,S.jsx)(`div`,{className:`student-officer-avatar`,children:(0,S.jsx)(s,{size:30})}),(0,S.jsxs)(`div`,{children:[(0,S.jsx)(`strong`,{children:D(e)}),(0,S.jsx)(`p`,{children:e.position_title||`Officer`}),(0,S.jsx)(`p`,{children:e.term_label||(e.is_current?`Current Term`:`Past Term`)})]})]},e.id))})]},e):null)}):(0,S.jsx)(`div`,{className:`student-org-election-list grid w-full grid-cols-1 gap-5 lg:grid-cols-2`,children:H.length===0?(0,S.jsx)(`div`,{className:`student-empty-card`,children:`No organization elections are listed yet.`}):H.map(e=>(0,S.jsxs)(`article`,{className:`student-org-election-card min-h-[190px]`,children:[(0,S.jsxs)(`div`,{children:[(0,S.jsx)(`span`,{className:`status-pill`,children:g(e)}),(0,S.jsx)(`h2`,{className:`mt-3`,children:e.title}),(0,S.jsxs)(`p`,{children:[y(e.start_date),` - `,y(e.end_date)]})]}),(0,S.jsx)(`div`,{className:`mt-5 grid gap-3 sm:grid-cols-3`,children:[[c,`Voters`,e.uniqueVoters],[l,`Vote entries`,e.voteEntries],[o,`Top program`,e.topProgram]].map(([e,t,n])=>(0,S.jsxs)(`div`,{className:`rounded-2xl bg-white/70 p-3`,children:[(0,S.jsx)(e,{size:16,className:`text-[#f4511e]`}),(0,S.jsx)(`p`,{className:`mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-gray-400`,children:t}),(0,S.jsx)(`strong`,{className:`mt-1 block text-sm text-[#182033]`,children:n})]},t))}),b(e)?(0,S.jsx)(`button`,{type:`button`,onClick:()=>t(`/student/results?election=${e.id}`),children:`View Results`}):null]},e.id))})]})}export{O as default};

@@ -1,0 +1,1 @@
+import{t as e}from"./jsx-runtime-2UHhqg_S.js";import{t}from"./CandidateManagement-DJVb3QY6.js";var n=e();function r(){return(0,n.jsx)(t,{boardScoped:!0,title:`Board candidates`,subtitle:`Manage candidates and campaign content for your organization.`})}export{r as default};

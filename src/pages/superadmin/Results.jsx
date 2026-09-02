@@ -8,68 +8,29 @@ import {
   resultVisibilityLabel,
   RESULT_VISIBILITY_MODES,
 } from "../../utils/results";
-import { isMissingPositionOrderError } from "../../utils/positionOrder";
-import { fetchAuthoritativeNow, getElectionPhase } from "../../utils/elections";
+import {
+  fetchAuthoritativeNow,
+  getElectionPhase,
+  isMissingElectionCoverColumn,
+} from "../../utils/elections";
+import { fetchResultDimensions } from "../../utils/resultDimensions";
+import { fetchElectionResultDataset } from "../../utils/resultDataLoader";
 import { logAuditEvent } from "../../utils/auditLog";
 import {
   ElectionResultsChart,
   HorizontalStatChart,
 } from "../../components/ResultsVisualization";
+import ElectionCover from "../../components/ElectionCover";
 
 const RELEASE_COLUMN_SELECT =
-  "id, title, status, end_date, organization_id, student_result_visibility, results_released_at, results_released_by, organizations(name)";
+  "id, title, cover_url, status, end_date, organization_id, student_result_visibility, results_released_at, organizations(name)";
+const RELEASE_COLUMN_SELECT_WITHOUT_COVER =
+  "id, title, status, end_date, organization_id, student_result_visibility, results_released_at, organizations(name)";
 const BASE_ELECTION_SELECT = "id, title, organization_id, organizations(name)";
 
 function isMissingReleaseColumn(error) {
   const message = error?.message || "";
   return /results_released_at|schema cache|column .*does not exist/i.test(message);
-}
-
-async function fetchResultVotes(includeDisplayOrder = true) {
-  const positionColumns = includeDisplayOrder ? "id, name, display_order" : "id, name";
-
-  return supabase
-    .from("votes")
-    .select(`
-      *,
-      students (
-        program,
-        year_level
-      ),
-      candidates (
-        id,
-        photo,
-        students (first_name, last_name, photo_url),
-        partylists (name)
-      ),
-      positions (${positionColumns}),
-      elections (
-        id,
-        title,
-        organization_id,
-        organizations(name)
-      )
-    `);
-}
-
-async function fetchResultCandidates(electionIds, includeDisplayOrder = true) {
-  const positionColumns = includeDisplayOrder ? "id, name, display_order, election_id" : "id, name, election_id";
-
-  if (!electionIds.length) {
-    return { data: [], error: null };
-  }
-
-  return supabase
-    .from("candidates")
-    .select(`
-      id,
-      photo,
-      position_id,
-      students (first_name, last_name, photo_url),
-      partylists (name),
-      positions!inner (${positionColumns})
-    `)
-    .in("positions.election_id", electionIds);
 }
 
 function Results() {
@@ -79,12 +40,18 @@ function Results() {
   const [elections, setElections] = useState([]);
   const [selectedElection, setSelectedElection] = useState("");
   const [releaseColumnReady, setReleaseColumnReady] = useState(true);
+  const [voterBreakdownMode, setVoterBreakdownMode] = useState("program");
+  const [voteLoadError, setVoteLoadError] = useState("");
+  const [resultDimensions, setResultDimensions] = useState({ programs: [], yearLevels: [] });
+  const activeElection = elections.find(
+    (election) => election.id === Number(selectedElection)
+  );
 
   useEffect(() => {
     let active = true;
 
     async function loadData() {
-      await fetchData(active);
+      await fetchElections(active);
     }
 
     loadData();
@@ -94,25 +61,39 @@ function Results() {
     };
   }, []);
 
-  async function fetchData(active = true) {
-      let { data: votesData, error: votesError } = await fetchResultVotes();
+  useEffect(() => {
+    let active = true;
 
-      if (isMissingPositionOrderError(votesError)) {
-        const fallback = await fetchResultVotes(false);
-        votesData = (fallback.data || []).map((vote) => ({
-          ...vote,
-          positions: {
-            ...vote.positions,
-            display_order: vote.position_id,
-          },
-        }));
-        votesError = fallback.error;
-      }
+    if (!activeElection) {
+      setVotes([]);
+      setCandidates([]);
+      setResultDimensions({ programs: [], yearLevels: [] });
+      return () => {
+        active = false;
+      };
+    }
 
+    loadSelectedElectionResults(activeElection, active);
+
+    return () => {
+      active = false;
+    };
+  }, [activeElection?.id]);
+
+  async function fetchElections(active = true) {
       let { data: electionsData, error: electionsError } = await supabase
         .from("elections")
         .select(RELEASE_COLUMN_SELECT)
         .order("end_date", { ascending: false });
+
+      if (isMissingElectionCoverColumn(electionsError)) {
+        const fallback = await supabase
+          .from("elections")
+          .select(RELEASE_COLUMN_SELECT_WITHOUT_COVER)
+          .order("end_date", { ascending: false });
+        electionsData = fallback.data;
+        electionsError = fallback.error;
+      }
 
       if (isMissingReleaseColumn(electionsError)) {
         setReleaseColumnReady(false);
@@ -131,33 +112,49 @@ function Results() {
 
       if (!active) return;
 
-      setVotes(votesError ? [] : votesData || []);
       if (electionsError) {
         prompt.error(electionsError.message || "Failed to load elections.");
         setElections([]);
+        setVotes([]);
         setCandidates([]);
         return;
       }
 
       setElections(electionsData || []);
       setSelectedElection((current) => current || String(electionsData?.[0]?.id || ""));
+  }
 
-      const electionIds = (electionsData || []).map((election) => election.id);
-      let { data: candidateData, error: candidateError } = await fetchResultCandidates(electionIds);
+  async function loadSelectedElectionResults(election, active = true) {
+      setVoteLoadError("");
+      setVotes([]);
+      setCandidates([]);
+      setResultDimensions({ programs: [], yearLevels: [] });
 
-      if (isMissingPositionOrderError(candidateError)) {
-        const fallback = await fetchResultCandidates(electionIds, false);
-        candidateData = (fallback.data || []).map((candidate) => ({
-          ...candidate,
-          positions: {
-            ...candidate.positions,
-            display_order: candidate.position_id,
-          },
-        }));
-        candidateError = fallback.error;
+      const [resultDataset, dimensions] = await Promise.all([
+        fetchElectionResultDataset(election),
+        fetchResultDimensions(election),
+      ]);
+
+      const { votes: votesData, candidates: candidateData, error: resultsError } = resultDataset;
+
+      if (!active) return;
+
+      if (resultsError) {
+        const message = resultsError.message || "Failed to load result records.";
+        setVoteLoadError(message);
+        prompt.error(message);
+        setVotes([]);
+        setCandidates([]);
+      } else {
+        setVotes(votesData || []);
+        setCandidates(candidateData || []);
       }
 
-      setCandidates(candidateError ? [] : candidateData || []);
+      setResultDimensions(dimensions);
+  }
+
+  async function fetchData(active = true) {
+    await fetchElections(active);
   }
 
   const filteredVotes = votes.filter(
@@ -166,10 +163,28 @@ function Results() {
   const filteredCandidates = candidates.filter(
     (candidate) => candidate.positions?.election_id === Number(selectedElection)
   );
-  const activeElection = elections.find(
-    (election) => election.id === Number(selectedElection)
+  const analytics = buildElectionAnalytics(
+    filteredVotes,
+    activeElection ? { ...activeElection, resultDimensions } : activeElection,
+    filteredCandidates,
   );
-  const analytics = buildElectionAnalytics(filteredVotes, activeElection, filteredCandidates);
+  const voterBreakdownConfig = {
+    program: {
+      label: "Program Allocation",
+      items: analytics.programItems || analytics.allocationItems,
+      mode: "program",
+    },
+    year_level: {
+      label: "Year Level Allocation",
+      items: analytics.yearLevelItems || [],
+      mode: "year_level",
+    },
+    organization: {
+      label: "Organization Voters",
+      items: analytics.organizationItems || [],
+      mode: "organization",
+    },
+  }[voterBreakdownMode];
   const verification = getResultVerificationSummary(filteredVotes);
   const activeVisibilityMode = normalizeResultVisibilityMode(
     activeElection?.student_result_visibility,
@@ -179,8 +194,16 @@ function Results() {
     releaseColumnReady &&
     activeElection &&
     activeVisibilityMode === RESULT_VISIBILITY_MODES.MANUAL &&
-    phase === "closed" &&
-    verification.verified;
+    phase === "closed";
+  const publishButtonLabel = !releaseColumnReady
+    ? "Release Setup Required"
+    : activeElection?.results_released_at
+      ? "Results Released"
+      : activeVisibilityMode !== RESULT_VISIBILITY_MODES.MANUAL
+        ? resultVisibilityLabel(activeVisibilityMode)
+        : phase !== "closed"
+          ? "Publish After Voting Ends"
+          : "Publish Results";
 
   async function releaseResults() {
     if (!activeElection) return;
@@ -197,11 +220,6 @@ function Results() {
 
     if (phase !== "closed") {
       prompt.error("Results can only be published after voting has closed.");
-      return;
-    }
-
-    if (!verification.verified) {
-      prompt.error("Complete vote verification before publishing results.");
       return;
     }
 
@@ -271,22 +289,21 @@ function Results() {
             className="primary-btn ml-3 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={!canPublishResults}
           >
-            {!releaseColumnReady
-              ? "Release Setup Required"
-              : activeElection.results_released_at
-                ? "Results Released"
-                : activeVisibilityMode !== RESULT_VISIBILITY_MODES.MANUAL
-                  ? resultVisibilityLabel(activeVisibilityMode)
-                  : verification.verified
-                    ? "Publish Results"
-                    : "Verification Required"}
+            {publishButtonLabel}
           </button>
         ) : null}
       </div>
+      {activeElection?.cover_url ? (
+        <div className="mt-4 max-w-xl">
+          <ElectionCover election={activeElection} />
+        </div>
+      ) : null}
 
       <div className="mt-8 space-y-6">
         {!selectedElection ? (
           <div className="text-gray-500">Select an election to view results.</div>
+        ) : voteLoadError ? (
+          <div className="empty-state">{voteLoadError}</div>
         ) : Object.keys(analytics.groupedResults).length === 0 ? (
           <div className="text-gray-500">No results yet.</div>
         ) : (
@@ -324,12 +341,19 @@ function Results() {
 
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-[0.9fr_1.1fr]">
               <HorizontalStatChart
-                eyebrow={analytics.allocationLabel}
+                eyebrow={voterBreakdownConfig.label}
                 title="Voter distribution"
                 subtitle="Unique voters grouped from the existing election vote records."
                 badge={analytics.organizationName}
-                items={analytics.allocationItems}
-                mode={analytics.allocationMode}
+                items={voterBreakdownConfig.items}
+                mode={voterBreakdownConfig.mode}
+                filters={[
+                  { value: "program", label: "Program" },
+                  { value: "year_level", label: "Year Level" },
+                  { value: "organization", label: "Organization" },
+                ]}
+                activeFilter={voterBreakdownMode}
+                onFilterChange={setVoterBreakdownMode}
               />
 
               <div className="glass-panel-dark rounded-[30px] p-7 text-white">
@@ -347,6 +371,7 @@ function Results() {
             <ElectionResultsChart
               groups={Object.values(analytics.groupedResults)}
               totalVoters={analytics.totalUniqueVoters}
+              dimensions={analytics.resultDimensions}
             />
           </>
         )}

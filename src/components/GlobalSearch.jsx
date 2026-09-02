@@ -81,8 +81,15 @@ function GlobalSearch({
   const wrapperRef = useRef(null);
 
   const cleanedQuery = normalizeSearchInput(query);
-  const quickActions = roleQuickActions[user?.role] || [];
+  const quickActions = useMemo(
+    () => roleQuickActions[user?.role] || [],
+    [user?.role],
+  );
   const roleCategories = getRoleSearchCategories(user?.role);
+  const previewCategories = useMemo(
+    () => quickActions.map((action) => action.type).filter(Boolean),
+    [quickActions],
+  );
 
   useEffect(() => {
     setHistory(getSearchHistory(user?.role));
@@ -131,7 +138,11 @@ function GlobalSearch({
 
     const timer = window.setTimeout(async () => {
       try {
-        const data = await searchKandid(user, cleanedQuery, { perCategoryLimit: 4 });
+        const data = await searchKandid(user, cleanedQuery, {
+          categories: previewCategories,
+          includeCounts: false,
+          perCategoryLimit: 4,
+        });
         if (!active) return;
         setSearchData(data);
         setError(data.errors?.length ? "Some categories could not be loaded." : "");
@@ -148,7 +159,7 @@ function GlobalSearch({
       active = false;
       window.clearTimeout(timer);
     };
-  }, [cleanedQuery, user]);
+  }, [cleanedQuery, previewCategories, user]);
 
   const previewGroups = useMemo(() => {
     if (!searchData?.groups) return [];
