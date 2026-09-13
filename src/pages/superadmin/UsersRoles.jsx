@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Building2,
   KeyRound,
@@ -13,6 +13,15 @@ import OrganizationSelect from "../../components/OrganizationSelect";
 import { usePrompt } from "../../context/PromptContext";
 import { logAuditEvent } from "../../utils/auditLog";
 import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
+import {
+  createAdminUser,
+  disableAdminUser,
+  inviteExistingAdminUser,
+  listAdminUsers,
+  relinkExistingAdminUser,
+  updateAdminUser,
+} from "../../utils/adminUsers";
+import { isSupabaseAdminAuthMode } from "../../utils/auth";
 
 function UsersRoles() {
   const prompt = usePrompt();
@@ -21,6 +30,7 @@ function UsersRoles() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const supabaseAdminAuthMode = isSupabaseAdminAuthMode();
 
   const [form, setForm] = useState({
     full_name: "",
@@ -31,33 +41,32 @@ function UsersRoles() {
     status: "active",
   });
 
-  useEffect(() => {
-    fetchUsers();
-    fetchOrganizations();
-  }, []);
+  const fetchUsers = useCallback(async () => {
+    const { data, error } = await listAdminUsers();
 
-  async function fetchUsers() {
-    const { data, error } = await supabase
-      .from("admin_users")
-      .select(`
-        *,
-        organizations (
-          name
-        )
-      `)
-      .order("id", { ascending: true });
+    if (error) {
+      prompt.error(error.message || "Failed to load access accounts.");
+      return;
+    }
 
-    if (!error) setUsers(data || []);
-  }
+    setUsers(data || []);
+  }, [prompt]);
 
-  async function fetchOrganizations() {
+  const fetchOrganizations = useCallback(async () => {
     const { data, error } = await supabase
       .from("organizations")
-      .select("id, name, logo_url")
+      .select("id, name")
       .order("name", { ascending: true });
 
     if (!error) setOrganizations(data || []);
-  }
+  }, []);
+
+  useEffect(() => {
+    Promise.resolve().then(() => {
+      fetchUsers();
+      fetchOrganizations();
+    });
+  }, [fetchOrganizations, fetchUsers]);
 
   function resetForm(role = "electoral_board") {
     setForm({
@@ -81,7 +90,7 @@ function UsersRoles() {
     setForm({
       full_name: user.full_name || "",
       email: user.email || "",
-      password: user.password || "",
+      password: "",
       role: user.role || "electoral_board",
       organization_id: user.organization_id || "",
       status: user.status || "active",
@@ -96,7 +105,6 @@ function UsersRoles() {
     const payload = {
       full_name: form.full_name.trim(),
       email: form.email.trim().toLowerCase(),
-      password: form.password,
       role: form.role,
       organization_id:
         form.role === "super_admin"
@@ -107,11 +115,18 @@ function UsersRoles() {
       status: form.status,
     };
 
+    if (!supabaseAdminAuthMode && form.password) {
+      payload.password = form.password;
+    }
+
+    if (!supabaseAdminAuthMode && !editing && !form.password) {
+      setSubmitting(false);
+      prompt.error("Temporary password is required while legacy admin auth mode is active.");
+      return;
+    }
+
     if (editing) {
-      const result = await supabase
-        .from("admin_users")
-        .update(payload)
-        .eq("id", editing.id);
+      const result = await updateAdminUser(editing.id, payload);
 
       if (result.error) {
         setSubmitting(false);
@@ -119,7 +134,7 @@ function UsersRoles() {
         return;
       }
     } else {
-      const result = await supabase.from("admin_users").insert([payload]);
+      const result = await createAdminUser(payload);
 
       if (result.error) {
         setSubmitting(false);
@@ -137,7 +152,7 @@ function UsersRoles() {
       status: "completed",
       metadata: { role: payload.role, account_status: payload.status },
     });
-    prompt.success(editing ? "Access account updated." : "Access account created.");
+    prompt.success(editing ? "Access account updated." : "Access account prepared for secure invite.");
     setSubmitting(false);
 
     setFormOpen(false);
@@ -160,22 +175,22 @@ function UsersRoles() {
     });
 
     const ok = await prompt.confirm({
-      title: "Delete Access Account?",
-      message: `${dependencyMessage(label, analysis)}\n\nRecommended action: set Status to Disabled unless this account was created by mistake.`,
+      title: "Disable Access Account?",
+      message: `${dependencyMessage(label, analysis)}\n\nThis will disable the administrative profile instead of deleting identity or history.`,
       type: "danger",
-      confirmText: "Delete Anyway",
+      confirmText: "Disable Account",
       cancelText: "Keep Account",
     });
     if (!ok) return;
 
-    const result = await supabase.from("admin_users").delete().eq("id", user.id);
+    const result = await disableAdminUser(user.id);
     if (result.error) {
-      prompt.error(result.error.message || "Failed to delete access account.");
+      prompt.error(result.error.message || "Failed to disable access account.");
       return;
     }
-    prompt.success("Access account deleted.");
+    prompt.success("Access account disabled.");
     await logAuditEvent({
-      action: "user_deleted",
+      action: "user_updated",
       entityType: "admin_user",
       entityId: user.id,
       entityLabel: label,
@@ -183,6 +198,91 @@ function UsersRoles() {
       organizationName: user.organizations?.name,
       status: "completed",
     });
+    fetchUsers();
+  }
+
+  async function handleSendSetupInvite(user) {
+    if (!supabaseAdminAuthMode || user.auth_linked) return;
+
+    const label = user.email || user.full_name || "this access account";
+    const ok = await prompt.confirm({
+      title: "Send Setup Invite?",
+      message: `Send a secure Supabase Auth password setup invite to ${label}? This uses the existing access account row and will not copy the legacy password.`,
+      type: "warning",
+      confirmText: "Send Invite",
+      cancelText: "Cancel",
+    });
+    if (!ok) return;
+
+    const result = await inviteExistingAdminUser(user.id);
+    if (result.error) {
+      prompt.error(result.error.message || "Failed to send setup invite.");
+      return;
+    }
+
+    if (result.meta?.email_verification_required) {
+      prompt.warning(
+        result.meta.message ||
+          "Auth account exists but email verification/setup is incomplete.",
+        "Setup verification required",
+      );
+      return;
+    }
+
+    prompt.success(result.meta?.message || "Secure account setup invite sent.");
+    await logAuditEvent({
+      action: "admin_auth_setup_invite_sent",
+      entityType: "admin_user",
+      entityId: user.id,
+      entityLabel: label,
+      organizationId: user.organization_id,
+      organizationName: user.organizations?.name,
+      status: "completed",
+      metadata: { role: user.role },
+    });
+    fetchUsers();
+  }
+
+  async function handleRepairAuthLink(user) {
+    if (!supabaseAdminAuthMode || !user.auth_linked) return;
+
+    const label = user.email || user.full_name || "this access account";
+    const ok = await prompt.confirm({
+      title: "Repair Auth Link?",
+      message: `Relink ${label} to the confirmed Supabase Auth user with the same email. The previous Auth user will not be deleted or disabled.`,
+      type: "warning",
+      confirmText: "Repair Link",
+      cancelText: "Cancel",
+    });
+    if (!ok) return;
+
+    const result = await relinkExistingAdminUser(user.id);
+    if (result.error) {
+      prompt.error(result.error.message || "Failed to repair Auth link.");
+      return;
+    }
+
+    prompt.success(
+      result.meta?.already_correct
+        ? "Auth link already matches this account email."
+        : "Auth link repaired."
+    );
+
+    await logAuditEvent({
+      action: "admin_auth_link_repaired",
+      entityType: "admin_user",
+      entityId: user.id,
+      entityLabel: label,
+      organizationId: user.organization_id,
+      organizationName: user.organizations?.name,
+      status: "completed",
+      metadata: {
+        role: user.role,
+        already_correct: Boolean(result.meta?.already_correct),
+        relinked: Boolean(result.meta?.relinked),
+      },
+    });
+
     fetchUsers();
   }
 
@@ -318,7 +418,7 @@ function UsersRoles() {
             {[
               ["Organization", "Choose the organization the board member will manage."],
               ["Email Address", "Use a valid email format for the board login credential."],
-              ["Temporary Password", "Set a starter password that the board can use immediately."],
+              ["Account Setup", "The server sends a Supabase Auth invite for password setup."],
               ["Status", "Keep it active for live use or disabled to hold the access record."],
             ].map(([title, copy]) => (
               <div key={title} className="info-row !items-start">
@@ -350,13 +450,14 @@ function UsersRoles() {
                   <th className="px-6 py-4">Role</th>
                   <th className="px-6 py-4">Organization</th>
                   <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4">Auth</th>
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {users.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="px-6 py-10 text-center text-gray-500">
+                    <td colSpan="7" className="px-6 py-10 text-center text-gray-500">
                       No access accounts found.
                     </td>
                   </tr>
@@ -387,6 +488,11 @@ function UsersRoles() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
+                        <span className="status-pill">
+                          {user.auth_linked ? "Auth Linked" : "Setup Pending"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
                         <div className="flex justify-end gap-2">
                           <button
                             onClick={() => openEdit(user)}
@@ -395,12 +501,30 @@ function UsersRoles() {
                             <Pencil size={15} />
                             Edit
                           </button>
+                          {supabaseAdminAuthMode && !user.auth_linked ? (
+                            <button
+                              onClick={() => handleSendSetupInvite(user)}
+                              className="secondary-btn !w-auto !px-3 !py-2 text-sm"
+                            >
+                              <KeyRound size={15} />
+                              Send Setup Invite
+                            </button>
+                          ) : null}
+                          {supabaseAdminAuthMode && user.auth_linked ? (
+                            <button
+                              onClick={() => handleRepairAuthLink(user)}
+                              className="secondary-btn !w-auto !px-3 !py-2 text-sm"
+                            >
+                              <KeyRound size={15} />
+                              Repair Auth Link
+                            </button>
+                          ) : null}
                           <button
                             onClick={() => handleDelete(user)}
                             className="danger-btn !w-auto !px-3 !py-2 text-sm"
                           >
                             <Trash2 size={15} />
-                            Delete
+                            Disable
                           </button>
                         </div>
                       </td>
@@ -462,17 +586,26 @@ function UsersRoles() {
                     className="field-shell w-full"
                   />
                 </div>
+                {supabaseAdminAuthMode ? (
+                <div className="app-panel">
+                  <p className="text-sm font-bold text-[#102220]">Secure Account Setup</p>
+                  <p className="mt-1 text-xs leading-5 text-[#5e726d]">
+                    Passwords are established through Supabase Auth invite/setup during cutover.
+                  </p>
+                </div>
+                ) : (
                 <div>
                   <label className="field-label">Temporary Password</label>
                   <input
-                    required
+                    required={!editing}
                     type="password"
                     value={form.password}
                     onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    placeholder="Set initial password"
+                    placeholder={editing ? "Leave blank to keep current" : "Set temporary password"}
                     className="field-shell w-full"
                   />
                 </div>
+                )}
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
