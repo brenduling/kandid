@@ -1,5 +1,11 @@
 import { supabase } from "../lib/supabaseClient";
-import { getStoredUser, setStoredUser } from "./auth";
+import {
+  getCurrentAdminProfile,
+  getStoredUser,
+  isSupabaseAdminAuthMode,
+  setStoredUser,
+} from "./auth";
+import { updateCurrentAdminProfile } from "./adminUsers";
 import { getStudentExplicitOrganizations } from "./organizationAccess";
 
 function getProfileSelect(role) {
@@ -18,7 +24,15 @@ function getProfileSelect(role) {
   }
 
   return `
-    *,
+    id,
+    auth_user_id,
+    email,
+    full_name,
+    role,
+    status,
+    organization_id,
+    photo_url,
+    created_at,
     organizations (
       id,
       name,
@@ -38,6 +52,22 @@ export async function fetchCurrentUserProfile() {
 
   if (!user?.role || !user?.id) {
     return { data: null, error: new Error("No active user session.") };
+  }
+
+  if (
+    isSupabaseAdminAuthMode() &&
+    (user.role === "super_admin" || user.role === "electoral_board")
+  ) {
+    const { data, error } = await getCurrentAdminProfile({ force: true });
+    if (error || !data) return { data: null, error };
+
+    const nextUser = {
+      ...user,
+      ...data,
+      role: data.role,
+    };
+    setStoredUser(nextUser);
+    return { data: nextUser, error: null };
   }
 
   const table = user.role === "student" ? "students" : "admin_users";
@@ -73,6 +103,27 @@ export async function updateCurrentUserProfile(payload) {
 
   if (!user?.role || !user?.id) {
     return { data: null, error: new Error("No active user session.") };
+  }
+
+  if (
+    isSupabaseAdminAuthMode() &&
+    (user.role === "super_admin" || user.role === "electoral_board")
+  ) {
+    const allowedPayload = {
+      full_name: payload.full_name,
+      photo_url: payload.photo_url,
+    };
+    const { data, error } = await updateCurrentAdminProfile(allowedPayload);
+
+    if (error) return { data: null, error };
+
+    const nextUser = {
+      ...user,
+      ...data,
+      role: user.role,
+    };
+    setStoredUser(nextUser);
+    return { data: nextUser, error: null };
   }
 
   const table = user.role === "student" ? "students" : "admin_users";

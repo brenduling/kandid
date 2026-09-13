@@ -63,6 +63,7 @@ const SystemSettings = lazy(() => import("./pages/superadmin/SystemSettings"));
 const AdminLogin = lazy(() => import("./pages/auth/AdminLogin"));
 const BoardLogin = lazy(() => import("./pages/auth/BoardLogin"));
 const StudentLogin = lazy(() => import("./pages/auth/StudentLogin"));
+const AdminAuthSetup = lazy(() => import("./pages/auth/AdminAuthSetup"));
 
 function RouteFallback() {
   return <KandidRouteLoader message="Opening your workspace..." />;
@@ -100,6 +101,10 @@ function App() {
           <Route
             path="/student-login"
             element={<StudentLogin />}
+          />
+          <Route
+            path="/admin-auth/setup"
+            element={<AdminAuthSetup />}
           />
 
           {/* DEFAULT */}
