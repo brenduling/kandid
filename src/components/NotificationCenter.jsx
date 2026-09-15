@@ -21,6 +21,23 @@ function NotificationCenter({ user }) {
   const wrapperRef = useRef(null);
   const buttonRef = useRef(null);
   const notificationsRef = useRef([]);
+  const loadingRef = useRef(false);
+  const userId = user?.id;
+  const userRole = user?.role;
+  const userOrganizationId = user?.organization_id;
+  const userProgram = user?.program;
+  const notificationUser = useMemo(
+    () =>
+      userId
+        ? {
+            id: userId,
+            role: userRole,
+            organization_id: userOrganizationId,
+            program: userProgram,
+          }
+        : null,
+    [userId, userRole, userOrganizationId, userProgram],
+  );
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -28,35 +45,51 @@ function NotificationCenter({ user }) {
   }, [notifications]);
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!notificationUser?.id) return;
 
     let active = true;
 
     async function loadNotifications() {
+      if (document.visibilityState === "hidden" || loadingRef.current) return;
+      loadingRef.current = true;
       setLoading((current) => current || notificationsRef.current.length === 0);
-      const items = await fetchNotificationsForUser(user);
 
-      if (!active) return;
+      try {
+        const items = await fetchNotificationsForUser(notificationUser);
 
-      setNotifications(items);
-      setReadIds(getReadNotifications(user));
-      setLoading(false);
+        if (!active) return;
+
+        setNotifications(items);
+        setReadIds(getReadNotifications(notificationUser));
+      } finally {
+        loadingRef.current = false;
+        if (active) setLoading(false);
+      }
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        loadNotifications();
+      }
     }
 
     loadNotifications();
     const interval = window.setInterval(loadNotifications, 60000);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       active = false;
+      loadingRef.current = false;
       window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [user?.id, user?.role, user?.organization_id]);
+  }, [notificationUser]);
 
   useEffect(() => {
-    if (!user?.id) return undefined;
+    if (!notificationUser?.id) return undefined;
 
     function handleReadStateChanged() {
-      setReadIds(getReadNotifications(user));
+      setReadIds(getReadNotifications(notificationUser));
     }
 
     window.addEventListener("kandid-notifications-read", handleReadStateChanged);
@@ -66,11 +99,11 @@ function NotificationCenter({ user }) {
       window.removeEventListener("kandid-notifications-read", handleReadStateChanged);
       window.removeEventListener("storage", handleReadStateChanged);
     };
-  }, [user]);
+  }, [notificationUser]);
 
   const unreadNotifications = useMemo(() => {
     const readSet = new Set(readIds.map(String));
-    return notifications.filter((item) => !readSet.has(String(item.id)));
+    return notifications.filter((item) => !item.isRead && !readSet.has(String(item.id)));
   }, [notifications, readIds]);
 
   const unreadCount = unreadNotifications.length;

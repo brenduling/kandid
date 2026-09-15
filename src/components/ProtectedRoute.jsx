@@ -6,11 +6,17 @@ import {
   getStoredUser,
   isSupabaseAdminAuthMode,
   requireAdminRole,
+  requireStudentSession,
 } from "../utils/auth";
 
 function ProtectedRoute({ children, role }) {
+  const isStudentRole = role === "student";
   const [adminCheck, setAdminCheck] = useState({
     loading: role === "super_admin" || role === "electoral_board",
+    user: null,
+  });
+  const [studentCheck, setStudentCheck] = useState({
+    loading: isStudentRole,
     user: null,
   });
   const user = getStoredUser();
@@ -42,12 +48,47 @@ function ProtectedRoute({ children, role }) {
     };
   }, [shouldVerifyAdminWithSupabase, role]);
 
+  useEffect(() => {
+    if (!isStudentRole) return undefined;
+
+    let active = true;
+
+    async function verifyStudentRoute() {
+      const result = await requireStudentSession();
+
+      if (!active) return;
+
+      setStudentCheck({
+        loading: false,
+        user: result.data || null,
+      });
+    }
+
+    verifyStudentRoute();
+
+    return () => {
+      active = false;
+    };
+  }, [isStudentRole]);
+
   if (shouldVerifyAdminWithSupabase) {
     if (adminCheck.loading) {
       return <KandidRouteLoader message="Verifying secure session..." />;
     }
 
     if (!adminCheck.user) {
+      return <Navigate to={getLoginRouteForRole(role)} replace />;
+    }
+
+    return children;
+  }
+
+  if (isStudentRole) {
+    if (studentCheck.loading) {
+      return <KandidRouteLoader message="Verifying secure session..." />;
+    }
+
+    if (!studentCheck.user) {
       return <Navigate to={getLoginRouteForRole(role)} replace />;
     }
 

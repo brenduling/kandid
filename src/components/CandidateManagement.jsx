@@ -14,6 +14,8 @@ import { usePrompt } from "../context/PromptContext";
 import { logAuditEvent } from "../utils/auditLog";
 import { analyzeDeleteDependencies, dependencyMessage } from "../utils/deleteGuards";
 import { getElectionPhase, isMissingElectionCoverColumn } from "../utils/elections";
+import { fetchEligibleStudentsForOrganization } from "../utils/organizationAccess";
+import { isMissingPositionOrderError } from "../utils/positionOrder";
 
 function createInitialForm() {
   return {
@@ -180,11 +182,12 @@ function CandidateManagement({
     let partyRows = [];
 
     if (electionIds.length > 0) {
-      const [positionResult, partyResult] = await Promise.all([
+      let [positionResult, partyResult] = await Promise.all([
         supabase
           .from("positions")
-          .select("id, name, election_id, max_votes")
+          .select("id, name, election_id, max_votes, display_order")
           .in("election_id", electionIds)
+          .order("display_order", { ascending: true })
           .order("id", { ascending: true }),
         supabase
           .from("partylists")
@@ -192,6 +195,14 @@ function CandidateManagement({
           .in("election_id", electionIds)
           .order("name", { ascending: true }),
       ]);
+
+      if (isMissingPositionOrderError(positionResult.error)) {
+        positionResult = await supabase
+          .from("positions")
+          .select("id, name, election_id, max_votes")
+          .in("election_id", electionIds)
+          .order("id", { ascending: true });
+      }
 
       if (positionResult.error) {
         setLandingError(positionResult.error.message || "Unable to load election positions.");
@@ -201,7 +212,7 @@ function CandidateManagement({
 
       positionRows = (positionResult.data || []).map((position, index) => ({
         ...position,
-        display_order: index + 1,
+        display_order: position.display_order || index + 1,
         elections:
           (electionRows || []).find(
             (election) => Number(election.id) === Number(position.election_id),
@@ -321,28 +332,13 @@ function CandidateManagement({
       return;
     }
 
-    const { data, error } = await supabase
-      .from("student_organizations")
-      .select(`
-        students (
-          id,
-          student_number,
-          first_name,
-          last_name,
-          program,
-          year_level,
-          photo_url
-        )
-      `)
-      .eq("organization_id", organizationId);
-
-    if (error) {
+    try {
+      const data = await fetchEligibleStudentsForOrganization(organizationId);
+      setStudents(data || []);
+    } catch (error) {
       setStudents([]);
       prompt.error(error.message || "Unable to load eligible students.");
-      return;
     }
-
-    setStudents((data || []).map((item) => item.students).filter(Boolean));
   }
 
   async function openCreateForm(positionId = "", electionId = "") {

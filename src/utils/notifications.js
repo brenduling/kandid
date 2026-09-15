@@ -2,6 +2,8 @@ import { supabase } from "../lib/supabaseClient";
 import { canStudentViewResults, getElectionPhase } from "./elections";
 import { isMissingResultReleaseColumn } from "./results";
 import { getEligibleStudentOrganizationIds } from "./organizationAccess";
+import { listAdminUsers } from "./adminUsers";
+import { isSupabaseAdminAuthMode } from "./auth";
 
 function toNotification({
   id,
@@ -10,6 +12,8 @@ function toNotification({
   href,
   timestamp,
   tone = "default",
+  isRead = false,
+  storedId = null,
 }) {
   return {
     id,
@@ -17,6 +21,8 @@ function toNotification({
     body,
     href,
     tone,
+    isRead,
+    storedId,
     timestamp: timestamp || new Date().toISOString(),
   };
 }
@@ -39,6 +45,74 @@ export function markNotificationRead(user, notificationId) {
   localStorage.setItem(getReadStorageKey(user), JSON.stringify([...items]));
 }
 
+function studentCredentials(user) {
+  let storedUser = null;
+  try {
+    storedUser = JSON.parse(localStorage.getItem("user") || "null");
+  } catch {
+    // Ignore malformed local session data and fall back to the provided user.
+  }
+
+  return {
+    student_number: user?.student_number || storedUser?.student_number || "",
+    password: user?.password || storedUser?.password || "",
+  };
+}
+
+async function fetchPersistentStudentNotifications(user) {
+  const credentials = studentCredentials(user);
+  if (!credentials.student_number || !credentials.password) return [];
+
+  const { data, error } = await supabase.functions.invoke("student-notifications", {
+    body: {
+      action: "list",
+      ...credentials,
+      limit: 20,
+    },
+  });
+
+  if (error) {
+    console.warn("Persistent student notifications are unavailable:", error.message);
+    return [];
+  }
+
+  return (data?.data?.notifications || []).map((notification) =>
+    toNotification({
+      id: `stored:${notification.id}`,
+      storedId: notification.id,
+      title: notification.title,
+      body: notification.message,
+      href: notification.metadata?.href || "/student/notifications",
+      timestamp: notification.created_at,
+      tone: notification.type === "organization_restored" ? "success" : "warning",
+      isRead: Boolean(notification.is_read),
+    }),
+  );
+}
+
+export async function markStoredNotificationRead(user, notificationId) {
+  const storedId = String(notificationId || "").startsWith("stored:")
+    ? String(notificationId).slice("stored:".length)
+    : notificationId;
+  const numericId = Number(storedId);
+  if (!Number.isInteger(numericId) || numericId <= 0) return { error: null };
+
+  const credentials = studentCredentials(user);
+  if (!credentials.student_number || !credentials.password) {
+    return { error: new Error("Student credentials are required.") };
+  }
+
+  const { error } = await supabase.functions.invoke("student-notifications", {
+    body: {
+      action: "mark_read",
+      ...credentials,
+      notification_id: numericId,
+    },
+  });
+
+  return { error: error || null };
+}
+
 export function markAllNotificationsRead(user, notifications) {
   localStorage.setItem(
     getReadStorageKey(user),
@@ -47,10 +121,14 @@ export function markAllNotificationsRead(user, notifications) {
 }
 
 async function buildStudentNotifications(user) {
-  const organizationIds = await getEligibleStudentOrganizationIds(user);
+  const [organizationIds, persistentNotifications] = await Promise.all([
+    getEligibleStudentOrganizationIds(user),
+    fetchPersistentStudentNotifications(user),
+  ]);
 
   if (organizationIds.length === 0) {
     return [
+      ...persistentNotifications,
       toNotification({
         id: "student-org-none",
         title: "No organization linked yet",
@@ -170,7 +248,7 @@ async function buildStudentNotifications(user) {
     );
   }
 
-  return items;
+  return [...persistentNotifications, ...items];
 }
 
 async function buildBoardNotifications(user) {
@@ -228,6 +306,15 @@ async function buildBoardNotifications(user) {
 }
 
 async function buildSuperAdminNotifications() {
+  const disabledAdminsRequest = isSupabaseAdminAuthMode()
+    ? listAdminUsers().then(({ data, error }) => ({
+        count: error ? 0 : (data || []).filter((admin) => admin.status === "disabled").length,
+      }))
+    : supabase
+        .from("admin_users")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "disabled");
+
   const [{ count: pendingStudents }, { count: liveElections }, { count: disabledAdmins }] =
     await Promise.all([
       supabase
@@ -238,10 +325,7 @@ async function buildSuperAdminNotifications() {
         .from("elections")
         .select("id", { count: "exact", head: true })
         .in("status", ["active", "draft"]),
-      supabase
-        .from("admin_users")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "disabled"),
+      disabledAdminsRequest,
     ]);
 
   return [
@@ -283,11 +367,21 @@ export async function fetchNotificationsForUser(user) {
     items = await buildSuperAdminNotifications(user);
   }
 
-  return items
+  const nextItems = items
     .filter(Boolean)
     .sort(
       (a, b) =>
         new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime(),
     )
     .slice(0, 20);
+
+  if (user.role === "student") {
+    const readIds = new Set(getReadNotifications(user).map(String));
+    nextItems.forEach((item) => {
+      if (item.isRead) readIds.add(String(item.id));
+    });
+    localStorage.setItem(getReadStorageKey(user), JSON.stringify([...readIds]));
+  }
+
+  return nextItems;
 }

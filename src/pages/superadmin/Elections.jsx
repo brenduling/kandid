@@ -40,6 +40,9 @@ import {
   serializeResultVisibilityForLegacyDatabase,
 } from "../../utils/results";
 
+const isPositionOrderConflict = (error) =>
+  /positions_election_display_order_unique|duplicate key/i.test(error?.message || "");
+
 function Elections() {
   const prompt = usePrompt();
   const navigate = useNavigate();
@@ -227,7 +230,11 @@ function Elections() {
 
       if (error) {
         console.error("Position update failed:", error);
-        prompt.error(error.message || "Failed to update position.");
+        prompt.error(
+          isPositionOrderConflict(error)
+            ? "Another position already uses that order in this election."
+            : error.message || "Failed to update position."
+        );
         return;
       }
 
@@ -255,7 +262,11 @@ function Elections() {
 
       if (error) {
         console.error("Position creation failed:", error);
-        prompt.error(error.message || "Failed to create position.");
+        prompt.error(
+          isPositionOrderConflict(error)
+            ? "Another position already uses that order in this election."
+            : error.message || "Failed to create position."
+        );
         return;
       }
 

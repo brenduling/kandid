@@ -5,7 +5,7 @@ import {
   ChevronDown,
   LogOut,
 } from "lucide-react";
-import { clearStoredUser, getStoredUser } from "../utils/auth";
+import { getStoredUser, signOutAdminSession } from "../utils/auth";
 import GlobalSearch from "../components/GlobalSearch";
 import NotificationCenter from "../components/NotificationCenter";
 import MobileNav from "../components/MobileNav";
@@ -59,7 +59,7 @@ function SuperAdminLayout() {
       status: "completed",
       user,
     });
-    clearStoredUser();
+    await signOutAdminSession();
     navigate("/admin", { replace: true });
   }
 
@@ -102,7 +102,7 @@ function SuperAdminLayout() {
 
                 <div className="sidebar-reveal min-w-0">
                   <p className="menu-brand-title">KANDID</p>
-                  <p className="menu-brand-copy">Super Admin Portal</p>
+                  <p className="menu-brand-copy">SUPER ADMIN</p>
                 </div>
               </button>
             </div>
@@ -239,7 +239,7 @@ function SuperAdminLayout() {
         menuGroups={superAdminMenuGroups}
         user={user}
         onLogout={handleLogout}
-        title="Super Admin"
+        title="SUPER ADMIN"
       />
 
       <MobileNav

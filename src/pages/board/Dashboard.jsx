@@ -78,11 +78,11 @@ function BoardDashboard() {
       const [{ data: posData }, { data: voteData }] = await Promise.all([
         supabase
           .from("positions")
-          .select("id, election_id")
+          .select("id")
           .in("election_id", electionIds),
         supabase
           .from("votes")
-          .select("id, student_id, election_id")
+          .select("student_id")
           .in("election_id", electionIds),
       ]);
 
@@ -94,7 +94,7 @@ function BoardDashboard() {
       if (positionIds.length > 0) {
         const { data: candData } = await supabase
           .from("candidates")
-          .select("id, position_id")
+          .select("id")
           .in("position_id", positionIds);
 
         candidatesData = candData || [];

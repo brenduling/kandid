@@ -162,7 +162,7 @@ function StudentElections() {
         return;
       }
 
-      const buildElectionQueries = (
+      const tionQueries = (
         nextIncludeReleaseColumn = includeReleaseColumn,
         nextIncludeCoverColumn = includeCoverColumn,
       ) => {
@@ -195,16 +195,16 @@ function StudentElections() {
         return queries;
       };
 
-      let electionResponses = await Promise.all(buildElectionQueries());
+      let electionResponses = await Promise.all(tionQueries());
 
       if (electionResponses.some((response) => isMissingResultReleaseColumn(response.error))) {
         includeReleaseColumn = false;
-        electionResponses = await Promise.all(buildElectionQueries(includeReleaseColumn, includeCoverColumn));
+        electionResponses = await Promise.all(tionQueries(includeReleaseColumn, includeCoverColumn));
       }
 
       if (electionResponses.some((response) => isMissingElectionCoverColumn(response.error))) {
         includeCoverColumn = false;
-        electionResponses = await Promise.all(buildElectionQueries(includeReleaseColumn, includeCoverColumn));
+        electionResponses = await Promise.all(tionQueries(includeReleaseColumn, includeCoverColumn));
       }
 
       if (!active) return;

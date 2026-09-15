@@ -1,6 +1,7 @@
 import { ethers } from "ethers";
 
 const DEFAULT_ETHERSCAN_TX_BASE_URL = "https://sepolia.etherscan.io/tx/";
+const DEFAULT_ETHERSCAN_ADDRESS_BASE_URL = "https://sepolia.etherscan.io/address/";
 const SEPOLIA_CHAIN_ID = 11155111;
 
 export const VOTE_REGISTRY_ABI = [
@@ -23,6 +24,11 @@ export function getBlockchainConfig() {
 export function getBlockchainExplorerTxUrl(txHash) {
   if (!txHash) return "";
   return `${getBlockchainConfig().explorerTxBaseUrl}${txHash}`;
+}
+
+export function getBlockchainExplorerAddressUrl(address) {
+  if (!address) return "";
+  return `${DEFAULT_ETHERSCAN_ADDRESS_BASE_URL}${address}`;
 }
 
 export async function hashVoteRecord({

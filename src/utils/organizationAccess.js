@@ -37,6 +37,20 @@ function membershipLifecycleRequiredError() {
   );
 }
 
+function getStoredStudentCredentials(student) {
+  let storedUser;
+  try {
+    storedUser = JSON.parse(localStorage.getItem("user") || "null");
+  } catch {
+    storedUser = null;
+  }
+
+  return {
+    student_number: student?.student_number || storedUser?.student_number || "",
+    password: student?.password || storedUser?.password || "",
+  };
+}
+
 const REQUIRED_STUDENT_ORGANIZATION_NAMES = [
   "WITSG",
   "WIT-SG",
@@ -60,41 +74,174 @@ export async function selectActiveMemberships(select, filters = [], options = {}
   return buildBaseQuery();
 }
 
-export async function selectOrganizationMembershipsForManagement(organizationId) {
-  if (!organizationId) return { data: [], error: null };
+export async function selectOrganizationMembershipsForManagement(organizationId, options = {}) {
+  if (!organizationId) return { data: [], error: null, count: 0 };
 
-  const baseStudentSelect = `
-    student_id,
-    organization_id,
-    role,
-    students (
-      id,
-      student_number,
-      first_name,
-      last_name,
-      email,
-      photo_url,
-      program,
-      year_level,
-      is_shs,
-      status,
-      created_at
-    )
+  const {
+    page = 1,
+    pageSize,
+    search = "",
+    sortBy = "newest",
+  } = options;
+
+  const studentSelect = `
+    id,
+    student_number,
+    first_name,
+    last_name,
+    email,
+    program,
+    year_level,
+    status,
+    created_at
   `;
 
-  const query = (selectText) =>
-    supabase
-      .from("student_organizations")
-      .select(selectText)
-      .eq("organization_id", organizationId);
+  const normalizedSearch = search.trim();
+  const from = pageSize ? Math.max(0, (Math.max(1, page) - 1) * pageSize) : 0;
+  const to = pageSize ? from + pageSize - 1 : undefined;
 
-  const fallback = await query(baseStudentSelect);
+  if (!normalizedSearch) {
+    let membershipPageQuery = supabase
+      .from("student_organizations")
+      .select(
+        `
+    student_id,
+    organization_id,
+    role
+  `,
+        { count: "exact" },
+      )
+      .eq("organization_id", organizationId)
+      .order("student_id", { ascending: sortBy === "id_asc" });
+
+    if (pageSize) {
+      membershipPageQuery = membershipPageQuery.range(from, to);
+    }
+
+    const {
+      data: pageMemberships,
+      error: pageMembershipError,
+      count,
+    } = await membershipPageQuery;
+
+    if (pageMembershipError) {
+      return { data: [], error: pageMembershipError, count: 0 };
+    }
+
+    const pageStudentIds = [
+      ...new Set((pageMemberships || []).map((membership) => membership.student_id).filter(Boolean)),
+    ];
+
+    if (pageStudentIds.length === 0) {
+      return { data: [], error: null, count: count || 0 };
+    }
+
+    const { data: pageStudents, error: pageStudentError } = await supabase
+      .from("students")
+      .select(studentSelect)
+      .in("id", pageStudentIds);
+
+    if (pageStudentError) {
+      return { data: [], error: pageStudentError, count: 0 };
+    }
+
+    const studentsById = new Map((pageStudents || []).map((student) => [Number(student.id), student]));
+
+    return {
+      data: (pageMemberships || []).map((membership) => ({
+        ...membership,
+        students: studentsById.get(Number(membership.student_id)) || null,
+        membership_status: "active",
+      })),
+      error: null,
+      count: count || 0,
+    };
+  }
+
+  const { data: memberships, error: membershipError } = await supabase
+    .from("student_organizations")
+    .select(
+      `
+    student_id,
+    organization_id,
+    role
+  `,
+    )
+    .eq("organization_id", organizationId);
+
+  if (membershipError) {
+    return { data: [], error: membershipError, count: 0 };
+  }
+
+  const studentIds = [...new Set((memberships || []).map((membership) => membership.student_id).filter(Boolean))];
+  if (studentIds.length === 0) return { data: [], error: null, count: 0 };
+
+  let studentQuery = supabase
+    .from("students")
+    .select(studentSelect, { count: "exact" })
+    .in("id", studentIds);
+
+  if (normalizedSearch) {
+    const term = normalizedSearch.replaceAll("%", "\\%").replaceAll("_", "\\_");
+    studentQuery = studentQuery.or(
+      [
+        `student_number.ilike.%${term}%`,
+        `first_name.ilike.%${term}%`,
+        `last_name.ilike.%${term}%`,
+        `email.ilike.%${term}%`,
+        `program.ilike.%${term}%`,
+      ].join(","),
+    );
+  }
+
+  if (sortBy === "name_desc") {
+    studentQuery = studentQuery.order("last_name", { ascending: false }).order("first_name", { ascending: false });
+  } else if (sortBy === "oldest") {
+    studentQuery = studentQuery.order("created_at", { ascending: true }).order("id", { ascending: true });
+  } else if (sortBy === "id_desc") {
+    studentQuery = studentQuery.order("student_number", { ascending: false }).order("id", { ascending: true });
+  } else if (sortBy === "id_asc") {
+    studentQuery = studentQuery.order("student_number", { ascending: true }).order("id", { ascending: true });
+  } else if (sortBy === "newest") {
+    studentQuery = studentQuery.order("created_at", { ascending: false }).order("id", { ascending: true });
+  } else {
+    studentQuery = studentQuery.order("last_name", { ascending: true }).order("first_name", { ascending: true });
+  }
+
+  if (pageSize) {
+    studentQuery = studentQuery.range(from, to);
+  }
+
+  const { data: students, error: studentError, count } = await studentQuery;
+
+  if (studentError) {
+    return { data: [], error: studentError, count: 0 };
+  }
+
+  const membershipsByStudentId = new Map();
+  (memberships || []).forEach((membership) => {
+    const id = Number(membership.student_id);
+    if (!membershipsByStudentId.has(id)) {
+      membershipsByStudentId.set(id, membership);
+    }
+  });
+
   return {
-    data: (fallback.data || []).map((membership) => ({
-      ...membership,
-      membership_status: "active",
-    })),
-    error: fallback.error,
+    data: (students || []).map((student) => {
+      const membership = membershipsByStudentId.get(Number(student.id)) || {
+        student_id: student.id,
+        organization_id: Number(organizationId),
+        role: "member",
+      };
+
+      return {
+        ...membership,
+        students: student,
+        membership_status: membership.membership_status || "active",
+      };
+    }),
+    error: null,
+    count: count || 0,
   };
 }
 
@@ -472,51 +619,66 @@ export async function getStudentExplicitOrganizations(studentId) {
 export async function getEligibleStudentOrganizations(student) {
   if (!student?.id) return [];
 
-  let studentProfile = student;
-
-  if (!studentProfile.program) {
-    const { data, error } = await supabase
-      .from("students")
-      .select("id, program")
-      .eq("id", student.id)
-      .maybeSingle();
-
-    if (error) {
-      console.error("Failed to load student program:", error);
-    } else if (data) {
-      studentProfile = { ...studentProfile, ...data };
-    }
-  }
-
-  const [memberships, organizations] = await Promise.all([
-    getStudentExplicitOrganizations(studentProfile.id),
+  const [organizationIds, organizations] = await Promise.all([
+    getStudentElectionOrganizationIds(student),
     getOrganizationCatalog(),
   ]);
 
-  const explicitOrganizations = (memberships || [])
-    .map((membership) => membership.organizations)
-    .filter(Boolean);
-
-  const derivedOrganizations = (organizations || []).filter((organization) =>
-    isOrganizationEligibleForStudent(organization, studentProfile),
+  const allowedIds = new Set(
+    (organizationIds || []).map((organizationId) => Number(organizationId)),
   );
 
-  return uniqueById([...explicitOrganizations, ...derivedOrganizations]);
+  return uniqueById(
+    (organizations || []).filter((organization) => allowedIds.has(Number(organization.id))),
+  );
 }
 
 export async function getEligibleStudentOrganizationIds(student) {
-  const organizations = await getEligibleStudentOrganizations(student);
-  return organizations.map((organization) => organization.id);
+  return getStudentElectionOrganizationIds(student);
 }
 
 export async function getStudentElectionOrganizationIds(student) {
   if (!student?.id) return [];
 
-  const organizations = await getEligibleStudentOrganizations(student);
+  const credentials = getStoredStudentCredentials(student);
+  if (!credentials.student_number || !credentials.password) {
+    const [explicitMemberships, organizations] = await Promise.all([
+      getStudentExplicitOrganizations(student.id),
+      getOrganizationCatalog(),
+    ]);
+    const derivedOrganizationIds = (organizations || [])
+      .filter((organization) => isOrganizationEligibleForStudent(organization, student))
+      .map((organization) => Number(organization.id));
+
+    return [
+      ...new Set(
+        [
+          ...(explicitMemberships || []).map((membership) =>
+            Number(membership.organization_id || membership.organizations?.id),
+          ),
+          ...derivedOrganizationIds,
+        ].filter(Boolean),
+      ),
+    ];
+  }
+
+  const { data, error } = await supabase.functions.invoke("organization-eligibility", {
+    body: {
+      action: "student_organization_ids",
+      student_number: credentials.student_number,
+      password: credentials.password,
+    },
+  });
+
+  if (error) {
+    console.error("Failed to load current-term organization eligibility:", error);
+    return [];
+  }
+
   return [
     ...new Set(
-      (organizations || [])
-        .map((organization) => Number(organization.id))
+      (data?.data?.organization_ids || [])
+        .map((organizationId) => Number(organizationId))
         .filter(Boolean),
     ),
   ];
@@ -670,7 +832,6 @@ export async function syncStudentsForOrganizationCoverage(organizationId) {
 export async function deactivateStudentOrganizationMembership({
   studentId,
   organizationId,
-  reason = "",
 }) {
   if (!studentId || !organizationId) {
     return { error: new Error("Student and organization are required.") };
@@ -714,59 +875,16 @@ export async function removeStudentOrganizationMembership({
 export async function fetchEligibleStudentsForOrganization(organizationId) {
   if (!organizationId) return [];
 
-  const [
-    organizations,
-    { data: students, error: studentsError },
-    { data: memberships, error: membershipError },
-  ] = await Promise.all([
-    getOrganizationCatalog(),
-    supabase
-      .from("students")
-      .select("id, student_number, first_name, last_name, photo_url, program, year_level, status")
-      .order("last_name", { ascending: true }),
-    selectActiveMemberships(
-      `
-        student_id,
-        students (
-          id,
-          student_number,
-          first_name,
-          last_name,
-          photo_url,
-          program,
-          year_level,
-          status
-        )
-      `,
-      [["organization_id", organizationId]],
-    ),
-  ]);
+  const { data, error } = await supabase.functions.invoke("organization-eligibility", {
+    body: {
+      action: "eligible_students_for_organization",
+      organization_id: Number(organizationId),
+    },
+  });
 
-  if (studentsError) {
-    throw studentsError;
+  if (error) {
+    throw error;
   }
 
-  if (membershipError) {
-    throw membershipError;
-  }
-
-  const organization = organizations.find(
-    (item) => String(item.id) === String(organizationId),
-  );
-
-  if (!organization) return [];
-
-  const derivedStudents = (students || []).filter((student) =>
-    isOrganizationEligibleForStudent(organization, student),
-  );
-
-  const explicitStudents = (memberships || [])
-    .map((membership) => membership.students)
-    .filter(Boolean);
-
-  return uniqueById([...derivedStudents, ...explicitStudents]).sort((a, b) =>
-    `${a.last_name || ""} ${a.first_name || ""}`.localeCompare(
-      `${b.last_name || ""} ${b.first_name || ""}`,
-    ),
-  );
+  return uniqueById(data?.data?.students || []);
 }

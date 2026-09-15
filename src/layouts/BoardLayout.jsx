@@ -5,7 +5,7 @@ import {
   ChevronDown,
   LogOut,
 } from "lucide-react";
-import { clearStoredUser, getStoredUser } from "../utils/auth";
+import { getStoredUser, signOutAdminSession } from "../utils/auth";
 import GlobalSearch from "../components/GlobalSearch";
 import MobileNav from "../components/MobileNav";
 import MobileHeader from "../components/MobileHeader";
@@ -68,7 +68,7 @@ function BoardLayout() {
       status: "completed",
       user,
     });
-    clearStoredUser();
+    await signOutAdminSession();
     navigate("/board-portal", { replace: true });
   }
 
@@ -107,11 +107,11 @@ function BoardLayout() {
 
               <div className="sidebar-reveal min-w-0">
                 <p className="menu-brand-title">KANDID</p>
-                <p className="menu-brand-copy">Electoral Board</p>
+                <p className="menu-brand-copy">ELECTORAL BOARD</p>
               </div>
             </button>
             <div className="sidebar-brand-copy">
-              <p className="mt-4 menu-brand-copy">Set up Elections and Monitor the Organization.</p>
+              <p className="mt-4 menu-brand-copy">Election workspace</p>
             </div>
           </div>
 
@@ -251,7 +251,7 @@ function BoardLayout() {
         menuGroups={boardMenuGroups}
         user={user}
         onLogout={handleLogout}
-        title="Electoral Board"
+        title="ELECTORAL BOARD"
       />
 
       <MobileNav

@@ -7,6 +7,7 @@ import { supabase } from "../../lib/supabaseClient";
 import { usePrompt } from "../../context/PromptContext";
 import { logAuditEvent } from "../../utils/auditLog";
 import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
+import { fetchEligibleStudentsForOrganization } from "../../utils/organizationAccess";
 
 const emptyForm = {
   organization_id: "",
@@ -51,22 +52,13 @@ function Officers() {
       return;
     }
 
-    const { data } = await supabase
-      .from("student_organizations")
-      .select(`
-        students (
-          id,
-          first_name,
-          last_name,
-          student_number,
-          photo_url,
-          program,
-          year_level
-        )
-      `)
-      .eq("organization_id", organizationId);
-
-    setStudents((data || []).map((item) => item.students).filter(Boolean));
+    try {
+      const data = await fetchEligibleStudentsForOrganization(organizationId);
+      setStudents(data || []);
+    } catch (error) {
+      console.error("Failed to load eligible officer students:", error);
+      setStudents([]);
+    }
   }
 
   async function fetchOfficers() {

@@ -7,6 +7,7 @@ import {
   getReadNotifications,
   markAllNotificationsRead,
   markNotificationRead,
+  markStoredNotificationRead,
 } from "../../utils/notifications";
 import { getStoredUser } from "../../utils/auth";
 import { formatLocalDateTime } from "../../utils/time";
@@ -45,19 +46,27 @@ function NotificationsPage({ user }) {
 
   const unreadCount = useMemo(() => {
     const readSet = new Set(readIds.map(String));
-    return notifications.filter((item) => !readSet.has(String(item.id))).length;
+    return notifications.filter((item) => !item.isRead && !readSet.has(String(item.id))).length;
   }, [notifications, readIds]);
 
-  function handleMarkAllRead() {
+  async function handleMarkAllRead() {
     if (!activeUser) return;
     markAllNotificationsRead(activeUser, notifications);
+    await Promise.all(
+      notifications
+        .filter((item) => item.storedId && !item.isRead)
+        .map((item) => markStoredNotificationRead(activeUser, item.id)),
+    );
     setReadIds(notifications.map((item) => String(item.id)));
     window.dispatchEvent(new Event("kandid-notifications-read"));
   }
 
-  function handleOpenNotification(item) {
+  async function handleOpenNotification(item) {
     if (!activeUser) return;
     markNotificationRead(activeUser, item.id);
+    if (item.storedId && !item.isRead) {
+      await markStoredNotificationRead(activeUser, item.id);
+    }
     setReadIds((current) => [...new Set([...current.map(String), String(item.id)])]);
     window.dispatchEvent(new Event("kandid-notifications-read"));
     if (item.href) navigate(item.href);
@@ -95,7 +104,7 @@ function NotificationsPage({ user }) {
         ) : (
           <div className="notifications-list">
             {notifications.map((item) => {
-              const unread = !readIds.map(String).includes(String(item.id));
+              const unread = !item.isRead && !readIds.map(String).includes(String(item.id));
 
               return (
                 <button

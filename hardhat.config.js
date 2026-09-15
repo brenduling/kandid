@@ -1,3 +1,4 @@
+import "dotenv/config";
 import "@nomicfoundation/hardhat-ethers";
 
 const sepoliaUrl = process.env.SEPOLIA_RPC_URL || "";

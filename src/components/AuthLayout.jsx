@@ -87,9 +87,7 @@ function AuthLayout({
         "kandid-auth-screen",
         screenClassName,
         keyboardActive ? "is-keyboard-active" : "",
-      ]
-        .filter(Boolean)
-        .join(" ")}
+      ].filter(Boolean).join(" ")}
     >
       <section className="kandid-auth-identity">
         <div className="kandid-auth-brand">

@@ -1,5 +1,15 @@
 const DATE_TIME_PARTS =
   /^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?)?/;
+const MANILA_TIME_ZONE = "Asia/Manila";
+const MANILA_DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-PH", {
+  timeZone: MANILA_TIME_ZONE,
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  hour12: true,
+});
 
 function hasExplicitTimezone(value) {
   return /(?:[zZ]|[+-]\d{2}:?\d{2})$/.test(String(value || ""));
@@ -99,6 +109,23 @@ export function formValueToScheduleWallClock(value) {
 export function formatLocalDateTime(value, fallback = "Time unavailable") {
   const date = parseAbsoluteTimestamp(value);
   return date ? date.toLocaleString() : fallback;
+}
+
+export function formatManilaDateTime(value, fallback = "Time unavailable") {
+  const date = value instanceof Date ? value : parseAbsoluteTimestamp(value);
+  return date && !Number.isNaN(date.getTime())
+    ? MANILA_DATE_TIME_FORMATTER.format(date)
+    : fallback;
+}
+
+export function formatUtcTimestampAsManilaDateTime(value, fallback = "Time unavailable") {
+  const date = parseUtcTimestamp(value);
+  return date ? formatManilaDateTime(date, fallback) : fallback;
+}
+
+export function formatAbsoluteTimestampAsManilaDateTime(value, fallback = "Time unavailable") {
+  const date = parseAbsoluteTimestamp(value);
+  return date ? formatManilaDateTime(date, fallback) : fallback;
 }
 
 export function formatLocalDate(value, fallback = "Time unavailable") {

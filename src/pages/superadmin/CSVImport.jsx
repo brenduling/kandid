@@ -1,24 +1,64 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Papa from "papaparse";
 import { Upload, CheckCircle, XCircle } from "lucide-react";
-import { supabase } from "../../lib/supabaseClient";
-import {
-  findOrCreateStudentByNumber,
-  syncStudentOrganizationMemberships,
-} from "../../utils/organizationAccess";
-import { logAuditEvent } from "../../utils/auditLog";
+import { createMasterlistImport } from "../../utils/superAdminMasterlistImport";
+import { formatAcademicTerm, listAcademicTerms } from "../../utils/academicTerms";
 import { usePrompt } from "../../context/PromptContext";
 
 function CSVImport() {
+  const navigate = useNavigate();
   const prompt = usePrompt();
   const [rows, setRows] = useState([]);
   const [validRows, setValidRows] = useState([]);
   const [invalidRows, setInvalidRows] = useState([]);
   const [importing, setImporting] = useState(false);
+  const [terms, setTerms] = useState([]);
+  const [selectedTermId, setSelectedTermId] = useState("");
+  const [termLoading, setTermLoading] = useState(true);
+  const [selectedFileName, setSelectedFileName] = useState("");
+
+  const availableTerms = useMemo(
+    () => terms.filter((term) => term.status !== "closed"),
+    [terms],
+  );
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadTerms() {
+      setTermLoading(true);
+      const { data, error } = await listAcademicTerms({ force: true });
+
+      if (!active) return;
+
+      if (error) {
+        prompt.error(error.message || "Academic terms could not be loaded.");
+        setTerms([]);
+      } else {
+        const loadedTerms = data || [];
+        setTerms(loadedTerms);
+        const draftTerm =
+          loadedTerms.find((term) => term.status === "draft") ||
+          loadedTerms.find((term) => term.status === "active") ||
+          null;
+        setSelectedTermId(draftTerm?.id ? String(draftTerm.id) : "");
+      }
+
+      setTermLoading(false);
+    }
+
+    loadTerms();
+
+    return () => {
+      active = false;
+    };
+  }, [prompt]);
 
   function handleFileUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
+    setSelectedFileName(file.name);
 
     Papa.parse(file, {
       header: true,
@@ -40,13 +80,12 @@ function CSVImport() {
         "student_number",
         "first_name",
         "last_name",
-        "email",
         "program",
         "year_level",
-        "is_shs",
       ];
 
       const missing = requiredFields.filter((field) => !row[field]);
+      const email = row.email?.trim() || "";
 
       if (missing.length > 0) {
         invalid.push({
@@ -54,15 +93,22 @@ function CSVImport() {
           reason: `Missing: ${missing.join(", ")}`,
           data: row,
         });
+      } else if (email && !email.includes("@")) {
+        invalid.push({
+          row: index + 2,
+          reason: "Invalid email format",
+          data: row,
+        });
       } else {
         valid.push({
+          row_number: index + 2,
           student_number: row.student_number.trim(),
           first_name: row.first_name.trim(),
           last_name: row.last_name.trim(),
-          email: row.email.trim(),
+          email,
           program: row.program.trim(),
           year_level: Number(row.year_level),
-          is_shs: row.is_shs.toLowerCase() === "true",
+          is_shs: false,
           status: "pending",
         });
       }
@@ -74,65 +120,28 @@ function CSVImport() {
 
   async function importStudents() {
     if (validRows.length === 0) return;
+    if (!selectedTermId) {
+      prompt.error("Choose an academic term before staging the masterlist.");
+      return;
+    }
 
     setImporting(true);
 
-    const importedStudents = [];
-    let createdCount = 0;
-    let linkedExistingCount = 0;
-
-    for (const row of validRows) {
-      const {
-        data: student,
-        created,
-        error: studentError,
-      } = await findOrCreateStudentByNumber(row);
-
-      if (studentError || !student) {
-        setImporting(false);
-        prompt.error(studentError?.message || "Student import failed.");
-        return;
-      }
-
-      const { error: membershipError } = await syncStudentOrganizationMemberships({
-        studentId: student.id,
-        program: student.program,
-      });
-
-      if (membershipError) {
-        setImporting(false);
-        prompt.error(membershipError.message || "Student organization sync failed.");
-        return;
-      }
-
-      importedStudents.push(student);
-      if (created) {
-        createdCount += 1;
-      } else {
-        linkedExistingCount += 1;
-      }
-    }
-
-    setImporting(false);
-    prompt.success(
-      `Student import completed. ${createdCount} created, ${linkedExistingCount} existing synced.`
-    );
-    await logAuditEvent({
-      action: "student_batch_imported",
-      entityType: "student",
-      entityLabel: "CSV Import",
-      status: "completed",
-      metadata: {
-        imported_count: importedStudents.length,
-        created_count: createdCount,
-        linked_existing_count: linkedExistingCount,
-        invalid_count: invalidRows.length,
-      },
+    const { data, error } = await createMasterlistImport({
+      academicTermId: selectedTermId,
+      fileName: selectedFileName || "masterlist.csv",
+      rows: validRows,
     });
 
-    setRows([]);
-    setValidRows([]);
-    setInvalidRows([]);
+    setImporting(false);
+
+    if (error || !data?.import?.id) {
+      prompt.error(error?.message || "Masterlist could not be staged.");
+      return;
+    }
+
+    prompt.success("Masterlist staged for review.");
+    navigate(`/super-admin/masterlist/review/${data.import.id}`);
   }
 
   return (
@@ -140,8 +149,30 @@ function CSVImport() {
       <div>
         <h1 className="text-3xl font-black">CSV Import Center</h1>
         <p className="surface-subcopy mt-1">
-          Upload and validate student CSV records before importing.
+          Upload and validate a semester masterlist before review and finalization.
         </p>
+      </div>
+
+      <div className="soft-card mt-8">
+        <label className="field-label" htmlFor="academic-term">
+          Academic Term
+        </label>
+        <select
+          id="academic-term"
+          value={selectedTermId}
+          onChange={(event) => setSelectedTermId(event.target.value)}
+          disabled={termLoading || importing}
+          className="input mt-2"
+        >
+          <option value="">
+            {termLoading ? "Loading academic terms..." : "Select academic term"}
+          </option>
+          {availableTerms.map((term) => (
+            <option key={term.id} value={term.id}>
+              {formatAcademicTerm(term)} - {term.status}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -173,8 +204,8 @@ function CSVImport() {
           <Upload size={42} className="text-[#ff5a1f]" />
           <h3 className="surface-heading mt-4 text-xl font-black">Upload CSV File</h3>
           <p className="surface-subcopy mt-1 text-sm">
-            Required columns: student_number, first_name, last_name, email,
-            program, year_level, is_shs
+            Required columns: student_number, first_name, last_name, program,
+            year_level. Email is optional.
           </p>
 
           <input
@@ -204,7 +235,7 @@ function CSVImport() {
                     {row.student_number} - {row.first_name} {row.last_name}
                   </p>
                   <p className="surface-subcopy">
-                    {row.program} | Year {row.year_level} | {row.is_shs ? "SHS" : "College"}
+                    {row.program} | Year {row.year_level}
                   </p>
                 </div>
               ))}
@@ -240,10 +271,10 @@ function CSVImport() {
         <div className="mt-8 flex justify-end">
           <button
             onClick={importStudents}
-            disabled={importing}
+            disabled={importing || !selectedTermId}
             className="primary-btn disabled:opacity-60"
           >
-            {importing ? "Importing..." : `Import ${validRows.length} Students`}
+            {importing ? "Staging..." : `Stage ${validRows.length} Records`}
           </button>
         </div>
       )}

@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabaseClient";
+import { isMissingPositionOrderError } from "./positionOrder";
 
 function uniqueIds(values = []) {
   return [
@@ -33,17 +34,26 @@ export async function fetchElectionResultDataset(elections = []) {
     electionRows.map((election) => [Number(election.id), election]),
   );
 
-  const [voteResult, positionResult] = await Promise.all([
+  let [voteResult, positionResult] = await Promise.all([
     supabase
       .from("votes")
       .select("id, student_id, election_id, position_id, candidate_id, is_abstain, vote_hash")
       .in("election_id", electionIds),
     supabase
       .from("positions")
-      .select("id, name, election_id, max_votes")
+      .select("id, name, election_id, max_votes, display_order")
       .in("election_id", electionIds)
+      .order("display_order", { ascending: true })
       .order("id", { ascending: true }),
   ]);
+
+  if (isMissingPositionOrderError(positionResult.error)) {
+    positionResult = await supabase
+      .from("positions")
+      .select("id, name, election_id, max_votes")
+      .in("election_id", electionIds)
+      .order("id", { ascending: true });
+  }
 
   if (voteResult.error) {
     return { votes: [], candidates: [], error: voteResult.error };
@@ -55,7 +65,7 @@ export async function fetchElectionResultDataset(elections = []) {
 
   const positions = (positionResult.data || []).map((position, index) => ({
     ...position,
-    display_order: index + 1,
+    display_order: position.display_order || index + 1,
   }));
   const positionById = byId(positions);
   const positionIds = positions.map((position) => position.id);

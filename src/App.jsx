@@ -19,6 +19,7 @@ const StudentElections = lazy(() => import("./pages/student/Elections"));
 const StudentOrganizations = lazy(() => import("./pages/student/Organizations"));
 const StudentVotePage = lazy(() => import("./pages/student/VotePage"));
 const StudentReceipt = lazy(() => import("./pages/student/Receipt"));
+const StudentReceiptDetails = lazy(() => import("./pages/student/ReceiptDetails"));
 const StudentCampaign = lazy(() => import("./pages/student/Campaign"));
 const StudentResults = lazy(() => import("./pages/student/Results"));
 const StudentOfficers = lazy(() => import("./pages/student/Officers"));
@@ -45,6 +46,7 @@ const Dashboard = lazy(() => import("./pages/superadmin/Dashboard"));
 const Organizations = lazy(() => import("./pages/superadmin/Organizations"));
 const Students = lazy(() => import("./pages/superadmin/Students"));
 const CSVImport = lazy(() => import("./pages/superadmin/CSVImport"));
+const MasterlistReview = lazy(() => import("./pages/superadmin/MasterlistReview"));
 const Elections = lazy(() => import("./pages/superadmin/Elections"));
 const Positions = lazy(() => import("./pages/superadmin/Positions"));
 const Candidates = lazy(() => import("./pages/superadmin/Candidates"));
@@ -102,6 +104,7 @@ function App() {
             path="/student-login"
             element={<StudentLogin />}
           />
+
           <Route
             path="/admin-auth/setup"
             element={<AdminAuthSetup />}
@@ -170,6 +173,11 @@ function App() {
             <Route
               path="csv-import"
               element={<CSVImport />}
+            />
+
+            <Route
+              path="masterlist/review/:importId"
+              element={<MasterlistReview />}
             />
 
             <Route
@@ -410,6 +418,11 @@ function App() {
             <Route
               path="receipt"
               element={<StudentReceipt />}
+            />
+
+            <Route
+              path="receipt/:voteId"
+              element={<StudentReceiptDetails />}
             />
 
             <Route

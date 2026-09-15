@@ -1,5 +1,5 @@
-export const POSITION_ORDER_SELECT = "id, name, election_id, max_votes";
-export const POSITION_BASE_SELECT = "id, name, election_id, max_votes";
+export const POSITION_ORDER_SELECT = "id, name, election_id, max_votes, display_order";
+export const POSITION_BASE_SELECT = "id, name, election_id, max_votes, display_order";
 
 export function isMissingPositionOrderError(error) {
   const message = error?.message || "";
@@ -27,21 +27,45 @@ export function positionOrderValue(position) {
 }
 
 export async function fetchOrderedPositions(supabase, electionId) {
-  let query = supabase
-    .from("positions")
-    .select(POSITION_ORDER_SELECT)
-    .order("id", { ascending: true });
+  const buildOrderedQuery = () => {
+    let query = supabase
+      .from("positions")
+      .select(POSITION_ORDER_SELECT)
+      .order("display_order", { ascending: true })
+      .order("id", { ascending: true });
 
-  if (electionId !== undefined && electionId !== null && electionId !== "") {
-    query = query.eq("election_id", electionId);
+    if (electionId !== undefined && electionId !== null && electionId !== "") {
+      query = query.eq("election_id", electionId);
+    }
+
+    return query;
+  };
+
+  const buildLegacyQuery = () => {
+    let query = supabase
+      .from("positions")
+      .select("id, name, election_id, max_votes")
+      .order("id", { ascending: true });
+
+    if (electionId !== undefined && electionId !== null && electionId !== "") {
+      query = query.eq("election_id", electionId);
+    }
+
+    return query;
+  };
+
+  let { data, error } = await buildOrderedQuery();
+
+  if (isMissingPositionOrderError(error)) {
+    const fallback = await buildLegacyQuery();
+    data = fallback.data;
+    error = fallback.error;
   }
 
-  let { data, error } = await query;
-
   return {
-    data: (data || []).map((position, index) => ({
+    data: sortPositions(data || []).map((position, index) => ({
       ...position,
-      display_order: index + 1,
+      display_order: normalizePositionOrder(position, index),
     })),
     error,
   };

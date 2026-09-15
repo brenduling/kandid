@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plus, Pencil, Trash2, X, Search } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import PopupOverlay from "../../components/PopupOverlay";
@@ -6,21 +6,22 @@ import { OrganizationLogo, StudentAvatar } from "../../components/KandidImage";
 import { supabase } from "../../lib/supabaseClient";
 import { readImageFileAsCompressedDataUrl } from "../../utils/files";
 import {
-  findOrCreateStudentByNumber,
   syncStudentOrganizationMemberships,
 } from "../../utils/organizationAccess";
 import { usePrompt } from "../../context/PromptContext";
 import { logAuditEvent } from "../../utils/auditLog";
 import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
+import { formatAcademicTerm, getCurrentAcademicTerm } from "../../utils/academicTerms";
+import { isSupabaseAdminAuthMode } from "../../utils/auth";
+import { manuallyEnrollSuperAdminStudent } from "../../utils/superAdminManualEnrollment";
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 10;
 const STUDENT_DIRECTORY_SELECT = `
   id,
   student_number,
   first_name,
   last_name,
   email,
-  photo_url,
   program,
   year_level,
   precinct_code,
@@ -29,6 +30,7 @@ const STUDENT_DIRECTORY_SELECT = `
   status,
   created_at
 `;
+const ORGANIZATION_CATALOG_SELECT = "id, name, description, organization_type";
 
 const sortOptions = {
   name_asc: { label: "Name: A-Z", column: "last_name", ascending: true },
@@ -42,6 +44,7 @@ const sortOptions = {
 function Students() {
   const prompt = usePrompt();
   const [searchParams] = useSearchParams();
+  const searchParamValue = searchParams.get("q") || "";
 
   const [students, setStudents] = useState([]);
   const [organizations, setOrganizations] = useState([]);
@@ -49,16 +52,26 @@ function Students() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
 
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [search, setSearch] = useState(searchParamValue);
+  const [debouncedSearch, setDebouncedSearch] = useState(searchParamValue.trim());
   const [organizationFilter, setOrganizationFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
   const [page, setPage] = useState(1);
   const [totalStudents, setTotalStudents] = useState(0);
+  const [studentPhotos, setStudentPhotos] = useState({});
+  const [organizationLogos, setOrganizationLogos] = useState({});
   const [loadingStudents, setLoadingStudents] = useState(true);
   const [studentsError, setStudentsError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [activeTerm, setActiveTerm] = useState(null);
+  const [activeTermLoading, setActiveTermLoading] = useState(false);
+  const [activeTermError, setActiveTermError] = useState("");
+  const latestPhotoFetchId = useRef(0);
+  const latestOrganizationLogoFetchId = useRef(0);
+  const studentPhotoCache = useRef(new Map());
+  const organizationLogoCache = useRef(new Map());
+  const organizationCatalogRequest = useRef(null);
 
   const [form, setForm] = useState({
     student_number: "",
@@ -71,7 +84,6 @@ function Students() {
     organization_id: "",
     precinct_code: "",
     batch_code: "",
-    is_shs: false,
     status: "pending",
   });
 
@@ -89,12 +101,199 @@ function Students() {
   }, [search]);
 
   useEffect(() => {
-    setSearch(searchParams.get("q") || "");
-  }, [searchParams]);
+    const timer = window.setTimeout(() => {
+      setSearch(searchParamValue);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [searchParamValue]);
 
   useEffect(() => {
     fetchStudents();
   }, [debouncedSearch, organizationFilter, statusFilter, sortBy, page]);
+
+  useEffect(() => {
+    if (!formOpen || editingStudent) return;
+
+    let active = true;
+    async function loadActiveTerm() {
+      setActiveTermLoading(true);
+      setActiveTermError("");
+
+      const { data, error, unavailable } = await getCurrentAcademicTerm({ force: true });
+      if (!active) return;
+
+      setActiveTerm(data || null);
+      if (unavailable) {
+        setActiveTermError("Academic term setup is not available yet.");
+      } else if (error) {
+        setActiveTermError(error.message || "Unable to load the active academic term.");
+      } else if (!data) {
+        setActiveTermError("No active academic term. Activate a term before adding students.");
+      }
+      setActiveTermLoading(false);
+    }
+
+    loadActiveTerm();
+
+    return () => {
+      active = false;
+    };
+  }, [formOpen, editingStudent]);
+
+  useEffect(() => {
+    const visibleIds = students.map((student) => student.id).filter(Boolean);
+    if (visibleIds.length === 0) return;
+
+    const cachedPhotos = {};
+    const missingIds = [];
+
+    visibleIds.forEach((id) => {
+      const key = String(id);
+      if (studentPhotoCache.current.has(key)) {
+        cachedPhotos[key] = studentPhotoCache.current.get(key);
+      } else {
+        missingIds.push(id);
+      }
+    });
+
+    if (Object.keys(cachedPhotos).length > 0) {
+      setStudentPhotos((current) => ({ ...current, ...cachedPhotos }));
+    }
+
+    if (missingIds.length === 0) return;
+
+    let active = true;
+    const fetchId = latestPhotoFetchId.current + 1;
+    latestPhotoFetchId.current = fetchId;
+
+    async function loadVisiblePhotos() {
+      const { data, error } = await supabase
+        .from("students")
+        .select("id, photo_url")
+        .in("id", missingIds);
+
+      if (!active || latestPhotoFetchId.current !== fetchId) return;
+
+      if (error) {
+        console.warn("Failed to load visible student photos:", error.message);
+        return;
+      }
+
+      const nextPhotos = {};
+      (data || []).forEach((student) => {
+        const key = String(student.id);
+        const value = student.photo_url || "";
+        studentPhotoCache.current.set(key, value);
+        nextPhotos[key] = value;
+      });
+
+      if (Object.keys(nextPhotos).length > 0) {
+        setStudentPhotos((current) => ({ ...current, ...nextPhotos }));
+      }
+    }
+
+    loadVisiblePhotos();
+
+    return () => {
+      active = false;
+    };
+  }, [students]);
+
+  useEffect(() => {
+    const visibleOrganizationIds = [
+      ...new Set(
+        students
+          .flatMap((student) => student.student_organizations || [])
+          .map((membership) => membership.organizations?.id || membership.organization_id)
+          .map((id) => Number(id))
+          .filter((id) => Number.isFinite(id) && id > 0),
+      ),
+    ];
+
+    if (visibleOrganizationIds.length === 0) return;
+
+    const cachedLogos = {};
+    const missingIds = [];
+
+    visibleOrganizationIds.forEach((id) => {
+      const key = String(id);
+      if (organizationLogoCache.current.has(key)) {
+        cachedLogos[key] = organizationLogoCache.current.get(key);
+      } else {
+        missingIds.push(id);
+      }
+    });
+
+    if (Object.keys(cachedLogos).length > 0) {
+      setOrganizationLogos((current) => ({ ...current, ...cachedLogos }));
+    }
+
+    if (missingIds.length === 0) return;
+
+    let active = true;
+    const fetchId = latestOrganizationLogoFetchId.current + 1;
+    latestOrganizationLogoFetchId.current = fetchId;
+
+    async function loadVisibleOrganizationLogos() {
+      const { data, error } = await supabase
+        .from("organizations")
+        .select("id, logo_url")
+        .in("id", missingIds);
+
+      if (!active || latestOrganizationLogoFetchId.current !== fetchId) return;
+
+      if (error) {
+        console.warn("Failed to load visible organization logos:", error.message);
+        return;
+      }
+
+      const nextLogos = {};
+      (data || []).forEach((organization) => {
+        const key = String(organization.id);
+        const value = organization.logo_url || "";
+        organizationLogoCache.current.set(key, value);
+        nextLogos[key] = value;
+      });
+
+      if (Object.keys(nextLogos).length > 0) {
+        setOrganizationLogos((current) => ({ ...current, ...nextLogos }));
+      }
+    }
+
+    loadVisibleOrganizationLogos();
+
+    return () => {
+      active = false;
+    };
+  }, [students]);
+
+  async function loadOrganizationCatalog() {
+    if (organizations.length > 0) {
+      return { data: organizations, error: null };
+    }
+
+    if (organizationCatalogRequest.current) {
+      return organizationCatalogRequest.current;
+    }
+
+    organizationCatalogRequest.current = supabase
+      .from("organizations")
+      .select(ORGANIZATION_CATALOG_SELECT)
+      .order("name", { ascending: true })
+      .then(({ data, error }) => {
+        if (!error) {
+          setOrganizations(data || []);
+        }
+
+        return { data: data || [], error };
+      })
+      .finally(() => {
+        organizationCatalogRequest.current = null;
+      });
+
+    return organizationCatalogRequest.current;
+  }
 
   async function attachVisibleStudentOrganizations(studentRows = []) {
     const studentIds = [
@@ -111,10 +310,8 @@ function Students() {
 
     let organizationRows = organizations;
     if (organizationRows.length === 0) {
-      const { data: organizationData, error: organizationError } = await supabase
-        .from("organizations")
-        .select("id, name, description, logo_url, organization_type")
-        .order("name", { ascending: true });
+      const { data: organizationData, error: organizationError } =
+        await loadOrganizationCatalog();
 
       if (organizationError) {
         return { data: [], error: organizationError };
@@ -250,10 +447,7 @@ function Students() {
   }
 
   async function fetchOrganizations() {
-    const { data, error } = await supabase
-      .from("organizations")
-      .select("id, name, description, logo_url, organization_type")
-      .order("name", { ascending: true });
+    const { error } = await loadOrganizationCatalog();
 
     if (error) {
       console.error(
@@ -268,12 +462,12 @@ function Students() {
 
       return;
     }
-
-    setOrganizations(data || []);
   }
 
   function openCreateForm() {
     setEditingStudent(null);
+    setActiveTerm(null);
+    setActiveTermError("");
 
     setForm({
       student_number: "",
@@ -286,15 +480,35 @@ function Students() {
       organization_id: "",
       precinct_code: "",
       batch_code: "",
-      is_shs: false,
       status: "pending",
     });
 
     setFormOpen(true);
   }
 
-  function openEditForm(student) {
+  async function openEditForm(student) {
     setEditingStudent(student);
+    setActiveTerm(null);
+    setActiveTermError("");
+
+    let photoUrl = studentPhotos[String(student.id)] || "";
+
+    if (!photoUrl && student.id) {
+      const { data, error } = await supabase
+        .from("students")
+        .select("id, photo_url")
+        .eq("id", student.id)
+        .maybeSingle();
+
+      if (!error && data) {
+        photoUrl = data.photo_url || "";
+        studentPhotoCache.current.set(String(student.id), photoUrl);
+        setStudentPhotos((current) => ({
+          ...current,
+          [String(student.id)]: photoUrl,
+        }));
+      }
+    }
 
     const existingOrganizations =
       student.student_organizations || [];
@@ -316,7 +530,7 @@ function Students() {
       email:
         student.email || "",
       photo_url:
-        student.photo_url || "",
+        photoUrl,
       program:
         student.program || "",
       year_level:
@@ -327,8 +541,6 @@ function Students() {
         student.precinct_code || "",
       batch_code:
         student.batch_code || "",
-      is_shs:
-        student.is_shs || false,
       status:
         student.status || "pending",
     });
@@ -364,7 +576,6 @@ function Students() {
       year_level: Number(form.year_level),
       precinct_code: form.precinct_code || null,
       batch_code: form.batch_code || null,
-      is_shs: form.is_shs,
       status: form.status,
     };
 
@@ -384,9 +595,32 @@ function Students() {
         .update(payload)
         .eq("id", editingStudent.id);
     } else {
-      result = await findOrCreateStudentByNumber(payload);
+      if (!isSupabaseAdminAuthMode()) {
+        prompt.error(
+          "Manual semester enrollment requires the secure Supabase Auth Super Admin flow."
+        );
+        setSubmitting(false);
+        return;
+      }
+
+      if (activeTermLoading) {
+        prompt.info("Checking the active academic term. Try again in a moment.");
+        setSubmitting(false);
+        return;
+      }
+
+      if (!activeTerm) {
+        prompt.error(activeTermError || "Manual registration requires an active academic term.");
+        setSubmitting(false);
+        return;
+      }
+
+      result = await manuallyEnrollSuperAdminStudent({
+        ...payload,
+        organization_id: form.organization_id || null,
+      });
       savedStudent = result?.data || null;
-      createdStudent = Boolean(result?.created);
+      createdStudent = Boolean(result?.createdStudent);
     }
 
     const error = result?.error;
@@ -419,32 +653,40 @@ function Students() {
       return;
     }
 
-    const {
-      error: syncError,
-      createdOrganizationIds = [],
-      existingOrganizationIds = [],
-    } =
-      await syncStudentOrganizationMemberships({
-        studentId: savedStudentId,
-        program: savedStudent?.program || form.program,
-        explicitOrganizationIds: form.organization_id
-          ? [form.organization_id]
-          : [],
-      });
+    let createdOrganizationIds = result?.createdOrganizationIds || [];
+    let existingOrganizationIds = result?.existingOrganizationIds || [];
 
-    if (syncError) {
-      console.error(
-        "Student organization sync failed:",
-        syncError
-      );
+    if (editingStudent) {
+      const {
+        error: syncError,
+        createdOrganizationIds: editCreatedOrganizationIds = [],
+        existingOrganizationIds: editExistingOrganizationIds = [],
+      } =
+        await syncStudentOrganizationMemberships({
+          studentId: savedStudentId,
+          program: savedStudent?.program || form.program,
+          explicitOrganizationIds: form.organization_id
+            ? [form.organization_id]
+            : [],
+        });
 
-      prompt.error(
-        syncError.message ||
-        "Failed to link student to organizations."
-      );
+      if (syncError) {
+        console.error(
+          "Student organization sync failed:",
+          syncError
+        );
 
-      setSubmitting(false);
-      return;
+        prompt.error(
+          syncError.message ||
+          "Failed to link student to organizations."
+        );
+
+        setSubmitting(false);
+        return;
+      }
+
+      createdOrganizationIds = editCreatedOrganizationIds;
+      existingOrganizationIds = editExistingOrganizationIds;
     }
 
     const selectedOrganizationName =
@@ -500,6 +742,12 @@ function Students() {
         existing_organizations: existingOrganizationIds,
       },
     });
+
+    studentPhotoCache.current.set(String(savedStudentId), form.photo_url || "");
+    setStudentPhotos((current) => ({
+      ...current,
+      [String(savedStudentId)]: form.photo_url || "",
+    }));
 
     setFormOpen(false);
     setSubmitting(false);
@@ -597,7 +845,15 @@ function Students() {
       student.student_organizations || []
     )
       .map(
-        (item) => item.organizations
+        (item) => {
+          const organization = item.organizations;
+          if (!organization) return null;
+
+          return {
+            ...organization,
+            logo_url: organizationLogos[String(organization.id)] || "",
+          };
+        }
       )
       .filter(Boolean)
       .sort((a, b) => {
@@ -800,7 +1056,13 @@ function Students() {
                         {/* STUDENT */}
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-3">
-                            <StudentAvatar student={student} loading="lazy" />
+                            <StudentAvatar
+                              student={{
+                                ...student,
+                                photo_url: studentPhotos[String(student.id)] || "",
+                              }}
+                              loading="lazy"
+                            />
 
                             <div>
                               <p className="font-black">
@@ -1008,6 +1270,21 @@ function Students() {
               onSubmit={handleSubmit}
               className="popup-content overflow-y-auto"
             >
+              {!editingStudent && (
+                <div
+                  className={`rounded-[1.35rem] border px-4 py-3 text-sm font-semibold ${
+                    activeTerm
+                      ? "border-[#ffd7c9] bg-[#fff4ed] text-[#c2410c]"
+                      : "border-rose-200 bg-rose-50 text-rose-700"
+                  }`}
+                >
+                  {activeTermLoading
+                    ? "Checking active academic term..."
+                    : activeTerm
+                      ? `Active term: ${formatAcademicTerm(activeTerm)}`
+                      : activeTermError || "Manual registration requires an active academic term."}
+                </div>
+              )}
               <div className="popup-form-grid">
                 <div className="space-y-4">
                   {/* STUDENT NUMBER */}
@@ -1306,24 +1583,6 @@ function Students() {
                       </option>
                     </select>
                   </div>
-
-                  {/* SHS */}
-                  <label className="mt-5 flex items-center gap-3 text-sm font-semibold text-gray-700">
-                    <input
-                      type="checkbox"
-                      checked={form.is_shs}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          is_shs:
-                            e.target.checked,
-                        })
-                      }
-                    />
-
-                    Senior High School
-                    Student
-                  </label>
                 </div>
               </div>
 

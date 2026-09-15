@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Menu } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import GlobalSearch from "./GlobalSearch";
@@ -66,7 +66,7 @@ function MobileHeader({ user, onMenuClick, homePath = "/" }) {
           <button
             type="button"
             onClick={onMenuClick}
-            className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-50 text-gray-700 transition-colors hover:bg-gray-100 active:bg-gray-200"
+            className="mobile-header-menu-button flex h-10 w-10 items-center justify-center rounded-xl bg-gray-50 text-gray-700 transition-colors hover:bg-gray-100 active:bg-gray-200"
             aria-label="Open navigation menu"
           >
             <Menu size={20} />

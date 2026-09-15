@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { X, ChevronDown, LogOut } from "lucide-react";
 import { getProfileRoute } from "../utils/profile";
@@ -55,36 +55,36 @@ function MobileMenu({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex lg:hidden">
+    <div className="mobile-menu-root fixed inset-0 z-50 flex lg:hidden">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity"
+        className="mobile-menu-backdrop absolute inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity"
         onClick={onClose}
         aria-hidden="true"
       />
 
       {/* Drawer */}
-      <div className="absolute inset-y-0 right-0 flex w-4/5 max-w-sm flex-col bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+      <div className="mobile-menu-drawer absolute inset-y-0 right-0 flex w-4/5 max-w-sm flex-col bg-white shadow-2xl">
+        <div className="mobile-menu-head flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <span className="text-sm font-black uppercase tracking-wider text-gray-900">
             {title}
           </span>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-50 text-gray-500 hover:bg-gray-100"
+            className="mobile-menu-close flex h-10 w-10 items-center justify-center rounded-xl bg-gray-50 text-gray-500 hover:bg-gray-100"
             aria-label="Close menu"
           >
             <X size={20} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-6">
+        <div className="mobile-menu-body flex-1 overflow-y-auto px-4 py-6">
           {/* User Profile Summary */}
           {user && (
             <button
               onClick={handleProfileClick}
-              className="mb-6 flex w-full items-center gap-3 rounded-2xl bg-gray-50 p-3 text-left transition hover:bg-gray-100"
+              className="mobile-menu-profile mb-6 flex w-full items-center gap-3 rounded-2xl bg-gray-50 p-3 text-left transition hover:bg-gray-100"
             >
               {user.role === "student" ? (
                 <StudentAvatar
@@ -124,11 +124,11 @@ function MobileMenu({
                   );
 
                 return (
-                  <div key={group.label} className="flex flex-col gap-2">
+                  <div key={group.label} className="mobile-menu-group flex flex-col gap-2">
                     <button
                       type="button"
                       onClick={() => toggleGroup(group.label)}
-                      className="flex items-center justify-between px-2 py-1"
+                      className="mobile-menu-group-trigger flex items-center justify-between px-2 py-1"
                     >
                       <span className="text-xs font-black uppercase tracking-wider text-gray-400">
                         {group.label}
@@ -151,7 +151,7 @@ function MobileMenu({
                               to={item.path}
                               onClick={onClose}
                               className={({ isActive }) =>
-                                `flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold transition-colors ${
+                                `mobile-menu-link flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold transition-colors ${
                                   isActive
                                     ? "bg-orange-50 text-orange-600"
                                     : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
@@ -177,14 +177,14 @@ function MobileMenu({
         </div>
 
         {/* Logout */}
-        <div className="border-t border-gray-100 p-4">
+        <div className="mobile-menu-footer border-t border-gray-100 p-4">
           <button
             type="button"
             onClick={() => {
               onClose();
               if (onLogout) onLogout();
             }}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-600 transition hover:bg-red-100"
+            className="mobile-menu-logout flex w-full items-center justify-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-600 transition hover:bg-red-100"
           >
             <LogOut size={18} />
             Logout

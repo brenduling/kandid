@@ -1,6 +1,7 @@
 import { supabase } from "../lib/supabaseClient";
 import {
   getCurrentAdminProfile,
+  getCurrentStudentProfile,
   getStoredUser,
   isSupabaseAdminAuthMode,
   setStoredUser,
@@ -11,7 +12,20 @@ import { getStudentExplicitOrganizations } from "./organizationAccess";
 function getProfileSelect(role) {
   if (role === "student") {
     return `
-      *,
+      id,
+      auth_user_id,
+      student_number,
+      first_name,
+      last_name,
+      email,
+      photo_url,
+      program,
+      year_level,
+      precinct_code,
+      batch_code,
+      is_shs,
+      status,
+      created_at,
       student_organizations (
         organization_id,
         organizations (
@@ -65,6 +79,19 @@ export async function fetchCurrentUserProfile() {
       ...user,
       ...data,
       role: data.role,
+    };
+    setStoredUser(nextUser);
+    return { data: nextUser, error: null };
+  }
+
+  if (user.role === "student") {
+    const { data, error } = await getCurrentStudentProfile({ force: true });
+    if (error || !data) return { data: null, error };
+
+    const studentOrganizations = await getStudentExplicitOrganizations(data.id);
+    const nextUser = {
+      ...data,
+      student_organizations: studentOrganizations,
     };
     setStoredUser(nextUser);
     return { data: nextUser, error: null };
@@ -124,6 +151,30 @@ export async function updateCurrentUserProfile(payload) {
     };
     setStoredUser(nextUser);
     return { data: nextUser, error: null };
+  }
+
+  if (user.role === "student") {
+    const { data: currentStudent, error: sessionError } = await getCurrentStudentProfile({ force: true });
+    if (sessionError || !currentStudent) {
+      return { data: null, error: sessionError || new Error("No active student session.") };
+    }
+
+    const allowedPayload = {
+      email: payload.email || null,
+      photo_url: payload.photo_url || null,
+      ...(payload.password ? { password: payload.password } : {}),
+    };
+
+    const { error } = await supabase
+      .from("students")
+      .update(allowedPayload)
+      .eq("id", currentStudent.id);
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    return fetchCurrentUserProfile();
   }
 
   const table = user.role === "student" ? "students" : "admin_users";

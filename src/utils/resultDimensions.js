@@ -97,8 +97,7 @@ async function fetchMembershipDemographics(organizationId) {
     `
       students (
         program,
-        year_level,
-        is_shs
+        year_level
       )
     `,
     [["organization_id", organizationId]],

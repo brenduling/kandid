@@ -37,7 +37,7 @@ function Organizations() {
   const [searchParams] = useSearchParams();
 
   const [organizations, setOrganizations] = useState([]);
-  const [search, setSearch] = useState("");
+  const [search] = useState(() => searchParams.get("q") || "");
   const [filter, setFilter] = useState("all");
   const [programs, setPrograms] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
@@ -58,15 +58,6 @@ function Organizations() {
   });
 
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    fetchOrganizations();
-    loadPrograms();
-  }, []);
-
-  useEffect(() => {
-    setSearch(searchParams.get("q") || "");
-  }, [searchParams]);
 
   async function loadPrograms() {
     const data = await getPrograms();
@@ -724,6 +715,18 @@ function Organizations() {
 
     await fetchOrganizations();
   }
+
+  useEffect(() => {
+    const loadInitialData = async () => {
+      await Promise.all([
+        fetchOrganizations(),
+        loadPrograms(),
+      ]);
+    };
+
+    loadInitialData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function getOrganizationTypeLabel(org) {
     return org?.organization_type === "non_departmental"

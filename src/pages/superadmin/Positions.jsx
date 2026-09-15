@@ -47,6 +47,18 @@ function isMissingPositionStatusError(error) {
   );
 }
 
+function isPositionOrderConflict(error) {
+  return /positions_election_display_order_unique|duplicate key/i.test(
+    error?.message || ""
+  );
+}
+
+function isPositionReorderSetupError(error) {
+  return /reorder_election_positions|schema cache|function .*not.*exist/i.test(
+    error?.message || ""
+  );
+}
+
 function Positions() {
   const prompt = usePrompt();
 
@@ -235,6 +247,8 @@ function Positions() {
         election_id,
         name,
         max_votes,
+        status,
+        display_order,
         elections (
           id,
           title,
@@ -247,13 +261,43 @@ function Positions() {
         )
       `;
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from("positions")
       .select(baseSelect)
       .eq("election_id", electionId)
+      .order("display_order", { ascending: true })
       .order("id", { ascending: true });
 
-    setPositionLifecycleReady(false);
+    let lifecycleReady = true;
+
+    if (isMissingPositionStatusError(error) || isMissingPositionOrderError(error)) {
+      const fallback = await supabase
+        .from("positions")
+        .select(`
+          id,
+          election_id,
+          name,
+          max_votes,
+          elections (
+            id,
+            title,
+            organization_id,
+            organizations (
+              id,
+              name,
+              organization_type
+            )
+          )
+        `)
+        .eq("election_id", electionId)
+        .order("id", { ascending: true });
+
+      data = fallback.data;
+      error = fallback.error;
+      lifecycleReady = false;
+    }
+
+    setPositionLifecycleReady(lifecycleReady);
 
     if (error) {
       console.error("Failed to load positions:", error);
@@ -268,8 +312,8 @@ function Positions() {
     if (isStale()) return;
     const nextPositions = (data || []).map((position, index) => ({
       ...position,
-      status: "active",
-      display_order: index + 1,
+      status: position.status || "active",
+      display_order: position.display_order || index + 1,
     }));
     setPositions(nextPositions);
     setPositionCounts((current) => ({
@@ -371,35 +415,70 @@ function Positions() {
       election_id: electionId,
       name,
       max_votes: maxVotes,
+      display_order: Number(form.display_order || getNextDisplayOrder(electionId)),
     };
 
     const creatingPosition = !editingPosition;
     let savedPositionId = editingPosition?.id;
 
     if (editingPosition) {
-      const { error } = await supabase
+      let { error } = await supabase
         .from("positions")
         .update({
           name: payload.name,
           max_votes: payload.max_votes,
+          display_order: payload.display_order,
         })
         .eq("id", editingPosition.id);
 
+      if (isMissingPositionOrderError(error)) {
+        const fallback = await supabase
+          .from("positions")
+          .update({
+            name: payload.name,
+            max_votes: payload.max_votes,
+          })
+          .eq("id", editingPosition.id);
+        error = fallback.error;
+      }
+
       if (error) {
-        prompt.error(error.message || "Failed to update position.");
+        prompt.error(
+          isPositionOrderConflict(error)
+            ? "Another position already uses that order in this election."
+            : error.message || "Failed to update position."
+        );
         return;
       }
 
       prompt.success("Position updated.");
     } else {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from("positions")
         .insert([payload])
         .select("id")
         .single();
 
+      if (isMissingPositionOrderError(error)) {
+        const fallback = await supabase
+          .from("positions")
+          .insert([{
+            election_id: payload.election_id,
+            name: payload.name,
+            max_votes: payload.max_votes,
+          }])
+          .select("id")
+          .single();
+        data = fallback.data;
+        error = fallback.error;
+      }
+
       if (error) {
-        prompt.error(error.message || "Failed to create position.");
+        prompt.error(
+          isPositionOrderConflict(error)
+            ? "Another position already uses that order in this election."
+            : error.message || "Failed to create position."
+        );
         return;
       }
 
@@ -1332,28 +1411,15 @@ function Positions() {
     const target = siblings[targetIndex];
     const currentOrder = Number(position.display_order || currentIndex + 1);
     const targetOrder = Number(target.display_order || targetIndex + 1);
-    const tempOrder = 1000000000 + Math.max(Number(position.id || 0), Number(target.id || 0));
-    const first = await supabase
-      .from("positions")
-      .update({ display_order: tempOrder })
-      .eq("id", position.id);
-    const second = first.error
-      ? first
-      : await supabase
-          .from("positions")
-          .update({ display_order: currentOrder })
-          .eq("id", target.id);
-    const third = second.error
-      ? second
-      : await supabase
-          .from("positions")
-          .update({ display_order: targetOrder })
-          .eq("id", position.id);
-    const error = first.error || second.error || third.error;
+    const { error } = await supabase.rpc("reorder_election_positions", {
+      p_election_id: Number(position.election_id),
+      p_position_ids: [Number(position.id), Number(target.id)],
+      p_display_orders: [targetOrder, currentOrder],
+    });
 
     if (error) {
       prompt.error(
-        isMissingPositionOrderError(error)
+        isMissingPositionOrderError(error) || isPositionReorderSetupError(error)
           ? "Position sequencing requires the display order migration in Supabase."
           : error.message || "Failed to move position."
       );

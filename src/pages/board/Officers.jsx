@@ -6,6 +6,7 @@ import { supabase } from "../../lib/supabaseClient";
 import { usePrompt } from "../../context/PromptContext";
 import { logAuditEvent } from "../../utils/auditLog";
 import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
+import { fetchEligibleStudentsForOrganization } from "../../utils/organizationAccess";
 
 const emptyForm = {
   student_id: "",
@@ -37,20 +38,12 @@ function BoardOfficers() {
     async function loadData() {
       if (!orgId) return;
 
-      const { data: studentData } = await supabase
-        .from("student_organizations")
-        .select(`
-          students (
-            id,
-            first_name,
-            last_name,
-            student_number,
-            photo_url,
-            program,
-            year_level
-          )
-        `)
-        .eq("organization_id", orgId);
+      let studentData = [];
+      try {
+        studentData = await fetchEligibleStudentsForOrganization(orgId);
+      } catch (error) {
+        console.error("Failed to load eligible officer students:", error);
+      }
 
       const { data: officerData } = await supabase
         .from("officers")
@@ -69,7 +62,7 @@ function BoardOfficers() {
 
       if (!active) return;
 
-      setStudents((studentData || []).map((item) => item.students).filter(Boolean));
+      setStudents(studentData || []);
       setOfficers(officerData || []);
     }
 

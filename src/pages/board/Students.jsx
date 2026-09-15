@@ -1,33 +1,52 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { KandidButtonLoader, KandidInlineLoader } from "../../components/KandidLoader";
 import PopupOverlay from "../../components/PopupOverlay";
 import { StudentAvatar } from "../../components/KandidImage";
-import { supabase } from "../../lib/supabaseClient";
 import { usePrompt } from "../../context/PromptContext";
 import { readImageFileAsCompressedDataUrl } from "../../utils/files";
+import { formatAcademicTerm, getCurrentAcademicTerm } from "../../utils/academicTerms";
+import { isSupabaseAdminAuthMode } from "../../utils/auth";
 import {
-  deactivateStudentOrganizationMembership,
-  findOrCreateStudentByNumber,
-  reactivateStudentOrganizationMembership,
-  removeStudentOrganizationMembership,
-  selectOrganizationMembershipsForManagement,
-  syncStudentOrganizationMemberships,
-} from "../../utils/organizationAccess";
-import { logAuditEvent } from "../../utils/auditLog";
-import { analyzeMembershipDependencies, dependencyMessage } from "../../utils/deleteGuards";
+  listBoardStudents,
+  listRemovedBoardStudents,
+  manuallyEnrollBoardStudent,
+  removeBoardStudentParticipation,
+  restoreBoardStudentParticipation,
+} from "../../utils/boardManualEnrollment";
+
+const PAGE_SIZE = 10;
+const REMOVAL_REASONS = [
+  "Incorrect organization assignment",
+  "Added by mistake",
+  "Not eligible for this organization",
+  "Administrative correction",
+  "Other",
+];
 
 function BoardStudents() {
   const prompt = usePrompt();
   const [searchParams] = useSearchParams();
   const [students, setStudents] = useState([]);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => searchParams.get("q") || "");
+  const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get("q") || "");
   const [sortBy, setSortBy] = useState("newest");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalStudents, setTotalStudents] = useState(0);
   const [formOpen, setFormOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [viewMode, setViewMode] = useState("active");
+  const [removeDialog, setRemoveDialog] = useState(null);
+  const [restoreDialog, setRestoreDialog] = useState(null);
+  const [removalReason, setRemovalReason] = useState(REMOVAL_REASONS[0]);
+  const [customRemovalReason, setCustomRemovalReason] = useState("");
+  const [participationSubmitting, setParticipationSubmitting] = useState(false);
+  const [activeTerm, setActiveTerm] = useState(null);
+  const [activeTermLoading, setActiveTermLoading] = useState(false);
+  const [activeTermError, setActiveTermError] = useState("");
 
   const [form, setForm] = useState({
     student_number: "",
@@ -39,59 +58,75 @@ function BoardStudents() {
     year_level: "",
     precinct_code: "",
     batch_code: "",
-    is_shs: false,
     status: "pending",
   });
 
   const user = JSON.parse(localStorage.getItem("user"));
   const orgId = user?.organization_id;
   const orgName = user?.organization_name || user?.organizations?.name || "your organization";
+  const latestFetchId = useRef(0);
 
   useEffect(() => {
-    const query = searchParams.get("q") || "";
-    setSearch(query);
-  }, [searchParams]);
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearch(search);
+      setCurrentPage(1);
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [search]);
 
   useEffect(() => {
     let active = true;
 
     async function loadStudents() {
-      if (!orgId) {
-        setLoadError("No organization is assigned to this Electoral Board account.");
-        setStudents([]);
-        setLoading(false);
-        return;
-      }
+      const fetchId = latestFetchId.current + 1;
+      latestFetchId.current = fetchId;
+
+      const canCommit = () => active && latestFetchId.current === fetchId;
 
       setLoading(true);
       setLoadError("");
 
-      const { data, error } =
-        await selectOrganizationMembershipsForManagement(orgId);
+      try {
+        const loader = viewMode === "removed" ? listRemovedBoardStudents : listBoardStudents;
+        const { data, error } = await loader({
+          page: currentPage,
+          pageSize: PAGE_SIZE,
+          search: debouncedSearch,
+          sortBy,
+        });
 
-      if (!active) return;
+        if (!canCommit()) return;
 
-      if (error) {
+        if (error) {
+          console.error("Failed to load board students:", error);
+          setLoadError(error.message || "Unable to load students.");
+          setStudents([]);
+          setTotalStudents(0);
+          return;
+        }
+
+        const list = data?.students || [];
+        const count = data?.count || 0;
+
+        setStudents(list);
+        setTotalStudents(count);
+        setActiveTerm(data?.academic_term || null);
+
+        if (list.length === 0 && count > 0 && currentPage > 1) {
+          setCurrentPage(Math.max(1, Math.ceil(count / PAGE_SIZE)));
+        }
+      } catch (error) {
+        if (!canCommit()) return;
         console.error("Failed to load board students:", error);
         setLoadError(error.message || "Unable to load students.");
         setStudents([]);
-        setLoading(false);
-        return;
+        setTotalStudents(0);
+      } finally {
+        if (canCommit()) {
+          setLoading(false);
+        }
       }
-
-      const list = data
-        .map((item) =>
-          item.students
-            ? {
-                ...item.students,
-                membership_status: item.membership_status || "active",
-                deactivation_reason: item.deactivation_reason || "",
-              }
-            : null,
-        )
-        .filter(Boolean);
-      setStudents(list);
-      setLoading(false);
     }
 
     loadStudents();
@@ -99,43 +134,81 @@ function BoardStudents() {
     return () => {
       active = false;
     };
-  }, [orgId]);
+  }, [currentPage, debouncedSearch, sortBy, viewMode]);
+
+  useEffect(() => {
+    if (!formOpen) return;
+
+    let active = true;
+    async function loadActiveTerm() {
+      setActiveTermLoading(true);
+      setActiveTermError("");
+
+      const { data, error, unavailable } = await getCurrentAcademicTerm({ force: true });
+      if (!active) return;
+
+      setActiveTerm(data || null);
+      if (unavailable) {
+        setActiveTermError("Academic term setup is not available yet.");
+      } else if (error) {
+        setActiveTermError(error.message || "Unable to load the active academic term.");
+      } else if (!data) {
+        setActiveTermError("No active academic term. Ask a Super Admin to activate a term first.");
+      }
+      setActiveTermLoading(false);
+    }
+
+    loadActiveTerm();
+
+    return () => {
+      active = false;
+    };
+  }, [formOpen]);
 
   async function fetchStudents() {
-    if (!orgId) {
-      setLoadError("No organization is assigned to this Electoral Board account.");
-      setStudents([]);
-      setLoading(false);
-      return;
-    }
+    const fetchId = latestFetchId.current + 1;
+    latestFetchId.current = fetchId;
+    const canCommit = () => latestFetchId.current === fetchId;
 
     setLoading(true);
     setLoadError("");
 
-    const { data, error } =
-      await selectOrganizationMembershipsForManagement(orgId);
+    try {
+      const loader = viewMode === "removed" ? listRemovedBoardStudents : listBoardStudents;
+      const { data, error } = await loader({
+        page: currentPage,
+        pageSize: PAGE_SIZE,
+        search: debouncedSearch,
+        sortBy,
+      });
 
-    if (error) {
+      if (!canCommit()) return;
+
+      if (error) {
+        console.error("Failed to refresh board students:", error);
+        setLoadError(error.message || "Unable to load students.");
+        setStudents([]);
+        setTotalStudents(0);
+        return;
+      }
+
+      const list = data?.students || [];
+      const count = data?.count || 0;
+
+      setStudents(list);
+      setTotalStudents(count);
+      setActiveTerm(data?.academic_term || null);
+    } catch (error) {
+      if (!canCommit()) return;
       console.error("Failed to refresh board students:", error);
       setLoadError(error.message || "Unable to load students.");
       setStudents([]);
-      setLoading(false);
-      return;
+      setTotalStudents(0);
+    } finally {
+      if (canCommit()) {
+        setLoading(false);
+      }
     }
-
-    const list = data
-      .map((item) =>
-        item.students
-          ? {
-              ...item.students,
-              membership_status: item.membership_status || "active",
-              deactivation_reason: item.deactivation_reason || "",
-            }
-          : null,
-      )
-      .filter(Boolean);
-    setStudents(list);
-    setLoading(false);
   }
 
   async function handleSubmit(e) {
@@ -148,13 +221,31 @@ function BoardStudents() {
       return;
     }
 
+    if (!isSupabaseAdminAuthMode()) {
+      prompt.error(
+        "Manual semester enrollment requires the secure Supabase Auth Electoral Board flow."
+      );
+      return;
+    }
+
+    if (activeTermLoading) {
+      prompt.info("Checking the active academic term. Try again in a moment.");
+      return;
+    }
+
+    if (!activeTerm) {
+      prompt.error(activeTermError || "Manual registration requires an active academic term.");
+      return;
+    }
+
     setSubmitting(true);
 
     const {
-      data: insertedStudent,
-      created: createdStudent,
+      createdStudent,
       error: studentError,
-    } = await findOrCreateStudentByNumber({
+      createdOrganizationIds = [],
+      existingOrganizationIds = [],
+    } = await manuallyEnrollBoardStudent({
       ...form,
       photo_url: form.photo_url || null,
       year_level: Number(form.year_level),
@@ -169,27 +260,13 @@ function BoardStudents() {
       return;
     }
 
-    const {
-      error: orgError,
-      createdOrganizationIds = [],
-      existingOrganizationIds = [],
-    } = await syncStudentOrganizationMemberships({
-      studentId: insertedStudent.id,
-      program: insertedStudent.program,
-      explicitOrganizationIds: [orgId],
-    });
+    const boardOrgId = Number(orgId);
+    const boardMembershipAlreadyExisted =
+      !createdStudent &&
+      existingOrganizationIds.includes(boardOrgId) &&
+      !createdOrganizationIds.includes(boardOrgId);
 
-    if (orgError) {
-      console.error("Board student organization link failed:", orgError);
-      prompt.error(orgError.message || "Failed to link student to this organization.");
-      setSubmitting(false);
-      return;
-    }
-
-    if (
-      existingOrganizationIds.includes(Number(orgId)) &&
-      !createdOrganizationIds.includes(Number(orgId))
-    ) {
+    if (boardMembershipAlreadyExisted) {
       prompt.info("This central student record is already linked to your organization.", "Already a Member");
     } else {
       prompt.success(
@@ -218,190 +295,81 @@ function BoardStudents() {
     );
   }
 
-  async function handleDeactivateMembership(student) {
+  function handleRemoveMembership(student) {
     if (!orgId || !student?.id) return;
-
-    const label = studentDisplayName(student);
-    const confirmed = await prompt.confirm({
-      title: `Deactivate ${orgName} Access?`,
-      message:
-        `${label} will stay in the central student registry, but their membership in ${orgName} will be marked inactive.`,
-      confirmText: "Deactivate Access",
-      cancelText: "Cancel",
-      type: "warning",
-    });
-
-    if (!confirmed) return;
-
-    const { error } = await deactivateStudentOrganizationMembership({
-      studentId: student.id,
-      organizationId: orgId,
-      reason: "Deactivated by electoral board",
-    });
-
-    if (error) {
-      console.error("Failed to deactivate board membership:", error);
-      prompt.error(error.message || "Failed to deactivate student access.");
-      return;
-    }
-
-    await logAuditEvent({
-      action: "membership_deactivated",
-      entityType: "student_organization",
-      entityId: `${student.id}:${orgId}`,
-      entityLabel: label,
-      organizationId: orgId,
-      organizationName: orgName,
-      metadata: {
-        student_id: student.id,
-        student_number: student.student_number,
-      },
-    });
-
-    prompt.success(`${orgName} access deactivated for ${label}.`);
-    await fetchStudents();
+    setRemovalReason(REMOVAL_REASONS[0]);
+    setCustomRemovalReason("");
+    setRemoveDialog(student);
   }
 
-  async function handleReactivateMembership(student) {
-    if (!orgId || !student?.id) return;
+  async function confirmRemoveMembership() {
+    if (!removeDialog?.id || participationSubmitting) return;
+    const reason =
+      removalReason === "Other" ? customRemovalReason.trim() : removalReason.trim();
 
-    const label = studentDisplayName(student);
-    const confirmed = await prompt.confirm({
-      title: `Reactivate ${orgName} Access?`,
-      message: `${label} will regain active membership access for ${orgName}.`,
-      confirmText: "Reactivate Access",
-      cancelText: "Cancel",
-      type: "info",
-    });
-
-    if (!confirmed) return;
-
-    const { error } = await reactivateStudentOrganizationMembership({
-      studentId: student.id,
-      organizationId: orgId,
-    });
-
-    if (error) {
-      console.error("Failed to reactivate board membership:", error);
-      prompt.error(error.message || "Failed to reactivate student access.");
+    if (!reason) {
+      prompt.error("Removal reason is required.");
       return;
     }
 
-    await logAuditEvent({
-      action: "membership_reactivated",
-      entityType: "student_organization",
-      entityId: `${student.id}:${orgId}`,
-      entityLabel: label,
-      organizationId: orgId,
-      organizationName: orgName,
-      metadata: {
-        student_id: student.id,
-        student_number: student.student_number,
-      },
-    });
-
-    prompt.success(`${orgName} access reactivated for ${label}.`);
-    await fetchStudents();
-  }
-
-  async function handleRemoveMembership(student) {
-    if (!orgId || !student?.id) return;
-
-    const label = studentDisplayName(student);
-    const analysis = await analyzeMembershipDependencies({
-      studentId: student.id,
-      organizationId: orgId,
-    });
-
-    if (analysis.error) {
-      console.error("Failed to analyze board membership dependencies:", analysis.error);
-      prompt.error(analysis.error.message || "Unable to verify membership dependencies.");
-      return;
-    }
-
-    if (analysis.blocked) {
-      prompt.alert({
-        title: `Do Not Remove from ${orgName}`,
-        message: dependencyMessage(analysis),
-        type: "warning",
-      });
-      return;
-    }
-
-    const confirmed = await prompt.confirm({
-      title: `Remove from ${orgName}?`,
-      message:
-        `${label} will be removed only from ${orgName}. The central student record will remain available for other organizations.`,
-      confirmText: `Remove from ${orgName}`,
-      cancelText: "Cancel",
-      type: "danger",
-    });
-
-    if (!confirmed) return;
-
-    const { error } = await removeStudentOrganizationMembership({
-      studentId: student.id,
-      organizationId: orgId,
+    setParticipationSubmitting(true);
+    const { data, error } = await removeBoardStudentParticipation({
+      studentId: removeDialog.id,
+      reason,
     });
 
     if (error) {
       console.error("Failed to remove board membership:", error);
-      prompt.error(error.message || "Failed to remove student from organization.");
+      prompt.error(error.message || "Failed to remove student participation.");
+      setParticipationSubmitting(false);
       return;
     }
 
-    await logAuditEvent({
-      action: "membership_removed",
-      entityType: "student_organization",
-      entityId: `${student.id}:${orgId}`,
-      entityLabel: label,
-      organizationId: orgId,
-      organizationName: orgName,
-      metadata: {
-        student_id: student.id,
-        student_number: student.student_number,
-      },
-    });
-
-    prompt.success(`${label} removed from ${orgName}.`);
+    const label = studentDisplayName(removeDialog);
+    prompt.success(
+      data?.already_applied
+        ? `${label} was already removed from ${orgName}.`
+        : `${label} removed from ${orgName} for the active term.`,
+    );
+    setRemoveDialog(null);
+    setParticipationSubmitting(false);
     await fetchStudents();
   }
 
-  const filteredStudents = useMemo(() => {
-    const query = search.trim().toLowerCase();
+  function handleRestoreMembership(student) {
+    if (!orgId || !student?.id) return;
+    setRestoreDialog(student);
+  }
 
-    const filtered = students.filter((student) => {
-      const fullName = `${student.first_name} ${student.last_name}`.toLowerCase();
+  async function confirmRestoreMembership() {
+    if (!restoreDialog?.id || participationSubmitting) return;
 
-      return (
-        !query ||
-        fullName.includes(query) ||
-        student.student_number?.toLowerCase().includes(query) ||
-        student.email?.toLowerCase().includes(query) ||
-        student.program?.toLowerCase().includes(query)
-      );
+    setParticipationSubmitting(true);
+    const { data, error } = await restoreBoardStudentParticipation({
+      studentId: restoreDialog.id,
     });
 
-    return [...filtered].sort((a, b) => {
-      const nameA = `${a.last_name || ""} ${a.first_name || ""}`.trim();
-      const nameB = `${b.last_name || ""} ${b.first_name || ""}`.trim();
-      const idA = Number.parseInt(a.student_number, 10);
-      const idB = Number.parseInt(b.student_number, 10);
+    if (error) {
+      console.error("Failed to restore board membership:", error);
+      prompt.error(error.message || "Failed to restore student participation.");
+      setParticipationSubmitting(false);
+      return;
+    }
 
-      if (sortBy === "name_desc") return nameB.localeCompare(nameA) || Number(a.id) - Number(b.id);
-      if (sortBy === "newest") return new Date(b.created_at || 0) - new Date(a.created_at || 0) || Number(a.id) - Number(b.id);
-      if (sortBy === "oldest") return new Date(a.created_at || 0) - new Date(b.created_at || 0) || Number(a.id) - Number(b.id);
-      if (sortBy === "id_desc") {
-        if (!Number.isNaN(idA) && !Number.isNaN(idB)) return idB - idA || Number(a.id) - Number(b.id);
-        return String(b.student_number || "").localeCompare(String(a.student_number || "")) || Number(a.id) - Number(b.id);
-      }
-      if (sortBy === "id_asc") {
-        if (!Number.isNaN(idA) && !Number.isNaN(idB)) return idA - idB || Number(a.id) - Number(b.id);
-        return String(a.student_number || "").localeCompare(String(b.student_number || "")) || Number(a.id) - Number(b.id);
-      }
-      return nameA.localeCompare(nameB) || Number(a.id) - Number(b.id);
-    });
-  }, [search, sortBy, students]);
+    const label = studentDisplayName(restoreDialog);
+    prompt.success(
+      data?.already_applied
+        ? `${label} was already active in ${orgName}.`
+        : `${label} restored to ${orgName} for the active term.`,
+    );
+    setRestoreDialog(null);
+    setParticipationSubmitting(false);
+    await fetchStudents();
+  }
+
+  const totalPages = Math.max(1, Math.ceil(totalStudents / PAGE_SIZE));
+  const pageStart = totalStudents === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const pageEnd = Math.min(currentPage * PAGE_SIZE, totalStudents);
 
   return (
     <div>
@@ -424,17 +392,53 @@ function BoardStudents() {
       </div>
 
       <div className="toolbar-row">
+      <div className="inline-flex rounded-[1.2rem] border border-[#e7edf3] bg-white p-1 shadow-sm">
+        <button
+          type="button"
+          onClick={() => {
+            setViewMode("active");
+            setCurrentPage(1);
+          }}
+          className={`rounded-[0.95rem] px-4 py-2 text-xs font-black uppercase tracking-[0.12em] ${
+            viewMode === "active"
+              ? "bg-[#f4512c] text-white shadow-sm"
+              : "text-[#667085] hover:bg-[#fff4ed] hover:text-[#f4512c]"
+          }`}
+        >
+          Active
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setViewMode("removed");
+            setCurrentPage(1);
+          }}
+          className={`rounded-[0.95rem] px-4 py-2 text-xs font-black uppercase tracking-[0.12em] ${
+            viewMode === "removed"
+              ? "bg-[#f4512c] text-white shadow-sm"
+              : "text-[#667085] hover:bg-[#fff4ed] hover:text-[#f4512c]"
+          }`}
+        >
+          Removed
+        </button>
+      </div>
       <div className="search-shell">
         <Search size={18} className="text-gray-400" />
         <input
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setCurrentPage(1);
+          }}
           placeholder="Search student..."
         />
       </div>
       <select
         value={sortBy}
-        onChange={(event) => setSortBy(event.target.value)}
+        onChange={(event) => {
+          setSortBy(event.target.value);
+          setCurrentPage(1);
+        }}
         className="field-shell lg:w-56"
       >
         <option value="name_asc">Name: A-Z</option>
@@ -455,7 +459,7 @@ function BoardStudents() {
               <th>Program</th>
               <th>Year</th>
               <th>Status</th>
-              <th>Date Added</th>
+              <th>{viewMode === "removed" ? "Removed Date" : "Date Added"}</th>
               <th className="text-right">Membership</th>
             </tr>
           </thead>
@@ -479,21 +483,25 @@ function BoardStudents() {
                   </div>
                 </td>
               </tr>
-            ) : filteredStudents.length === 0 ? (
+            ) : students.length === 0 ? (
               <tr>
                 <td colSpan="7" className="px-6 py-10 text-center empty-copy">
                   No students found.
                 </td>
               </tr>
             ) : (
-              filteredStudents.map((student) => (
+              students.map((student) => (
                 <tr key={student.id}>
                   <td className="font-bold">
                     {student.student_number}
                   </td>
                   <td>
                     <div className="flex items-center gap-3">
-                      <StudentAvatar student={student} loading="lazy" className="!h-10 !w-10" />
+                      <StudentAvatar
+                        student={student}
+                        loading="lazy"
+                        className="!h-10 !w-10"
+                      />
                       <div>
                         {student.first_name} {student.last_name}
                         <p className="text-xs text-gray-500">{student.email}</p>
@@ -508,39 +516,51 @@ function BoardStudents() {
                     </span>
                   </td>
                   <td className="text-[#5a5548]">
-                    {student.created_at
-                      ? new Date(student.created_at).toLocaleDateString()
+                    {(viewMode === "removed" ? student.removed_at : student.created_at)
+                      ? new Date(
+                          viewMode === "removed" ? student.removed_at : student.created_at,
+                        ).toLocaleDateString()
                       : "-"}
+                    {viewMode === "removed" && student.removal_reason ? (
+                      <p className="mt-1 max-w-[14rem] text-xs text-gray-500">
+                        {student.removal_reason}
+                      </p>
+                    ) : null}
                   </td>
                   <td>
                     <div className="flex flex-wrap items-center justify-end gap-2">
                       <span
                         className={`rounded-full px-3 py-1 text-xs font-bold ${
-                          student.membership_status === "inactive"
+                          student.membership_status === "removed"
+                            ? "bg-rose-100 text-rose-700"
+                            : student.membership_status === "inactive"
                             ? "bg-amber-100 text-amber-700"
                             : "bg-emerald-100 text-emerald-700"
                         }`}
                       >
-                        {student.membership_status === "inactive" ? "Inactive" : "Active"}
+                        {student.membership_status === "removed"
+                          ? "Removed"
+                          : student.membership_status === "inactive"
+                            ? "Inactive"
+                            : "Active"}
                       </span>
-                      <button
-                        type="button"
-                        className="secondary-btn min-h-[2.35rem] px-3 text-xs"
-                        onClick={() =>
-                          student.membership_status === "inactive"
-                            ? handleReactivateMembership(student)
-                            : handleDeactivateMembership(student)
-                        }
-                      >
-                        {student.membership_status === "inactive" ? "Reactivate" : "Deactivate"}
-                      </button>
-                      <button
-                        type="button"
-                        className="danger-btn min-h-[2.35rem] px-3 text-xs"
-                        onClick={() => handleRemoveMembership(student)}
-                      >
-                        Remove
-                      </button>
+                      {viewMode === "removed" ? (
+                        <button
+                          type="button"
+                          className="primary-btn min-h-[2.35rem] px-3 text-xs"
+                          onClick={() => handleRestoreMembership(student)}
+                        >
+                          Restore
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="danger-btn min-h-[2.35rem] px-3 text-xs"
+                          onClick={() => handleRemoveMembership(student)}
+                        >
+                          Remove
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -549,6 +569,35 @@ function BoardStudents() {
           </tbody>
         </table>
       </div>
+
+      {!loading && !loadError && totalStudents > 0 && (
+        <div className="mt-4 flex flex-col gap-3 rounded-[1.35rem] border border-[#e7edf3] bg-white/90 px-4 py-3 text-sm text-[#667085] shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <p className="font-semibold">
+            Showing {pageStart}-{pageEnd} of {totalStudents} students
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="secondary-btn min-h-[2.35rem] px-4 text-xs"
+              disabled={currentPage <= 1}
+              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+            >
+              Previous
+            </button>
+            <span className="rounded-full bg-[#fff4ed] px-3 py-1 text-xs font-black text-[#f4512c]">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              type="button"
+              className="secondary-btn min-h-[2.35rem] px-4 text-xs"
+              disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       {formOpen && (
         <PopupOverlay>
@@ -567,6 +616,19 @@ function BoardStudents() {
             </div>
 
             <form onSubmit={handleSubmit} className="popup-content">
+              <div
+                className={`rounded-[1.35rem] border px-4 py-3 text-sm font-semibold ${
+                  activeTerm
+                    ? "border-[#ffd7c9] bg-[#fff4ed] text-[#c2410c]"
+                    : "border-rose-200 bg-rose-50 text-rose-700"
+                }`}
+              >
+                {activeTermLoading
+                  ? "Checking active academic term..."
+                  : activeTerm
+                    ? `Active term: ${formatAcademicTerm(activeTerm)}`
+                    : activeTermError || "Manual registration requires an active academic term."}
+              </div>
               <div className="popup-form-grid">
               <div className="popup-form-grid-compact">
               <div>
@@ -643,6 +705,172 @@ function BoardStudents() {
                 </button>
               </div>
             </form>
+          </div>
+        </PopupOverlay>
+      )}
+
+      {removeDialog && (
+        <PopupOverlay>
+          <div className="popup-sheet max-w-2xl">
+            <div className="popup-header">
+              <div>
+                <p className="field-label !mb-3">Current-Term Participation</p>
+                <h2 className="surface-title text-[2rem] font-black tracking-tight">
+                  Remove student
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRemoveDialog(null)}
+                className="popup-close"
+                disabled={participationSubmitting}
+              >
+                <Plus size={16} className="rotate-45" />
+              </button>
+            </div>
+
+            <div className="popup-content">
+              <div className="rounded-[1.35rem] border border-[#e7edf3] bg-white p-4">
+                <div className="flex items-center gap-3">
+                  <StudentAvatar student={removeDialog} className="!h-12 !w-12" />
+                  <div>
+                    <p className="font-black text-[#111827]">{studentDisplayName(removeDialog)}</p>
+                    <p className="text-sm font-semibold text-[#667085]">
+                      {removeDialog.student_number}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                  <p><span className="font-bold text-[#667085]">Organization:</span> {orgName}</p>
+                  <p><span className="font-bold text-[#667085]">Academic Term:</span> {formatAcademicTerm(activeTerm)}</p>
+                  <p><span className="font-bold text-[#667085]">Program:</span> {removeDialog.program || "Unspecified"}</p>
+                  <p><span className="font-bold text-[#667085]">Year Level:</span> {removeDialog.year_level || "Unspecified"}</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="field-label">Removal Reason</label>
+                <select
+                  value={removalReason}
+                  onChange={(event) => setRemovalReason(event.target.value)}
+                  className="field-shell w-full"
+                >
+                  {REMOVAL_REASONS.map((reason) => (
+                    <option key={reason} value={reason}>{reason}</option>
+                  ))}
+                </select>
+              </div>
+
+              {removalReason === "Other" && (
+                <div>
+                  <label className="field-label">Custom Reason</label>
+                  <textarea
+                    required
+                    value={customRemovalReason}
+                    onChange={(event) => setCustomRemovalReason(event.target.value)}
+                    placeholder="Enter the removal reason"
+                    className="field-shell min-h-28 w-full resize-y"
+                  />
+                </div>
+              )}
+
+              <div className="rounded-[1.35rem] border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+                <p className="font-black">This action removes the student's participation from this organization for the current academic term.</p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <p>Student account: <span className="font-black">UNCHANGED</span></p>
+                  <p>Program: <span className="font-black">UNCHANGED</span></p>
+                  <p>University enrollment: <span className="font-black">UNCHANGED</span></p>
+                  <p>Historical records: <span className="font-black">PRESERVED</span></p>
+                  <p>Current organization participation: <span className="font-black">REMOVED</span></p>
+                  <p>Current election eligibility: <span className="font-black">REMOVED</span></p>
+                </div>
+              </div>
+
+              <div className="popup-actions">
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={() => setRemoveDialog(null)}
+                  disabled={participationSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="danger-btn min-w-48"
+                  onClick={confirmRemoveMembership}
+                  disabled={participationSubmitting}
+                >
+                  {participationSubmitting ? <KandidButtonLoader label="Removing..." /> : "Confirm Removal"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </PopupOverlay>
+      )}
+
+      {restoreDialog && (
+        <PopupOverlay>
+          <div className="popup-sheet max-w-2xl">
+            <div className="popup-header">
+              <div>
+                <p className="field-label !mb-3">Current-Term Participation</p>
+                <h2 className="surface-title text-[2rem] font-black tracking-tight">
+                  Restore student
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRestoreDialog(null)}
+                className="popup-close"
+                disabled={participationSubmitting}
+              >
+                <Plus size={16} className="rotate-45" />
+              </button>
+            </div>
+
+            <div className="popup-content">
+              <div className="rounded-[1.35rem] border border-[#e7edf3] bg-white p-4">
+                <div className="flex items-center gap-3">
+                  <StudentAvatar student={restoreDialog} className="!h-12 !w-12" />
+                  <div>
+                    <p className="font-black text-[#111827]">{studentDisplayName(restoreDialog)}</p>
+                    <p className="text-sm font-semibold text-[#667085]">
+                      {restoreDialog.student_number}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                  <p><span className="font-bold text-[#667085]">Organization:</span> {orgName}</p>
+                  <p><span className="font-bold text-[#667085]">Academic Term:</span> {formatAcademicTerm(activeTerm)}</p>
+                  <p><span className="font-bold text-[#667085]">Previous Reason:</span> {restoreDialog.removal_reason || "-"}</p>
+                  <p><span className="font-bold text-[#667085]">Removed Date:</span> {restoreDialog.removed_at ? new Date(restoreDialog.removed_at).toLocaleString() : "-"}</p>
+                </div>
+              </div>
+
+              <div className="rounded-[1.35rem] border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">
+                Restoring this student will make them eligible to participate in applicable current-term organization elections again.
+              </div>
+
+              <div className="popup-actions">
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={() => setRestoreDialog(null)}
+                  disabled={participationSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="primary-btn min-w-48"
+                  onClick={confirmRestoreMembership}
+                  disabled={participationSubmitting}
+                >
+                  {participationSubmitting ? <KandidButtonLoader label="Restoring..." /> : "Confirm Restore"}
+                </button>
+              </div>
+            </div>
           </div>
         </PopupOverlay>
       )}

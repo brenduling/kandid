@@ -25,6 +25,7 @@ import {
 import { getStudentElectionOrganizationIds } from "../../utils/organizationAccess";
 import { fetchOrderedPositions } from "../../utils/positionOrder";
 import { hasStudentVotedInElection, submitBallot } from "../../utils/voting";
+import { authenticateStudentForKiosk } from "../../utils/auth";
 import {
   distanceBetweenMeters,
   doesTokenMatchStudent,
@@ -49,6 +50,7 @@ function KioskVoting() {
   const prompt = usePrompt();
   const sessionRequestRef = useRef(0);
   const ballotRequestRef = useRef(0);
+  const kioskStudentSessionRef = useRef(null);
 
   const [authoritativeNow, setAuthoritativeNow] = useState(null);
   const [nowTick, setNowTick] = useState(0);
@@ -89,12 +91,25 @@ function KioskVoting() {
   const hasMultipleSessions = elections.length > 1;
   const accessMode = selectedElection?.voting_access_mode || "anywhere";
 
-  function setFeedback(message, tone = "neutral") {
+  const setFeedback = useCallback((message, tone = "neutral") => {
     setStatusMessage(message);
     setStatusTone(tone);
-  }
+  }, []);
 
-  function clearVoterState(clearMessage = true) {
+  const clearKioskStudentSession = useCallback(async () => {
+    const kioskSession = kioskStudentSessionRef.current;
+    kioskStudentSessionRef.current = null;
+
+    if (kioskSession?.client) {
+      const { error } = await kioskSession.client.auth.signOut();
+      if (error) {
+        console.warn("Kiosk student session cleanup failed:", error);
+      }
+    }
+  }, []);
+
+  const clearVoterState = useCallback((clearMessage = true) => {
+    void clearKioskStudentSession();
     ballotRequestRef.current += 1;
     setVerifiedStudent(null);
     setSelectedVotes({});
@@ -113,7 +128,7 @@ function KioskVoting() {
     setVerifying(false);
     setVerifyingAccess(false);
     if (clearMessage) setFeedback("");
-  }
+  }, [clearKioskStudentSession, setFeedback]);
 
   const loadKioskElections = useCallback(async () => {
     const requestId = sessionRequestRef.current + 1;
@@ -214,7 +229,13 @@ function KioskVoting() {
   }, []);
 
   useEffect(() => {
-    loadKioskElections();
+    const loadId = window.setTimeout(() => {
+      loadKioskElections();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(loadId);
+    };
   }, [loadKioskElections]);
 
   function exitKiosk() {
@@ -235,6 +256,7 @@ function KioskVoting() {
 
   const finishKiosk = useCallback(
     async (message = "") => {
+      await clearKioskStudentSession();
       clearVoterState(false);
       setFeedback(message, "neutral");
       if (elections.length !== 1) {
@@ -242,7 +264,7 @@ function KioskVoting() {
       }
       await loadKioskElections();
     },
-    [elections.length, loadKioskElections],
+    [clearKioskStudentSession, clearVoterState, elections.length, loadKioskElections, setFeedback],
   );
 
   useEffect(() => {
@@ -462,40 +484,25 @@ function KioskVoting() {
       return;
     }
 
-    const { data: studentData, error } = await supabase
-      .from("students")
-      .select(
-        "id, first_name, last_name, student_number, password, status, program, year_level, precinct_code, batch_code",
-      )
-      .eq("student_number", studentNumber.trim())
-      .maybeSingle();
-
     const submittedPassword = password;
     setPassword("");
 
-    if (error || !studentData) {
-      setFeedback("Student record not found.", "error");
+    const { data: kioskAuth, error } = await authenticateStudentForKiosk({
+      studentNumber,
+      password: submittedPassword,
+    });
+
+    if (error || !kioskAuth?.student || !kioskAuth?.session?.access_token) {
+      setFeedback(error?.message || "We couldn't sign you in. Check your Student ID and password.", "error");
       setVerifying(false);
       return;
     }
 
-    if (studentData.status === "pending") {
-      setFeedback("This student still needs to complete account setup.", "error");
-      setVerifying(false);
-      return;
-    }
-
-    if (studentData.status === "disabled") {
-      setFeedback("This student account is disabled.", "error");
-      setVerifying(false);
-      return;
-    }
-
-    if (studentData.password !== submittedPassword) {
-      setFeedback("Incorrect student password.", "error");
-      setVerifying(false);
-      return;
-    }
+    const studentData = kioskAuth.student;
+    kioskStudentSessionRef.current = {
+      client: kioskAuth.client,
+      accessToken: kioskAuth.session.access_token,
+    };
 
     const eligibleOrganizationIds = await getStudentElectionOrganizationIds(studentData);
 
@@ -503,6 +510,7 @@ function KioskVoting() {
       setVerifiedStudent(studentData);
       setStage("denied");
       setFeedback("This student is not eligible for this election.", "error");
+      void clearKioskStudentSession();
       setVerifying(false);
       return;
     }
@@ -511,6 +519,8 @@ function KioskVoting() {
 
     if (voteCheck.error) {
       setFeedback(voteCheck.error.message, "error");
+      setVerifiedStudent(null);
+      void clearKioskStudentSession();
       setVerifying(false);
       return;
     }
@@ -519,6 +529,7 @@ function KioskVoting() {
       setVerifiedStudent(studentData);
       setStage("already_voted");
       setFeedback("");
+      void clearKioskStudentSession();
       setVerifying(false);
       return;
     }
@@ -539,6 +550,9 @@ function KioskVoting() {
     if (loaded) {
       setStage("ballot");
       setFeedback("");
+    } else {
+      setVerifiedStudent(null);
+      void clearKioskStudentSession();
     }
     setVerifying(false);
   }
@@ -706,15 +720,27 @@ function KioskVoting() {
     if (currentElection.error || !currentElection.election) {
       setFeedback(currentElection.error?.message || "This voting window has already closed.", "error");
       setStage("login");
+      setVerifiedStudent(null);
+      await clearKioskStudentSession();
       return;
     }
 
     setSubmitting(true);
 
+    const kioskAccessToken = kioskStudentSessionRef.current?.accessToken;
+    if (!kioskAccessToken) {
+      setFeedback("Your kiosk session has expired. Please sign in again.", "error");
+      setStage("login");
+      setVerifiedStudent(null);
+      await clearKioskStudentSession();
+      setSubmitting(false);
+      return;
+    }
+
     const { error, alreadyVoted, submittedAt } = await submitBallot({
-      studentId: verifiedStudent.id,
       electionId: currentElection.election.id,
       selectedVotes,
+      accessToken: kioskAccessToken,
     });
 
     if (error) {
@@ -725,9 +751,12 @@ function KioskVoting() {
         "error",
       );
       if (alreadyVoted) setStage("already_voted");
+      if (alreadyVoted) void clearKioskStudentSession();
       setSubmitting(false);
       return;
     }
+
+    await clearKioskStudentSession();
 
     setReceipt({
       studentName: studentName(verifiedStudent),
@@ -822,6 +851,20 @@ function KioskVoting() {
             </button>
           </div>
           <div className="kiosk-session-grid">{elections.map(renderSessionCard)}</div>
+        </section>
+      );
+    }
+
+    if (!selectedElection) {
+      return (
+        <section className="kiosk-entry-state">
+          <MonitorSmartphone size={40} />
+          <h1>Kiosk Not Ready</h1>
+          <p>Select an active voting session or refresh this kiosk terminal.</p>
+          <button type="button" onClick={loadKioskElections} className="secondary-btn">
+            <RefreshCw size={18} />
+            Refresh
+          </button>
         </section>
       );
     }
@@ -1184,7 +1227,7 @@ function KioskVoting() {
                       onClick={() => setShowPassword((current) => !current)}
                       aria-label={showPassword ? "Hide password" : "Show password"}
                     >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
                     </button>
                   </div>
                 </label>

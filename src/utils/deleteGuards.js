@@ -1,4 +1,6 @@
 import { supabase } from "../lib/supabaseClient";
+import { listAdminUsers } from "./adminUsers";
+import { isSupabaseAdminAuthMode } from "./auth";
 
 async function countRows(table, column, value) {
   if (value == null) return 0;
@@ -59,6 +61,22 @@ async function countRowsByFilters(table, filters = []) {
   }
 
   return count || 0;
+}
+
+async function countAdminUsersByOrganization(organizationId) {
+  if (!isSupabaseAdminAuthMode()) {
+    return countRows("admin_users", "organization_id", organizationId);
+  }
+
+  const { data, error } = await listAdminUsers();
+  if (error) {
+    console.warn("Admin user dependency count failed:", error);
+    return 0;
+  }
+
+  return (data || []).filter(
+    (admin) => Number(admin.organization_id) === Number(organizationId),
+  ).length;
 }
 
 async function getElectionIdsByOrganization(organizationId) {
@@ -187,7 +205,7 @@ export async function analyzeDeleteDependencies(entityType, entity) {
       countRows("organization_programs", "organization_id", id),
       countRows("elections", "organization_id", id),
       countRows("officers", "organization_id", id),
-      countRows("admin_users", "organization_id", id),
+      countAdminUsersByOrganization(id),
     ]);
 
     [

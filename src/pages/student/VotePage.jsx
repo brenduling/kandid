@@ -367,7 +367,6 @@ function StudentVotePage() {
 
     setSubmitting(true);
     const { error, alreadyVoted: voteLocked } = await submitBallot({
-      studentId: user.id,
       electionId,
       selectedVotes,
     });

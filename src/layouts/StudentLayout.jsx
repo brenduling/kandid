@@ -17,8 +17,8 @@ import { StudentAvatar } from "../components/KandidImage";
 import logo from "../assets/kandidlogo.png";
 
 import {
-  clearStoredUser,
   getStoredUser,
+  signOutStudentSession,
 } from "../utils/auth";
 
 import {
@@ -102,7 +102,7 @@ function StudentLayout() {
       status: "completed",
       user,
     });
-    clearStoredUser();
+    await signOutStudentSession();
 
     navigate(
       "/",
@@ -122,11 +122,11 @@ function StudentLayout() {
   }
 
   return (
-    <div className="student-theme kandid-app-theme min-h-screen bg-[#f6f7f9] text-[#111827]">
+    <div className="student-theme kandid-app-theme app-shell min-h-screen bg-[#f6f7f9] text-[#111827]">
       {/* ======================================================
           DESKTOP SIDEBAR
           ====================================================== */}
-      <aside className="student-sidebar shell-sidebar-collapsible">
+      <aside className="student-sidebar shell-sidebar shell-sidebar-collapsible">
         {/* BRAND */}
         <button
           type="button"
@@ -145,7 +145,7 @@ function StudentLayout() {
             </strong>
 
             <span>
-              Student Portal
+              STUDENT
             </span>
           </div>
         </button>
@@ -162,8 +162,8 @@ function StudentLayout() {
                 aria-label={item.name}
                 data-tooltip={item.name}
                 className={({ isActive }) =>
-                  `student-sidebar-link ${isActive
-                    ? "student-sidebar-link-active"
+                  `student-sidebar-link nav-item ${isActive
+                    ? "student-sidebar-link-active nav-item-active"
                     : ""
                   }`
                 }
@@ -184,7 +184,7 @@ function StudentLayout() {
         <button
           type="button"
           onClick={handleLogout}
-          className="student-sidebar-logout"
+          className="student-sidebar-logout sidebar-logout-btn"
           aria-label="Logout"
           data-tooltip="Logout"
         >
@@ -201,7 +201,7 @@ function StudentLayout() {
       {/* ======================================================
           MAIN
           ====================================================== */}
-      <main className="student-main">
+      <main className="student-main workspace-main">
         {/* ====================================================
             TOP BAR
             ==================================================== */}
@@ -209,7 +209,7 @@ function StudentLayout() {
           {/* SEARCH */}
           <GlobalSearch
             user={user}
-            className="student-search"
+            className="student-search shell-search"
           />
 
           {/* ACTIONS */}
@@ -227,7 +227,7 @@ function StudentLayout() {
                   )
                 )
               }
-              className="student-profile-chip"
+              className="student-profile-chip shell-profile-chip"
             >
               {/* USER INFORMATION */}
               <div className="student-profile-copy">
@@ -260,7 +260,7 @@ function StudentLayout() {
         {/* ====================================================
             PAGE CONTENT
             ==================================================== */}
-        <section className="student-content pb-24 pt-20 lg:pb-8 lg:pt-8">
+        <section className="student-content content-stack pb-24 pt-20 lg:pb-8 lg:pt-8">
           {showBackButton ? (
             <button
               type="button"
@@ -294,7 +294,7 @@ function StudentLayout() {
         menuGroups={studentMenuItems}
         user={user}
         onLogout={handleLogout}
-        title="Student Portal"
+        title="STUDENT"
       />
 
       {/* ======================================================

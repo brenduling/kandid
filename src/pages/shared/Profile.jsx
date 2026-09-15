@@ -3,7 +3,7 @@ import { ImagePlus, Save } from "lucide-react";
 import { KandidButtonLoader, KandidInlineLoader } from "../../components/KandidLoader";
 import { StudentAvatar } from "../../components/KandidImage";
 import { fetchCurrentUserProfile, updateCurrentUserProfile } from "../../utils/profile";
-import { getStoredUser } from "../../utils/auth";
+import { getStoredUser, isSupabaseAdminAuthMode } from "../../utils/auth";
 import { readFileAsDataUrl } from "../../utils/files";
 import { promptKandidInstall, usePWAInstallState } from "../../utils/pwaInstall";
 import { usePrompt } from "../../context/PromptContext";
@@ -240,6 +240,9 @@ function ProfilePage() {
 
   const studentOrganizations =
     user?.student_organizations?.map((item) => item.organizations).filter(Boolean) || [];
+  const secureAdminProfile =
+    isSupabaseAdminAuthMode() &&
+    (user?.role === "super_admin" || user?.role === "electoral_board");
 
   return (
     <div>
@@ -481,6 +484,7 @@ function ProfilePage() {
                 <label className="field-label">Email Address</label>
                 <input
                   type="email"
+                  readOnly={secureAdminProfile}
                   value={form.email}
                   onChange={(event) =>
                     setForm((current) => ({
@@ -488,8 +492,13 @@ function ProfilePage() {
                       email: event.target.value,
                     }))
                   }
-                  className="field-shell w-full"
+                  className={`field-shell w-full ${secureAdminProfile ? "bg-white/50 text-gray-500" : ""}`}
                 />
+                {secureAdminProfile ? (
+                  <p className="mt-2 text-xs font-semibold text-gray-500">
+                    Admin email changes are handled through secure account management.
+                  </p>
+                ) : null}
               </div>
 
               <div>
@@ -528,6 +537,7 @@ function ProfilePage() {
                 </div>
               </div>
 
+              {!secureAdminProfile ? (
               <div>
                 <label className="field-label">New Password</label>
                 <input
@@ -543,6 +553,7 @@ function ProfilePage() {
                   placeholder="Leave blank if you are not changing it"
                 />
               </div>
+              ) : null}
 
               {errorMessage ? (
                 <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">

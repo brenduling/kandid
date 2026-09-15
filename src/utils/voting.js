@@ -1,6 +1,7 @@
 import { supabase } from "../lib/supabaseClient";
-import { hashVoteRecord } from "./blockchain";
-import { fetchAuthoritativeNow, getElectionPhase } from "./elections";
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_KEY;
 
 export async function hasStudentVotedInElection(studentId, electionId) {
   const { data, error } = await supabase
@@ -18,80 +19,64 @@ export async function hasStudentVotedInElection(studentId, electionId) {
 }
 
 export async function submitBallot({
-  studentId,
   electionId,
   selectedVotes,
+  accessToken,
 }) {
-  const { data: election, error: electionError } = await supabase
-    .from("elections")
-    .select("id, status, campaign_start, campaign_end, start_date, end_date")
-    .eq("id", Number(electionId))
-    .single();
+  try {
+    let studentAccessToken = accessToken;
 
-  if (electionError) {
-    return { error: electionError };
-  }
+    if (!studentAccessToken) {
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
 
-  const serverNow = await fetchAuthoritativeNow();
-  if (getElectionPhase(election, serverNow) !== "voting") {
-    return {
-      error: new Error("Voting is not open for this election right now."),
-      alreadyVoted: false,
-    };
-  }
+      if (sessionError || !session?.access_token) {
+        return {
+          error: new Error("Your session has expired. Please sign in again."),
+          alreadyVoted: false,
+          submittedAt: null,
+        };
+      }
 
-  const duplicateCheck = await hasStudentVotedInElection(studentId, electionId);
-
-  if (duplicateCheck.error) {
-    return { error: duplicateCheck.error };
-  }
-
-  if (duplicateCheck.hasVoted) {
-    return {
-      error: new Error("This student has already voted in this election."),
-      alreadyVoted: true,
-    };
-  }
-
-  const submittedAt = serverNow.toISOString();
-
-  const normalizedVotes = Object.values(selectedVotes).flatMap((vote) => {
-    if (vote.is_abstain) return [vote];
-    if (Array.isArray(vote.candidate_ids)) {
-      return vote.candidate_ids.map((candidateId) => ({
-        position_id: vote.position_id,
-        candidate_id: candidateId,
-        is_abstain: false,
-      }));
+      studentAccessToken = session.access_token;
     }
-    return [vote];
-  });
 
-  const voteRows = await Promise.all(
-    normalizedVotes.map(async (vote) => ({
-      student_id: studentId,
-      election_id: Number(electionId),
-      position_id: vote.position_id,
-      candidate_id: vote.candidate_id,
-      is_abstain: vote.is_abstain,
-      vote_timestamp: submittedAt,
-      vote_hash: await hashVoteRecord({
-        studentId,
-        electionId,
-        positionId: vote.position_id,
-        candidateId: vote.candidate_id,
-        isAbstain: vote.is_abstain,
-        submittedAt,
+    const response = await fetch(`${supabaseUrl}/functions/v1/submit-vote`, {
+      method: "POST",
+      headers: {
+        apikey: supabaseAnonKey,
+        Authorization: `Bearer ${studentAccessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        election_id: Number(electionId),
+        selected_votes: selectedVotes,
       }),
-      blockchain_tx_id: null,
-    })),
-  );
+    });
 
-  const { error } = await supabase.from("votes").insert(voteRows);
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return {
+        error: new Error(payload?.error || "Failed to submit vote. Please try again."),
+        alreadyVoted: Boolean(payload?.already_voted),
+        submittedAt: null,
+      };
+    }
 
-  return {
-    error,
-    alreadyVoted: false,
-    submittedAt,
-  };
+    const ballotId = payload?.data?.ballot_id || null;
+    return {
+      error: null,
+      alreadyVoted: false,
+      submittedAt: payload?.data?.submitted_at || null,
+      ballotId,
+    };
+  } catch (error) {
+    return {
+      error,
+      alreadyVoted: false,
+      submittedAt: null,
+    };
+  }
 }

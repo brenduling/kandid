@@ -79,6 +79,23 @@ function GlobalSearch({
   const [history, setHistory] = useState(() => getSearchHistory(user?.role));
   const [activeIndex, setActiveIndex] = useState(-1);
   const wrapperRef = useRef(null);
+  const previewCacheRef = useRef(new Map());
+  const userId = user?.id;
+  const userRole = user?.role;
+  const userOrganizationId = user?.organization_id;
+  const userProgram = user?.program;
+  const searchUser = useMemo(
+    () =>
+      userId
+        ? {
+            id: userId,
+            role: userRole,
+            organization_id: userOrganizationId,
+            program: userProgram,
+          }
+        : null,
+    [userId, userRole, userOrganizationId, userProgram],
+  );
 
   const cleanedQuery = normalizeSearchInput(query);
   const quickActions = useMemo(
@@ -133,17 +150,38 @@ function GlobalSearch({
       return undefined;
     }
 
+    const cacheKey = [
+      searchUser?.role || "",
+      searchUser?.id || "",
+      searchUser?.organization_id || "",
+      cleanedQuery,
+      previewCategories.join(","),
+    ].join("|");
+    const cachedPreview = previewCacheRef.current.get(cacheKey);
+
+    if (cachedPreview) {
+      setSearchData(cachedPreview);
+      setError(cachedPreview.errors?.length ? "Some categories could not be loaded." : "");
+      setLoading(false);
+      return undefined;
+    }
+
     setLoading(true);
     setError("");
 
     const timer = window.setTimeout(async () => {
       try {
-        const data = await searchKandid(user, cleanedQuery, {
+        const data = await searchKandid(searchUser, cleanedQuery, {
           categories: previewCategories,
           includeCounts: false,
           perCategoryLimit: 4,
         });
         if (!active) return;
+        previewCacheRef.current.set(cacheKey, data);
+        if (previewCacheRef.current.size > 10) {
+          const oldestKey = previewCacheRef.current.keys().next().value;
+          previewCacheRef.current.delete(oldestKey);
+        }
         setSearchData(data);
         setError(data.errors?.length ? "Some categories could not be loaded." : "");
       } catch (searchError) {
@@ -159,7 +197,7 @@ function GlobalSearch({
       active = false;
       window.clearTimeout(timer);
     };
-  }, [cleanedQuery, previewCategories, user]);
+  }, [cleanedQuery, previewCategories, searchUser]);
 
   const previewGroups = useMemo(() => {
     if (!searchData?.groups) return [];

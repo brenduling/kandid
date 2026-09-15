@@ -1,4 +1,5 @@
 import {
+  isMissingPositionOrderError,
   POSITION_BASE_SELECT,
 } from "./positionOrder";
 
@@ -44,11 +45,22 @@ export async function copyLatestOrganizationPositions(
     return { copiedCount: 0, sourceElection: null };
   }
 
-  const { data: sourcePositions, error: positionError } = await supabase
+  let { data: sourcePositions, error: positionError } = await supabase
     .from("positions")
     .select(POSITION_BASE_SELECT)
     .eq("election_id", sourceElection.id)
+    .order("display_order", { ascending: true })
     .order("id", { ascending: true });
+
+  if (isMissingPositionOrderError(positionError)) {
+    const fallback = await supabase
+      .from("positions")
+      .select("id, name, election_id, max_votes")
+      .eq("election_id", sourceElection.id)
+      .order("id", { ascending: true });
+    sourcePositions = fallback.data;
+    positionError = fallback.error;
+  }
 
   if (positionError) {
     return { copiedCount: 0, sourceElection, error: positionError };
@@ -63,6 +75,7 @@ export async function copyLatestOrganizationPositions(
       election_id: targetElectionId,
       name: position.name,
       max_votes: position.max_votes || 1,
+      display_order: position.display_order,
     }));
 
   const { error: insertError } = await supabase.from("positions").insert(copiedRows);
