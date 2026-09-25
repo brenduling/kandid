@@ -243,7 +243,9 @@ export async function fetchStudentVotes(studentId) {
       elections (
         title,
         organizations (
-          name
+          name,
+          description,
+          logo_url
         )
       ),
       positions (
@@ -303,6 +305,8 @@ export function groupReceiptVotes(votes) {
     const current = groups.get(key) || {
       key,
       organizationName: vote.elections?.organizations?.name || "Organization",
+      organizationDescription: vote.elections?.organizations?.description || "",
+      organizationLogoUrl: vote.elections?.organizations?.logo_url || "",
       electionTitle: vote.elections?.title || "Election",
       submittedAt: vote.vote_timestamp,
       ballot: vote.ballot || null,

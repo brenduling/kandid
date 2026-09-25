@@ -72,6 +72,8 @@ export function PromptProvider({ children }) {
         confirmText: opts.confirmText || (opts.type === "danger" ? "Delete" : "Confirm"),
         cancelText: opts.cancelText || "Cancel",
         showCancel: opts.showCancel !== false,
+        eyebrow: opts.eyebrow,
+        variant: opts.variant,
         resolve,
       });
     });
@@ -211,6 +213,7 @@ export function PromptProvider({ children }) {
   };
 
   const currentStyles = modal ? getVariantStyles(modal.type) : null;
+  const isEditorialConfirm = modal?.variant === "editorial";
 
   return (
     <PromptContext.Provider
@@ -248,18 +251,22 @@ export function PromptProvider({ children }) {
               transition={{ duration: 0.2, ease: "easeOut" }}
               role="dialog"
               aria-modal="true"
-              className={`config-modal relative z-10 w-full max-w-md overflow-hidden border ${currentStyles?.accentColor || "border-orange-200"}`}
+              className={`config-modal relative z-10 w-full max-w-md overflow-hidden border ${isEditorialConfirm ? "kandid-confirm-editorial" : ""} ${currentStyles?.accentColor || "border-orange-200"}`}
             >
-              <div className="config-modal-accent" />
+              {isEditorialConfirm ? null : (
+                <div className="config-modal-accent" />
+              )}
               <div className="config-modal-header">
-                <div
-                  className={`config-icon ${currentStyles?.badgeBg}`}
-                >
-                  {currentStyles?.icon}
-                </div>
+                {isEditorialConfirm ? null : (
+                  <div
+                    className={`config-icon ${currentStyles?.badgeBg}`}
+                  >
+                    {currentStyles?.icon}
+                  </div>
+                )}
 
                 <div className="min-w-0 flex-1">
-                  <p className="config-eyebrow">{currentStyles?.eyebrow}</p>
+                  <p className="config-eyebrow">{modal.eyebrow || currentStyles?.eyebrow}</p>
                   <h3 className="config-title">
                     {modal.title}
                   </h3>

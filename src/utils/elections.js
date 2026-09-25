@@ -26,6 +26,38 @@ export function formatLocalDate(value) {
   return formatScheduleDate(value, "-");
 }
 
+const SCHEDULE_TIME_FORMAT = new Intl.DateTimeFormat("en-US", {
+  hour: "numeric",
+  minute: "2-digit",
+  hour12: true,
+});
+
+const SCHEDULE_DATE_WITH_YEAR_FORMAT = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
+
+export function formatScheduleRange(startValue, endValue) {
+  const startDate = parseScheduleWallClock(startValue);
+  const endDate = parseScheduleWallClock(endValue);
+
+  if (!startDate || !endDate) {
+    return `${formatLocalDateTime(startValue)} – ${formatLocalDateTime(endValue)}`;
+  }
+
+  const sameDay =
+    startDate.getFullYear() === endDate.getFullYear() &&
+    startDate.getMonth() === endDate.getMonth() &&
+    startDate.getDate() === endDate.getDate();
+
+  if (sameDay) {
+    return `${SCHEDULE_DATE_WITH_YEAR_FORMAT.format(startDate)} · ${SCHEDULE_TIME_FORMAT.format(startDate)} – ${SCHEDULE_TIME_FORMAT.format(endDate)}`;
+  }
+
+  return `${SCHEDULE_DATE_WITH_YEAR_FORMAT.format(startDate)} ${SCHEDULE_TIME_FORMAT.format(startDate)} – ${SCHEDULE_DATE_WITH_YEAR_FORMAT.format(endDate)} ${SCHEDULE_TIME_FORMAT.format(endDate)}`;
+}
+
 export function getElectionLocationLabel(election) {
   const label = String(election?.location_label || "").trim();
   if (label) return label;

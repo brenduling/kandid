@@ -12,7 +12,6 @@ import {
   ArrowDown,
 } from "lucide-react";
 import PopupOverlay from "../../components/PopupOverlay";
-import ElectionManagementCard from "../../components/ElectionManagementCard";
 import { DependencyRow, InlineKandidLoader } from "../../components/ConfigurationUI";
 import { supabase } from "../../lib/supabaseClient";
 import { usePrompt } from "../../context/PromptContext";
@@ -28,6 +27,7 @@ import {
   sortPositions,
 } from "../../utils/positionOrder";
 import { getElectionPhase, isMissingElectionCoverColumn } from "../../utils/elections";
+import "./Positions.css";
 
 const emptyPositionForm = {
   election_id: "",
@@ -57,6 +57,16 @@ function isPositionReorderSetupError(error) {
   return /reorder_election_positions|schema cache|function .*not.*exist/i.test(
     error?.message || ""
   );
+}
+
+function formatElectionPhase(election) {
+  const phase = String(getElectionPhase(election) || "scheduled");
+  return phase.charAt(0).toUpperCase() + phase.slice(1);
+}
+
+function selectionLimitLabel(maxVotes) {
+  const limit = Number(maxVotes) || 1;
+  return `Voters may select up to ${limit} candidate${limit === 1 ? "" : "s"}.`;
 }
 
 function Positions() {
@@ -100,6 +110,8 @@ function Positions() {
 
   useEffect(() => {
     if (!selectedElectionId) {
+      // Keep the position collection aligned with the explicitly unselected ballot state.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPositions([]);
       return;
     }
@@ -1388,7 +1400,15 @@ function Positions() {
   const retiredPositionCount = positions.filter(
     (position) => position.status === "retired"
   ).length;
+  const multipleSelectionCount = positions.filter(
+    (position) => Number(position.max_votes) > 1
+  ).length;
   const positionCountsByElection = positionCounts;
+  const selectedElectionClosed = selectedElection
+    ? ["closed", "archived", "done"].includes(
+        String(getElectionPhase(selectedElection)).toLowerCase()
+      )
+    : false;
 
   async function movePosition(position, direction) {
     if (!positionLifecycleReady) {
@@ -1463,252 +1483,261 @@ function Positions() {
   }
 
   return (
-    <div>
-      <div className="page-head">
-        <div>
-          <div className="page-kicker">Ballot Structure</div>
-          <h1 className="page-title">Positions</h1>
-          <p className="page-subtitle">
-            Define positions for each election and manage eligible candidates.
-          </p>
+    <div className="sa-positions">
+      <header className="sa-positions-masthead">
+        <div className="sa-positions-masthead-copy">
+          <p className="sa-positions-breadcrumb">Kandid / Super Admin</p>
+          <p className="sa-positions-eyebrow">Ballot Structure</p>
+          <h1>Positions</h1>
+          <p>Define the offices and voting limits that shape each election ballot.</p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => openCreateForm()}
-          className="primary-btn self-start lg:self-auto"
-        >
-          <Plus size={18} />
-          Add Position
-        </button>
-      </div>
+        <aside className="sa-positions-masthead-aside">
+          <span>Election register</span>
+          <strong>{elections.length} election{elections.length === 1 ? "" : "s"}</strong>
+          {!selectedElectionId ? (
+            <button type="button" onClick={() => openCreateForm()} className="sa-positions-add">
+              <Plus size={16} />
+              Add Position
+            </button>
+          ) : null}
+        </aside>
+      </header>
 
       {!positionLifecycleReady ? (
-        <div className="mt-6 rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm font-semibold leading-6 text-orange-800">
-          Position lifecycle migration is not applied in Supabase yet. Existing positions are shown as active, and Retired filtering/Retire Position will be enabled after the migration is applied.
+        <div className="sa-positions-notice">
+          Position lifecycle controls are unavailable until the required database migration is applied.
+          Existing positions are shown as active.
         </div>
       ) : null}
 
       {positionsLoading ? (
-        <div className="empty-state mt-8">
-          Loading positions...
-        </div>
+        <section className="sa-positions-loading" aria-live="polite">
+          <p className="sa-positions-eyebrow">Loading ballot structure</p>
+          <strong>Retrieving positions for this election.</strong>
+          <div aria-hidden="true"><span /><span /><span /></div>
+        </section>
       ) : positionsError ? (
-        <div className="empty-state mt-8">
+        <section className="sa-positions-error" role="alert">
+          <p className="sa-positions-eyebrow">Configuration unavailable</p>
+          <h2>Positions could not be loaded.</h2>
           <p>{positionsError}</p>
-          <button
-            type="button"
-            onClick={fetchPositions}
-            className="primary-btn mt-4"
-          >
-            Try Again
-          </button>
-        </div>
+          <button type="button" onClick={fetchPositions}>Try Again</button>
+        </section>
       ) : !selectedElectionId ? (
         elections.length === 0 ? (
-          <div className="empty-state mt-8">No elections available.</div>
+          <section className="sa-positions-empty">
+            <span>00</span>
+            <div>
+              <h2>No elections available</h2>
+              <p>Create an election before defining its ballot positions.</p>
+            </div>
+          </section>
         ) : (
-          <div className="election-management-grid mt-8">
-            {elections.map((election) => (
-              <ElectionManagementCard
-                key={election.id}
-                election={election}
-                eyebrow="Position Setup"
-                counts={[
-                  {
-                    label: `position${positionCountsByElection[election.id] === 1 ? "" : "s"}`,
-                    value: positionCountsByElection[election.id] || 0,
-                  },
-                ]}
-                onClick={() => setSelectedElectionId(String(election.id))}
-              />
-            ))}
-          </div>
+          <section className="sa-ballot-selector">
+            <header>
+              <div>
+                <p className="sa-positions-eyebrow">Select an election</p>
+                <h2>Choose the ballot to structure.</h2>
+              </div>
+              <p>Positions remain scoped to one election. Select a record to review its office sequence.</p>
+            </header>
+            <div className="sa-ballot-selector-list">
+              {elections.map((election, index) => (
+                <button
+                  key={election.id}
+                  type="button"
+                  className="sa-ballot-selector-record"
+                  onClick={() => setSelectedElectionId(String(election.id))}
+                >
+                  <span className="sa-ballot-selector-index">{String(index + 1).padStart(2, "0")}</span>
+                  <span className="sa-ballot-selector-identity">
+                    <small>{election.organizations?.name || "Organization not assigned"}</small>
+                    <strong>{election.title}</strong>
+                  </span>
+                  <span className="sa-ballot-selector-phase">{formatElectionPhase(election)}</span>
+                  <span className="sa-ballot-selector-count">
+                    <strong>{positionCountsByElection[election.id] || 0}</strong>
+                    position{positionCountsByElection[election.id] === 1 ? "" : "s"}
+                  </span>
+                  <span className="sa-ballot-selector-command">Structure ballot</span>
+                </button>
+              ))}
+            </div>
+          </section>
         )
       ) : !selectedElection ? (
-        <div className="empty-state mt-8">
-          Selected election could not be found.
-          <button
-            type="button"
-            onClick={() => setSelectedElectionId("")}
-            className="primary-btn mt-4"
-          >
-            Back to Elections
-          </button>
-        </div>
+        <section className="sa-positions-error" role="alert">
+          <p className="sa-positions-eyebrow">Election unavailable</p>
+          <h2>The selected election could not be found.</h2>
+          <button type="button" onClick={() => setSelectedElectionId("")}>Return to election selection</button>
+        </section>
       ) : (
-        <div className="mt-8">
-          <button
-            type="button"
-            onClick={() => setSelectedElectionId("")}
-            className="mb-4 text-sm font-black uppercase tracking-[0.12em] text-[#ef4e23]"
-          >
-            <ArrowLeft size={15} className="inline" /> Back to Elections
+        <main className="sa-ballot-workspace">
+          <button type="button" onClick={() => setSelectedElectionId("")} className="sa-ballot-back">
+            <ArrowLeft size={15} />
+            Choose another election
           </button>
 
-          <div className="entity-card mb-4 grid gap-4 lg:grid-cols-[minmax(0,15rem)_1fr_auto] lg:items-center">
-            <ElectionManagementCard
-              election={selectedElection}
-              eyebrow="Selected Election"
-              counts={[
-                {
-                  label: `position${positionCountsByElection[selectedElection.id] === 1 ? "" : "s"}`,
-                  value: positionCountsByElection[selectedElection.id] || 0,
-                },
-              ]}
-            />
-            <div>
-              <p className="page-kicker">Positions</p>
-              <h2 className="entity-card-title mt-2">{selectedElection.title}</h2>
-              <p className="entity-meta mt-2">
-                Manage only the positions assigned to this election.
-              </p>
+          <section className="sa-ballot-context">
+            <div className="sa-ballot-context-label">
+              <span>Election</span>
+              <strong>{formatElectionPhase(selectedElection)}</strong>
             </div>
-            {["closed", "archived", "done"].includes(String(getElectionPhase(selectedElection)).toLowerCase()) ? (
-              <span className="status-pill">Closed</span>
+            <div className="sa-ballot-context-title">
+              <p>{selectedElection.organizations?.name || "Organization not assigned"}</p>
+              <h2>{selectedElection.title}</h2>
+              <span>Ballot office sequence and selection limits</span>
+            </div>
+            {selectedElectionClosed ? (
+              <p className="sa-ballot-closed">Closed election</p>
             ) : (
-              <button
-                type="button"
-                onClick={() => openCreateForm(selectedElection.id)}
-                className="primary-btn self-start lg:self-auto"
-              >
-                <Plus size={18} />
+              <button type="button" onClick={() => openCreateForm(selectedElection.id)} className="sa-positions-add">
+                <Plus size={16} />
                 Add Position
               </button>
             )}
-          </div>
+          </section>
 
-          <div className="mb-4 flex flex-wrap gap-2">
+          <section className="sa-positions-summary" aria-label="Ballot structure summary">
             {[
-              ["active", `Active (${activePositionCount})`],
-              ["retired", `Retired (${retiredPositionCount})`],
-              ["all", `All (${positions.length})`],
-            ].map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                disabled={!positionLifecycleReady && value === "retired"}
-                onClick={() => setPositionFilter(value)}
-                className={`filter-pill ${positionFilter === value ? "filter-pill-active" : ""} disabled:cursor-not-allowed disabled:opacity-50`}
-              >
-                {label}
-              </button>
+              [positions.length, "Total positions"],
+              [activePositionCount, "Active"],
+              [retiredPositionCount, "Retired"],
+              [multipleSelectionCount, "Multiple selection"],
+            ].map(([value, label], index) => (
+              <div className="sa-positions-summary-item" key={label}>
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <strong>{value}</strong>
+                <p>{label}</p>
+              </div>
             ))}
-          </div>
+          </section>
 
-          {visiblePositions.length === 0 ? (
-            <div className="empty-state">
-              <p>No positions have been created for this election yet.</p>
-              {["closed", "archived", "done"].includes(String(getElectionPhase(selectedElection)).toLowerCase()) ? null : (
-                <button
-                  type="button"
-                  onClick={() => openCreateForm(selectedElection.id)}
-                  className="primary-btn mt-4"
-                >
-                  <Plus size={18} />
-                  Add Position
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-              {visiblePositions.map((position) => (
-                      <div
-                        key={position.id}
-                        className={`position-card-tile ${Number(draggedPositionId) === Number(position.id) ? "is-dragging" : ""}`}
-                        draggable={(position.status || "active") !== "retired"}
-                        onDragStart={() => setDraggedPositionId(position.id)}
-                        onDragOver={(event) => event.preventDefault()}
-                        onDragEnd={() => setDraggedPositionId(null)}
-                        onDrop={() => dropPosition(position)}
-                        onDoubleClick={() => movePosition(position, 1)}
-                        title="Drag to reorder, or double-click to move down."
-                      >
-                        <button
-                          type="button"
-                          onClick={() => openCandidates(position)}
-                          className="min-w-0 flex-1 text-left"
-                        >
-                          <h3 className="truncate text-lg font-black">
-                            {position.name}
-                          </h3>
-                          <p className="entity-meta">
-                            Voters can select up to {position.max_votes} candidate
-                            {position.max_votes > 1 ? "s" : ""}. Click to manage candidates.
-                          </p>
+          <section className="sa-position-register">
+            <header className="sa-position-register-head">
+              <div>
+                <p className="sa-positions-eyebrow">Office sequence</p>
+                <h2>Ballot order</h2>
+              </div>
+              <div className="sa-position-filters" aria-label="Filter positions">
+                {[
+                  ["active", `Active ${activePositionCount}`],
+                  ["retired", `Retired ${retiredPositionCount}`],
+                  ["all", `All ${positions.length}`],
+                ].map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    disabled={!positionLifecycleReady && value === "retired"}
+                    onClick={() => setPositionFilter(value)}
+                    className={positionFilter === value ? "is-active" : ""}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </header>
+
+            {visiblePositions.length === 0 ? (
+              <div className="sa-positions-empty">
+                <span>00</span>
+                <div>
+                  <h3>{positions.length === 0 ? "No positions yet" : `No ${positionFilter} positions`}</h3>
+                  <p>
+                    {positions.length === 0
+                      ? "This election does not have a ballot structure yet. Add the first position to begin."
+                      : "Choose another lifecycle filter to review this ballot structure."}
+                  </p>
+                </div>
+                {positions.length === 0 && !selectedElectionClosed ? (
+                  <button type="button" onClick={() => openCreateForm(selectedElection.id)}>
+                    <Plus size={15} /> Add Position
+                  </button>
+                ) : null}
+              </div>
+            ) : (
+              <div className="sa-position-list">
+                {visiblePositions.map((position) => (
+                  <article
+                    key={position.id}
+                    className={`sa-position-record ${Number(draggedPositionId) === Number(position.id) ? "is-dragging" : ""}`}
+                    draggable={(position.status || "active") !== "retired"}
+                    onDragStart={() => setDraggedPositionId(position.id)}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDragEnd={() => setDraggedPositionId(null)}
+                    onDrop={() => dropPosition(position)}
+                    onDoubleClick={() => movePosition(position, 1)}
+                    title={(position.status || "active") === "retired" ? "Retired position" : "Drag to reorder, or double-click to move down."}
+                  >
+                    <div className="sa-position-order">
+                      <span>Order</span>
+                      <strong>{String(position.display_order || 1).padStart(2, "0")}</strong>
+                    </div>
+                    <button type="button" onClick={() => openCandidates(position)} className="sa-position-identity">
+                      <small>{position.status === "retired" ? "Retired office" : "Ballot office"}</small>
+                      <h3>{position.name}</h3>
+                      <span>Manage candidates</span>
+                    </button>
+                    <div className="sa-position-limit">
+                      <span>Selection limit</span>
+                      <strong>{position.max_votes} candidate{Number(position.max_votes) === 1 ? "" : "s"}</strong>
+                      <p>{selectionLimitLabel(position.max_votes)}</p>
+                    </div>
+                    <div className="sa-position-actions">
+                      <div className="sa-position-reorder" aria-label={`Reorder ${position.name}`}>
+                        <button type="button" onClick={() => movePosition(position, -1)} title="Move up" aria-label={`Move ${position.name} up`}>
+                          <ArrowUp size={16} />
                         </button>
-
-                        <div className="position-card-actions flex flex-wrap items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => movePosition(position, -1)}
-                            className="icon-action"
-                            title="Move up"
-                          >
-                            <ArrowUp size={16} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => movePosition(position, 1)}
-                            className="icon-action"
-                            title="Move down"
-                          >
-                            <ArrowDown size={16} />
-                          </button>
-                          <span className="status-pill">
-                            {position.status === "retired"
-                              ? "Retired"
-                              : `${position.max_votes} vote${position.max_votes > 1 ? "s" : ""}`}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => openEditForm(position)}
-                            className="icon-action"
-                            title="Edit position"
-                          >
-                            <Pencil size={16} />
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => openDeleteConfiguration(position)}
-                            className="icon-action icon-action-danger"
-                            title="Delete position"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
+                        <button type="button" onClick={() => movePosition(position, 1)} title="Move down" aria-label={`Move ${position.name} down`}>
+                          <ArrowDown size={16} />
+                        </button>
                       </div>
-              ))}
-            </div>
-          )}
-        </div>
+                      <button type="button" onClick={() => openEditForm(position)} title="Edit position">
+                        <Pencil size={15} /> Edit
+                      </button>
+                      <button type="button" onClick={() => openDeleteConfiguration(position)} className="is-danger" title="Delete position">
+                        <Trash2 size={15} /> Delete
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        </main>
       )}
 
       {/* POSITION FORM */}
       {formOpen && (
         <PopupOverlay>
-          <div className="modal-card max-w-lg">
-            <div className="flex items-center justify-between mb-6">
+          <div className="modal-card position-form-dialog">
+            <header className="position-form-header">
               <div>
-                <p className="field-label">Ballot Structure</p>
-                <h2 className="mt-1 text-2xl font-black">
+                <p>Ballot Structure</p>
+                <h2>
                   {editingPosition ? "Edit Position" : "Add Position"}
                 </h2>
+                <span>
+                  {editingPosition
+                    ? "Update this office without changing its linked candidates."
+                    : "Add an office and its voting limit to an election ballot."}
+                </span>
               </div>
 
               <button
                 type="button"
                 onClick={closePositionForm}
-                className="p-2 rounded-lg hover:bg-gray-100"
+                className="position-form-close"
+                aria-label="Close position form"
               >
                 <X size={20} />
               </button>
-            </div>
+            </header>
 
-            <form onSubmit={handleSubmit} className="modal-form-stack">
-              <div>
-                <label className="field-label">Election</label>
+            <form onSubmit={handleSubmit} className="position-form-workspace">
+              <label>
+                <span className="field-label">Election</span>
                 <select
                   required
                   value={form.election_id}
@@ -1733,10 +1762,11 @@ function Positions() {
                     </option>
                   ))}
                 </select>
-              </div>
+                <small>The position will appear only on this election ballot.</small>
+              </label>
 
-              <div>
-                <label className="field-label">Position Name</label>
+              <label>
+                <span className="field-label">Position Name</span>
                 <input
                   required
                   value={form.name}
@@ -1749,10 +1779,11 @@ function Positions() {
                   placeholder="e.g. President"
                   className="field-shell w-full"
                 />
-              </div>
+              </label>
 
-              <div>
-                <label className="field-label">Max Votes</label>
+              <div className="position-form-numeric-fields">
+                <label>
+                <span className="field-label">Selection Limit</span>
                 <input
                   required
                   type="number"
@@ -1767,10 +1798,11 @@ function Positions() {
                   }
                   className="field-shell w-full"
                 />
-              </div>
+                <small>Maximum candidates a voter may select for this position.</small>
+                </label>
 
-              <div>
-                <label className="field-label">Order</label>
+                <label>
+                <span className="field-label">Ballot Order</span>
                 <input
                   required
                   type="number"
@@ -1785,11 +1817,16 @@ function Positions() {
                   }
                   className="field-shell w-full"
                 />
+                <small>Controls where this office appears in the ballot sequence.</small>
+                </label>
               </div>
 
-              <button type="submit" className="primary-btn w-full">
-                {editingPosition ? "Save Changes" : "Create Position"}
-              </button>
+              <footer className="position-form-actions">
+                <button type="button" onClick={closePositionForm} className="secondary-btn">Cancel</button>
+                <button type="submit" className="primary-btn">
+                  {editingPosition ? "Save Changes" : "Add Position"}
+                </button>
+              </footer>
             </form>
           </div>
         </PopupOverlay>
@@ -2073,7 +2110,7 @@ function Positions() {
       {/* POSITION DELETE CONFIGURATION */}
       {deleteOpen && deletePosition && (
         <PopupOverlay>
-          <div className="modal-card max-w-3xl">
+          <div className="modal-card max-w-3xl position-delete-dialog">
             <div className="config-modal-header mb-6">
               <div className="min-w-0 flex-1">
                 <p className="config-eyebrow">Position Configuration</p>
@@ -2348,7 +2385,7 @@ function Positions() {
                     return (
                       <div
                         key={candidate.id}
-                        className="flex flex-col gap-4 rounded-[0.85rem] border border-gray-200 bg-white p-4 md:flex-row md:items-center md:justify-between"
+                        className="position-delete-candidate-row flex flex-col gap-4 border border-gray-200 bg-white p-4 md:flex-row md:items-center md:justify-between"
                       >
                         <div>
                           <p className="font-black">

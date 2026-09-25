@@ -1,425 +1,454 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowLeft,
-  BarChart3,
-  Trophy,
-  UserRound,
-  UsersRound,
-  Vote,
+  CalendarDays,
+  ChevronDown,
+  ExternalLink,
+  FileText,
+  RefreshCw,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
-import {
-  OrganizationLogo,
-  StudentAvatar,
-} from "../../components/KandidImage";
 import ElectionCover from "../../components/ElectionCover";
+import KandidImage from "../../components/KandidImage";
 import { supabase } from "../../lib/supabaseClient";
-import {
-  canStudentViewResults,
-  formatLocalDateTime,
-  getElectionPhase,
-  isMissingElectionCoverColumn,
-} from "../../utils/elections";
-import { getStudentElectionOrganizationIds } from "../../utils/organizationAccess";
-import { isMissingResultReleaseColumn } from "../../utils/results";
+import { formatLocalDateTime } from "../../utils/elections";
 
-const electionSelectWithRelease = `
-  id,
-  title,
-  cover_url,
-  organization_id,
-  campaign_start,
-  campaign_end,
-  start_date,
-  end_date,
-  status,
-  student_result_visibility,
-  results_released_at,
-  organizations(id, name, description, logo_url, organization_type)
-`;
+const INITIAL_VIEW = {
+  kind: "LOADING",
+  reason: null,
+  data: null,
+};
 
-const electionSelectWithoutRelease = `
-  id,
-  title,
-  cover_url,
-  organization_id,
-  campaign_start,
-  campaign_end,
-  start_date,
-  end_date,
-  status,
-  student_result_visibility,
-  organizations(id, name, description, logo_url, organization_type)
-`;
-
-function electionSelect(includeReleaseColumn, includeCoverColumn = true) {
-  const columns = includeReleaseColumn
-    ? electionSelectWithRelease
-    : electionSelectWithoutRelease;
-
-  return includeCoverColumn ? columns : columns.replace(/\n\s*cover_url,\n/, "\n");
+function cleanText(value) {
+  return typeof value === "string" ? value.trim() : "";
 }
 
-async function fetchElection(
-  electionId,
-  includeReleaseColumn = true,
-  includeCoverColumn = true,
-) {
-  const { data, error } = await supabase
-    .from("elections")
-    .select(electionSelect(includeReleaseColumn, includeCoverColumn))
-    .eq("id", electionId)
-    .single();
+function previewText(candidate) {
+  const text =
+    cleanText(candidate?.platform) ||
+    cleanText(candidate?.bio) ||
+    cleanText(candidate?.credentials);
 
-  return {
-    data: data ? { ...data, results_released_at: data.results_released_at || null } : null,
-    error,
-  };
+  if (!text) return "Open their profile to see the information they shared.";
+  return text;
 }
 
-function officerName(officer) {
-  if (officer?.students) {
-    return `${officer.students.first_name || ""} ${officer.students.last_name || ""}`.trim();
+function safeMaterialUrl(value) {
+  if (typeof value !== "string" || !value.trim()) return "";
+
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.href : "";
+  } catch {
+    return "";
   }
+}
 
-  return officer?.officer_name || "Officer";
+function CampaignState({ eyebrow, title, copy, action, loading = false }) {
+  return (
+    <section
+      className={`student-campaign-state ${loading ? "is-loading" : ""}`}
+      aria-live="polite"
+      aria-busy={loading}
+    >
+      <span className="student-campaign-state-mark" aria-hidden="true">
+        {loading ? <span /> : <FileText size={21} />}
+      </span>
+      <div>
+        <p className="student-campaign-kicker">{eyebrow}</p>
+        <h1>{title}</h1>
+        <p className="student-campaign-state-copy">{copy}</p>
+        {action}
+      </div>
+    </section>
+  );
+}
+
+function PartylistIdentity({ partylist }) {
+  const name = cleanText(partylist?.name) || "Independent";
+
+  return (
+    <div className="student-campaign-partylist">
+      {partylist?.logo_url ? (
+        <KandidImage
+          src={partylist.logo_url}
+          alt={`${name} logo`}
+          label={name}
+          className="student-campaign-partylist-logo"
+          fit="contain"
+        />
+      ) : null}
+      <span>{name}</span>
+    </div>
+  );
+}
+
+function CandidateDetails({ candidate, positionName }) {
+  const bio = cleanText(candidate.bio);
+  const platform = cleanText(candidate.platform);
+  const credentials = cleanText(candidate.credentials);
+  const materials = Array.isArray(candidate.campaign_materials)
+    ? candidate.campaign_materials
+    : [];
+
+  return (
+    <div
+      id={`candidate-details-${candidate.id}`}
+      className="student-campaign-candidate-details"
+    >
+      <section className="student-campaign-platform">
+        <p className="student-campaign-detail-label">Platform</p>
+        <h4>What they are proposing</h4>
+        <p>{platform || "No platform statement has been shared yet."}</p>
+      </section>
+
+      <div className="student-campaign-detail-columns">
+        <section>
+          <p className="student-campaign-detail-label">Biography</p>
+          <p>{bio || "Biography details have not been shared."}</p>
+        </section>
+        <section>
+          <p className="student-campaign-detail-label">Credentials</p>
+          <p>{credentials || "Credentials have not been shared."}</p>
+        </section>
+      </div>
+
+      {materials.length > 0 ? (
+        <section className="student-campaign-materials">
+          <div>
+            <p className="student-campaign-detail-label">Campaign materials</p>
+            <p>Documents and links shared by {candidate.display_name}.</p>
+          </div>
+          <ul>
+            {materials.map((material, index) => {
+              const url = safeMaterialUrl(material?.url);
+              const label = cleanText(material?.label) || `Campaign material ${index + 1}`;
+              const downloadable = material?.downloadable === true;
+
+              return (
+                <li key={`${material?.url || "material"}-${index}`}>
+                  <span>
+                    <FileText size={16} aria-hidden="true" />
+                    <span>
+                      <strong>{label}</strong>
+                      <small>{cleanText(material?.type) || "link"}</small>
+                    </span>
+                  </span>
+                  {url ? (
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noreferrer"
+                      download={downloadable || undefined}
+                    >
+                      <ExternalLink size={15} />
+                      Open material
+                    </a>
+                  ) : (
+                    <span className="student-campaign-material-unavailable">
+                      Unavailable
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
+
+      <p className="student-campaign-detail-context">
+        Running for {positionName} as {cleanText(candidate.partylist?.name) || "Independent"}.
+      </p>
+    </div>
+  );
+}
+
+function CandidateCard({ candidate, positionName, expanded, onToggle }) {
+  return (
+    <article className={`student-campaign-candidate ${expanded ? "is-expanded" : ""}`}>
+      <div className="student-campaign-candidate-preview">
+        <KandidImage
+          src={candidate.photo_url}
+          alt={`${candidate.display_name} candidate photo`}
+          label={candidate.display_name}
+          className="student-campaign-candidate-photo"
+          loading="lazy"
+        />
+
+        <div className="student-campaign-candidate-copy">
+          <p className="student-campaign-candidate-position">{positionName}</p>
+          <h3>{candidate.display_name}</h3>
+          <PartylistIdentity partylist={candidate.partylist} />
+          <p className="student-campaign-candidate-summary">{previewText(candidate)}</p>
+        </div>
+
+        <button
+          type="button"
+          className="student-campaign-candidate-toggle"
+          onClick={onToggle}
+          aria-expanded={expanded}
+          aria-controls={`candidate-details-${candidate.id}`}
+        >
+          {expanded ? "Close profile" : "View profile"}
+          <ChevronDown size={17} className={expanded ? "is-open" : ""} />
+        </button>
+      </div>
+
+      {expanded ? (
+        <CandidateDetails candidate={candidate} positionName={positionName} />
+      ) : null}
+    </article>
+  );
 }
 
 function StudentCampaign() {
   const { electionId } = useParams();
   const navigate = useNavigate();
-  const [election, setElection] = useState(null);
-  const [organizationElections, setOrganizationElections] = useState([]);
-  const [officers, setOfficers] = useState([]);
-  const [votes, setVotes] = useState([]);
-  const [tab, setTab] = useState("officers");
-  const [loading, setLoading] = useState(true);
-  const [accessDenied, setAccessDenied] = useState(false);
-  const [loadError, setLoadError] = useState("");
-  const user = JSON.parse(localStorage.getItem("user"));
+  const [view, setView] = useState(INITIAL_VIEW);
+  const [expandedCandidateId, setExpandedCandidateId] = useState(null);
+  const [requestKey, setRequestKey] = useState(0);
 
   useEffect(() => {
     let active = true;
 
-    async function loadOverview() {
-      setLoading(true);
-      setAccessDenied(false);
-      setLoadError("");
+    async function loadCampaign() {
+      setView(INITIAL_VIEW);
+      setExpandedCandidateId(null);
 
-      let includeReleaseColumn = true;
-      let includeCoverColumn = true;
-      const [electionResponse, eligibleOrganizationIds] = await Promise.all([
-        fetchElection(electionId, includeReleaseColumn, includeCoverColumn),
-        getStudentElectionOrganizationIds(user),
-      ]);
-
-      let { data: electionData, error: electionError } = electionResponse;
-
-      if (isMissingResultReleaseColumn(electionError)) {
-        includeReleaseColumn = false;
-        const fallback = await fetchElection(electionId, includeReleaseColumn, includeCoverColumn);
-        electionData = fallback.data;
-        electionError = fallback.error;
-      }
-
-      if (isMissingElectionCoverColumn(electionError)) {
-        includeCoverColumn = false;
-        const fallback = await fetchElection(electionId, includeReleaseColumn, includeCoverColumn);
-        electionData = fallback.data;
-        electionError = fallback.error;
-      }
-
-      if (electionError) {
-        console.error("Failed to load student election overview:", electionError);
-        if (active) {
-          setLoadError(electionError.message || "Unable to load election overview.");
-          setLoading(false);
-        }
-        return;
-      }
-
-      if (!eligibleOrganizationIds.includes(electionData?.organization_id)) {
-        if (active) {
-          setAccessDenied(true);
-          setLoading(false);
-        }
-        return;
-      }
-
-      const [
-        { data: officerData, error: officersError },
-        { data: orgElectionData, error: electionsError },
-      ] = await Promise.all([
-        supabase
-          .from("officers")
-          .select(`
-            *,
-            students (
-              first_name,
-              last_name,
-              student_number,
-              photo_url,
-              program,
-              year_level
-            )
-          `)
-          .eq("organization_id", electionData.organization_id)
-          .order("is_current", { ascending: false })
-          .order("display_order", { ascending: true }),
-        supabase
-          .from("elections")
-          .select("id, title, campaign_start, campaign_end, start_date, end_date, status")
-          .eq("organization_id", electionData.organization_id)
-          .neq("status", "draft")
-          .neq("status", "archived")
-          .order("start_date", { ascending: false }),
-      ]);
-
-      if (officersError) {
-        console.error("Failed to load organization officers:", officersError);
-      }
-
-      if (electionsError) {
-        console.error("Failed to load organization elections:", electionsError);
-      }
-
-      const electionIds = (orgElectionData || []).map((item) => item.id);
-      let voteData = [];
-
-      if (electionIds.length > 0) {
-        const { data, error } = await supabase
-          .from("votes")
-          .select(`
-            id,
-            election_id,
-            student_id,
-            is_abstain,
-            students(program, year_level)
-          `)
-          .in("election_id", electionIds);
-
-        if (error) {
-          console.error("Failed to load organization election demographics:", error);
-        } else {
-          voteData = data || [];
-        }
-      }
+      const { data, error } = await supabase.rpc("get_student_campaign", {
+        p_election_id: electionId,
+      });
 
       if (!active) return;
 
-      setElection(electionData);
-      setOfficers(officerData || []);
-      setOrganizationElections(orgElectionData || []);
-      setVotes(voteData);
-      setLoading(false);
+      if (error) {
+        console.error("Failed to load Student Campaign:", error);
+        setView({ kind: "ERROR", reason: null, data: null });
+        return;
+      }
+
+      const status = data?.status;
+      if (!["AVAILABLE", "EMPTY", "UNAVAILABLE", "UNAUTHORIZED"].includes(status)) {
+        console.error("Student Campaign returned an unexpected response status.");
+        setView({ kind: "ERROR", reason: null, data: null });
+        return;
+      }
+
+      setView({
+        kind: status,
+        reason: data?.reason || null,
+        data: data?.data || null,
+      });
     }
 
-    loadOverview();
+    loadCampaign();
 
     return () => {
       active = false;
     };
-  }, [electionId, user.id]);
+  }, [electionId, requestKey]);
 
-  const officerGroups = useMemo(() => {
-    const current = officers.filter((officer) => officer.is_current);
-    const past = officers.filter((officer) => !officer.is_current);
-    return { current, past };
-  }, [officers]);
+  const backButton = (
+    <button
+      type="button"
+      onClick={() => navigate("/student/elections")}
+      className="student-back-link student-campaign-back"
+    >
+      <ArrowLeft size={15} />
+      Back to elections
+    </button>
+  );
 
-  const electionDemographics = useMemo(() => {
-    if (!election) return [];
-
-    return organizationElections.map((item) => {
-      const electionVotes = votes.filter((vote) => vote.election_id === item.id);
-      const uniqueVoters = new Set(electionVotes.map((vote) => vote.student_id).filter(Boolean));
-      const programCounts = {};
-
-      electionVotes.forEach((vote) => {
-        const program = vote.students?.program || "Unspecified";
-        programCounts[program] = (programCounts[program] || 0) + 1;
-      });
-
-      const topProgram =
-        Object.entries(programCounts).sort((first, second) => second[1] - first[1])[0]?.[0] ||
-        "No voter data";
-
-      return {
-        ...item,
-        results_released_at:
-          item.id === election.id ? election.results_released_at || null : null,
-        student_result_visibility:
-          item.id === election.id ? election.student_result_visibility : "manual",
-        voteEntries: electionVotes.length,
-        uniqueVoters: uniqueVoters.size,
-        abstains: electionVotes.filter((vote) => vote.is_abstain).length,
-        topProgram,
-      };
-    });
-  }, [election, organizationElections, votes]);
-
-  if (loading) {
-    return <div className="student-empty-card">Loading election overview...</div>;
-  }
-
-  if (accessDenied) {
-    return <div className="student-empty-card">This election overview is not available for your organization.</div>;
-  }
-
-  if (loadError) {
-    return <div className="student-empty-card">{loadError}</div>;
-  }
-
-  if (!election) {
-    return <div className="student-empty-card">Election not found.</div>;
-  }
-
-  const organization = election.organizations;
-  const phase = getElectionPhase(election);
-
-  if (phase === "draft" || phase === "archived") {
-    return <div className="student-empty-card">This election overview is not available.</div>;
-  }
-
-  if (phase !== "campaign" && !canStudentViewResults(election)) {
+  if (view.kind === "LOADING") {
     return (
-      <div>
-        <button type="button" onClick={() => navigate("/student/elections")} className="student-back-link">
-          <ArrowLeft size={15} />
-          Back
-        </button>
-        <div className="student-module-banner">
-          <div className="student-module-icon">
-            <BarChart3 size={22} />
-          </div>
-          <div>
-            <h1>Election Overview</h1>
-            <p>
-              {phase === "campaign_upcoming"
-                ? `Campaign begins ${formatLocalDateTime(election.campaign_start)}.`
-                : phase === "waiting"
-                  ? `Campaign has ended. Voting opens ${formatLocalDateTime(election.start_date)}.`
-                  : "Results are being verified before the overview reopens."}
-            </p>
-          </div>
-        </div>
+      <div className="student-campaign-page-v2">
+        {backButton}
+        <CampaignState
+          eyebrow="Campaign"
+          title="Preparing the candidate guide"
+          copy="Gathering the campaign information available for this election."
+          loading
+        />
       </div>
     );
   }
 
+  if (view.kind === "ERROR") {
+    return (
+      <div className="student-campaign-page-v2">
+        {backButton}
+        <CampaignState
+          eyebrow="Campaign unavailable"
+          title="We couldn't load the campaign right now."
+          copy="Please try again in a moment."
+          action={(
+            <button
+              type="button"
+              className="student-campaign-state-action"
+              onClick={() => setRequestKey((current) => current + 1)}
+            >
+              <RefreshCw size={16} />
+              Retry
+            </button>
+          )}
+        />
+      </div>
+    );
+  }
+
+  if (view.kind === "UNAUTHORIZED") {
+    const unauthorizedCopy = {
+      AUTHENTICATION_REQUIRED: {
+        title: "Your session needs attention.",
+        copy: "Return to the Student portal and sign in again to continue.",
+      },
+      STUDENT_ACCESS_DENIED: {
+        title: "This campaign isn't available to this account.",
+        copy: "Use the Elections page to view campaign information available to you.",
+      },
+    }[view.reason] || {
+      title: "This campaign isn't available to this account.",
+      copy: "Use the Elections page to continue.",
+    };
+
+    return (
+      <div className="student-campaign-page-v2">
+        {backButton}
+        <CampaignState
+          eyebrow="Student access"
+          title={unauthorizedCopy.title}
+          copy={unauthorizedCopy.copy}
+        />
+      </div>
+    );
+  }
+
+  if (view.kind === "UNAVAILABLE") {
+    const unavailableCopy = {
+      CAMPAIGN_NOT_STARTED: {
+        title: "Campaign isn't open yet.",
+        copy: "Candidate information will appear here when the campaign period begins.",
+      },
+      CAMPAIGN_ENDED: {
+        title: "Campaign has ended.",
+        copy: "Return to Elections for the next available step.",
+      },
+      CAMPAIGN_SCHEDULE_MISSING: {
+        title: "Campaign information isn't available right now.",
+        copy: "Return to Elections and check again later.",
+      },
+      ELECTION_NOT_AVAILABLE: {
+        title: "This campaign isn't available.",
+        copy: "Use the Elections page to view campaigns available to you.",
+      },
+    }[view.reason] || {
+      title: "This campaign isn't available.",
+      copy: "Use the Elections page to continue.",
+    };
+
+    return (
+      <div className="student-campaign-page-v2">
+        {backButton}
+        <CampaignState
+          eyebrow="Campaign"
+          title={unavailableCopy.title}
+          copy={unavailableCopy.copy}
+        />
+      </div>
+    );
+  }
+
+  if (view.kind === "EMPTY") {
+    return (
+      <div className="student-campaign-page-v2">
+        {backButton}
+        <CampaignState
+          eyebrow={view.data?.election?.title || "Campaign"}
+          title="Nothing to introduce just yet."
+          copy="Candidates will appear here when campaign information is available."
+        />
+      </div>
+    );
+  }
+
+  const election = view.data?.election || {};
+  const organization = view.data?.organization || {};
+  const positions = Array.isArray(view.data?.positions) ? view.data.positions : [];
+  const candidates = Array.isArray(view.data?.candidates) ? view.data.candidates : [];
+  const campaignPeriod = [
+    formatLocalDateTime(election.campaign_start),
+    formatLocalDateTime(election.campaign_end),
+  ].join(" to ");
+
   return (
-    <div>
-      <button type="button" onClick={() => navigate("/student/elections")} className="student-back-link">
-        <ArrowLeft size={15} />
-        {organization?.name || "Organization"}
-      </button>
+    <div className="student-campaign-page-v2">
+      {backButton}
 
-      <section className="student-campaign-hero student-org-detail-hero">
-        {election.cover_url ? (
-          <ElectionCover election={election} compact className="student-campaign-cover" />
-        ) : (
-          <OrganizationLogo
-            organization={organization}
-            className="!h-[clamp(5.5rem,8vw,8rem)] !w-[clamp(5.5rem,8vw,8rem)] !p-2.5"
-            loading="eager"
-          />
-        )}
-        <div>
-          <span className="mb-2 inline-flex rounded-full bg-white/80 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#f4511e]">
-            Election Overview
-          </span>
-          <h1>{organization?.name || "Student Organization"}</h1>
-          <p>{election.title}</p>
+      <header className="student-campaign-mast">
+        <div className="student-campaign-mast-copy">
+          <p className="student-campaign-kicker">Campaign</p>
+          <h1>{election.title || "Election Campaign"}</h1>
+          <p className="student-campaign-intro">
+            Meet the candidates and see what they're bringing to the ballot.
+          </p>
+          <div className="student-campaign-context">
+            <span>{organization.name || "Student organization"}</span>
+            <span>
+              <CalendarDays size={15} aria-hidden="true" />
+              {campaignPeriod}
+            </span>
+          </div>
         </div>
-      </section>
+        <ElectionCover election={election} compact className="student-campaign-mast-cover" />
+      </header>
 
-      <div className="student-campaign-tabs">
-        <button
-          type="button"
-          className={tab === "officers" ? "active" : ""}
-          onClick={() => setTab("officers")}
-        >
-          Officers
-        </button>
-        <button
-          type="button"
-          className={tab === "elections" ? "active" : ""}
-          onClick={() => setTab("elections")}
-        >
-          Elections
-        </button>
+      <div className="student-campaign-reading-note">
+        <span aria-hidden="true" />
+        <p>Here are the people asking for your vote. Take your time and see what they stand for.</p>
       </div>
 
-      {tab === "officers" ? (
-        <div className="student-officer-stack">
-          {officers.length === 0 ? (
-            <div className="student-empty-card">No officers have been published for this organization.</div>
-          ) : (
-            [
-              ["Current Officers", officerGroups.current],
-              ["Past Officers", officerGroups.past],
-            ].map(([title, group]) =>
-              group.length > 0 ? (
-                <section key={title}>
-                  <h2>{title}</h2>
-                  <div className="space-y-4">
-                    {group.map((officer) => (
-                      <div key={officer.id} className="student-officer-row">
-                        {officer.students ? (
-                          <StudentAvatar student={officer.students} className="student-officer-avatar" />
-                        ) : (
-                          <div className="student-officer-avatar">
-                            <UserRound size={30} />
-                          </div>
-                        )}
-                        <div>
-                          <strong>{officerName(officer)}</strong>
-                          <p>{officer.position_title || "Officer"}</p>
-                          <p>{officer.term_label || (officer.is_current ? "Current Term" : "Past Term")}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              ) : null,
-            )
-          )}
-        </div>
-      ) : (
-        <div className="student-org-election-list grid w-full grid-cols-1 gap-5 lg:grid-cols-2">
-          {electionDemographics.length === 0 ? (
-            <div className="student-empty-card">No organization elections are listed yet.</div>
-          ) : (
-            electionDemographics.map((item) => (
-              <article key={item.id} className="student-org-election-card min-h-[190px]">
+      <main className="student-campaign-position-list">
+        {positions.map((position, positionIndex) => {
+          const positionCandidates = candidates.filter(
+            (candidate) => candidate.position_id === position.id,
+          );
+
+          return (
+            <section className="student-campaign-position" key={position.id}>
+              <div className="student-campaign-position-heading">
+                <span>{String(positionIndex + 1).padStart(2, "0")}</span>
                 <div>
-                  <span className="status-pill">{getElectionPhase(item)}</span>
-                  <h2 className="mt-3">{item.title}</h2>
-                  <p>{formatLocalDateTime(item.start_date)} - {formatLocalDateTime(item.end_date)}</p>
+                  <p>Position</p>
+                  <h2>{position.name}</h2>
                 </div>
-                <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                  {[
-                    [UsersRound, "Voters", item.uniqueVoters],
-                    [Vote, "Vote entries", item.voteEntries],
-                    [Trophy, "Top program", item.topProgram],
-                  ].map(([Icon, label, value]) => (
-                    <div key={label} className="rounded-2xl bg-white/70 p-3">
-                      <Icon size={16} className="text-[#f4511e]" />
-                      <p className="mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-gray-400">{label}</p>
-                      <strong className="mt-1 block text-sm text-[#182033]">{value}</strong>
-                    </div>
+                <p>
+                  {positionCandidates.length} candidate{positionCandidates.length === 1 ? "" : "s"}
+                </p>
+              </div>
+
+              {positionCandidates.length > 0 ? (
+                <div className="student-campaign-candidate-grid">
+                  {positionCandidates.map((candidate) => (
+                    <CandidateCard
+                      key={candidate.id}
+                      candidate={candidate}
+                      positionName={position.name}
+                      expanded={expandedCandidateId === candidate.id}
+                      onToggle={() => setExpandedCandidateId((current) => (
+                        current === candidate.id ? null : candidate.id
+                      ))}
+                    />
                   ))}
                 </div>
-                {canStudentViewResults(item) ? (
-                  <button type="button" onClick={() => navigate(`/student/results?election=${item.id}`)}>
-                    View Results
-                  </button>
-                ) : null}
-              </article>
-            ))
-          )}
-        </div>
-      )}
+              ) : (
+                <p className="student-campaign-position-empty">
+                  No candidate information is available for this position yet.
+                </p>
+              )}
+            </section>
+          );
+        })}
+      </main>
     </div>
   );
 }

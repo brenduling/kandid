@@ -1,18 +1,19 @@
 import { useEffect, useState } from "react";
-import { Menu } from "lucide-react";
+import { Menu, Search, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import GlobalSearch from "./GlobalSearch";
 import NotificationCenter from "./NotificationCenter";
 import logo from "../assets/kandidlogo.png";
 
 function getMobilePlaceholder(role) {
-  if (role === "student") return "Search elections, organizations, receipts...";
+  if (role === "student") return "Search elections and organizations...";
   if (role === "electoral_board") return "Search elections, students, reports...";
   return "Search users, organizations, elections...";
 }
 
 function MobileHeader({ user, onMenuClick, homePath = "/" }) {
   const navigate = useNavigate();
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(() =>
     typeof window === "undefined"
       ? false
@@ -52,16 +53,20 @@ function MobileHeader({ user, onMenuClick, homePath = "/" }) {
           </span>
         </button>
 
-        {user ? (
-          <GlobalSearch
-            user={user}
-            className="mobile-header-search"
-            placeholder={getMobilePlaceholder(user.role)}
-          />
-        ) : null}
-
         <div className="mobile-header-actions">
           {user && isMobileViewport ? <NotificationCenter user={user} /> : null}
+
+          {user ? (
+            <button
+              type="button"
+              onClick={() => setIsMobileSearchOpen((current) => !current)}
+              className="mobile-header-search-toggle"
+              aria-label={isMobileSearchOpen ? "Close search" : "Open search"}
+              aria-expanded={isMobileSearchOpen}
+            >
+              {isMobileSearchOpen ? <X size={19} /> : <Search size={19} />}
+            </button>
+          ) : null}
 
           <button
             type="button"
@@ -73,6 +78,19 @@ function MobileHeader({ user, onMenuClick, homePath = "/" }) {
           </button>
         </div>
       </div>
+
+      {user ? (
+        <div
+          className="mobile-header-search-panel"
+          data-open={isMobileSearchOpen}
+        >
+          <GlobalSearch
+            user={user}
+            className="mobile-header-search"
+            placeholder={getMobilePlaceholder(user.role)}
+          />
+        </div>
+      ) : null}
     </header>
   );
 }

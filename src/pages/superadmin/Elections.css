@@ -1,0 +1,484 @@
+.sa-elections {
+  --elections-ink: var(--kandid-app-ink, #171717);
+  --elections-ink-3: var(--kandid-app-ink-3, #514d46);
+  --elections-muted: var(--kandid-app-muted, #69645c);
+  --elections-paper: var(--kandid-app-paper, #fff);
+  --elections-paper-soft: var(--kandid-app-paper-soft, #fcfbf8);
+  --elections-rule: var(--kandid-app-border, #e1ddd5);
+  --elections-rule-strong: var(--kandid-app-border-strong, #cfc9bf);
+  --elections-orange: var(--kandid-app-orange, #ef4e23);
+  display: grid;
+  min-width: 0;
+  gap: 2rem;
+  color: var(--elections-ink);
+}
+
+.sa-elections p,
+.sa-elections h1,
+.sa-elections h2,
+.sa-elections h3 { margin: 0; }
+
+.sa-elections-masthead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(13rem, 16rem);
+  gap: clamp(1.75rem, 3.2vw, 3.5rem);
+  align-items: end;
+  border-top: 2px solid var(--elections-ink);
+  border-bottom: 1px solid var(--elections-rule-strong);
+  padding: clamp(1.1rem, 1.8vw, 1.8rem) 0 clamp(1.15rem, 1.7vw, 1.65rem);
+}
+
+.sa-elections-masthead-copy { min-width: 0; }
+
+.sa-elections-breadcrumb,
+.sa-elections-eyebrow,
+.sa-elections-masthead-aside span,
+.sa-elections-summary-item p,
+.sa-election-phase,
+.sa-election-schedules span {
+  color: var(--elections-muted);
+  font-size: 0.65rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.sa-elections-breadcrumb {
+  color: var(--elections-ink-3);
+  font-size: 0.69rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.sa-elections-eyebrow { margin-top: clamp(0.8rem, 1.4vw, 1.25rem) !important; color: var(--elections-orange); font-size: 0.68rem; line-height: 1.2; }
+
+.sa-elections-masthead h1 {
+  max-width: 48rem;
+  margin-top: 0.35rem;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(2.35rem, 3.45vw, 3.65rem);
+  font-weight: 700;
+  line-height: 0.96;
+}
+
+.sa-elections-masthead-copy > p:last-child {
+  max-width: 44rem;
+  margin-top: 0.7rem;
+  color: var(--elections-ink-3);
+  font-size: clamp(0.95rem, 1.1vw, 1.05rem);
+  font-weight: 560;
+  line-height: 1.55;
+}
+
+.sa-elections-masthead-aside {
+  display: grid;
+  gap: 0.55rem;
+  border-left: 1px solid var(--elections-rule-strong);
+  padding: 0.25rem 0 0.2rem 1.25rem;
+}
+
+.sa-elections-masthead-aside strong {
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.4rem;
+  font-weight: 650;
+  line-height: 1.15;
+}
+
+.sa-elections-add {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  border: 1px solid var(--elections-orange);
+  border-radius: 0;
+  background: var(--elections-orange);
+  padding: 0.65rem 0.9rem;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.sa-elections-add:hover { background: #d94118; }
+
+.sa-elections-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid var(--elections-rule-strong);
+  border-bottom: 1px solid var(--elections-rule-strong);
+}
+
+.sa-elections-summary-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.15rem 0.8rem;
+  padding: 1rem 1.2rem;
+}
+
+.sa-elections-summary-item + .sa-elections-summary-item { border-left: 1px solid var(--elections-rule); }
+.sa-elections-summary-item > span { grid-row: 1 / span 2; color: var(--elections-orange); font-size: 0.65rem; font-weight: 850; }
+.sa-elections-summary-item strong { font-family: "Source Serif 4", Georgia, serif; font-size: 2.2rem; line-height: 0.9; }
+.sa-elections-summary-item p { align-self: end; }
+
+.sa-elections-register { display: grid; min-width: 0; gap: 1.15rem; }
+
+.sa-elections-register-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(15rem, 0.5fr);
+  gap: 2rem;
+  align-items: end;
+}
+
+.sa-elections-register-head h2 {
+  margin-top: 0.35rem;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(1.55rem, 2.25vw, 2.15rem);
+  line-height: 1.05;
+}
+
+.sa-elections-register-head > p {
+  color: var(--elections-muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.sa-elections-list { border-top: 2px solid var(--elections-ink); }
+
+.sa-election-record {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 2.5rem minmax(13rem, 0.9fr) minmax(25rem, 1.4fr) auto;
+  gap: 1.25rem;
+  align-items: stretch;
+  border-bottom: 1px solid var(--elections-rule-strong);
+  padding: 1.25rem 0;
+}
+
+.sa-election-index {
+  color: var(--elections-orange);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.sa-election-identity { display: grid; min-width: 0; align-content: start; gap: 0.35rem; }
+
+.sa-election-phase {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--elections-ink-3);
+}
+
+.sa-election-phase > span { width: 0.48rem; height: 0.48rem; flex: 0 0 0.48rem; background: var(--elections-rule-strong); }
+.sa-election-phase.is-campaign > span,
+.sa-election-phase.is-voting > span,
+.sa-election-phase.is-waiting > span { background: var(--elections-orange); }
+.sa-election-phase.is-closed > span,
+.sa-election-phase.is-archived > span { background: var(--elections-ink-3); }
+
+.sa-election-identity > p { color: var(--elections-ink-3); font-size: 0.68rem; font-weight: 800; text-transform: uppercase; }
+
+.sa-election-identity h3 {
+  overflow-wrap: anywhere;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(1.25rem, 2vw, 1.65rem);
+  line-height: 1.05;
+}
+
+.sa-election-control-meta { display: flex; flex-wrap: wrap; gap: 0.35rem 0.8rem; margin-top: 0.35rem; }
+.sa-election-control-meta span { color: var(--elections-muted); font-size: 0.68rem; line-height: 1.4; }
+.sa-election-control-meta span + span { border-left: 1px solid var(--elections-rule-strong); padding-left: 0.8rem; }
+
+.sa-election-schedules {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-left: 1px solid var(--elections-rule);
+}
+
+.sa-election-schedules section { display: grid; min-width: 0; align-content: start; gap: 0.25rem; padding: 0.2rem 1rem; }
+.sa-election-schedules section + section { border-left: 1px solid var(--elections-rule); }
+.sa-election-schedules .is-voting { border-top: 2px solid var(--elections-orange); padding-top: calc(0.2rem - 2px); }
+.sa-election-schedules strong,
+.sa-election-schedules p { overflow-wrap: anywhere; font-size: 0.75rem; line-height: 1.45; }
+.sa-election-schedules strong { color: var(--elections-ink); }
+.sa-election-schedules p { color: var(--elections-muted); }
+
+.sa-election-actions {
+  display: flex;
+  min-width: 8.5rem;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  border-left: 1px solid var(--elections-rule);
+  padding-left: 1rem;
+}
+
+.sa-election-actions button {
+  display: inline-flex;
+  min-height: 2.2rem;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.4rem;
+  border: 0;
+  border-bottom: 1px solid var(--elections-rule);
+  border-radius: 0;
+  background: transparent;
+  padding: 0.35rem 0;
+  color: var(--elections-ink-3);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.sa-election-actions .sa-election-primary-action { border-bottom-color: var(--elections-orange); color: var(--elections-ink); }
+.sa-election-actions button:hover { color: var(--elections-orange); }
+.sa-election-actions .is-danger:hover { color: #9f3027; }
+
+.sa-elections-loading,
+.sa-elections-error {
+  display: grid;
+  min-height: 16rem;
+  align-content: center;
+  gap: 0.75rem;
+  border-top: 2px solid var(--elections-ink);
+  border-bottom: 1px solid var(--elections-rule-strong);
+}
+
+.sa-elections-loading strong,
+.sa-elections-error h3,
+.sa-elections-empty h3 { font-family: "Source Serif 4", Georgia, serif; font-size: clamp(1.5rem, 2.6vw, 2.3rem); line-height: 1.05; }
+.sa-elections-loading > div { display: grid; max-width: 38rem; gap: 0.45rem; }
+.sa-elections-loading span { height: 0.3rem; background: var(--elections-rule); }
+.sa-elections-loading span:nth-child(2) { width: 72%; }
+.sa-elections-loading span:nth-child(3) { width: 45%; }
+.sa-elections-error > p:not(.sa-elections-eyebrow) { max-width: 38rem; color: var(--elections-muted); line-height: 1.5; }
+.sa-elections-error button,
+.sa-elections-empty button { width: fit-content; border: 0; border-bottom: 2px solid var(--elections-orange); border-radius: 0; background: transparent; padding: 0.45rem 0; font-size: 0.7rem; font-weight: 850; text-transform: uppercase; }
+
+.sa-elections-empty {
+  display: grid;
+  min-height: 12rem;
+  grid-template-columns: 3rem minmax(0, 1fr) auto;
+  gap: 1.25rem;
+  align-items: center;
+  border-top: 2px solid var(--elections-ink);
+  border-bottom: 1px solid var(--elections-rule-strong);
+}
+
+.sa-elections-empty > span { color: var(--elections-orange); font-family: "Source Serif 4", Georgia, serif; font-weight: 700; }
+.sa-elections-empty p { margin-top: 0.35rem; color: var(--elections-muted); font-size: 0.8rem; line-height: 1.5; }
+
+.sa-elections button:focus-visible { outline: 2px solid var(--elections-orange); outline-offset: 3px; }
+
+/* PopupOverlay portals to document.body, so modal selectors intentionally start at .modal-overlay. */
+.modal-overlay .election-form-dialog {
+  width: min(62rem, calc(100vw - 2rem)) !important;
+  max-width: 62rem !important;
+  max-height: calc(100dvh - 2rem) !important;
+  overflow-y: auto;
+  border: 1px solid #cfc9bf !important;
+  border-top: 3px solid #171717 !important;
+  border-radius: 0 !important;
+  background: #f8f6f1 !important;
+  padding: 0 !important;
+  color: #171717;
+  box-shadow: 0 14px 32px rgba(22, 20, 17, 0.18) !important;
+}
+
+.election-form-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  border-bottom: 1px solid #cfc9bf;
+  padding: 1.25rem 1.5rem 1rem;
+}
+
+.election-form-header > div { display: grid; gap: 0.3rem; }
+.election-form-header p { margin: 0; color: #ef4e23; font-size: 0.65rem; font-weight: 850; text-transform: uppercase; }
+.election-form-header h2 { margin: 0; font-family: "Source Serif 4", Georgia, serif; font-size: clamp(2rem, 4vw, 3rem); font-weight: 650; line-height: 0.95; }
+.election-form-header span { color: #69645c; font-size: 0.76rem; line-height: 1.45; }
+
+.modal-overlay .election-form-close {
+  display: grid;
+  width: 2.65rem;
+  height: 2.65rem;
+  flex: 0 0 2.65rem;
+  place-items: center;
+  border: 0 !important;
+  border-bottom: 1px solid #cfc9bf !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.modal-overlay .election-form-close:hover { border-color: #ef4e23 !important; background: rgba(239, 78, 35, 0.07) !important; color: #ef4e23; }
+
+.election-form-workspace { display: grid; gap: 0; padding: 0 1.5rem 1.5rem; }
+.election-form-section { display: grid; grid-template-columns: minmax(10rem, 0.32fr) minmax(0, 1fr); gap: 1.5rem; border-bottom: 1px solid #cfc9bf; padding: 1.35rem 0; }
+.election-form-section > header { display: flex; align-items: baseline; gap: 0.65rem; }
+.election-form-section > header > span { color: #ef4e23; font-size: 0.64rem; font-weight: 850; }
+.election-form-section > header h3 { margin: 0; font-family: "Source Serif 4", Georgia, serif; font-size: 1.2rem; line-height: 1.05; }
+.election-form-section > header p { margin: 0.35rem 0 0; color: #69645c; font-size: 0.7rem; line-height: 1.45; }
+.election-form-fields { display: grid; min-width: 0; gap: 1rem; }
+.election-form-settings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.election-form-settings label { display: grid; gap: 0.4rem; }
+
+.election-form-dialog .upload-shell {
+  border: 0 !important;
+  border-top: 1px solid #e1ddd5 !important;
+  border-bottom: 1px solid #e1ddd5 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 1rem 0 !important;
+  box-shadow: none !important;
+}
+
+.election-form-dialog .upload-shell > div { grid-template-columns: minmax(9rem, 0.35fr) minmax(0, 1fr); }
+.election-form-dialog .election-cover { min-height: 7rem; border-radius: 0 !important; }
+
+.election-form-access { grid-column: 2; display: grid; gap: 0.8rem; border-top: 1px solid #e1ddd5; margin-top: 1rem; padding-top: 1rem; }
+.election-token-section { grid-template-columns: minmax(10rem, 0.32fr) minmax(0, 1fr); }
+
+.modal-overlay .election-form-dialog .field-shell,
+.modal-overlay .election-form-dialog input,
+.modal-overlay .election-form-dialog select,
+.modal-overlay .election-form-dialog textarea,
+.modal-overlay .election-form-dialog button,
+.modal-overlay .election-form-dialog label,
+.modal-overlay .election-form-dialog img,
+.modal-overlay .election-form-dialog .absolute.z-50,
+.modal-overlay .election-form-dialog .global-result-icon {
+  border-radius: 0 !important;
+}
+
+.modal-overlay .election-form-dialog .field-shell,
+.modal-overlay .election-form-dialog input,
+.modal-overlay .election-form-dialog select {
+  border: 1px solid #cfc9bf !important;
+  background: rgba(255, 255, 255, 0.62) !important;
+  box-shadow: none !important;
+}
+
+.modal-overlay .election-form-dialog .field-shell:focus,
+.modal-overlay .election-form-dialog input:focus,
+.modal-overlay .election-form-dialog select:focus { border-color: #ef4e23 !important; outline: none; }
+
+.modal-overlay .election-form-dialog .absolute.z-50 {
+  border: 1px solid #cfc9bf !important;
+  border-top: 2px solid #171717 !important;
+  background: #fff !important;
+  box-shadow: 0 10px 22px rgba(22, 20, 17, 0.12) !important;
+}
+
+.modal-overlay .election-form-dialog .absolute.z-50 button { box-shadow: none !important; }
+.modal-overlay .election-form-dialog .absolute.z-50 button:hover { background: rgba(239, 78, 35, 0.07) !important; }
+.modal-overlay .election-form-dialog .absolute.z-50 button.bg-\[\#f4511e\] { background: #ef4e23 !important; color: #fff !important; }
+
+.election-token-section > div { min-width: 0; }
+.election-token-section .rounded-2xl { border: 0; border-top: 1px solid #e1ddd5; border-radius: 0 !important; background: transparent !important; }
+
+.election-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: 1.15rem;
+}
+
+.modal-overlay .election-form-actions .primary-btn,
+.modal-overlay .election-form-actions .secondary-btn {
+  width: auto;
+  min-height: 2.75rem;
+  border-radius: 0 !important;
+  font-size: 0.7rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.modal-overlay .election-form-actions .primary-btn { background: #ef4e23 !important; box-shadow: 0 6px 14px rgba(239, 78, 35, 0.16) !important; }
+.modal-overlay .election-form-actions .secondary-btn { border: 0 !important; border-bottom: 1px solid #cfc9bf !important; background: transparent !important; box-shadow: none !important; }
+
+.modal-overlay .election-form-dialog button:focus-visible,
+.modal-overlay .election-form-dialog input:focus-visible,
+.modal-overlay .election-form-dialog select:focus-visible { outline: 2px solid #ef4e23; outline-offset: 3px; }
+
+.modal-overlay .election-success-dialog {
+  width: min(32rem, calc(100vw - 2rem)) !important;
+  border: 1px solid #cfc9bf !important;
+  border-top: 3px solid #171717 !important;
+  border-radius: 0 !important;
+  background: #f8f6f1 !important;
+  color: #171717;
+  text-align: left !important;
+  box-shadow: 0 14px 32px rgba(22, 20, 17, 0.18) !important;
+}
+
+.election-success-mark { color: #ef4e23; }
+.modal-overlay .election-success-dialog .rounded-2xl,
+.modal-overlay .election-success-dialog button { border-radius: 0 !important; }
+
+@media (max-width: 1180px) {
+  .sa-election-record { grid-template-columns: 2.5rem minmax(13rem, 0.85fr) minmax(20rem, 1.2fr); }
+  .sa-election-actions { grid-column: 2 / -1; min-width: 0; flex-direction: row; justify-content: flex-end; border-top: 1px solid var(--elections-rule); border-left: 0; padding: 0.65rem 0 0; }
+  .sa-election-actions button { min-width: 7rem; justify-content: center; }
+}
+
+@media (max-width: 900px) {
+  .sa-elections-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sa-elections-summary-item:nth-child(3) { border-left: 0; }
+  .sa-elections-summary-item:nth-child(n + 3) { border-top: 1px solid var(--elections-rule); }
+  .sa-elections-register-head { grid-template-columns: minmax(0, 1fr); gap: 0.6rem; }
+  .sa-election-record { grid-template-columns: 2.5rem minmax(0, 1fr); }
+  .sa-election-index { grid-row: 1 / span 3; }
+  .sa-election-identity,
+  .sa-election-schedules,
+  .sa-election-actions { grid-column: 2; }
+  .sa-election-schedules { border-left: 0; }
+}
+
+@media (max-width: 767px) {
+  .sa-elections-masthead { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
+  .sa-elections-masthead h1 { font-size: clamp(2.2rem, 10vw, 3.1rem); }
+  .sa-elections-masthead-aside { border-top: 1px solid var(--elections-rule); border-left: 0; padding: 1rem 0 0; }
+  .modal-overlay .election-form-dialog { width: min(100vw - 1rem, 62rem) !important; max-height: calc(100dvh - 1rem) !important; }
+  .election-form-header,
+  .election-form-workspace { padding-right: 1rem; padding-left: 1rem; }
+  .election-form-section,
+  .election-token-section { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+  .election-form-access { grid-column: 1; }
+}
+
+@media (max-width: 560px) {
+  .sa-elections { gap: 1.5rem; }
+  .sa-elections-summary { grid-template-columns: minmax(0, 1fr); }
+  .sa-elections-summary-item + .sa-elections-summary-item { border-top: 1px solid var(--elections-rule); border-left: 0; }
+  .sa-elections-summary-item { padding-inline: 0; }
+  .sa-election-record { grid-template-columns: 2rem minmax(0, 1fr); gap: 0.9rem; }
+  .sa-election-schedules { grid-template-columns: minmax(0, 1fr); }
+  .sa-election-schedules section { padding: 0.8rem 0; border-top: 1px solid var(--elections-rule); }
+  .sa-election-schedules section + section { border-left: 0; }
+  .sa-election-schedules .is-voting { border-top: 2px solid var(--elections-orange); }
+  .sa-election-actions { justify-content: flex-start; flex-wrap: wrap; }
+  .sa-election-actions button { min-width: auto; }
+  .sa-elections-empty { grid-template-columns: 2rem minmax(0, 1fr); gap: 0.8rem; }
+  .sa-elections-empty button { grid-column: 2; }
+  .election-form-header h2 { font-size: 2rem; }
+  .election-form-section > header { align-items: start; }
+  .election-form-settings,
+  .election-form-dialog .upload-shell > div { grid-template-columns: minmax(0, 1fr); }
+  .election-form-actions { align-items: stretch; flex-direction: column-reverse; }
+  .modal-overlay .election-form-actions .primary-btn,
+  .modal-overlay .election-form-actions .secondary-btn { width: 100%; }
+}
+
+@media (max-width: 430px) {
+  .sa-elections-masthead h1 { font-size: 2.1rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sa-elections button,
+  .election-form-dialog button { transition: none !important; }
+}

@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  ArrowRight,
   Plus,
   Pencil,
+  RefreshCw,
   Trash2,
   X,
   Users,
@@ -31,6 +33,7 @@ import {
   analyzeMembershipDependencies,
   dependencyMessage,
 } from "../../utils/deleteGuards";
+import "./Organizations.css";
 
 function Organizations() {
   const prompt = usePrompt();
@@ -58,6 +61,9 @@ function Organizations() {
   });
 
   const [loading, setLoading] = useState(false);
+  const [directoryLoading, setDirectoryLoading] = useState(true);
+  const [directoryError, setDirectoryError] = useState("");
+  const [organizationCountsLoading, setOrganizationCountsLoading] = useState(true);
 
   async function loadPrograms() {
     const data = await getPrograms();
@@ -65,6 +71,9 @@ function Organizations() {
   }
 
   async function fetchOrganizations() {
+    setDirectoryLoading(true);
+    setDirectoryError("");
+
     const { data, error } = await supabase
       .from("organizations")
       .select("id, name, description, organization_type, created_at")
@@ -77,6 +86,9 @@ function Organizations() {
         error.message || "Failed to load organizations."
       );
 
+      setDirectoryError("The organization directory could not be loaded.");
+      setDirectoryLoading(false);
+
       return;
     }
 
@@ -86,6 +98,7 @@ function Organizations() {
 
     fetchOrganizationCounts(organizationData);
     fetchOrganizationLogos(organizationData);
+    setDirectoryLoading(false);
   }
 
   async function fetchOrganizationLogos(orgs = organizations) {
@@ -116,8 +129,11 @@ function Organizations() {
   }
 
   async function fetchOrganizationCounts(orgs = organizations) {
+    setOrganizationCountsLoading(true);
+
     if (!orgs || orgs.length === 0) {
       setOrganizationCounts({});
+      setOrganizationCountsLoading(false);
       return;
     }
 
@@ -135,6 +151,8 @@ function Organizations() {
         error.message ||
         "Failed to load organization student counts."
       );
+
+      setOrganizationCountsLoading(false);
 
       return;
     }
@@ -175,6 +193,7 @@ function Organizations() {
     });
 
     setOrganizationCounts(counts);
+    setOrganizationCountsLoading(false);
   }
 
   async function openOrganizationDetails(org) {
@@ -772,174 +791,233 @@ function Organizations() {
     });
   }, [organizations, search, filter]);
 
+  const organizationSummary = useMemo(() => {
+    const departmental = organizations.filter(
+      (org) => org.organization_type !== "non_departmental"
+    ).length;
+    const nonDepartmental = organizations.length - departmental;
+    const activeMemberships = Object.values(organizationCounts).reduce(
+      (total, count) => total + count,
+      0
+    );
+
+    return {
+      departmental,
+      nonDepartmental,
+      activeMemberships,
+    };
+  }, [organizationCounts, organizations]);
+
   return (
-    <div>
-      {/* PAGE HEADER */}
-      <div className="page-head">
-        <div>
-          <div className="page-kicker">
-            Organization Directory
-          </div>
-
-          <h1 className="page-title">
-            Organizations
-          </h1>
-
-          <p className="page-subtitle">
-            Add, update, and manage student organizations.
+    <div className="sa-organizations">
+      <header className="sa-organizations-masthead">
+        <div className="sa-organizations-masthead-copy">
+          <p className="sa-organizations-brandline">
+            <span>Kandid</span>
+            <span>/</span>
+            <span>Super Admin</span>
+          </p>
+          <p className="sa-organizations-eyebrow">Organization Directory</p>
+          <h1>Organizations</h1>
+          <p className="sa-organizations-deck">
+            Manage the organizations that make up the Kandid election network.
           </p>
         </div>
 
-        <button
-          onClick={openCreateForm}
-          className="primary-btn self-start lg:self-auto"
-          type="button"
-        >
-          <Plus size={18} />
-          Add
-        </button>
-      </div>
-
-      {/* FILTER CHIPS */}
-      <div className="mb-6 flex flex-wrap items-center gap-2">
-        {["all", "departmental", "non_departmental"].map((type) => (
+        <div className="sa-organizations-masthead-aside">
+          <span>Directory status</span>
+          <strong>
+            {directoryLoading ? "Loading records" : `${organizations.length} registered`}
+          </strong>
           <button
-            key={type}
-            onClick={() => setFilter(type)}
-            className={`filter-pill ${filter === type ? "filter-pill-active" : ""}`}
+            onClick={openCreateForm}
+            className="sa-organizations-add"
+            type="button"
           >
-            {type === "all"
-              ? "All Organizations"
-              : type === "departmental"
-              ? "Departmental"
-              : "Non-Departmental"}
+            <Plus size={17} aria-hidden="true" />
+            Add organization
           </button>
-        ))}
-      </div>
-
-      {/* ORGANIZATION CARDS */}
-      {filteredOrganizations.length === 0 ? (
-        <div className="empty-state mt-8">
-          {search ? "No organizations match your search." : "No organizations found."}
         </div>
+      </header>
+
+      {directoryLoading ? (
+        <section className="sa-organizations-loading" aria-live="polite">
+          <p className="sa-organizations-eyebrow">Registry loading</p>
+          <strong>Preparing organization records.</strong>
+          <div className="sa-organizations-loading-lines" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </div>
+        </section>
+      ) : directoryError ? (
+        <section className="sa-organizations-error" role="alert">
+          <p className="sa-organizations-eyebrow">Directory unavailable</p>
+          <h2>Organization records could not be displayed.</h2>
+          <p>{directoryError} Try again when the connection is available.</p>
+          <button type="button" onClick={fetchOrganizations} className="sa-organizations-retry">
+            <RefreshCw size={16} aria-hidden="true" />
+            Retry directory
+          </button>
+        </section>
       ) : (
-        <div className="section-grid superadmin-org-grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-          {filteredOrganizations.map((org) => {
-            const studentCount =
-              organizationCounts[org.id] ?? 0;
+        <>
+          <section className="sa-organizations-summary" aria-label="Organization directory summary">
+            <div className="sa-organizations-summary-item">
+              <span>01 / Registered</span>
+              <strong>{organizations.length}</strong>
+              <small>Organization records</small>
+            </div>
+            <div className="sa-organizations-summary-item">
+              <span>02 / Departmental</span>
+              <strong>{organizationSummary.departmental}</strong>
+              <small>Program-linked organizations</small>
+            </div>
+            <div className="sa-organizations-summary-item">
+              <span>03 / Non-departmental</span>
+              <strong>{organizationSummary.nonDepartmental}</strong>
+              <small>Cross-program organizations</small>
+            </div>
+            <div className="sa-organizations-summary-item">
+              <span>04 / Memberships</span>
+              <strong>{organizationCountsLoading ? "--" : organizationSummary.activeMemberships}</strong>
+              <small>Active organization links</small>
+            </div>
+          </section>
 
-            return (
-              <div
-                key={org.id}
-                onClick={() =>
-                  openOrganizationDetails(org)
-                }
-                className="metric-card lift-card superadmin-org-card min-h-[220px] cursor-pointer transition-transform hover:-translate-y-1"
-              >
-                {/* ORGANIZATION HEADER */}
-                <div className="superadmin-org-card-head flex items-start gap-4">
-                  {org.logo_url ? (
-                    <img
-                      src={org.logo_url}
-                      alt={`${org.name} logo`}
-                      className="superadmin-org-logo h-14 w-14 rounded-2xl object-cover ring-1 ring-[rgba(37,99,235,0.08)]"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  ) : (
-                    <div className="superadmin-org-logo superadmin-org-logo-fallback flex h-14 w-14 items-center justify-center rounded-2xl bg-[rgba(248,115,22,0.14)] text-sm font-black text-[#f97316]">
-                      {(org.name || "O")
-                        .slice(0, 2)
-                        .toUpperCase()}
-                    </div>
-                  )}
-
-                  <div className="min-w-0 flex-1">
-                    <h2 className="surface-title superadmin-org-name truncate text-[1.7rem] font-black tracking-tight">
-                      {org.name}
-                    </h2>
-
-                    <div className="mt-2">
-                      <span
-                        className={`inline-flex items-center rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${getOrganizationTypeClasses(org)}`}
-                      >
-                        {getOrganizationTypeLabel(org)}
-                      </span>
-                    </div>
-
-                    <p className="surface-copy superadmin-org-description mt-2 line-clamp-2 text-sm leading-6">
-                      {org.description ||
-                        "No organization description yet."}
-                    </p>
-                  </div>
-                </div>
-
-                {/* STUDENT COUNT */}
-                <div className="superadmin-org-count mt-6 flex items-center gap-3 rounded-2xl bg-white/60 px-4 py-3">
-                  <div className="rounded-xl bg-[rgba(37,99,235,0.10)] p-2.5 text-[#2563eb]">
-                    <Users size={18} />
-                  </div>
-
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-500">
-                      Total Students
-                    </p>
-
-                    <p className="mt-0.5 text-xl font-black text-[#1d262f]">
-                      {studentCount}
-                    </p>
-                  </div>
-                </div>
-
-                {/* CARD FOOTER */}
-                <div className="superadmin-org-footer mt-6 flex items-center justify-between gap-3">
-                  <div className="surface-muted superadmin-org-added text-xs uppercase tracking-[0.16em]">
-                    Added{" "}
-                    {org.created_at
-                      ? new Date(
-                        org.created_at
-                      ).toLocaleDateString()
-                      : "-"}
-                  </div>
-
-                  <div
-                    className="superadmin-org-actions flex items-center gap-2"
-                    onClick={(e) =>
-                      e.stopPropagation()
-                    }
-                  >
-                    <button
-                      onClick={() =>
-                        openEditForm(org)
-                      }
-                      className="superadmin-org-action-btn flex h-10 w-10 items-center justify-center rounded-xl bg-white/70 text-[#1d1d1d] shadow-sm hover:bg-white"
-                      type="button"
-                      title="Edit organization"
-                    >
-                      <Pencil size={18} />
-                    </button>
-
-                    <button
-                      onClick={() =>
-                        handleDelete(org.id)
-                      }
-                      className="superadmin-org-action-btn flex h-10 w-10 items-center justify-center rounded-xl bg-white/70 text-[#1d1d1d] shadow-sm hover:bg-white"
-                      type="button"
-                      title="Delete organization"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="superadmin-org-view-hint mt-4 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-[#6b7280]">
-                  <Users size={14} />
-                  Click to view students
-                </div>
+          <section className="sa-organizations-directory" aria-labelledby="organization-records-title">
+            <div className="sa-organizations-directory-head">
+              <div>
+                <p className="sa-organizations-eyebrow">Organization records / 01</p>
+                <h2 id="organization-records-title">Institutional registry</h2>
               </div>
-            );
-          })}
-        </div>
+              <div className="sa-organizations-filters" aria-label="Filter organizations">
+                {["all", "departmental", "non_departmental"].map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setFilter(type)}
+                    className={filter === type ? "is-active" : ""}
+                    aria-pressed={filter === type}
+                  >
+                    {type === "all"
+                      ? "All"
+                      : type === "departmental"
+                      ? "Departmental"
+                      : "Non-departmental"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {filteredOrganizations.length === 0 ? (
+              <div className="sa-organizations-empty">
+                <span aria-hidden="true">00</span>
+                <div>
+                  <h3>{search ? "No matching records" : "The directory is empty"}</h3>
+                  <p>
+                    {search
+                      ? "No organizations match the current global search and directory filter."
+                      : "Add the first organization to begin the institutional registry."}
+                  </p>
+                </div>
+                {!search && (
+                  <button type="button" onClick={openCreateForm} className="sa-organizations-text-action">
+                    Add organization
+                    <ArrowRight size={16} aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="sa-organizations-records">
+                <div className="sa-organizations-column-head" aria-hidden="true">
+                  <span>Index</span>
+                  <span>Organization</span>
+                  <span>Membership</span>
+                  <span>Classification</span>
+                  <span>Actions</span>
+                </div>
+
+                {filteredOrganizations.map((org, index) => {
+                  const studentCount = organizationCounts[org.id] ?? 0;
+                  const sequence = String(index + 1).padStart(2, "0");
+
+                  return (
+                    <article className="sa-organizations-record" key={org.id}>
+                      <span className="sa-organizations-index" aria-hidden="true">{sequence}</span>
+
+                      <button
+                        type="button"
+                        className="sa-organizations-identity"
+                        onClick={() => openOrganizationDetails(org)}
+                        aria-label={`View ${org.name} students and organization details`}
+                      >
+                        {org.logo_url ? (
+                          <img
+                            src={org.logo_url}
+                            alt=""
+                            className="sa-organizations-logo"
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        ) : (
+                          <span className="sa-organizations-monogram" aria-hidden="true">
+                            {(org.name || "O").slice(0, 2).toUpperCase()}
+                          </span>
+                        )}
+                        <span className="sa-organizations-identity-copy">
+                          <strong>{org.name}</strong>
+                          <span>{org.description || "No organization description yet."}</span>
+                          <small>
+                            View member record
+                            <ArrowRight size={14} aria-hidden="true" />
+                          </small>
+                        </span>
+                      </button>
+
+                      <div className="sa-organizations-membership">
+                        <strong>{organizationCountsLoading ? "--" : studentCount}</strong>
+                        <span>Active students</span>
+                      </div>
+
+                      <div className="sa-organizations-type">
+                        <span aria-hidden="true" />
+                        <div>
+                          <strong>{getOrganizationTypeLabel(org)}</strong>
+                          <small>
+                            Added {org.created_at
+                              ? new Date(org.created_at).toLocaleDateString()
+                              : "date unavailable"}
+                          </small>
+                        </div>
+                      </div>
+
+                      <div className="sa-organizations-actions">
+                        <button
+                          onClick={() => openEditForm(org)}
+                          type="button"
+                          aria-label={`Edit ${org.name}`}
+                        >
+                          <Pencil size={15} aria-hidden="true" />
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(org.id)}
+                          type="button"
+                          className="sa-organizations-delete"
+                          aria-label={`Delete ${org.name}`}
+                        >
+                          <Trash2 size={15} aria-hidden="true" />
+                          Delete
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        </>
       )}
 
       {/* ORGANIZATION DETAILS */}
@@ -1305,279 +1383,271 @@ function Organizations() {
       {/* CREATE / EDIT ORGANIZATION */}
       {formOpen && (
         <PopupOverlay>
-          <div className="popup-sheet popup-sheet-wide">
-            <div className="popup-header">
-              <div className="popup-header-copy">
-                <p className="field-label !mb-3">
-                  Organization Directory
+          <div
+            className="sa-organizations-form-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="organization-form-title"
+          >
+            <header className="sa-organizations-form-header">
+              <div>
+                <p className="sa-organizations-form-kicker">
+                  Organization record / {editingOrg ? "Edit" : "New"}
                 </p>
-
-                <h2 className="surface-title text-[2rem] font-black tracking-tight">
-                  {editingOrg
-                    ? "Edit organization"
-                    : "Add organization"}
+                <h2 id="organization-form-title">
+                  {editingOrg ? "Edit Organization" : "Add Organization"}
                 </h2>
-
-                <p className="surface-copy mt-2 text-sm leading-6">
-                  Keep the name, summary, and logo in one
-                  clean record.
+                <p className="sa-organizations-form-intro">
+                  {editingOrg
+                    ? "Update this organization record for the Kandid election network."
+                    : "Create an official organization record for the Kandid election network."}
                 </p>
+                <p className="sa-organizations-form-required">* Required field</p>
               </div>
 
               <button
                 onClick={() => setFormOpen(false)}
-                className="popup-close"
+                className="sa-organizations-form-close"
                 type="button"
+                aria-label={`Close ${editingOrg ? "Edit" : "Add"} Organization form`}
               >
-                <X size={20} />
+                <X size={20} aria-hidden="true" />
               </button>
-            </div>
+            </header>
 
-            <form
-              onSubmit={handleSubmit}
-              className="popup-content"
-            >
-              <div className="popup-form-grid">
-                <div className="space-y-4">
+            <form onSubmit={handleSubmit} className="sa-organizations-form">
+              <section className="sa-organizations-form-section" aria-labelledby="organization-identity-heading">
+                <div className="sa-organizations-form-section-head">
+                  <span>01</span>
                   <div>
-                    <label className="field-label">
-                      Organization Name
-                    </label>
-
-                    <input
-                      value={form.name}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          name: e.target.value,
-                        })
-                      }
-                      required
-                      className="field-shell w-full"
-                      placeholder="Enter organization name"
-                    />
+                    <p>Record section</p>
+                    <h3 id="organization-identity-heading">Identity</h3>
                   </div>
+                </div>
 
-                  <div>
-                    <label className="field-label">
-                      Organization Type
-                    </label>
-
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <label
-                        className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-4 transition ${form.organization_type === "departmental"
-                            ? "border-emerald-300 bg-emerald-50"
-                            : "border-gray-200 bg-white hover:bg-gray-50"
-                          }`}
-                      >
-                        <input
-                          type="radio"
-                          name="organization_type"
-                          value="departmental"
-                          checked={
-                            form.organization_type === "departmental"
-                          }
-                          onChange={(e) =>
-                            setForm({
-                              ...form,
-                              organization_type: e.target.value,
-                            })
-                          }
-                          className="h-4 w-4"
-                        />
-
-                        <span>
-                          <span className="block text-sm font-black text-gray-800">
-                            Departmental
-                          </span>
-                          <span className="block text-xs text-gray-500">
-                            Organization tied to a department/program.
-                          </span>
-                        </span>
+                <div className="sa-organizations-form-identity-grid">
+                  <div className="sa-organizations-form-fields">
+                    <div className="sa-organizations-form-field">
+                      <label htmlFor="organization-name">
+                        Organization Name <span aria-hidden="true">*</span>
                       </label>
+                      <input
+                        id="organization-name"
+                        value={form.name}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            name: e.target.value,
+                          })
+                        }
+                        required
+                        autoComplete="organization"
+                        placeholder="Enter organization name"
+                      />
+                      <small>Used to identify the organization across Kandid.</small>
+                    </div>
 
-                      <label
-                        className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-4 transition ${form.organization_type === "non_departmental"
-                            ? "border-blue-300 bg-blue-50"
-                            : "border-gray-200 bg-white hover:bg-gray-50"
-                          }`}
-                      >
-                        <input
-                          type="radio"
-                          name="organization_type"
-                          value="non_departmental"
-                          checked={
-                            form.organization_type ===
-                            "non_departmental"
-                          }
-                          onChange={(e) =>
-                            setForm({
-                              ...form,
-                              organization_type: e.target.value,
-                            })
-                          }
-                          className="h-4 w-4"
-                        />
-
-                        <span>
-                          <span className="block text-sm font-black text-gray-800">
-                            Non-Departmental
-                          </span>
-                          <span className="block text-xs text-gray-500">
-                            Organization open across departments.
-                          </span>
-                        </span>
-                      </label>
+                    <div className="sa-organizations-form-field">
+                      <label htmlFor="organization-description">Description</label>
+                      <textarea
+                        id="organization-description"
+                        value={form.description}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            description: e.target.value,
+                          })
+                        }
+                        placeholder="Short description"
+                        rows="5"
+                      />
                     </div>
                   </div>
 
-                  {form.organization_type === "departmental" && (
-                    <div>
-                      <label className="field-label">
-                        Covered Programs
-                      </label>
+                  <div className="sa-organizations-logo-field">
+                    <div className="sa-organizations-logo-heading">
+                      <label htmlFor="organization-logo-file">Organization Logo</label>
+                      <span>Optional</span>
+                    </div>
 
-                      <div className="mb-3 flex flex-col gap-2 sm:flex-row">
+                    <div className="sa-organizations-logo-preview-row">
+                      {form.logo_url ? (
+                        <img
+                          src={form.logo_url}
+                          alt="Organization logo preview"
+                          className="sa-organizations-logo-preview"
+                        />
+                      ) : (
+                        <div className="sa-organizations-logo-placeholder" aria-hidden="true">
+                          <Building2 size={22} />
+                          <span>Logo</span>
+                        </div>
+                      )}
+
+                      <div>
                         <input
+                          id="organization-logo-file"
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleLogoUpload(e.target.files?.[0])}
+                        />
+                        <small>Select an image from this device.</small>
+                      </div>
+                    </div>
+
+                    <div className="sa-organizations-form-field sa-organizations-logo-url">
+                      <label htmlFor="organization-logo-url">Or use an image URL</label>
+                      <input
+                        id="organization-logo-url"
+                        value={form.logo_url}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            logo_url: e.target.value,
+                          })
+                        }
+                        inputMode="url"
+                        placeholder="Paste logo image URL"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section className="sa-organizations-form-section" aria-labelledby="organization-classification-heading">
+                <div className="sa-organizations-form-section-head">
+                  <span>02</span>
+                  <div>
+                    <p>Record section</p>
+                    <h3 id="organization-classification-heading">Classification &amp; Coverage</h3>
+                  </div>
+                </div>
+
+                <fieldset className="sa-organizations-type-fieldset">
+                  <legend>
+                    Organization Type <span aria-hidden="true">*</span>
+                  </legend>
+                  <div className="sa-organizations-type-options">
+                    <label className={form.organization_type === "departmental" ? "is-selected" : ""}>
+                      <input
+                        type="radio"
+                        name="organization_type"
+                        value="departmental"
+                        checked={form.organization_type === "departmental"}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            organization_type: e.target.value,
+                          })
+                        }
+                      />
+                      <span>
+                        <strong>Departmental</strong>
+                        <small>Organization tied to a department or program.</small>
+                      </span>
+                    </label>
+
+                    <label className={form.organization_type === "non_departmental" ? "is-selected" : ""}>
+                      <input
+                        type="radio"
+                        name="organization_type"
+                        value="non_departmental"
+                        checked={form.organization_type === "non_departmental"}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            organization_type: e.target.value,
+                          })
+                        }
+                      />
+                      <span>
+                        <strong>Non-departmental</strong>
+                        <small>Organization open across departments.</small>
+                      </span>
+                    </label>
+                  </div>
+                </fieldset>
+
+                {form.organization_type === "departmental" && (
+                  <div className="sa-organizations-coverage">
+                    <div className="sa-organizations-coverage-heading">
+                      <div>
+                        <h4>Covered Programs{programs.length > 0 ? " *" : ""}</h4>
+                        <p>Select every program represented by this organization.</p>
+                      </div>
+                      <span>{selectedProgramIds.length} selected</span>
+                    </div>
+
+                    <div className="sa-organizations-program-entry">
+                      <label htmlFor="organization-new-program">Add program code</label>
+                      <div>
+                        <input
+                          id="organization-new-program"
                           value={newProgram}
-                          onChange={(event) =>
-                            setNewProgram(event.target.value)
-                          }
-                          className="field-shell w-full"
-                          placeholder="Add program code"
+                          onChange={(event) => setNewProgram(event.target.value)}
+                          placeholder="Program code"
                         />
                         <button
                           type="button"
                           onClick={handleAddProgram}
                           disabled={!newProgram.trim()}
-                          className="secondary-btn justify-center disabled:cursor-not-allowed disabled:opacity-50"
                         >
+                          <Plus size={15} aria-hidden="true" />
                           Add Program
                         </button>
                       </div>
-
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        {programs.length === 0 ? (
-                          <div className="rounded-2xl border border-gray-200 bg-white p-4 text-sm text-gray-500">
-                            No programs found. Programs are seeded from student records by the organization sync migration.
-                          </div>
-                        ) : (
-                          programs.map((program) => {
-                            const checked = selectedProgramIds.includes(
-                              String(program.id)
-                            );
-
-                            return (
-                              <label
-                                key={program.id}
-                                className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3 text-sm transition ${
-                                  checked
-                                    ? "border-[#d35a25] bg-[rgba(211,90,37,0.08)] text-[#1d262f]"
-                                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
-                                }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  onChange={() => toggleProgram(program.id)}
-                                  className="h-4 w-4"
-                                />
-                                <span className="font-bold">
-                                  {program.code || program.name}
-                                </span>
-                              </label>
-                            );
-                          })
-                        )}
-                      </div>
                     </div>
-                  )}
 
-                  <div>
-                    <label className="field-label">
-                      Description
-                    </label>
+                    <div className="sa-organizations-program-list">
+                      {programs.length === 0 ? (
+                        <p className="sa-organizations-program-empty">
+                          No programs found. Programs are seeded from student records by the organization sync migration.
+                        </p>
+                      ) : (
+                        programs.map((program) => {
+                          const checked = selectedProgramIds.includes(String(program.id));
 
-                    <textarea
-                      value={form.description}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          description: e.target.value,
+                          return (
+                            <label key={program.id} className={checked ? "is-selected" : ""}>
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleProgram(program.id)}
+                              />
+                              <span>{program.code || program.name}</span>
+                            </label>
+                          );
                         })
-                      }
-                      className="field-shell min-h-[180px] w-full resize-none"
-                      placeholder="Short description"
-                      rows="6"
-                    />
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
+              </section>
 
-                <div className="popup-side-panel">
-                  <label className="field-label">
-                    Organization Logo
-                  </label>
-
-                  <div className="flex items-center gap-4">
-                    {form.logo_url ? (
-                      <img
-                        src={form.logo_url}
-                        alt="Organization logo preview"
-                        className="h-16 w-16 rounded-2xl object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[rgba(255,90,31,0.12)] text-xs font-black text-[#ff5a1f]">
-                        LOGO
-                      </div>
-                    )}
-
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) =>
-                        handleLogoUpload(
-                          e.target.files?.[0]
-                        )
-                      }
-                      className="text-sm text-[#5a5548]"
-                    />
-                  </div>
-
-                  <input
-                    value={form.logo_url}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        logo_url: e.target.value,
-                      })
-                    }
-                    className="field-shell mt-4 w-full"
-                    placeholder="Paste logo image URL"
-                  />
-                </div>
-              </div>
-
-              <div className="popup-actions">
+              <footer className="sa-organizations-form-actions">
                 <button
                   type="button"
                   onClick={() => setFormOpen(false)}
-                  className="secondary-btn"
+                  className="sa-organizations-form-cancel"
                 >
                   Cancel
                 </button>
 
                 <button
                   disabled={loading}
-                  className="primary-btn min-w-52 disabled:opacity-60"
+                  className="sa-organizations-form-submit"
                   type="submit"
                 >
-                  {loading
-                    ? "Saving..."
-                    : editingOrg
-                      ? "Save Changes"
-                      : "Create Organization"}
+                  <span>
+                    {loading
+                      ? "Saving..."
+                      : editingOrg
+                        ? "Save Changes"
+                        : "Create Organization"}
+                  </span>
+                  {!loading && <ArrowRight size={17} aria-hidden="true" />}
                 </button>
-              </div>
+              </footer>
             </form>
           </div>
         </PopupOverlay>

@@ -1,0 +1,548 @@
+.kandid-app-theme .student-dashboard-desktop {
+  gap: clamp(1.15rem, 1.8vw, 1.5rem);
+}
+
+.kandid-app-theme .student-dashboard-opening {
+  min-height: 0;
+  border: 0 !important;
+  border-top: 2px solid var(--kandid-app-ink) !important;
+  border-bottom: 1px solid var(--kandid-app-border) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  background-image: none !important;
+  padding: clamp(0.9rem, 1.4vw, 1.25rem) 0 !important;
+  box-shadow: none !important;
+}
+
+.kandid-app-theme .student-dashboard-opening::after { content: none !important; }
+
+.kandid-app-theme .student-dashboard-opening-copy {
+  gap: 0.45rem;
+}
+
+.kandid-app-theme .student-dashboard-opening h1 {
+  max-width: 49rem;
+  font-size: clamp(2.35rem, 3.6vw, 3.2rem) !important;
+  line-height: 1 !important;
+}
+
+.kandid-app-theme .student-dashboard-opening p {
+  max-width: 43rem;
+  color: var(--kandid-app-ink-3);
+  font-size: 0.95rem !important;
+  font-weight: 600 !important;
+  line-height: 1.5 !important;
+}
+
+.kandid-app-theme .student-dashboard-actions-cluster {
+  display: grid;
+  min-width: 0;
+  justify-items: end;
+  gap: 0.4rem;
+}
+
+.kandid-app-theme .student-dashboard-action-note {
+  max-width: 14rem;
+  font-size: 0.78rem;
+  text-align: right;
+}
+
+.kandid-app-theme .student-dashboard-opening .student-dashboard-vote-action {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.kandid-app-theme .student-dashboard-vote-status,
+.kandid-app-theme .student-dashboard-vote-context {
+  max-width: 16rem;
+  color: var(--kandid-app-ink-3);
+  font-size: 0.82rem;
+  line-height: 1.4;
+  text-align: right;
+}
+
+.kandid-app-theme .student-dashboard-vote-status {
+  font-weight: 700;
+}
+
+.kandid-app-theme .student-dashboard-vote-context {
+  max-width: 14rem;
+  color: var(--kandid-app-muted);
+  font-size: 0.76rem;
+}
+
+.kandid-app-theme .student-dashboard-view-button {
+  min-height: 2.45rem;
+  border: 1px solid var(--kandid-app-border-strong);
+  border-radius: 0;
+  background: transparent;
+  padding: 0.55rem 1rem;
+  color: var(--kandid-app-ink-2);
+  font-size: 0.8rem;
+  font-weight: 800;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: color 0.16s ease, border-color 0.16s ease;
+}
+
+.kandid-app-theme .student-dashboard-view-button:hover {
+  border-color: var(--kandid-app-ink);
+  color: var(--kandid-app-ink);
+}
+
+.kandid-app-theme .student-dashboard-grid {
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: clamp(1.25rem, 2vw, 1.75rem);
+}
+
+.kandid-app-theme .student-dashboard-brief {
+  position: static;
+  grid-row: 1;
+  grid-template-columns: minmax(12rem, 0.75fr) minmax(0, 1.6fr);
+  gap: clamp(1.25rem, 2.5vw, 2.5rem);
+  align-items: center;
+  border: 1px solid var(--kandid-app-border-strong);
+  border-width: 1px 0;
+  background: transparent;
+  padding: 1rem 0;
+}
+
+.kandid-app-theme .student-dashboard-brief h2 {
+  margin-top: 0.35rem;
+  font-size: clamp(1.3rem, 1.8vw, 1.7rem);
+}
+
+.kandid-app-theme .student-dashboard-brief p {
+  max-width: 30rem;
+  margin-top: 0.45rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.kandid-app-theme .student-dashboard-brief-list {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 0;
+}
+
+.kandid-app-theme .student-dashboard-brief-list div {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.3rem;
+  align-content: center;
+  border-bottom: 0;
+  border-left: 1px solid var(--kandid-app-border);
+  padding: 0.25rem 1rem;
+}
+
+.kandid-app-theme .student-dashboard-brief-list dt {
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+}
+
+.kandid-app-theme .student-dashboard-brief-list dd {
+  overflow-wrap: anywhere;
+  color: var(--kandid-app-ink-3);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 0.95rem;
+  font-weight: 650;
+  line-height: 1.15;
+  text-align: left;
+}
+
+.kandid-app-theme .student-dashboard-main {
+  grid-row: 2;
+  gap: clamp(1.4rem, 2.2vw, 2rem);
+}
+
+.kandid-app-theme .student-dashboard-section-head {
+  padding-top: 0.8rem;
+}
+
+.kandid-app-theme .student-dashboard-section-head h2 {
+  font-size: 1.3rem !important;
+  margin-top: 0.25rem;
+}
+
+.kandid-app-theme .student-dashboard-section-count {
+  font-size: 0.68rem !important;
+}
+
+.kandid-app-theme .student-dashboard-desktop .student-org-grid,
+.kandid-app-theme .student-dashboard-desktop .student-org-grid-primary {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)) !important;
+  grid-auto-rows: 1fr;
+  gap: 1px !important;
+  max-width: none !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  border: 1px solid var(--kandid-app-border);
+  border-radius: 0 !important;
+  background: var(--kandid-app-border);
+  scroll-snap-type: none !important;
+}
+
+.kandid-app-theme .student-dashboard-desktop .student-org-grid > *,
+.kandid-app-theme .student-dashboard-desktop .student-org-grid-primary > * {
+  width: auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: 100%;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: var(--kandid-app-paper) !important;
+  box-shadow: none !important;
+  scroll-snap-align: none !important;
+}
+
+.kandid-app-theme .student-dashboard-desktop .student-directory-card {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) !important;
+  grid-template-rows: auto auto auto !important;
+  column-gap: clamp(0.85rem, 1.5vw, 1.05rem);
+  row-gap: 0.55rem;
+  align-items: start;
+  padding: clamp(0.85rem, 1.4vw, 1.05rem);
+  overflow: hidden;
+}
+
+.kandid-app-theme .student-dashboard-desktop .student-directory-card-art {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+  min-height: 0 !important;
+  display: block;
+  border-radius: 0 !important;
+  background: transparent !important;
+  margin-top: 0.2rem;
+}
+
+.kandid-app-theme .student-dashboard-desktop .student-directory-card-art::before,
+.kandid-app-theme .student-dashboard-desktop .student-directory-card-art::after {
+  content: none !important;
+}
+
+.kandid-app-theme .student-dashboard-desktop .student-directory-identity-mark {
+  display: none !important;
+}
+
+.kandid-app-theme .student-dashboard-desktop .student-directory-logo {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: clamp(3rem, 4vw, 3.6rem) !important;
+  height: clamp(3rem, 4vw, 3.6rem) !important;
+  margin: 0;
+  border: 1px solid var(--kandid-app-border-strong) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0.3rem !important;
+  background: var(--kandid-app-paper-soft) !important;
+}
+
+.kandid-app-theme .student-dashboard-desktop .student-directory-card-art .kandid-image-fallback {
+  background: transparent !important;
+  color: var(--kandid-app-ink-3);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.kandid-app-theme .student-dashboard-desktop .student-directory-type-chip {
+  display: none !important;
+}
+
+.kandid-app-theme .student-dashboard-desktop .student-directory-card-body {
+  display: contents !important;
+}
+
+.kandid-app-theme .student-dashboard-desktop .student-directory-card-title-row {
+  grid-column: 2;
+  grid-row: 1;
+  display: grid !important;
+  gap: 0.45rem !important;
+}
+
+.kandid-app-theme .student-dashboard-desktop .student-directory-card-title-row h2 {
+  display: block;
+  margin: 0;
+  overflow: visible;
+  font-size: clamp(1.1rem, 1.6vw, 1.35rem) !important;
+  line-height: 1.1 !important;
+  white-space: normal;
+  -webkit-line-clamp: unset !important;
+  overflow-wrap: anywhere;
+}
+
+.kandid-app-theme .student-dashboard-desktop .student-directory-state-chip {
+  width: fit-content;
+  margin: 0;
+  border: 0 !important;
+  border-left: 2px solid currentColor !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0.12rem 0 0.12rem 0.45rem !important;
+  font-size: 0.58rem !important;
+  letter-spacing: 0 !important;
+}
+
+.kandid-app-theme .student-dashboard-desktop .student-directory-card-description {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: block;
+  min-height: 0 !important;
+  margin: 0;
+  overflow: visible;
+  color: var(--kandid-app-muted);
+  font-size: 0.76rem !important;
+  line-height: 1.42 !important;
+  -webkit-line-clamp: unset !important;
+  overflow-wrap: anywhere;
+}
+
+.kandid-app-theme .student-dashboard-desktop .student-directory-card-footer {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem !important;
+  align-items: end;
+  margin: 0;
+}
+
+.kandid-app-theme .student-dashboard-desktop .student-directory-view-btn {
+  width: auto;
+  min-height: 2.2rem !important;
+  border-radius: 0 !important;
+  padding-inline: 0.8rem;
+  box-shadow: none !important;
+}
+
+.kandid-app-theme .student-dashboard-desktop .student-explore-card {
+  min-height: 8rem !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+@media (max-width: 1023px) {
+  .kandid-app-theme .student-dashboard-brief {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.9rem;
+  }
+
+  .kandid-app-theme .student-dashboard-brief-list div:first-child { border-left: 0; padding-left: 0; }
+}
+
+@media (max-width: 640px) {
+  .kandid-app-theme .student-dashboard-opening {
+    gap: 0.6rem !important;
+    padding: 0.7rem 0 !important;
+  }
+
+  .kandid-app-theme .student-dashboard-opening-copy {
+    gap: 0.3rem !important;
+  }
+
+  .kandid-app-theme .student-dashboard-opening h1 {
+    font-size: clamp(1.7rem, 8vw, 2.1rem) !important;
+    line-height: 0.98 !important;
+  }
+
+  .kandid-app-theme .student-dashboard-actions-cluster {
+    justify-items: start;
+  }
+
+  .kandid-app-theme .student-dashboard-action-note {
+    max-width: none;
+    text-align: left;
+  }
+
+  .kandid-app-theme .student-dashboard-vote-status,
+  .kandid-app-theme .student-dashboard-vote-context {
+    max-width: none;
+    text-align: left;
+  }
+
+  .kandid-app-theme .student-dashboard-brief-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .kandid-app-theme .student-dashboard-brief-list div,
+  .kandid-app-theme .student-dashboard-brief-list div:first-child {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    border-top: 1px solid var(--kandid-app-border);
+    border-left: 0;
+    padding: 0.65rem 0;
+  }
+
+  .kandid-app-theme .student-dashboard-brief-list dd { font-size: 0.92rem; text-align: right; }
+
+  .kandid-app-theme .student-dashboard-desktop .student-org-grid,
+  .kandid-app-theme .student-dashboard-desktop .student-org-grid-primary {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-auto-rows: auto !important;
+  }
+
+  .kandid-app-theme .student-dashboard-desktop .student-org-grid > *,
+  .kandid-app-theme .student-dashboard-desktop .student-org-grid-primary > * {
+    height: auto !important;
+  }
+
+  .kandid-app-theme .student-dashboard-desktop .student-org-grid > .student-directory-card,
+  .kandid-app-theme .student-dashboard-desktop .student-org-grid > .student-explore-card,
+  .kandid-app-theme .student-dashboard-desktop .student-org-grid > .student-empty-card {
+    min-height: 0 !important;
+  }
+
+  .kandid-app-theme .student-dashboard-desktop .student-directory-card {
+    grid-template-columns: clamp(3.25rem, 9vw, 4rem) minmax(0, 1fr) !important;
+    grid-template-rows: auto auto auto !important;
+    column-gap: 0.8rem;
+    row-gap: 0.55rem;
+    min-height: 0 !important;
+    align-content: start;
+    padding: 0.6rem 0.7rem;
+  }
+
+  .kandid-app-theme .student-dashboard-desktop .student-directory-card-art {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 0;
+  }
+
+  .kandid-app-theme .student-dashboard-desktop .student-directory-identity-mark {
+    display: none;
+  }
+
+  .kandid-app-theme .student-dashboard-desktop .student-directory-logo {
+    width: clamp(2.9rem, 9vw, 3.5rem) !important;
+    height: clamp(2.9rem, 9vw, 3.5rem) !important;
+    margin: 0;
+  }
+
+  .kandid-app-theme .student-dashboard-desktop .student-directory-type-chip { display: none; }
+  .kandid-app-theme .student-dashboard-desktop .student-directory-card-title-row { grid-column: 2; grid-row: 1; gap: 0.3rem !important; }
+  .kandid-app-theme .student-dashboard-desktop .student-directory-card-title-row h2 { line-height: 1.22 !important; }
+  .kandid-app-theme .student-dashboard-desktop .student-directory-card-description {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    margin: 0;
+  }
+  .kandid-app-theme .student-dashboard-desktop .student-directory-card-footer {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: center;
+    gap: 0.75rem !important;
+    border-top: 0 !important;
+    padding-top: 0 !important;
+  }
+  .kandid-app-theme .student-dashboard-desktop .student-directory-view-btn {
+    width: auto;
+    min-width: 4.5rem;
+    min-height: 2.15rem !important;
+    padding-inline: 0.75rem;
+    border-radius: 0 !important;
+  }
+
+  .kandid-app-theme .student-dashboard-desktop .student-org-grid-primary .student-directory-view-btn {
+    width: auto;
+    min-width: 0;
+    min-height: 2rem !important;
+    padding-inline: 0.8rem;
+    border-radius: 0 !important;
+  }
+
+  .kandid-app-theme .student-dashboard-desktop {
+    padding-bottom: 0.75rem;
+  }
+}
+
+/* ============================================================
+   STUDENT PERSONALITY — restrained warmth, desktop + mobile
+   ============================================================ */
+.kandid-app-theme .student-dashboard-opening .student-dashboard-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.kandid-app-theme .student-dashboard-greeting strong {
+  color: var(--kandid-app-ink);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-weight: 700;
+}
+
+.kandid-app-theme .student-dashboard-opening .student-dashboard-vote-action {
+  transition: transform 0.15s ease;
+}
+
+.kandid-app-theme .student-dashboard-opening .student-dashboard-vote-action:hover {
+  transform: translateY(-1px);
+}
+
+.kandid-app-theme .student-dashboard-opening .student-dashboard-vote-action:active {
+  transform: translateY(0);
+}
+
+.kandid-app-theme .student-dashboard-desktop .student-directory-state-chip-member {
+  color: var(--kandid-app-ink) !important;
+  border-left-color: var(--kandid-app-orange) !important;
+}
+
+.kandid-app-theme .student-dashboard-desktop .student-directory-card .student-directory-card-title-row h2 {
+  transition: color 0.15s ease;
+}
+
+.kandid-app-theme .student-dashboard-desktop .student-directory-card:hover h2 {
+  color: var(--kandid-app-ink);
+  text-decoration: underline;
+  text-decoration-color: var(--kandid-app-orange);
+  text-underline-offset: 0.18em;
+}
+
+/* ============================================================
+   OTHER ORGANIZATIONS FILTERS — sharp registration controls
+   (mirrors the approved catalog treatment; dashboard-scoped)
+   ============================================================ */
+.kandid-app-theme .student-dashboard-desktop .student-directory-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin-top: 0.8rem;
+  border-bottom: 1px solid var(--kandid-app-border);
+}
+
+.kandid-app-theme .student-dashboard-desktop .student-directory-filter-chip {
+  border: 0 !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0.65rem 0.9rem !important;
+  color: var(--kandid-app-muted) !important;
+  transform: none !important;
+}
+
+.kandid-app-theme .student-dashboard-desktop .student-directory-filter-chip:hover,
+.kandid-app-theme .student-dashboard-desktop .student-directory-filter-chip:focus-visible {
+  color: var(--kandid-app-ink) !important;
+}
+
+.kandid-app-theme .student-dashboard-desktop .student-directory-filter-chip-active {
+  border-bottom-color: var(--kandid-app-orange) !important;
+  color: var(--kandid-app-ink) !important;
+}
+
+.kandid-app-theme .student-dashboard-desktop .student-directory-filter-chip strong {
+  min-width: 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  color: inherit !important;
+}

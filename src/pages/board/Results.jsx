@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import "./BoardRemainingPages.css";
 import { RefreshCw } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { usePrompt } from "../../context/PromptContext";
@@ -311,9 +312,10 @@ function BoardResults() {
   }
 
   return (
-    <div>
+    <div className="board-remaining-page board-results">
       <div className="page-head">
         <div>
+          <p className="board-remaining-breadcrumb"><span>Kandid</span><span>/</span><span>Electoral Board</span></p>
           <div className="page-kicker">Election Analytics</div>
           <h1 className="page-title">Board results</h1>
           <p className="page-subtitle">

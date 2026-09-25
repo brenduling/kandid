@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import "./RemainingPages.css";
 import {
   Building2,
   KeyRound,
@@ -292,9 +293,10 @@ function UsersRoles() {
   const unassignedBoards = boardUsers.filter((user) => !user.organization_id).length;
 
   return (
-    <div>
+    <div className="sa-remaining-page sa-users-roles">
       <div className="page-head">
         <div>
+          <p className="sa-remaining-breadcrumb"><span>Kandid</span><span>/</span><span>Super Admin</span></p>
           <div className="page-kicker">Access Control</div>
           <h1 className="page-title">
             Users and

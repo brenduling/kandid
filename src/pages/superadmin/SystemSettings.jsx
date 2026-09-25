@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import "./RemainingPages.css";
 import { CalendarDays, CheckCircle2, Plus, RefreshCw, Save } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { usePrompt } from "../../context/PromptContext";
@@ -249,18 +250,22 @@ function SystemSettings() {
 
   if (!settings) {
     return (
-      <div className="glass-panel rounded-[28px] p-8 surface-subcopy">
+      <div className="sa-remaining-page sa-system-settings glass-panel rounded-[28px] p-8 surface-subcopy">
         Loading settings...
       </div>
     );
   }
 
   return (
-    <div>
-      <h1 className="page-title">System Settings</h1>
-      <p className="page-subtitle mt-1">
-        Configure system-wide behavior and defaults.
-      </p>
+    <div className="sa-remaining-page sa-system-settings">
+      <div className="page-head">
+        <div>
+          <p className="sa-remaining-breadcrumb"><span>Kandid</span><span>/</span><span>Super Admin</span></p>
+          <div className="page-kicker">Platform Configuration</div>
+          <h1 className="page-title">System Settings</h1>
+          <p className="page-subtitle">Configure system-wide behavior and defaults.</p>
+        </div>
+      </div>
 
       <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,480px)]">
       <div className="glass-panel max-w-xl rounded-[28px] p-6 shadow-sm space-y-6">

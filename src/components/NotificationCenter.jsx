@@ -118,12 +118,12 @@ function NotificationCenter({ user }) {
       <button
         ref={buttonRef}
         onClick={handleOpen}
-        className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-white/60 text-[#24313d] shadow-sm"
+        className="kandid-notification-action relative flex h-12 w-12 items-center justify-center text-[#24313d]"
         aria-label="Open notifications page"
       >
         <Bell size={18} />
         {showUnreadBadge ? (
-          <span className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#ef4e23] px-1 text-[10px] font-black text-white">
+          <span className="kandid-notification-count absolute right-1 top-0 flex min-w-4 items-center justify-center px-0.5 text-[10px] font-black">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         ) : null}

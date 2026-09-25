@@ -35,9 +35,21 @@ function normalizeProgram(value: unknown) {
   return cleanText(value, 80).toUpperCase();
 }
 
+function isFiveDigitStudentNumber(value: string) {
+  return /^[0-9]{5}$/.test(value);
+}
+
 function parseYearLevel(value: unknown) {
   const yearLevel = Number(value);
   if (!Number.isInteger(yearLevel) || yearLevel <= 0 || yearLevel > 12) {
+    throw new Error("Enter a valid year level.");
+  }
+  return yearLevel;
+}
+
+function parseTermEnrollmentYearLevel(value: unknown) {
+  const yearLevel = Number(value);
+  if (!Number.isInteger(yearLevel) || yearLevel < 1 || yearLevel > 6) {
     throw new Error("Enter a valid year level.");
   }
   return yearLevel;
@@ -497,6 +509,278 @@ async function requireElectoralBoard(
   }
 
   return { adminClient, user, adminProfile };
+}
+
+async function resolveBoardStudentForTerm(
+  adminClient: any,
+  adminProfile: { organization_id: number },
+  studentNumberInput: unknown,
+) {
+  const studentNumber = cleanText(studentNumberInput, 80);
+  const boardOrganizationId = Number(adminProfile.organization_id);
+  const { data: activeTermData, error: termError } = await loadActiveTerm(adminClient);
+  const activeTerm = activeTermData as {
+    id: number;
+    academic_year: string;
+    semester: string;
+    status: string;
+  } | null;
+
+  if (termError) {
+    return jsonResponse({ error: "Unable to verify the active academic term." }, 500);
+  }
+  if (!activeTerm?.id) {
+    return jsonResponse({ data: { outcome: "INVALID_TERM" } }, 409);
+  }
+
+  const { data: students, error: studentError } = await adminClient
+    .from("students")
+    .select("id, student_number, first_name, last_name, program, year_level, status")
+    .eq("student_number", studentNumber)
+    .limit(2);
+
+  if (studentError) {
+    return jsonResponse({ error: "Unable to resolve the student identity." }, 500);
+  }
+  if ((students || []).length > 1) {
+    return jsonResponse({ data: { outcome: "IDENTITY_RECONCILIATION_REQUIRED" } }, 409);
+  }
+
+  const student = students?.[0] || null;
+  if (!student) {
+    if (!isFiveDigitStudentNumber(studentNumber)) {
+      return jsonResponse({ data: { outcome: "INVALID_FORMAT" } }, 400);
+    }
+
+    return jsonResponse({
+      data: {
+        outcome: "NEW_STUDENT",
+        student_number: studentNumber,
+        academic_term: activeTerm,
+      },
+    });
+  }
+
+  const [{ data: enrollment, error: enrollmentError }, { data: participation, error: participationError }] =
+    await Promise.all([
+      adminClient
+        .from("student_term_enrollments")
+        .select("program, year_level, enrollment_status, source")
+        .eq("student_id", student.id)
+        .eq("academic_term_id", activeTerm.id)
+        .maybeSingle(),
+      adminClient
+        .from("student_organization_terms")
+        .select("status")
+        .eq("student_id", student.id)
+        .eq("organization_id", boardOrganizationId)
+        .eq("academic_term_id", activeTerm.id)
+        .maybeSingle(),
+    ]);
+
+  if (enrollmentError || participationError) {
+    return jsonResponse({ error: "Unable to verify current-term participation." }, 500);
+  }
+
+  const officialProgram = normalizeProgram(enrollment?.program || student.program);
+  const eligibility = await isProgramEligibleForBoard(
+    adminClient,
+    officialProgram,
+    boardOrganizationId,
+  );
+  if (eligibility.error) {
+    return jsonResponse({ error: "Program eligibility could not be verified." }, 500);
+  }
+
+  let organizationOutcome = eligibility.eligible ? "AVAILABLE_FOR_ORGANIZATION" : "INELIGIBLE";
+  if (participation?.status === "removed") organizationOutcome = "RESTORATION_REQUIRED";
+  else if (participation?.status === "active") organizationOutcome = "ALREADY_MEMBER";
+
+  const scopedStudent = eligibility.eligible || participation
+    ? {
+      student_number: student.student_number,
+      first_name: student.first_name,
+      last_name: student.last_name,
+      program: officialProgram,
+      year_level: enrollment?.year_level || student.year_level,
+      status: student.status,
+    }
+    : null;
+
+  return jsonResponse({
+    data: {
+      outcome: enrollment?.enrollment_status === "enrolled"
+        ? "ALREADY_ENROLLED_CURRENT_TERM"
+        : enrollment?.enrollment_status === "not_in_masterlist"
+        ? "EXISTING_STUDENT_NOT_IN_MASTERLIST"
+        : "EXISTING_STUDENT_NEW_TERM",
+      organization_outcome: organizationOutcome,
+      student: scopedStudent,
+      academic_term: activeTerm,
+    },
+  });
+}
+
+async function handleBoardTermAwareRegistration(
+  adminClient: any,
+  adminProfile: { organization_id: number },
+  body: Record<string, unknown>,
+  mode: "create" | "enroll_existing",
+) {
+  const input = (body.student || {}) as Record<string, unknown>;
+  const studentNumber = cleanText(input.student_number, 80);
+  const boardOrganizationId = Number(adminProfile.organization_id);
+  const { data: activeTermData, error: termError } = await loadActiveTerm(adminClient);
+  const activeTerm = activeTermData as {
+    id: number;
+    academic_year: string;
+    semester: string;
+    status: string;
+  } | null;
+
+  if (termError) return jsonResponse({ error: "Unable to verify the active academic term." }, 500);
+  if (!activeTerm?.id) return jsonResponse({ data: { outcome: "INVALID_TERM" } }, 409);
+
+  let studentId: number | null = null;
+  let program = normalizeProgram(input.program);
+  let yearLevel: number;
+  let rpcResult: Record<string, unknown> | null = null;
+
+  if (mode === "create") {
+    if (Object.prototype.hasOwnProperty.call(input, "status")) {
+      return jsonResponse({ data: { outcome: "CLIENT_STATUS_NOT_ALLOWED" } }, 400);
+    }
+
+    const firstName = cleanText(input.first_name);
+    const lastName = cleanText(input.last_name);
+    try {
+      yearLevel = parseTermEnrollmentYearLevel(input.year_level);
+    } catch {
+      return jsonResponse({ data: { outcome: "INVALID_INPUT" } }, 400);
+    }
+
+    if (!isFiveDigitStudentNumber(studentNumber)) {
+      return jsonResponse({ data: { outcome: "INVALID_FORMAT" } }, 400);
+    }
+    if (!firstName || !lastName || !program) {
+      return jsonResponse({ data: { outcome: "INVALID_INPUT" } }, 400);
+    }
+
+    const eligibility = await isProgramEligibleForBoard(adminClient, program, boardOrganizationId);
+    if (eligibility.error) {
+      return jsonResponse({ error: "Program eligibility could not be verified." }, 500);
+    }
+    if (!eligibility.eligible) {
+      return jsonResponse({ data: { outcome: "INELIGIBLE" } }, 403);
+    }
+
+    const { data, error } = await adminClient.rpc("create_manual_student_for_term_v1", {
+      p_academic_term_id: Number(activeTerm.id),
+      p_student_number: studentNumber,
+      p_first_name: firstName,
+      p_last_name: lastName,
+      p_email: normalizeEmail(input.email),
+      p_program: program,
+      p_year_level: yearLevel,
+      p_is_shs: false,
+      p_photo_url: cleanText(input.photo_url, 500_000) || null,
+      p_precinct_code: cleanText(input.precinct_code, 80) || null,
+      p_batch_code: cleanText(input.batch_code, 80) || null,
+    });
+    if (error) return jsonResponse({ error: "Student registration could not be completed." }, 500);
+    rpcResult = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null;
+    studentId = Number(rpcResult?.student_id) || null;
+  } else {
+    const { data: students, error: lookupError } = await adminClient
+      .from("students")
+      .select("id, first_name, last_name, program, year_level")
+      .eq("student_number", studentNumber)
+      .limit(2);
+    if (lookupError) return jsonResponse({ error: "Unable to resolve the student identity." }, 500);
+    if ((students || []).length !== 1) {
+      return jsonResponse({ data: { outcome: "IDENTITY_RECHECK_REQUIRED" } }, 409);
+    }
+
+    const existingStudent = students?.[0];
+    if (
+      (input.first_name && !sameText(input.first_name, existingStudent?.first_name)) ||
+      (input.last_name && !sameText(input.last_name, existingStudent?.last_name)) ||
+      (program && !sameProgram(program, existingStudent?.program))
+    ) {
+      return jsonResponse({ data: { outcome: "IDENTITY_RECONCILIATION_REQUIRED" } }, 409);
+    }
+
+    studentId = Number(existingStudent?.id) || null;
+    program = normalizeProgram(existingStudent?.program);
+    try {
+      yearLevel = parseTermEnrollmentYearLevel(input.year_level ?? existingStudent?.year_level);
+    } catch {
+      return jsonResponse({ data: { outcome: "IDENTITY_RECONCILIATION_REQUIRED" } }, 409);
+    }
+
+    const eligibility = await isProgramEligibleForBoard(adminClient, program, boardOrganizationId);
+    if (eligibility.error) {
+      return jsonResponse({ error: "Program eligibility could not be verified." }, 500);
+    }
+    if (!eligibility.eligible) {
+      return jsonResponse({ data: { outcome: "INELIGIBLE" } }, 403);
+    }
+
+    const { data, error } = await adminClient.rpc("enroll_existing_student_for_term_v1", {
+      p_student_id: studentId,
+      p_academic_term_id: Number(activeTerm.id),
+      p_program: program,
+      p_year_level: yearLevel,
+      p_is_shs: false,
+    });
+    if (error) return jsonResponse({ error: "Term enrollment could not be completed." }, 500);
+    rpcResult = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null;
+  }
+
+  const outcome = cleanText(rpcResult?.outcome, 80) || "SAFE_SERVER_ERROR";
+  if (
+    !["NEW_STUDENT_CREATED", "EXISTING_STUDENT_ENROLLED", "EXISTING_STUDENT_TERM_RESTORED"].includes(outcome) ||
+    !studentId
+  ) {
+    const status = ["IDENTITY_RECHECK_REQUIRED", "ALREADY_ENROLLED_CURRENT_TERM"].includes(outcome)
+      ? 409
+      : outcome === "INVALID_FORMAT" || outcome === "INVALID_INPUT" ? 400 : 500;
+    return jsonResponse({ data: { outcome } }, status);
+  }
+
+  const membership = await ensureStudentMemberships(
+    adminClient,
+    studentId,
+    program,
+    boardOrganizationId,
+    Number(activeTerm.id),
+    "manual",
+  );
+  if (membership.error) {
+    return jsonResponse({ error: "The student was enrolled, but organization participation could not be saved." }, 500);
+  }
+  if (membership.removedOrganizationIds.includes(boardOrganizationId)) {
+    return jsonResponse({
+      data: {
+        outcome,
+        organization_outcome: "RESTORATION_REQUIRED",
+        academic_term: activeTerm,
+        student_status: rpcResult?.student_status || null,
+      },
+    }, 409);
+  }
+
+  return jsonResponse({
+    data: {
+      outcome,
+      organization_outcome: membership.existingOrganizationIds.includes(boardOrganizationId)
+        ? "ALREADY_MEMBER"
+        : "AVAILABLE_FOR_ORGANIZATION",
+      student_number: studentNumber,
+      student_status: rpcResult?.student_status || null,
+      academic_term: activeTerm,
+    },
+  });
 }
 
 async function handleBatchEnroll(
@@ -1521,6 +1805,18 @@ Deno.serve(async (request) => {
   }
 
   const action = cleanText(body.action, 80);
+  if (action === "resolve_student_for_term") {
+    return await resolveBoardStudentForTerm(auth.adminClient, auth.adminProfile, body.student_number);
+  }
+
+  if (action === "create_new_student_for_term") {
+    return await handleBoardTermAwareRegistration(auth.adminClient, auth.adminProfile, body, "create");
+  }
+
+  if (action === "enroll_existing_student_for_term") {
+    return await handleBoardTermAwareRegistration(auth.adminClient, auth.adminProfile, body, "enroll_existing");
+  }
+
   if (action === "list_students") {
     return await handleListStudents(auth.adminClient, auth.adminProfile, body);
   }

@@ -1,0 +1,91 @@
+/* ============================================================
+   STUDENT SKELETON LANGUAGE
+   Rectangular, zero radius, neutral fill, restrained pulse.
+   No shimmer sweep. No branded animation.
+   ============================================================ */
+
+.student-skeleton {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.student-skeleton-stack {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.student-skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+  padding-block: 0.95rem;
+  border-bottom: 1px solid var(--kandid-app-border, #e5e0d6);
+}
+
+.kandid-app-theme .student-skeleton .student-participation-list,
+.kandid-app-theme .student-skeleton .student-officers-list,
+.kandid-app-theme .student-skeleton .student-org-grid {
+  gap: 1.15rem !important;
+  border: 0 !important;
+  background: transparent !important;
+  overflow: visible !important;
+}
+
+.student-skeleton-copy {
+  display: grid;
+  gap: 0.4rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.student-results-skeleton-rows {
+  margin-top: 1rem;
+  gap: 1.15rem;
+}
+
+.student-verification-skeleton-journey {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--kandid-app-border, #e5e0d6);
+}
+
+.student-skeleton-line {
+  display: block;
+  max-width: 100%;
+  border-radius: 0;
+  background: var(--kandid-app-border, #e5e0d6);
+  animation: student-skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.student-skeleton-line.is-media {
+  flex: 0 0 auto;
+  background: var(--kandid-app-border-strong, #d2ccc0);
+}
+
+.student-skeleton-line.is-track {
+  flex: 1 1 0;
+  min-width: 0;
+  background: var(--kandid-app-border-strong, #d2ccc0);
+}
+
+@keyframes student-skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.42;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .student-skeleton-line {
+    animation: none;
+    opacity: 0.6;
+  }
+}

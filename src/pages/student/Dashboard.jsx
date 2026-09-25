@@ -1,28 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
+import "./Dashboard.css";
 import {
-  ArrowLeft,
   ArrowRight,
-  Building2,
-  CalendarDays,
-  Globe2,
   Plus,
-  UserRound,
-  UsersRound,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import StudentOrganizationCard from "../../components/student/StudentOrganizationCard";
+import StudentOrganizationDetail from "../../components/student/StudentOrganizationDetail";
 import {
-  OrganizationLogo as BaseOrganizationLogo,
-  StudentAvatar,
-} from "../../components/KandidImage";
-import ElectionManagementCard from "../../components/ElectionManagementCard";
-import StudentOrganizationCard, {
-  getOrganizationDescription,
-  getOrganizationTypeLabel,
-} from "../../components/student/StudentOrganizationCard";
+  StudentSkeletonGroup,
+  StudentSkeletonLine,
+} from "../../components/student/StudentSkeleton";
 import { supabase } from "../../lib/supabaseClient";
 import {
   compareElectionScheduleValues,
-  formatLocalDate,
+  formatLocalDateTime,
   getElectionPhase,
   isMissingElectionCoverColumn,
 } from "../../utils/elections";
@@ -36,6 +28,33 @@ const ORGANIZATION_FILTERS = [
   { value: "departmental", label: "Departmental" },
   { value: "non_departmental", label: "Non-Departmental" },
 ];
+
+const IDENTITY_MARK_STOP_WORDS = new Set([
+  "OF", "AND", "THE", "FOR", "IN", "AT", "ON", "A", "AN",
+  "DE", "DEL", "LOS", "LAS", "DAS", "SAN", "SAINT",
+]);
+
+function getOrganizationIdentityMark(organization) {
+  const name = String(organization?.name || "").trim();
+  if (!name) return "";
+
+  if (!/\s/.test(name)) {
+    return name.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 7);
+  }
+
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((word) => !IDENTITY_MARK_STOP_WORDS.has(word.toUpperCase()))
+    .map((word) => word[0].toUpperCase())
+    .join("");
+
+  if (initials.length >= 2) {
+    return initials.slice(0, 7);
+  }
+
+  return name.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 7);
+}
 
 
 function StudentDashboard() {
@@ -246,48 +265,189 @@ function StudentDashboard() {
       ? "No departmental organizations available."
       : "No other organizations available.";
 
-  async function handleCastVoteShortcut() {
-    const organizationIds = myOrganizations.map((organization) => organization.id);
+  const studentName = [user?.first_name, user?.last_name]
+    .filter(Boolean)
+    .join(" ") || "Student";
 
-    if (organizationIds.length === 0) {
-      navigate("/student/elections");
-      return;
+  const studentFirstName = user?.first_name?.trim() || studentName;
+
+  const myOrganizationIds = myOrganizations
+    .map((organization) => organization.id)
+    .sort((first, second) => first - second)
+    .join(",");
+
+  const studentId = user?.id;
+
+  const [votingState, setVotingState] = useState({
+    status: "loading",
+    openElection: null,
+    nextOpenAt: "",
+  });
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadVotingState() {
+      if (!studentId || myOrganizationIds === "") {
+        if (active) {
+          setVotingState({ status: "none", openElection: null, nextOpenAt: "" });
+        }
+        return;
+      }
+
+      const [votesResponse, electionsResponse] = await Promise.all([
+        supabase
+          .from("votes")
+          .select("election_id")
+          .eq("student_id", studentId),
+        supabase
+          .from("elections")
+          .select(
+            "id, title, organization_id, campaign_start, campaign_end, start_date, end_date, status"
+          )
+          .in("organization_id", myOrganizationIds.split(",").map(Number))
+          .neq("status", "draft")
+          .neq("status", "archived")
+          .order("start_date", { ascending: false }),
+      ]);
+
+      if (!active) return;
+
+      if (votesResponse.error || electionsResponse.error) {
+        setVotingState({ status: "none", openElection: null, nextOpenAt: "" });
+        return;
+      }
+
+      const votedIds = new Set(
+        (votesResponse.data || [])
+          .map((voteRow) => Number(voteRow.election_id))
+          .filter(Boolean)
+      );
+
+      const rows = electionsResponse.data || [];
+
+      const openElections = rows.filter(
+        (election) =>
+          getElectionPhase(election) === "voting" &&
+          !votedIds.has(Number(election.id))
+      );
+
+      const upcomingElections = rows
+        .filter((election) =>
+          ["campaign_upcoming", "campaign", "waiting", "scheduled"].includes(
+            getElectionPhase(election)
+          )
+        )
+        .sort((first, second) =>
+          compareElectionScheduleValues(first.start_date, second.start_date)
+        );
+
+      if (openElections.length === 1) {
+        setVotingState({
+          status: "open",
+          openElection: openElections[0],
+          nextOpenAt: "",
+        });
+      } else if (openElections.length > 1) {
+        setVotingState({ status: "open_multiple", openElection: null, nextOpenAt: "" });
+      } else if (upcomingElections[0]) {
+        setVotingState({
+          status: "upcoming",
+          openElection: null,
+          nextOpenAt: formatLocalDateTime(upcomingElections[0].start_date),
+        });
+      } else {
+        setVotingState({ status: "none", openElection: null, nextOpenAt: "" });
+      }
     }
 
-    const { data, error } = await supabase
-      .from("elections")
-      .select("id, campaign_start, campaign_end, start_date, end_date, status")
-      .in("organization_id", organizationIds)
-      .neq("status", "draft")
-      .neq("status", "archived")
-      .order("start_date", { ascending: false });
+    loadVotingState();
 
-    if (error) {
-      navigate("/student/elections");
-      return;
+    return () => {
+      active = false;
+    };
+  }, [studentId, myOrganizationIds]);
+
+  function renderVotingAction() {
+    if (votingState.status === "open" && votingState.openElection) {
+      return (
+        <>
+          <button
+            type="button"
+            onClick={openCurrentBallot}
+            className="student-solid-btn student-dashboard-vote-action"
+          >
+            Cast Your Vote
+          </button>
+
+          <span className="student-dashboard-vote-context">
+            {votingState.openElection.title}
+          </span>
+        </>
+      );
     }
 
-    const sortedElections = [...(data || [])].sort((first, second) =>
-      compareElectionScheduleValues(second.start_date, first.start_date)
-    );
-    const openElection = sortedElections.find(
-      (election) => getElectionPhase(election) === "voting",
-    );
-    const campaignElection = sortedElections.find(
-      (election) => getElectionPhase(election) === "campaign",
-    );
+    if (votingState.status === "open_multiple") {
+      return (
+        <>
+          <span className="student-dashboard-vote-status">
+            Voting is open
+          </span>
 
-    if (openElection) {
-      navigate(`/student/vote/${openElection.id}`);
-      return;
+          <button
+            type="button"
+            onClick={() => navigate("/student/elections")}
+            className="student-dashboard-view-button"
+          >
+            View Elections
+          </button>
+        </>
+      );
     }
 
-    if (campaignElection) {
-      navigate(`/student/elections/${campaignElection.id}/campaign`);
-      return;
+    if (votingState.status === "upcoming") {
+      return (
+        <>
+          <span className="student-dashboard-vote-status">
+            Voting opens {votingState.nextOpenAt}
+          </span>
+
+          <button
+            type="button"
+            onClick={() => navigate("/student/elections")}
+            className="student-dashboard-view-button"
+          >
+            View Elections
+          </button>
+        </>
+      );
     }
 
-    navigate("/student/elections");
+    if (votingState.status === "none") {
+      return (
+        <>
+          <span className="student-dashboard-vote-status">
+            No voting open right now
+          </span>
+
+          <button
+            type="button"
+            onClick={() => navigate("/student/elections")}
+            className="student-dashboard-view-button"
+          >
+            View Elections
+          </button>
+        </>
+      );
+    }
+
+    return null;
+  }
+
+  function openCurrentBallot() {
+    if (votingState.openElection) {
+      navigate(`/student/vote/${votingState.openElection.id}`);
+    }
   }
 
   /*
@@ -401,257 +561,22 @@ function StudentDashboard() {
    * ============================================================
    */
   if (selectedOrganization) {
-    const currentOfficers = organizationOfficers.filter(
-      (officer) => officer.is_current
-    );
-
-    const visibleOfficers =
-      currentOfficers.length > 0
-        ? currentOfficers
-        : organizationOfficers;
-
     return (
-      <div className="w-full max-w-none">
-        {/* BACK BUTTON */}
-        <button
-          type="button"
-          onClick={() => setSelectedOrganization(null)}
-          className="student-back-link"
-        >
-          <ArrowLeft size={15} />
-          Back
-        </button>
-
-        {/* ORGANIZATION HERO */}
-        <section className="student-campaign-hero student-org-detail-hero w-full max-w-none overflow-hidden px-6 py-6 md:px-8 md:py-8 lg:px-10">
-          <div className="flex min-w-0 flex-1 items-center gap-6">
-            <BaseOrganizationLogo
-              organization={selectedOrganization}
-              className="!h-[clamp(5.5rem,8vw,8rem)] !w-[clamp(5.5rem,8vw,8rem)] !p-2.5"
-              loading="eager"
-            />
-
-            <div className="min-w-0">
-              <span className="mb-2 inline-flex rounded-full bg-white/80 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#f4511e]">
-                {selectedOrganization.organization_type ===
-                  "non_departmental"
-                  ? "Non-Departmental Organization"
-                  : "Departmental Organization"}
-              </span>
-
-              <h1 className="truncate">
-                {selectedOrganization.name}
-              </h1>
-
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-white/80 px-3 py-1 text-sm font-bold text-gray-700">
-                  {myOrganizations.some(
-                    (organization) => organization.id === selectedOrganization.id,
-                  )
-                    ? "Member"
-                    : "Explore"}
-                </span>
-
-                <span className="rounded-full bg-white/80 px-3 py-1 text-sm font-bold text-gray-700">
-                  {organizationMemberCountError ||
-                    `${organizationMemberCount} active member${
-                      organizationMemberCount === 1 ? "" : "s"
-                    }`}
-                </span>
-
-                <span className="rounded-full bg-white/80 px-3 py-1 text-sm font-bold text-gray-700">
-                  {organizationElections.length} election
-                  {organizationElections.length === 1 ? "" : "s"}
-                </span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* TABS */}
-        <div className="student-campaign-tabs w-full">
-          <button
-            type="button"
-            className={
-              organizationTab === "about"
-                ? "active"
-                : ""
-            }
-            onClick={() =>
-              setOrganizationTab("about")
-            }
-          >
-            About
-          </button>
-
-          <button
-            type="button"
-            className={
-              organizationTab === "officers"
-                ? "active"
-                : ""
-            }
-            onClick={() =>
-              setOrganizationTab("officers")
-            }
-          >
-            Officers
-          </button>
-
-          <button
-            type="button"
-            className={
-              organizationTab === "elections"
-                ? "active"
-                : ""
-            }
-            onClick={() =>
-              setOrganizationTab("elections")
-            }
-          >
-            Elections
-          </button>
-        </div>
-
-        {/* DETAILS */}
-        <section className="student-org-detail-panel w-full max-w-none px-5 py-6 md:px-8 lg:px-10">
-          {detailLoading ? (
-            <div className="student-empty-card flex min-h-[280px] w-full items-center justify-center">
-              Loading organization details...
-            </div>
-          ) : organizationTab === "about" ? (
-            <div className="student-org-about">
-              <p className="student-directory-card-label">About</p>
-              <h2>{selectedOrganization.name}</h2>
-              <p>{getOrganizationDescription(selectedOrganization)}</p>
-            </div>
-          ) : organizationTab === "officers" ? (
-            <>
-              <select
-                className="student-org-year-select"
-                defaultValue="2026-2027"
-              >
-                <option>2026-2027</option>
-                <option>2025-2026</option>
-                <option>2024-2025</option>
-              </select>
-
-              <div className="student-officer-stack w-full space-y-6 lg:space-y-8">
-                {visibleOfficers.length === 0 ? (
-                  <div className="flex min-h-[260px] flex-col items-center justify-center rounded-3xl border border-dashed border-gray-300 bg-gray-50/70 px-6 py-12 text-center">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-[#f4511e] shadow-sm ring-1 ring-gray-100">
-                      <UsersRound size={28} />
-                    </div>
-
-                    <h2 className="mt-5 text-xl font-black text-[#182033]">
-                      No officers to display
-                    </h2>
-
-                    <p className="mt-2 max-w-md text-sm leading-6 text-gray-500">
-                      This organization does not have any
-                      current officers available for the
-                      selected term.
-                    </p>
-                  </div>
-                ) : (
-                  visibleOfficers.map((officer) => {
-                    const fullName =
-                      officer.students
-                        ? `${officer.students.first_name} ${officer.students.last_name}`
-                        : officer.officer_name;
-
-                    return (
-                      <div key={officer.id}>
-                        <h2>
-                          {officer.position_title ||
-                            "Officer"}
-                        </h2>
-
-                        <div className="student-officer-row w-full min-h-[110px] px-5 py-5 md:min-h-[130px] md:px-7 md:py-6 lg:min-h-[150px]">
-                          {officer.students ? (
-                            <StudentAvatar
-                              student={officer.students}
-                              className="student-officer-avatar !h-[clamp(4rem,6vw,6rem)] !w-[clamp(4rem,6vw,6rem)]"
-                            />
-                          ) : (
-                            <div className="student-officer-avatar !h-[clamp(4rem,6vw,6rem)] !w-[clamp(4rem,6vw,6rem)]">
-                              <UserRound size={34} />
-                            </div>
-                          )}
-
-                          <div>
-                            <strong>
-                              {fullName || "Officer"}
-                            </strong>
-
-                            <p>
-                              {officer.term_label ||
-                                "2026-2027"}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </>
-          ) : (
-            <div className="student-org-election-list grid w-full grid-cols-1 gap-5 lg:grid-cols-2">
-              {organizationElections.length === 0 ? (
-                <div className="flex min-h-[220px] flex-col items-center justify-center rounded-3xl border border-dashed border-gray-300 bg-gray-50/70 px-6 py-10 text-center">
-                  <CalendarDays
-                    size={30}
-                    className="text-[#f4511e]"
-                  />
-
-                  <h2 className="mt-4 text-xl font-black text-[#182033]">
-                    No elections listed
-                  </h2>
-
-                  <p className="mt-2 max-w-md text-sm leading-6 text-gray-500">
-                    There are currently no elections
-                    available for this organization.
-                  </p>
-                </div>
-              ) : (
-                organizationElections.map((election) => (
-                  <article
-                    key={election.id}
-                    className="student-org-election-card w-full min-w-0 p-0"
-                  >
-                    <ElectionManagementCard
-                      election={{
-                        ...election,
-                        organizations: selectedOrganization,
-                      }}
-                      organization={selectedOrganization}
-                      eyebrow="Election"
-                      counts={[
-                        {
-                          label: election.start_date
-                            ? formatLocalDate(election.start_date)
-                            : "No start date",
-                          value: "",
-                        },
-                      ]}
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        navigate("/student/elections")
-                      }
-                    >
-                      View Overview
-                    </button>
-                  </article>
-                ))
-              )}
-            </div>
-          )}
-        </section>
-      </div>
+      <StudentOrganizationDetail
+        organization={selectedOrganization}
+        isMember={myOrganizations.some(
+          (organization) => organization.id === selectedOrganization.id,
+        )}
+        memberCount={organizationMemberCount}
+        memberCountError={organizationMemberCountError}
+        officers={organizationOfficers}
+        elections={organizationElections}
+        activeTab={organizationTab}
+        loading={detailLoading}
+        onBack={() => setSelectedOrganization(null)}
+        onTabChange={setOrganizationTab}
+        onElectionView={() => navigate("/student/elections")}
+      />
     );
   }
 
@@ -661,47 +586,160 @@ function StudentDashboard() {
    * ============================================================
    */
   return (
-    <div className="w-full max-w-none">
+    <div className="student-dashboard-desktop w-full max-w-none">
       {/* PAGE HEADER */}
-      <div className="student-page-head">
-        <div>
-          <h1>Dashboard</h1>
+      <div className="student-page-head student-dashboard-opening">
+        <div className="student-dashboard-opening-copy">
+          <span className="student-dashboard-eyebrow">
+            Your Election Space
+          </span>
 
-          <p>
-            Welcome back to the Student Election Portal.
+          <h1>Here&rsquo;s where you are today.</h1>
+
+          <p className="student-dashboard-greeting">
+            <strong>{studentFirstName}</strong>, your organizations and next
+            election steps are all here.
           </p>
         </div>
 
         <div className="student-page-actions">
-          <button
-            type="button"
-            onClick={handleCastVoteShortcut}
-            className="student-solid-btn student-dashboard-vote-action"
-          >
-            Cast Your Vote
-          </button>
+          <div className="student-dashboard-actions-cluster">
+            {renderVotingAction()}
+
+            <span className="student-dashboard-action-note">
+              When it matters, count on Kandid.
+            </span>
+          </div>
         </div>
       </div>
 
       {loading ? (
-        <div className="student-empty-card">
-          Loading organizations...
-        </div>
+        <StudentSkeletonGroup label="Loading your election space">
+          <div className="student-dashboard-grid">
+            <aside className="student-dashboard-brief">
+              <div className="student-skeleton-stack">
+                <StudentSkeletonLine width="52%" height="0.6rem" />
+                <StudentSkeletonLine width="72%" height="1.3rem" />
+                <StudentSkeletonLine width="96%" height="0.65rem" />
+                <StudentSkeletonLine width="84%" height="0.65rem" />
+              </div>
+
+              <div className="student-skeleton-stack">
+                <StudentSkeletonLine width="100%" height="0.6rem" />
+                <StudentSkeletonLine width="100%" height="0.6rem" />
+                <StudentSkeletonLine width="100%" height="0.6rem" />
+              </div>
+            </aside>
+
+            <div className="student-dashboard-main">
+              <section className="student-section student-dashboard-section">
+                <div className="student-dashboard-section-head">
+                  <div className="student-skeleton-stack">
+                    <StudentSkeletonLine width="40%" height="0.6rem" />
+                    <StudentSkeletonLine width="58%" height="1.1rem" />
+                  </div>
+                </div>
+
+                <div className="student-org-grid grid w-full grid-cols-1 gap-6 md:grid-cols-2 xl:gap-7">
+                  {[0, 1].map((index) => (
+                    <div className="student-skeleton-row" key={index}>
+                      <StudentSkeletonLine
+                        variant="media"
+                        width="2.9rem"
+                        height="2.9rem"
+                      />
+
+                      <div className="student-skeleton-copy">
+                        <StudentSkeletonLine width="52%" height="0.95rem" />
+                        <StudentSkeletonLine width="86%" height="0.65rem" />
+                        <StudentSkeletonLine width="36%" height="0.6rem" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="student-section student-dashboard-section">
+                <div className="student-dashboard-section-head">
+                  <div className="student-skeleton-stack">
+                    <StudentSkeletonLine width="34%" height="0.6rem" />
+                    <StudentSkeletonLine width="62%" height="1.1rem" />
+                  </div>
+                </div>
+
+                <div className="student-skeleton-stack">
+                  <StudentSkeletonLine width="100%" height="0.65rem" />
+                  <StudentSkeletonLine width="92%" height="0.65rem" />
+                </div>
+              </section>
+            </div>
+          </div>
+        </StudentSkeletonGroup>
       ) : (
-        <>
+        <div className="student-dashboard-grid">
+          <aside className="student-dashboard-brief">
+            <div>
+              <span className="student-dashboard-brief-label">
+                Your Place In Kandid
+              </span>
+
+              <h2>
+                {user?.program || "Student"}
+              </h2>
+
+              <p>
+                Your active student and organization records shape the
+                elections available to you.
+              </p>
+            </div>
+
+            <dl className="student-dashboard-brief-list">
+              <div>
+                <dt>Memberships</dt>
+                <dd>{myOrganizations.length}</dd>
+              </div>
+
+              <div>
+                <dt>More to explore</dt>
+                <dd>{otherOrganizations.length}</dd>
+              </div>
+
+              <div>
+                <dt>Next up</dt>
+                <dd>Check Elections</dd>
+              </div>
+            </dl>
+
+          </aside>
+
+          <div className="student-dashboard-main">
           {/* ==================================================
               MY ORGANIZATION
               ================================================== */}
-          <section className="student-section">
-            <div className="student-section-title">
-              <Building2 size={16} />
-              My Organization
+          <section className="student-section student-dashboard-section">
+            <div className="student-dashboard-section-head">
+              <div>
+                <span className="student-dashboard-section-kicker">
+                  Your Campus Circle
+                </span>
+
+                <h2>
+                  Your Organization{myOrganizations.length === 1 ? "" : "s"}
+                </h2>
+              </div>
+
+              <span className="student-dashboard-section-count">
+                {myOrganizations.length}{" "}
+                {myOrganizations.length === 1
+                  ? "Organization"
+                  : "Organizations"}
+              </span>
             </div>
 
             <div className="student-org-grid student-org-grid-primary grid w-full grid-cols-1 gap-6 md:grid-cols-2 xl:gap-7">
               {myOrganizations.length === 0 ? (
                 <div className="student-empty-card">
-                  No organization assigned.
+                  You are not in any organizations yet.
                 </div>
               ) : (
                 myOrganizations.map((organization) => (
@@ -709,6 +747,7 @@ function StudentDashboard() {
                     key={organization.id}
                     organization={organization}
                     membershipState="member"
+                    identityMark={getOrganizationIdentityMark(organization)}
                     onView={handleViewOrganization}
                   />
                 ))
@@ -719,10 +758,21 @@ function StudentDashboard() {
           {/* ==================================================
               OTHER ORGANIZATIONS
               ================================================== */}
-          <section className="student-section">
-            <div className="student-section-title">
-              <Globe2 size={16} />
-              Other Organizations
+          <section className="student-section student-dashboard-section">
+            <div className="student-dashboard-section-head">
+              <div>
+                <span className="student-dashboard-section-kicker">
+                  Find More
+                </span>
+
+                <h2>
+                  Other Organizations
+                </h2>
+              </div>
+
+              <span className="student-dashboard-section-count">
+                {filteredOtherOrganizations.length} shown
+              </span>
             </div>
 
             <div
@@ -762,6 +812,7 @@ function StudentDashboard() {
                       key={organization.id}
                       organization={organization}
                       membershipState="explore"
+                      identityMark={getOrganizationIdentityMark(organization)}
                       onView={handleViewOrganization}
                     />
                   ))}
@@ -776,7 +827,7 @@ function StudentDashboard() {
                   >
                     <Plus size={28} />
 
-                    <span>Explore All</span>
+                    <span>Explore All Organizations</span>
 
                     <ArrowRight size={14} />
                   </button>
@@ -784,7 +835,26 @@ function StudentDashboard() {
               )}
             </div>
           </section>
-        </>
+
+          <section className="student-dashboard-election-strip">
+            <div>
+              <span className="student-dashboard-section-kicker">
+                What&rsquo;s Next
+              </span>
+
+              <h2>
+                Ready when an election opens
+              </h2>
+
+              <p>
+                Campaigns, your vote, and published results all live in your
+                election workspace &mdash; ready when you are.
+              </p>
+            </div>
+
+          </section>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
-import { ImagePlus, Save } from "lucide-react";
+import { Eye, EyeOff, ImagePlus, Save } from "lucide-react";
 import { KandidButtonLoader, KandidInlineLoader } from "../../components/KandidLoader";
+import {
+  StudentSkeletonGroup,
+  StudentSkeletonLine,
+} from "../../components/student/StudentSkeleton";
 import { StudentAvatar } from "../../components/KandidImage";
 import { fetchCurrentUserProfile, updateCurrentUserProfile } from "../../utils/profile";
 import { getStoredUser, isSupabaseAdminAuthMode } from "../../utils/auth";
@@ -9,12 +13,49 @@ import { promptKandidInstall, usePWAInstallState } from "../../utils/pwaInstall"
 import { usePrompt } from "../../context/PromptContext";
 import { supabase } from "../../lib/supabaseClient";
 import {
+  getPasswordChecks,
+  isPasswordValid,
+} from "../../utils/password";
+import {
   clearOrganizationAccessCache,
   ensureProgram,
   getOrganizationCatalog,
   getPrograms,
   syncStudentsForOrganizationCoverage,
 } from "../../utils/organizationAccess";
+
+function MembershipLogo({ organization }) {
+  const [failed, setFailed] = useState(false);
+  const initial = String(organization?.name || "Organ").trim().charAt(0).toUpperCase();
+
+  if (!organization?.logo_url || failed) {
+    return (
+      <span className="student-settings-org-logo" aria-hidden="true">
+        {initial}
+      </span>
+    );
+  }
+
+  return (
+    <img
+      src={organization.logo_url}
+      alt=""
+      className="student-settings-org-logo"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
+function passwordChangeMessage(error) {
+  const message = String(error?.message || "").toLowerCase();
+  if (message.includes("same") && message.includes("password")) {
+    return "Your new password must be different from your current password.";
+  }
+  if (message.includes("weak") || message.includes("fewer") || message.includes("at least")) {
+    return "That password is too weak. Review the requirements above and try again.";
+  }
+  return error?.message || "We could not change your password. Please try again.";
+}
 
 function ProfilePage() {
   const prompt = usePrompt();
@@ -28,6 +69,8 @@ function ProfilePage() {
   const [selectedProgramIds, setSelectedProgramIds] = useState([]);
   const [newProgram, setNewProgram] = useState("");
   const [coverageSaving, setCoverageSaving] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [form, setForm] = useState({
     full_name: "",
     first_name: "",
@@ -35,6 +78,7 @@ function ProfilePage() {
     email: "",
     photo_url: "",
     password: "",
+    confirmPassword: "",
   });
 
   useEffect(() => {
@@ -60,6 +104,7 @@ function ProfilePage() {
         email: data?.email || "",
         photo_url: data?.photo_url || "",
         password: "",
+        confirmPassword: "",
       });
 
       if (data?.role === "electoral_board" && data?.organization_id) {
@@ -103,6 +148,21 @@ function ProfilePage() {
     setSaving(true);
     setErrorMessage("");
 
+    const passwordEntered = Boolean(form.password);
+
+    if (passwordEntered) {
+      if (!isPasswordValid(form.password)) {
+        setErrorMessage("Your new password must satisfy every requirement below.");
+        setSaving(false);
+        return;
+      }
+      if (form.confirmPassword !== form.password) {
+        setErrorMessage("New password confirmation does not match.");
+        setSaving(false);
+        return;
+      }
+    }
+
     const payload =
       user?.role === "student"
         ? {
@@ -120,13 +180,15 @@ function ProfilePage() {
     const { data, error } = await updateCurrentUserProfile(payload);
 
     if (error) {
-      setErrorMessage(error.message || "Failed to save profile.");
+      setErrorMessage(
+        form.password ? passwordChangeMessage(error) : error.message || "Failed to save profile.",
+      );
       setSaving(false);
       return;
     }
 
     setUser(data);
-    setForm((current) => ({ ...current, password: "" }));
+    setForm((current) => ({ ...current, password: "", confirmPassword: "" }));
     setSaving(false);
     prompt.success("Profile updated successfully.");
   }
@@ -238,122 +300,420 @@ function ProfilePage() {
     prompt.success("Program coverage saved and matching students synced.");
   }
 
+  const studentMemberships = user?.student_organizations || [];
   const studentOrganizations =
-    user?.student_organizations?.map((item) => item.organizations).filter(Boolean) || [];
+    studentMemberships.map((item) => item.organizations).filter(Boolean) || [];
   const secureAdminProfile =
     isSupabaseAdminAuthMode() &&
     (user?.role === "super_admin" || user?.role === "electoral_board");
 
+  const isStudent = user?.role === "student";
+  const isBoard = user?.role === "electoral_board";
+  const displayName = isStudent
+    ? [user?.first_name, user?.last_name].filter(Boolean).join(" ").trim() || "Student"
+    : user?.full_name || "User";
+  const statusLabel = user?.status
+    ? user.status.charAt(0).toUpperCase() + user.status.slice(1)
+    : "—";
+  const passwordEntered = Boolean(form.password);
+  const passwordChecks = getPasswordChecks(form.password);
+  const passwordsMatch = passwordEntered && form.confirmPassword === form.password;
+  const passwordIncomplete = passwordEntered && !isPasswordValid(form.password);
+  const canSubmitPassword =
+    !passwordEntered || (isPasswordValid(form.password) && passwordsMatch);
+
   return (
-    <div>
-      <div className="page-head">
-        <div>
-          <div className="page-kicker">My Profile</div>
-          <h1 className="page-title">
-            Personal account
-            <span className="page-title-accent"> details</span>
+    <div className="student-settings-desktop">
+      <header className="student-settings-opening">
+        <div className="student-settings-opening-copy">
+          <span className="student-settings-kicker">
+            {isStudent ? "Your Account" : "My Profile"}
+          </span>
+          <h1>
+            {isStudent ? "Settings that belong to you." : "Personal account details."}
           </h1>
-          <p className="page-subtitle">
-            Review your account information, update your profile photo, and keep
-            your contact details current.
+          <p>
+            {isStudent
+              ? "Your profile, account access, and Kandid on this device."
+              : "Review your account information, update your profile photo, and keep your contact details current."}
           </p>
         </div>
-      </div>
+      </header>
 
       {loading ? (
-        <div className="glass-panel mt-8 rounded-[28px] p-8 text-gray-500">
-          <KandidInlineLoader message="Loading profile..." />
-        </div>
+        isStudent ? (
+          <StudentSkeletonGroup
+            label="Loading your settings"
+            className="student-settings-skeleton"
+          >
+            <section className="student-settings-section">
+              <div className="student-skeleton-row">
+                <StudentSkeletonLine
+                  variant="media"
+                  width="4.25rem"
+                  height="4.25rem"
+                />
+
+                <div className="student-skeleton-copy">
+                  <StudentSkeletonLine width="54%" height="1.05rem" />
+                  <StudentSkeletonLine width="38%" height="0.65rem" />
+                  <StudentSkeletonLine width="64%" height="0.65rem" />
+                </div>
+              </div>
+            </section>
+
+            <section className="student-settings-section">
+              <div className="student-skeleton-stack">
+                <StudentSkeletonLine width="100%" height="2.4rem" />
+                <StudentSkeletonLine width="100%" height="2.4rem" />
+                <StudentSkeletonLine width="100%" height="2.4rem" />
+              </div>
+            </section>
+
+            <section className="student-settings-section">
+              <div className="student-skeleton-stack">
+                <StudentSkeletonLine width="72%" height="0.7rem" />
+                <StudentSkeletonLine width="100%" height="2.4rem" />
+                <StudentSkeletonLine width="88%" height="2.4rem" />
+              </div>
+            </section>
+          </StudentSkeletonGroup>
+        ) : (
+          <div className="student-settings-state">
+            <KandidInlineLoader message="Loading profile..." />
+          </div>
+        )
       ) : (
-        <div className="section-grid grid-cols-1 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.2fr)]">
-          <div className="glass-panel-strong rounded-[30px] p-6">
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-              {user?.role === "student" ? (
+        <div className="student-settings-body">
+          {/* ====================================================
+              PROFILE IDENTITY
+              ==================================================== */}
+          <section className="student-settings-section">
+            <div className="student-settings-identity">
+              {isStudent ? (
                 <StudentAvatar
                   student={{ ...user, photo_url: form.photo_url }}
-                  className="!h-28 !w-28 !rounded-[28px]"
+                  className="student-settings-photo-img"
                   loading="eager"
                 />
               ) : form.photo_url ? (
                 <img
                   src={form.photo_url}
                   alt="Profile"
-                  className="h-28 w-28 rounded-[28px] object-cover"
+                  className="student-settings-photo-img"
                 />
               ) : (
-                <div className="flex h-28 w-28 items-center justify-center rounded-[28px] bg-[rgba(232,108,47,0.12)] text-3xl font-black text-[#d35a25]">
-                  {user?.role === "student"
+                <div className="student-settings-photo-fallback">
+                  {isStudent
                     ? user?.first_name?.[0] || "S"
                     : user?.full_name?.[0] || "A"}
                 </div>
               )}
 
-              <div className="flex-1">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8b6e5c]">
-                  Account Snapshot
-                </p>
-                <h2 className="mt-2 text-3xl font-black text-[#18212b]">
-                  {user?.role === "student"
-                    ? `${user?.first_name || ""} ${user?.last_name || ""}`.trim()
-                    : user?.full_name || "User"}
-                </h2>
-                <p className="mt-2 text-sm text-gray-500">
-                  {user?.role === "student"
-                    ? user?.student_number || "Student account"
-                    : user?.role?.replaceAll("_", " ") || "System account"}
-                </p>
+              <div className="student-settings-identity-copy">
+                <span className="student-settings-eyebrow">Profile</span>
+                <h2>{displayName}</h2>
+                {isStudent ? (
+                  <>
+                    <p>Student ID {user?.student_number || "—"}</p>
+                    <p>
+                      {[user?.program, user?.year_level ? `Year ${user?.year_level}` : ""]
+                        .filter(Boolean)
+                        .join(" · ") || "Not set"}
+                    </p>
+                  </>
+                ) : (
+                  <p>{user?.role?.replaceAll("_", " ") || "System account"}</p>
+                )}
               </div>
+
+              <label className="student-settings-photo-action">
+                <ImagePlus size={16} />
+                Choose Image
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(event) => handlePhotoUpload(event.target.files?.[0])}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          </section>
+
+          {/* ====================================================
+              ACCOUNT
+              ==================================================== */}
+          <section className="student-settings-section">
+            <div className="student-settings-section-head">
+              <h2>Account</h2>
             </div>
 
-            <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              <div className="rounded-[24px] bg-white/50 p-4">
-                <p className="field-label !mb-1">Role</p>
-                <p className="text-sm font-semibold capitalize text-[#1d262f]">
-                  {user?.role?.replaceAll("_", " ") || "-"}
-                </p>
+            <form onSubmit={handleSubmit} className="student-settings-form">
+              <div className="student-settings-field">
+                <label>Email address</label>
+                <input
+                  type="email"
+                  readOnly={secureAdminProfile}
+                  value={form.email}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      email: event.target.value,
+                    }))
+                  }
+                  className={`student-settings-input ${secureAdminProfile ? "is-readonly" : ""}`}
+                />
+                {secureAdminProfile ? (
+                  <p className="student-settings-field-note">
+                    Admin email changes are handled through secure account management.
+                  </p>
+                ) : null}
               </div>
-              <div className="rounded-[24px] bg-white/50 p-4">
-                <p className="field-label !mb-1">Date Added</p>
-                <p className="text-sm font-semibold text-[#1d262f]">
-                  {user?.created_at
-                    ? new Date(user.created_at).toLocaleDateString()
-                    : "-"}
-                </p>
-              </div>
-              <div className="rounded-[24px] bg-white/50 p-4">
-                <p className="field-label !mb-1">Status</p>
-                <p className="text-sm font-semibold text-[#1d262f]">
-                  {user?.status || "Active"}
-                </p>
-              </div>
-              <div className="rounded-[24px] bg-white/50 p-4">
-                <p className="field-label !mb-1">Organization</p>
-                <p className="text-sm font-semibold text-[#1d262f]">
-                  {user?.organizations?.name ||
-                    studentOrganizations.map((org) => org.name).join(", ") ||
-                    "Not assigned"}
-                </p>
-              </div>
-            </div>
 
-            {user?.role === "student" ? (
-              <div className="mt-4 rounded-[24px] bg-white/50 p-4">
-                <p className="field-label !mb-1">Academic Details</p>
-                <p className="text-sm font-semibold text-[#1d262f]">
-                  {user?.program || "Program not set"} - Year {user?.year_level || "-"}
-                </p>
-              </div>
-            ) : null}
+              {!isStudent ? (
+                <div className="student-settings-field">
+                  <label>Full Name</label>
+                  <input
+                    value={form.full_name}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        full_name: event.target.value,
+                      }))
+                    }
+                    className="student-settings-input"
+                  />
+                </div>
+              ) : null}
 
-            {user?.role === "electoral_board" && boardOrganization ? (
-              <div className="mt-4 rounded-[24px] bg-white/50 p-4">
-                <p className="field-label !mb-1">Covered Programs</p>
+              {!isStudent ? (
+                <div className="student-settings-field">
+                  <label>Profile Photo URL</label>
+                  <input
+                    value={form.photo_url}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        photo_url: event.target.value,
+                      }))
+                    }
+                    className="student-settings-input"
+                    placeholder="Paste an image URL"
+                  />
+                </div>
+              ) : null}
+
+              {!secureAdminProfile ? (
+                <div className="student-settings-password-stack">
+                  <div className="student-settings-field">
+                    <label>New Password</label>
+                    <div className="student-settings-password-field">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={form.password}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            password: event.target.value,
+                            confirmPassword: current.confirmPassword,
+                          }))
+                        }
+                        autoComplete="new-password"
+                        className="student-settings-input"
+                        placeholder="Change password"
+                      />
+                      <button
+                        type="button"
+                        className="student-settings-eye-btn"
+                        onClick={() => setShowPassword((current) => !current)}
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        aria-live="polite"
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                    {passwordEntered ? (
+                      <div className="student-settings-password-requirements" aria-live="polite">
+                        <span>Password Requirements</span>
+                        <div className="student-settings-password-checks">
+                          {passwordChecks.map((check) => (
+                            <span key={check.id} className={check.met ? "is-met" : ""}>
+                              <i aria-hidden="true">{check.met ? "✓" : "○"}</i>
+                              {check.label}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="student-settings-field-note">
+                        Leave blank to keep your current password.
+                      </p>
+                    )}
+                  </div>
+
+                  {passwordEntered ? (
+                    <div className="student-settings-field">
+                      <label>Confirm New Password</label>
+                      <div className="student-settings-password-field">
+                        <input
+                          type={showConfirmPassword ? "text" : "password"}
+                          value={form.confirmPassword}
+                          onChange={(event) =>
+                            setForm((current) => ({
+                              ...current,
+                              confirmPassword: event.target.value,
+                            }))
+                          }
+                          autoComplete="new-password"
+                          className="student-settings-input"
+                          placeholder="Retype new password"
+                        />
+                        <button
+                          type="button"
+                          className="student-settings-eye-btn"
+                          onClick={() => setShowConfirmPassword((current) => !current)}
+                          aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                          aria-live="polite"
+                        >
+                          {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
+                      {form.confirmPassword ? (
+                        <p
+                          className={`student-settings-field-note ${
+                            passwordsMatch ? "is-match" : "is-mismatch"
+                          }`}
+                          aria-live="polite"
+                        >
+                          {passwordsMatch ? "✓ Passwords match." : "× Passwords do not match."}
+                        </p>
+                      ) : (
+                        <p className="student-settings-field-note">
+                          Retype your new password to confirm it.
+                        </p>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {errorMessage ? (
+                <div className="student-settings-error">{errorMessage}</div>
+              ) : null}
+
+              <div className="student-settings-actions">
+                <button
+                  type="submit"
+                  disabled={saving || !canSubmitPassword}
+                  className="student-settings-save"
+                >
+                  {saving ? (
+                    <KandidButtonLoader label="Saving changes..." />
+                  ) : (
+                    <>
+                      <Save size={16} />
+                      Save Changes
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </section>
+
+          {/* ====================================================
+              YOUR STUDENT RECORD
+              ==================================================== */}
+          {isStudent ? (
+            <>
+            <section className="student-settings-section">
+              <div className="student-settings-section-head">
+                <h2>Your Student Record</h2>
+              </div>
+              <p className="student-settings-section-note">
+                These details come from your current school record.
+              </p>
+
+              <div className="student-settings-record">
+                <div className="student-settings-record-head">
+                  <span>Student ID</span>
+                  <span>Program</span>
+                  <span>Year Level</span>
+                  <span>Account Status</span>
+                </div>
+                <div className="student-settings-record-body">
+                  <strong>{user?.student_number || "—"}</strong>
+                  <strong>{user?.program || "—"}</strong>
+                  <strong>{user?.year_level ? `Year ${user?.year_level}` : "—"}</strong>
+                  <strong>{statusLabel}</strong>
+                </div>
+              </div>
+
+              <p className="student-settings-section-note">
+                If something here is incorrect, contact your department.
+              </p>
+            </section>
+
+            {/* ====================================================
+                YOUR ORGANIZATIONS
+                ==================================================== */}
+            <section className="student-settings-section">
+              <div className="student-settings-section-head">
+                <h2>Your Organizations</h2>
+              </div>
+              <p className="student-settings-section-note">
+                The student communities you belong to.
+              </p>
+
+              {studentOrganizations.length > 0 ? (
+                <div className="student-settings-org-grid">
+                  {studentOrganizations.map((organization) => (
+                    <div
+                      key={organization?.id || organization?.name}
+                      className="student-settings-org-item"
+                    >
+                      <MembershipLogo organization={organization} />
+                      <div className="student-settings-org-copy">
+                        <strong className="student-settings-org-acronym">
+                          {organization?.name || "Organization"}
+                        </strong>
+                        {organization?.description &&
+                        organization.description !== organization.name ? (
+                          <span className="student-settings-org-full">
+                            {organization.description}
+                          </span>
+                        ) : null}
+                        <span className="student-settings-org-eyebrow">Member</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="student-settings-org-empty">
+                  You are not part of any organization yet.
+                </p>
+              )}
+            </section>
+            </>
+          ) : null}
+
+          {/* ====================================================
+              BOARD — COVERED PROGRAMS
+              ==================================================== */}
+          {isBoard && boardOrganization ? (
+            <section className="student-settings-section">
+              <div className="student-settings-section-head">
+                <h2>Covered Programs</h2>
+              </div>
+              <p className="student-settings-section-note">
+                Manage which programs this organization covers and sync matching students.
+              </p>
+              <div className="mt-3">
                 {boardOrganization.organization_type === "non_departmental" ? (
                   <p className="text-sm font-semibold text-[#1d262f]">
                     This non-departmental organization is open across programs.
                   </p>
                 ) : (
-                  <div className="mt-3 space-y-3">
+                  <div className="space-y-3">
                     <div className="flex flex-col gap-2 sm:flex-row">
                       <input
                         value={newProgram}
@@ -415,167 +775,44 @@ function ProfilePage() {
                   </div>
                 )}
               </div>
-            ) : null}
+            </section>
+          ) : null}
 
-            <div className="mt-4 rounded-[24px] bg-white/50 p-4">
-              <p className="field-label !mb-1">App Install</p>
-              <p className="text-sm font-semibold text-[#1d262f]">
-                {pwaInstall.installed || pwaInstall.standalone
-                  ? "Installed in app mode on this device."
-                  : pwaInstall.shouldGuideIOS
-                    ? "On iPhone or iPad, install KANDID from Share, then Add to Home Screen."
-                    : pwaInstall.canInstall
-                      ? "You can install KANDID for a cleaner mobile experience."
-                      : "Use a supported browser install option when it is available on this device."}
-              </p>
-              {pwaInstall.canInstall ? (
-                <button
-                  type="button"
-                  onClick={handleInstallApp}
-                  className="secondary-btn mt-4"
-                >
-                  Install App
-                </button>
-              ) : null}
+          {/* ====================================================
+              KANDID ON THIS DEVICE
+              ==================================================== */}
+          <section className="student-settings-section">
+            <div className="student-settings-section-head">
+              <h2>Kandid on This Device</h2>
             </div>
-          </div>
 
-          <form
-            onSubmit={handleSubmit}
-            className="glass-panel rounded-[30px] p-6"
-          >
-            <div className="grid gap-5">
-              {user?.role === "student" ? (
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="field-label">First Name</label>
-                    <input
-                      readOnly
-                      value={form.first_name}
-                      className="field-shell w-full bg-white/50 text-gray-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="field-label">Last Name</label>
-                    <input
-                      readOnly
-                      value={form.last_name}
-                      className="field-shell w-full bg-white/50 text-gray-500"
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <label className="field-label">Full Name</label>
-                  <input
-                    value={form.full_name}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        full_name: event.target.value,
-                      }))
-                    }
-                    className="field-shell w-full"
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="field-label">Email Address</label>
-                <input
-                  type="email"
-                  readOnly={secureAdminProfile}
-                  value={form.email}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      email: event.target.value,
-                    }))
-                  }
-                  className={`field-shell w-full ${secureAdminProfile ? "bg-white/50 text-gray-500" : ""}`}
-                />
-                {secureAdminProfile ? (
-                  <p className="mt-2 text-xs font-semibold text-gray-500">
-                    Admin email changes are handled through secure account management.
-                  </p>
-                ) : null}
-              </div>
-
-              <div>
-                <label className="field-label">Profile Photo URL</label>
-                <input
-                  value={form.photo_url}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      photo_url: event.target.value,
-                    }))
-                  }
-                  className="field-shell w-full"
-                  placeholder="Paste an image URL or upload a file below"
-                />
-              </div>
-
-              <div className="rounded-[24px] border border-black/5 bg-white/40 p-4">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-bold text-[#18212b]">Upload Photo</p>
-                    <p className="mt-1 text-sm text-gray-500">
-                      Works well for Android, iPhone, and desktop web installs.
-                    </p>
-                  </div>
-                  <label className="secondary-btn cursor-pointer">
-                    <ImagePlus size={18} />
-                    Choose Image
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(event) => handlePhotoUpload(event.target.files?.[0])}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-              </div>
-
-              {!secureAdminProfile ? (
-              <div>
-                <label className="field-label">New Password</label>
-                <input
-                  type="password"
-                  value={form.password}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      password: event.target.value,
-                    }))
-                  }
-                  className="field-shell w-full"
-                  placeholder="Leave blank if you are not changing it"
-                />
-              </div>
-              ) : null}
-
-              {errorMessage ? (
-                <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-                  {errorMessage}
-                </div>
-              ) : null}
-
-              <button
-                disabled={saving}
-                className="primary-btn w-full disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {saving ? (
-                  <KandidButtonLoader label="Saving profile..." />
-                ) : (
-                  <>
-                    <Save size={18} />
-                    Save Profile
-                  </>
+            <div className="student-settings-install">
+              <div className="student-settings-install-copy">
+                <strong>Install Kandid</strong>
+                <p>Add Kandid to this device for quicker access.</p>
+                {pwaInstall.canInstall ? null : (
+                  <span className="student-settings-install-status">
+                    {pwaInstall.installed || pwaInstall.standalone
+                      ? "Kandid is installed on this device."
+                      : pwaInstall.shouldGuideIOS
+                        ? "On iPhone or iPad, install KANDID from Share, then Add to Home Screen."
+                        : "Use a supported browser install option when it is available on this device."}
+                  </span>
                 )}
-              </button>
+              </div>
+              {pwaInstall.canInstall ? (
+                <div className="student-settings-install-state">
+                  <button
+                    type="button"
+                    onClick={handleInstallApp}
+                    className="student-settings-install-action"
+                  >
+                    Install Kandid
+                  </button>
+                </div>
+              ) : null}
             </div>
-          </form>
+          </section>
         </div>
       )}
     </div>

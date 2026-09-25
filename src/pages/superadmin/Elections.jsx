@@ -3,7 +3,6 @@ import { CheckCircle2, Plus, Pencil, Trash2, X, QrCode, Power, ImagePlus } from 
 import { useNavigate } from "react-router-dom";
 import PopupOverlay from "../../components/PopupOverlay";
 import ElectionCover from "../../components/ElectionCover";
-import ElectionManagementCard from "../../components/ElectionManagementCard";
 import OrganizationSelect from "../../components/OrganizationSelect";
 import ScheduleDateTimePicker, {
   currentDateTimeInputValue,
@@ -39,6 +38,25 @@ import {
   serializeResultVisibilityForDatabase,
   serializeResultVisibilityForLegacyDatabase,
 } from "../../utils/results";
+import "./Elections.css";
+
+const ELECTION_PHASE_LABELS = {
+  draft: "Draft",
+  archived: "Archived",
+  closed: "Concluded",
+  campaign_upcoming: "Campaign upcoming",
+  campaign: "Campaigning",
+  waiting: "Awaiting voting",
+  voting: "Voting now",
+  scheduled: "Scheduled",
+  active: "Active",
+};
+
+const electionPhaseLabel = (phase) =>
+  ELECTION_PHASE_LABELS[phase] || String(phase || "Status unavailable").replaceAll("_", " ");
+
+const electionScheduleValue = (value) =>
+  value ? formatLocalDateTime(value) : "Not scheduled";
 
 const isPositionOrderConflict = (error) =>
   /positions_election_display_order_unique|duplicate key/i.test(error?.message || "");
@@ -52,6 +70,8 @@ function Elections() {
   const [formOpen, setFormOpen] = useState(false);
   const [createdElection, setCreatedElection] = useState(null);
   const [editingElection, setEditingElection] = useState(null);
+  const [electionsLoading, setElectionsLoading] = useState(true);
+  const [electionsError, setElectionsError] = useState("");
 
   // Position management for the selected election
   const [positions, setPositions] = useState([]);
@@ -103,6 +123,8 @@ function Elections() {
   }
 
   async function fetchElections() {
+    setElectionsLoading(true);
+    setElectionsError("");
     const { data, error } = await supabase
       .from("elections")
       .select(`
@@ -114,7 +136,13 @@ function Elections() {
       `)
       .order("created_at", { ascending: false });
 
-    if (!error) setElections(data || []);
+    if (error) {
+      console.error("Failed to load elections:", error);
+      setElectionsError("Election records could not be loaded. Please try again.");
+    } else {
+      setElections(data || []);
+    }
+    setElectionsLoading(false);
   }
 
   async function fetchPositions(electionId) {
@@ -680,74 +708,137 @@ function Elections() {
     fetchElections();
   }
 
+  const phaseCounts = elections.reduce(
+    (counts, election) => {
+      const phase = getElectionPhase(election);
+      if (["campaign", "waiting", "voting"].includes(phase)) counts.inProgress += 1;
+      if (["campaign_upcoming", "scheduled"].includes(phase)) counts.scheduled += 1;
+      if (["closed", "archived"].includes(phase)) counts.concluded += 1;
+      return counts;
+    },
+    { inProgress: 0, scheduled: 0, concluded: 0 },
+  );
+
   return (
-    <div>
-      <div className="page-head">
-        <div>
-          <div className="page-kicker">Election Setup</div>
-          <h1 className="page-title">
-            Election lifecycle
-            <span className="page-title-accent"> management</span>
-          </h1>
-          <p className="page-subtitle">
-            Create and manage elections across organizations.
+    <div className="sa-elections">
+      <header className="sa-elections-masthead">
+        <div className="sa-elections-masthead-copy">
+          <p className="sa-elections-breadcrumb">Kandid / Super Admin</p>
+          <p className="sa-elections-eyebrow">Election register</p>
+          <h1>Elections</h1>
+          <p>
+            Manage election schedules, participating organizations, and lifecycle control across Kandid.
           </p>
         </div>
 
-        <button
-          onClick={openCreateForm}
-          className="primary-btn self-start lg:self-auto"
-        >
-          <Plus size={18} />
-          Add Election
-        </button>
-      </div>
+        <aside className="sa-elections-masthead-aside" aria-label="Election register action">
+          <span>Schedule control</span>
+          <strong>{elections.length} recorded</strong>
+          <button type="button" onClick={openCreateForm} className="sa-elections-add">
+            <Plus size={17} />
+            Add Election
+          </button>
+        </aside>
+      </header>
 
-      {elections.length === 0 ? (
-        <div className="empty-state mt-8">No elections found.</div>
-      ) : (
-        <div className="election-management-grid mt-8">
-          {elections.map((election) => (
-            <article key={election.id} className="entity-card">
-              <ElectionManagementCard
-                election={election}
-                eyebrow="Election Setup"
-                onClick={() => openPositions(election)}
-              />
+      <section className="sa-elections-summary" aria-label="Election summary">
+        {[
+          ["Total elections", elections.length],
+          ["In progress", phaseCounts.inProgress],
+          ["Scheduled", phaseCounts.scheduled],
+          ["Concluded", phaseCounts.concluded],
+        ].map(([label, value], index) => (
+          <div key={label} className="sa-elections-summary-item">
+            <span>{String(index + 1).padStart(2, "0")}</span>
+            <strong>{value}</strong>
+            <p>{label}</p>
+          </div>
+        ))}
+      </section>
 
-              <div className="mt-4 flex flex-wrap gap-2">
-                <span className="status-pill">{getElectionPhase(election)}</span>
-                <span className="status-pill">
-                  {resultVisibilityLabel(
-                    election.student_result_visibility,
-                    election.results_released_at,
-                  )}
-                </span>
-                <span className="status-pill">
-                  {getVotingAccessModeLabel(election.voting_access_mode)}
-                </span>
-              </div>
-
-              <div className="mt-4 grid gap-2 text-sm text-[#5f6f86]">
-                <p><span className="font-black text-[#111827]">Campaign:</span> {formatLocalDateTime(election.campaign_start)}</p>
-                <p><span className="font-black text-[#111827]">Voting:</span> {formatLocalDateTime(election.start_date)} - {formatLocalDateTime(election.end_date)}</p>
-              </div>
-
-              <div className="mt-5 flex flex-wrap justify-end gap-2">
-                <button type="button" onClick={() => openPositions(election)} className="secondary-btn !px-3 !py-2 text-xs">
-                  Manage Setup
-                </button>
-                <button type="button" onClick={() => openEditForm(election)} className="icon-action">
-                  <Pencil size={16} />
-                </button>
-                <button type="button" onClick={() => handleDelete(election.id)} className="icon-action icon-action-danger">
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </article>
-          ))}
+      <section className="sa-elections-register" aria-labelledby="election-register-title">
+        <div className="sa-elections-register-head">
+          <div>
+            <p className="sa-elections-eyebrow">Register / {String(elections.length).padStart(2, "0")}</p>
+            <h2 id="election-register-title">Election schedule</h2>
+          </div>
+          <p>Campaign, voting, result release, and ballot setup in one operational register.</p>
         </div>
-      )}
+
+        {electionsLoading ? (
+          <div className="sa-elections-loading" role="status">
+            <strong>Loading election register</strong>
+            <div aria-hidden="true"><span /><span /><span /></div>
+          </div>
+        ) : electionsError ? (
+          <div className="sa-elections-error" role="alert">
+            <p className="sa-elections-eyebrow">Register unavailable</p>
+            <h3>Election records could not be displayed.</h3>
+            <p>{electionsError}</p>
+            <button type="button" onClick={fetchElections}>Try Again</button>
+          </div>
+        ) : elections.length === 0 ? (
+          <div className="sa-elections-empty">
+            <span>01</span>
+            <div>
+              <h3>No elections recorded</h3>
+              <p>Create an election to begin configuring its schedule and ballot structure.</p>
+            </div>
+            <button type="button" onClick={openCreateForm}>Add Election</button>
+          </div>
+        ) : (
+          <div className="sa-elections-list">
+            {elections.map((election, index) => {
+              const phase = getElectionPhase(election);
+              return (
+                <article key={election.id} className="sa-election-record">
+                  <div className="sa-election-index">{String(index + 1).padStart(2, "0")}</div>
+
+                  <div className="sa-election-identity">
+                    <div className={`sa-election-phase is-${phase}`}>
+                      <span aria-hidden="true" />
+                      {electionPhaseLabel(phase)}
+                    </div>
+                    <p>{election.organizations?.name || "Organization unavailable"}</p>
+                    <h3>{election.title || "Untitled Election"}</h3>
+                    <div className="sa-election-control-meta">
+                      <span>{resultVisibilityLabel(election.student_result_visibility, election.results_released_at)}</span>
+                      <span>{getVotingAccessModeLabel(election.voting_access_mode)}</span>
+                    </div>
+                  </div>
+
+                  <div className="sa-election-schedules">
+                    <section>
+                      <span>Campaign</span>
+                      <strong>{electionScheduleValue(election.campaign_start)}</strong>
+                      <p>to {electionScheduleValue(election.campaign_end)}</p>
+                    </section>
+                    <section className="is-voting">
+                      <span>Voting</span>
+                      <strong>{electionScheduleValue(election.start_date)}</strong>
+                      <p>to {electionScheduleValue(election.end_date)}</p>
+                    </section>
+                  </div>
+
+                  <div className="sa-election-actions">
+                    <button type="button" className="sa-election-primary-action" onClick={() => openPositions(election)}>
+                      Manage Setup
+                    </button>
+                    <button type="button" onClick={() => openEditForm(election)}>
+                      <Pencil size={14} />
+                      Edit
+                    </button>
+                    <button type="button" className="is-danger" onClick={() => handleDelete(election.id)}>
+                      <Trash2 size={14} />
+                      Delete
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       {positionsOpen && selectedElection && (
         <PopupOverlay>
@@ -946,21 +1037,33 @@ function Elections() {
 
       {formOpen && (
         <PopupOverlay>
-          <div className="modal-card max-w-xl">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-black">
-                {editingElection ? "Edit Election" : "Add Election"}
-              </h2>
-
+          <div className="modal-card election-form-dialog">
+            <header className="election-form-header">
+              <div>
+                <p>Election record</p>
+                <h2>{editingElection ? "Edit Election" : "Add Election"}</h2>
+                <span>Define institutional ownership, schedule, and existing election controls.</span>
+              </div>
               <button
+                type="button"
                 onClick={() => setFormOpen(false)}
-                className="p-2 rounded-lg hover:bg-gray-100"
+                className="election-form-close"
+                aria-label="Close election form"
               >
                 <X size={20} />
               </button>
-            </div>
+            </header>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="election-form-workspace">
+              <section className="election-form-section">
+                <header>
+                  <span>01</span>
+                  <div>
+                    <h3>Election identity</h3>
+                    <p>Name the election and assign its responsible organization.</p>
+                  </div>
+                </header>
+                <div className="election-form-fields">
               <div>
                 <OrganizationSelect
                   organizations={organizations}
@@ -1026,7 +1129,17 @@ function Elections() {
                   className="field-shell w-full"
                 />
               </div>
+                </div>
+              </section>
 
+              <section className="election-form-section">
+                <header>
+                  <span>02</span>
+                  <div>
+                    <h3>Election schedule</h3>
+                    <p>Campaign timing provides context; the voting window controls participation.</p>
+                  </div>
+                </header>
               <div className="grid gap-4 md:grid-cols-2">
                 <ScheduleDateTimePicker
                   label="Campaign Start Date & Time"
@@ -1063,58 +1176,81 @@ function Elections() {
                   onChange={(value) => setForm({ ...form, end_date: value })}
                 />
               </div>
+              </section>
 
-              <select
-                value={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.value })}
-                className="field-shell w-full"
-              >
-                <option value="draft">Draft</option>
-                <option value="active">Active</option>
-                <option value="closed">Closed</option>
-                <option value="archived">Archived</option>
-              </select>
+              <section className="election-form-section">
+                <header>
+                  <span>03</span>
+                  <div>
+                    <h3>Operational settings</h3>
+                    <p>Apply the existing lifecycle, result release, and voting access rules.</p>
+                  </div>
+                </header>
+                <div className="election-form-settings">
+                  <label>
+                    <span className="field-label">Election Status</span>
+                    <select
+                      value={form.status}
+                      onChange={(e) => setForm({ ...form, status: e.target.value })}
+                      className="field-shell w-full"
+                    >
+                      <option value="draft">Draft</option>
+                      <option value="active">Active</option>
+                      <option value="closed">Closed</option>
+                      <option value="archived">Archived</option>
+                    </select>
+                  </label>
 
-              <select
-                value={form.student_result_visibility}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    student_result_visibility: e.target.value,
-                  })
-                }
-                className="field-shell w-full"
-              >
-                <option value="realtime">Real-time results</option>
-                <option value="after_close">Show after voting ends</option>
-                <option value="manual">Manual admin release</option>
-              </select>
+                  <label>
+                    <span className="field-label">Student Result Visibility</span>
+                    <select
+                      value={form.student_result_visibility}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          student_result_visibility: e.target.value,
+                        })
+                      }
+                      className="field-shell w-full"
+                    >
+                      <option value="realtime">Real-time results</option>
+                      <option value="after_close">Show after voting ends</option>
+                      <option value="manual">Manual admin release</option>
+                    </select>
+                  </label>
+                </div>
 
-              <div className="rounded-2xl border border-[rgba(24,54,49,0.08)] p-4">
+              <div className="election-form-access">
                 <p className="field-label">Voting Access Rule</p>
                 <div className="grid gap-4 md:grid-cols-2">
-                  <select
-                    value={form.voting_access_mode}
-                    onChange={(e) =>
-                      setForm({ ...form, voting_access_mode: e.target.value })
-                    }
-                    className="field-shell w-full"
-                  >
-                    {VOTING_ACCESS_MODES.map((mode) => (
-                      <option key={mode.value} value={mode.value}>
-                        {mode.label}
-                      </option>
-                    ))}
-                  </select>
+                  <label>
+                    <span className="sr-only">Voting access mode</span>
+                    <select
+                      value={form.voting_access_mode}
+                      onChange={(e) =>
+                        setForm({ ...form, voting_access_mode: e.target.value })
+                      }
+                      className="field-shell w-full"
+                    >
+                      {VOTING_ACCESS_MODES.map((mode) => (
+                        <option key={mode.value} value={mode.value}>
+                          {mode.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
 
-                  <input
-                    value={form.location_label}
-                    onChange={(e) =>
-                      setForm({ ...form, location_label: e.target.value })
-                    }
-                    placeholder="Location label optional"
-                    className="field-shell w-full"
-                  />
+                  <label>
+                    <span className="sr-only">Voting location label</span>
+                    <input
+                      value={form.location_label}
+                      onChange={(e) =>
+                        setForm({ ...form, location_label: e.target.value })
+                      }
+                      placeholder="Location label optional"
+                      className="field-shell w-full"
+                    />
+                  </label>
                 </div>
 
                 {form.voting_access_mode === "location_range" ? (
@@ -1148,9 +1284,10 @@ function Elections() {
                   </div>
                 ) : null}
               </div>
+              </section>
 
               {editingElection && form.voting_access_mode !== "anywhere" && form.voting_access_mode !== "location_range" ? (
-                <div className="rounded-2xl border border-[rgba(24,54,49,0.08)] p-4">
+                <section className="election-form-section election-token-section">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="field-label">Access Tokens / QR</p>
@@ -1255,12 +1392,17 @@ function Elections() {
                       ))
                     )}
                   </div>
-                </div>
+                </section>
               ) : null}
 
-              <button className="primary-btn w-full">
-                {editingElection ? "Save Changes" : "Create Election"}
-              </button>
+              <footer className="election-form-actions">
+                <button type="button" className="secondary-btn" onClick={() => setFormOpen(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="primary-btn">
+                  {editingElection ? "Save Changes" : "Create Election"}
+                </button>
+              </footer>
             </form>
           </div>
         </PopupOverlay>
@@ -1268,8 +1410,8 @@ function Elections() {
 
       {createdElection && (
         <PopupOverlay>
-          <div className="modal-card max-w-lg text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
+          <div className="modal-card election-success-dialog">
+            <div className="election-success-mark">
               <CheckCircle2 size={28} />
             </div>
             <p className="field-label mt-5">Configuration Complete</p>

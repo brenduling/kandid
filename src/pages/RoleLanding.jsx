@@ -2,13 +2,11 @@ import {
   ArrowRight,
   BadgeCheck,
   Building2,
-  CheckCircle2,
-  FileCheck2,
-  Fingerprint,
   ShieldCheck,
 } from "lucide-react";
 import { Link, Navigate } from "react-router-dom";
 import logo from "../assets/kandidlogo.png";
+import { KandidHeroScene, KandidMascot } from "../components/KandidMascot";
 import { getDefaultRouteForUser, getStoredUser } from "../utils/auth";
 
 const roleAccess = {
@@ -84,26 +82,22 @@ const landingConfig = {
 };
 
 const capabilityItems = [
-  ["Elections", "From campaign to count."],
-  ["Ballots", "Make your choice clear."],
-  ["Results", "Know when the count is ready."],
-  ["Receipts", "Keep your voting record."],
-  ["Organizations", "Different groups. One Kandid."],
-  ["Verification", "A record you can check."],
+  ["Find", "See the elections that apply to you."],
+  ["Know", "Review candidates before you vote."],
+  ["Vote", "Cast your ballot when eligible."],
+  ["Keep", "Find your receipt afterward."],
+  ["See", "Results when they're released."],
 ];
 
-const journeyItems = [
-  ["Discover", "See what's open."],
-  ["Decide", "Know your choices."],
-  ["Cast", "Submit your ballot."],
-  ["Keep", "Hold on to your receipt."],
-];
+const capabilityPoses = ["find", "know", "vote", "keep", "see"];
 
 const trustItems = [
   ["One ballot", "One vote per election."],
   ["Clear status", "Know when it's recorded."],
   ["Your receipt", "Keep your voting record."],
 ];
+
+const trustPoses = ["protect", "status", "receipt"];
 
 const transparencyGroups = [
   {
@@ -305,179 +299,111 @@ function RoleEntryLanding({ role }) {
   );
 }
 
-function SectionHead({ id, eyebrow, title, copy }) {
-  return (
-    <div className="kandid-public-section-head">
-      <span>{eyebrow}</span>
-      <h2 id={id}>{title}</h2>
-      {copy ? <p>{copy}</p> : null}
-    </div>
-  );
-}
-
 function PublicWebsite() {
   return (
     <main id="top" className="kandid-public-site k-paper-canvas">
-      <header className="kandid-public-masthead">
-        <a href="#top" className="kandid-public-brand" aria-label="Kandid home">
-          <img src={logo} alt="KANDID Logo" />
-          <span>KANDID</span>
-        </a>
-        <nav className="kandid-public-nav" aria-label="Kandid public navigation">
-          <a href="#can-do">Kandid Can Do</a>
-          <a href="#journey">How It Works</a>
-          <a href="#about">About</a>
-          <Link to="/student-login">Student Login</Link>
-        </nav>
-      </header>
+      <div className="kandid-public-first-view">
+        <header className="kandid-public-masthead">
+          <a href="#top" className="kandid-public-brand" aria-label="Kandid home">
+            <img src={logo} alt="KANDID Logo" />
+            <span>KANDID</span>
+          </a>
+          <nav className="kandid-public-nav" aria-label="Kandid public navigation">
+            <a href="#can-do">What You Can Do</a>
+            <a href="#journey">How It Works</a>
+            <a href="#about">About</a>
+            <Link to="/student-login">Student Login</Link>
+          </nav>
+        </header>
 
-      <section className="kandid-public-hero" aria-labelledby="kandid-public-title">
-        <div className="kandid-public-hero-copy">
-          <p className="kandid-public-kicker">Digital student elections</p>
-          <h1 id="kandid-public-title">KANDID</h1>
-          <p className="kandid-public-tagline">Wait, you can count on me.</p>
-          <p className="kandid-public-lead">Your elections. Your ballot. Your receipt.</p>
+        <section className="kandid-public-hero" aria-labelledby="kandid-public-title">
+          <div className="kandid-public-hero-copy">
+            <p className="kandid-public-kicker">Digital student elections</p>
+            <h1 id="kandid-public-title">KANDID</h1>
+            <p className="kandid-public-tagline">Wait, you can count on me.</p>
+            <p className="kandid-public-lead">Your elections. Your ballot. Your receipt.</p>
+            <Link to="/student-login" className="kandid-public-primary">
+              Student Login
+              <ArrowRight size={18} aria-hidden="true" />
+            </Link>
+          </div>
+
+          <KandidHeroScene className="kandid-public-hero-visual" />
+        </section>
+      </div>
+
+      <section id="can-do" className="kandid-public-section kandid-public-capabilities" aria-labelledby="can-do-title">
+        <h2 id="can-do-title">Your election, made clear.</h2>
+        <ol id="journey" className="kandid-public-capability-list">
+          {capabilityItems.map(([title, text], index) => (
+            <li key={title}>
+              <KandidMascot pose={capabilityPoses[index]} className="kandid-public-step-mascot" />
+              <strong>{title}</strong>
+              <p>{text}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section className="kandid-public-section kandid-public-trust" aria-labelledby="trust-title">
+        <h2 id="trust-title">Your vote, in view.</h2>
+        <div className="kandid-public-trust-list">
+          {trustItems.map(([title, text], index) => (
+            <article key={title}>
+              <KandidMascot pose={trustPoses[index]} className="kandid-public-trust-mascot" />
+              <strong>{title}</strong>
+              <p>{text}</p>
+            </article>
+          ))}
+        </div>
+        <details id="transparency" className="kandid-public-details">
+          <summary>
+            <strong>Understand the details</strong>
+            <span className="kandid-public-details-hint">Privacy, verification, and how your ballot is protected</span>
+            <KandidMascot pose="inspect" className="kandid-public-details-mascot" />
+          </summary>
+          <div className="kandid-public-details-body">
+            <div className="kandid-public-verification" aria-labelledby="verification-title">
+              <h3 id="verification-title">Hash first. Blockchain second.</h3>
+              <p>A hash is a digital fingerprint of a voting record. Blockchain anchoring gives that fingerprint a separate place to be checked later. It does not publish readable ballot choices, and it does not replace Kandid's database, eligibility checks, authentication, authorization, counting, or result rules.</p>
+              <p>A vote can be recorded while security verification is still in progress. Pending verification should not automatically be read as a rejected ballot.</p>
+            </div>
+            <p className="kandid-public-policy-note">How Kandid handles information and verification is explained below. Formal institutional policies, when approved, take precedence.</p>
+            <div className="kandid-public-disclosures">
+              {transparencyGroups.map((group) => (
+                <details key={group.title} className="kandid-public-disclosure">
+                  <summary>
+                    <strong>{group.title}</strong>
+                  </summary>
+                  <p>{group.summary}</p>
+                  <ul>
+                    {group.details.map((detail) => (
+                      <li key={detail}>{detail}</li>
+                    ))}
+                  </ul>
+                </details>
+              ))}
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <section className="kandid-public-closing" aria-label="Kandid closing signature">
+        <span>When it matters, count on Kandid.</span>
+        <div className="kandid-public-closing-action">
           <Link to="/student-login" className="kandid-public-primary">
             Student Login
             <ArrowRight size={18} aria-hidden="true" />
           </Link>
         </div>
-
-        <aside className="kandid-public-hero-note" aria-label="Kandid public promise">
-          <span>Before login</span>
-          <strong>Understand Kandid.</strong>
-          <span>After login</span>
-          <strong>Use Kandid.</strong>
-        </aside>
-      </section>
-
-      <section id="can-do" className="kandid-public-section kandid-public-capabilities" aria-labelledby="can-do-title">
-        <SectionHead
-          id="can-do-title"
-          eyebrow="System"
-          title="KANDID CAN DO"
-          copy="What the system provides, said in student-facing language."
-        />
-        <div className="kandid-public-capability-list">
-          {capabilityItems.map(([title, text]) => (
-            <article key={title}>
-              <strong>{title}</strong>
-              <p>{text}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section id="journey" className="kandid-public-section kandid-public-journey" aria-labelledby="journey-title">
-        <SectionHead
-          id="journey-title"
-          eyebrow="Student journey"
-          title="HOW KANDID WORKS"
-          copy="The path from public election awareness to a private voting record."
-        />
-        <div className="kandid-public-journey-line">
-          {journeyItems.map(([title, text], index) => (
-            <article key={title}>
-              <span>{String(index + 1).padStart(2, "0")}</span>
-              <strong>{title}</strong>
-              <p>{text}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="kandid-public-section kandid-public-trust" aria-labelledby="trust-title">
-        <SectionHead
-          id="trust-title"
-          eyebrow="Trust"
-          title="EXPLAIN THE TRUST"
-          copy="Kandid should help students understand the controls behind the interface."
-        />
-        <div className="kandid-public-trust-list">
-          {trustItems.map(([title, text]) => (
-            <article key={title}>
-              <CheckCircle2 size={20} aria-hidden="true" />
-              <strong>{title}</strong>
-              <p>{text}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section id="transparency" className="kandid-public-section kandid-public-transparency" aria-labelledby="transparency-title">
-        <SectionHead
-          id="transparency-title"
-          eyebrow="Plain-language guide"
-          title="PRIVACY & TRANSPARENCY"
-          copy="What Kandid knows. Why Kandid needs it. What stays private. How vote verification works."
-        />
-        <div className="kandid-public-transparency-grid">
-          <article className="kandid-public-transparency-lead">
-            <p>
-              How Kandid handles information and verification. Formal institutional policies, when approved, take precedence.
-            </p>
-          </article>
-
-          <div className="kandid-public-disclosures">
-            {transparencyGroups.map((group, index) => (
-              <details key={group.title} className="kandid-public-disclosure">
-                <summary>
-                  <span>{String(index + 1).padStart(2, "0")}</span>
-                  <strong>{group.title}</strong>
-                </summary>
-                <p>{group.summary}</p>
-                <ul>
-                  {group.details.map((detail) => (
-                    <li key={detail}>{detail}</li>
-                  ))}
-                </ul>
-              </details>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="about" className="kandid-public-section kandid-public-about" aria-labelledby="about-title">
-        <SectionHead
-          id="about-title"
-          eyebrow="About"
-          title="ABOUT KANDID"
-          copy="Kandid is a centralized election management system designed for student organizations of Western Institute of Technology."
-        />
-        <div className="kandid-public-about-body">
-          <p>
-            It supports appropriate election administration, candidate and campaign information, eligibility, voting, results, officers, receipts, and vote-record verification.
-          </p>
-          <p>
-            Kandid reports the election while Kandid runs the election: before login, students can understand the system; after login, they can take part in what applies to them.
-          </p>
-        </div>
-      </section>
-
-      <section className="kandid-public-verification" aria-labelledby="verification-title">
-        <div>
-          <Fingerprint size={28} aria-hidden="true" />
-          <h2 id="verification-title">Hash first. Blockchain second.</h2>
-        </div>
-        <p>
-          A hash is a digital fingerprint of a voting record. Blockchain anchoring gives that fingerprint a separate place to be checked later. It does not publish readable ballot choices, and it does not replace Kandid's database, eligibility checks, authentication, authorization, counting, or result rules.
-        </p>
-        <p>
-          A vote can be recorded while security verification is still in progress. Pending verification should not automatically be read as a rejected ballot.
-        </p>
-      </section>
-
-      <section className="kandid-public-closing" aria-label="Kandid closing signature">
-        <FileCheck2 size={24} aria-hidden="true" />
-        <span>When it matters, count on Kandid.</span>
-        <Link to="/student-login" className="kandid-public-primary">
-          Student Login
-          <ArrowRight size={18} aria-hidden="true" />
-        </Link>
       </section>
 
       <footer className="kandid-public-footer">
-        <div>
+        <div id="about" className="kandid-public-about">
+          <strong>About Kandid</strong>
+          <p>Kandid is the centralized election management system for student organizations of Western Institute of Technology, bringing elections, voting, results, receipts, and verification together.</p>
+        </div>
+        <div className="kandid-public-footer-meta">
           <strong>KANDID</strong>
           <span>Centralized Election Management System</span>
           <span>Western Institute of Technology</span>

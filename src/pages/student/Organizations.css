@@ -1,0 +1,1214 @@
+.kandid-app-theme .student-organization-catalog {
+  display: grid;
+  min-width: 0;
+  gap: clamp(1.5rem, 2.5vw, 2.25rem);
+}
+
+.kandid-app-theme .student-organization-catalog-head {
+  position: relative;
+  min-height: 0;
+  overflow: visible;
+  align-items: end;
+  border: 0 !important;
+  border-top: 2px solid var(--kandid-app-ink) !important;
+  border-bottom: 1px solid var(--kandid-app-border-strong) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  padding: clamp(1.1rem, 2vw, 1.75rem) 0 !important;
+}
+
+.kandid-app-theme .student-organization-catalog-head::after {
+  content: none !important;
+}
+
+.kandid-app-theme .student-organization-catalog-head-copy-editorial,
+.kandid-app-theme .student-organization-catalog-directory-total,
+.kandid-app-theme .student-directory-display-index,
+.kandid-app-theme .student-directory-entry-meta,
+.kandid-app-theme .student-directory-entry-meta-state-short,
+.kandid-app-theme .student-organization-catalog .student-directory-state-label-editorial,
+.kandid-app-theme .student-organization-catalog .student-directory-action-label-editorial {
+  display: none;
+}
+
+.kandid-app-theme .student-organization-catalog-head .page-kicker {
+  display: block;
+  width: fit-content;
+  margin: 0 0 0.4rem;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  color: var(--kandid-app-orange) !important;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .student-organization-catalog-head h1 {
+  margin: 0;
+  color: var(--kandid-app-ink);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(2.35rem, 3.45vw, 3.65rem);
+  line-height: 0.98;
+  letter-spacing: 0;
+}
+
+.kandid-app-theme .student-organization-catalog-head p {
+  max-width: 46rem;
+  margin: 0.7rem 0 0;
+  color: var(--kandid-app-muted);
+  font-size: clamp(0.94rem, 1.2vw, 1.04rem);
+  line-height: 1.65;
+}
+
+.kandid-app-theme .student-organization-catalog-directory {
+  min-width: 0;
+  margin: 0;
+}
+
+.kandid-app-theme .student-organization-catalog-directory .student-section-title {
+  margin: 0;
+  border-bottom: 1px solid var(--kandid-app-border-strong);
+  padding: 0 0 0.7rem;
+}
+
+.kandid-app-theme .student-organization-catalog .student-directory-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin-top: 0.8rem;
+  border-bottom: 1px solid var(--kandid-app-border);
+}
+
+.kandid-app-theme .student-organization-catalog .student-directory-filter-chip {
+  min-height: 2.6rem;
+  border: 0 !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0.65rem 0.9rem !important;
+  color: var(--kandid-app-muted) !important;
+  transform: none !important;
+}
+
+.kandid-app-theme .student-organization-catalog .student-directory-filter-chip:hover,
+.kandid-app-theme .student-organization-catalog .student-directory-filter-chip:focus-visible {
+  color: var(--kandid-app-ink) !important;
+}
+
+.kandid-app-theme .student-organization-catalog .student-directory-filter-chip.is-active {
+  border-bottom-color: var(--kandid-app-orange) !important;
+  color: var(--kandid-app-ink) !important;
+}
+
+.kandid-app-theme .student-organization-catalog .student-directory-filter-chip strong {
+  min-width: 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  color: inherit !important;
+}
+
+.kandid-app-theme .student-organization-catalog-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  grid-auto-rows: 1fr;
+  gap: 1px !important;
+  width: 100%;
+  min-width: 0;
+  margin-top: 1.25rem;
+  border: 1px solid var(--kandid-app-border-strong);
+  background: var(--kandid-app-border-strong);
+  overflow: hidden;
+}
+
+.kandid-app-theme .student-organization-catalog-grid .student-directory-card {
+  display: grid;
+  grid-template-rows: clamp(8rem, 11vw, 9.5rem) minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0 !important;
+  height: 100%;
+  overflow: hidden;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: var(--kandid-app-paper) !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  transform: none !important;
+}
+
+.kandid-app-theme .student-organization-catalog-grid .student-directory-card:hover {
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.kandid-app-theme .student-organization-catalog-grid .student-directory-card-art {
+  position: relative;
+  min-height: 0 !important;
+  height: 100%;
+  overflow: hidden;
+  border: 0 !important;
+  border-bottom: 1px solid var(--kandid-app-border);
+  border-radius: 0 !important;
+  background: var(--kandid-app-canvas) !important;
+  background-image: none !important;
+  justify-content: flex-end;
+  align-items: flex-end;
+}
+
+.kandid-app-theme .student-organization-catalog-grid .student-directory-card-art::before,
+.kandid-app-theme .student-organization-catalog-grid .student-directory-card-art::after {
+  content: none !important;
+}
+
+.kandid-app-theme .student-organization-catalog-grid .student-directory-identity-mark {
+  position: absolute;
+  left: -0.35rem;
+  bottom: -0.55rem;
+  z-index: 0;
+  overflow: hidden;
+  color: rgba(16, 17, 20, 0.07);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(2.4rem, 3.6vw, 3.2rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 0.8;
+  white-space: nowrap;
+  pointer-events: none;
+  max-width: 120%;
+}
+
+.kandid-app-theme .student-organization-catalog-grid .student-directory-logo {
+  position: relative;
+  z-index: 1;
+  width: clamp(4.75rem, 6vw, 5.5rem) !important;
+  height: clamp(4.75rem, 6vw, 5.5rem) !important;
+  border: 1px solid var(--kandid-app-border-strong) !important;
+  border-radius: 0 !important;
+  background: var(--kandid-app-paper) !important;
+  box-shadow: none !important;
+  padding: 0.45rem !important;
+  margin: 0 1rem 1rem 0;
+}
+
+.kandid-app-theme .student-organization-catalog-grid .student-directory-type-chip {
+  border: 0 !important;
+  border-left: 2px solid var(--kandid-app-orange) !important;
+  border-radius: 0 !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  box-shadow: none !important;
+  padding: 0.28rem 0.42rem !important;
+  color: var(--kandid-app-ink) !important;
+  font-size: 0.62rem;
+  letter-spacing: 0;
+}
+
+.kandid-app-theme .student-organization-catalog-grid .student-directory-card-body {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 0.6rem;
+  min-width: 0;
+  padding: 1.15rem;
+}
+
+.kandid-app-theme .student-organization-catalog-grid .student-directory-card-title-row {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.kandid-app-theme .student-organization-catalog-grid .student-directory-card h2 {
+  display: block;
+  min-width: 0;
+  margin: 0;
+  overflow: visible;
+  color: var(--kandid-app-ink);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(1.2rem, 1.7vw, 1.5rem);
+  line-height: 1.08;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: initial;
+  -webkit-line-clamp: unset;
+}
+
+.kandid-app-theme .student-organization-catalog-grid .student-directory-state-chip {
+  flex: 0 0 auto;
+  margin-top: 0.05rem;
+  border: 0 !important;
+  border-left: 2px solid currentColor !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0.12rem 0 0.12rem 0.4rem !important;
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+}
+
+.kandid-app-theme .student-organization-catalog-grid .student-directory-state-chip-member {
+  color: var(--kandid-app-ink) !important;
+  border-left-color: var(--kandid-app-orange) !important;
+}
+
+.kandid-app-theme .student-organization-catalog-grid .student-directory-card-description {
+  display: block;
+  min-height: 0;
+  margin: 0;
+  overflow: visible;
+  color: var(--kandid-app-muted);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: initial;
+  -webkit-line-clamp: unset;
+}
+
+.kandid-app-theme .student-organization-catalog-grid .student-directory-card-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  margin-top: 0;
+  border-top: 1px solid var(--kandid-app-border);
+  padding-top: 0.7rem;
+}
+
+.kandid-app-theme .student-organization-catalog-grid .student-directory-view-btn {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.kandid-app-theme .student-organization-detail {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  gap: 0;
+}
+
+.kandid-app-theme .student-organization-detail .student-back-link {
+  width: fit-content;
+  margin-bottom: 1rem;
+}
+
+.kandid-app-theme .student-organization-detail .student-org-detail-hero {
+  display: block;
+  width: 100%;
+  max-width: none;
+  min-height: 0;
+  overflow: visible;
+  border: 0 !important;
+  border-top: 2px solid var(--kandid-app-ink) !important;
+  border-bottom: 1px solid var(--kandid-app-border-strong) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  padding: clamp(1.35rem, 2.6vw, 2.35rem) 0 !important;
+}
+
+.kandid-app-theme .student-organization-detail .student-org-detail-hero::before,
+.kandid-app-theme .student-organization-detail .student-org-detail-hero::after {
+  content: none !important;
+}
+
+.kandid-app-theme .student-org-detail-identity {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(1.25rem, 2.7vw, 2.5rem);
+  min-width: 0;
+}
+
+.kandid-app-theme .student-org-detail-logo {
+  width: clamp(5rem, 8vw, 7.5rem) !important;
+  height: clamp(5rem, 8vw, 7.5rem) !important;
+  border: 1px solid var(--kandid-app-border-strong) !important;
+  border-radius: 0 !important;
+  background: var(--kandid-app-paper) !important;
+  box-shadow: none !important;
+  padding: 0.65rem !important;
+}
+
+.kandid-app-theme .student-org-detail-copy {
+  min-width: 0;
+}
+
+.kandid-app-theme .student-org-detail-type {
+  display: block;
+  margin-bottom: 0.45rem;
+  color: var(--kandid-app-orange);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .student-organization-detail .student-org-detail-hero h1 {
+  max-width: 22ch;
+  margin: 0;
+  overflow: visible;
+  color: var(--kandid-app-ink) !important;
+  font-family: "Source Serif 4", Georgia, serif !important;
+  font-size: clamp(2.35rem, 4.5vw, 4.6rem);
+  font-weight: 800;
+  line-height: 0.96;
+  letter-spacing: 0 !important;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.kandid-app-theme .student-org-detail-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, max-content));
+  gap: 0;
+  margin-top: clamp(1.1rem, 2vw, 1.55rem);
+}
+
+.kandid-app-theme .student-org-detail-stats > div {
+  display: grid;
+  align-content: start;
+  gap: 0.25rem;
+  min-width: 0;
+  border-left: 1px solid var(--kandid-app-border-strong);
+  padding: 0.1rem clamp(0.8rem, 2vw, 1.35rem);
+}
+
+.kandid-app-theme .student-org-detail-stats > div:first-child {
+  border-left: 2px solid var(--kandid-app-orange);
+}
+
+.kandid-app-theme .student-org-detail-stats span {
+  color: var(--kandid-app-muted);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .student-org-detail-stats strong {
+  color: var(--kandid-app-ink);
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.kandid-app-theme .student-organization-detail .student-org-detail-tabs {
+  display: flex;
+  gap: 0;
+  width: 100%;
+  margin: 0;
+  border-bottom: 1px solid var(--kandid-app-border-strong);
+  padding: 0;
+}
+
+.kandid-app-theme .student-organization-detail .student-org-detail-tabs button {
+  min-height: 3.25rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0.8rem clamp(0.85rem, 2vw, 1.35rem);
+  color: var(--kandid-app-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .student-organization-detail .student-org-detail-tabs button:hover,
+.kandid-app-theme .student-organization-detail .student-org-detail-tabs button:focus-visible {
+  color: var(--kandid-app-ink);
+}
+
+.kandid-app-theme .student-organization-detail .student-org-detail-tabs button.active {
+  border-bottom-color: var(--kandid-app-orange);
+  background: transparent !important;
+  color: var(--kandid-app-orange);
+}
+
+.kandid-app-theme .student-organization-detail .student-org-detail-workspace {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  min-height: 18rem;
+  border: 0 !important;
+  border-bottom: 1px solid var(--kandid-app-border-strong) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: clamp(1.5rem, 3vw, 2.75rem) 0 !important;
+}
+
+.kandid-app-theme .student-organization-detail .student-org-about {
+  max-width: 68ch;
+  gap: 0.65rem;
+}
+
+.kandid-app-theme .student-organization-detail .student-org-about .student-directory-card-label {
+  color: var(--kandid-app-orange);
+  font-size: 0.68rem;
+  letter-spacing: 0;
+}
+
+.kandid-app-theme .student-organization-detail .student-org-about p:last-child {
+  color: var(--kandid-app-ink-3);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(1.15rem, 2vw, 1.5rem);
+  line-height: 1.65;
+}
+
+.kandid-app-theme .student-organization-detail .student-officer-stack {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 0;
+  border: 1px solid var(--kandid-app-border-strong);
+  background: var(--kandid-app-border-strong);
+}
+
+.kandid-app-theme .student-organization-detail .student-officer-stack > div {
+  min-width: 0;
+  background: var(--kandid-app-paper);
+  padding: 1rem;
+}
+
+.kandid-app-theme .student-organization-detail .student-officer-stack h2 {
+  margin: 0 0 0.65rem;
+  color: var(--kandid-app-orange);
+  font-size: 0.68rem;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .student-organization-detail .student-officer-row {
+  min-height: 0 !important;
+  border: 0 !important;
+  border-top: 1px solid var(--kandid-app-border) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 1rem 0 0 !important;
+}
+
+.kandid-app-theme .student-organization-detail .student-org-election-list {
+  gap: 1px !important;
+  border: 1px solid var(--kandid-app-border-strong);
+  background: var(--kandid-app-border-strong);
+}
+
+.kandid-app-theme .student-organization-detail .student-org-election-card {
+  min-height: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: var(--kandid-app-paper) !important;
+  box-shadow: none !important;
+  padding: clamp(1rem, 2vw, 1.5rem) !important;
+}
+
+.kandid-app-theme .student-organization-detail .student-org-election-card button {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.kandid-app-theme .student-organization-detail .student-org-detail-empty {
+  grid-column: 1 / -1;
+  width: 100%;
+  border-radius: 0 !important;
+  background: var(--kandid-app-paper-soft) !important;
+  box-shadow: none !important;
+}
+
+@media (max-width: 1024px) {
+  .kandid-app-theme .student-organization-catalog-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .kandid-app-theme .student-organization-catalog-head h1 {
+    font-size: clamp(2.1rem, 6vw, 3rem);
+  }
+
+  .kandid-app-theme .student-organization-detail .student-officer-stack {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .kandid-app-theme .student-organization-catalog-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .kandid-app-theme .student-organization-catalog {
+    gap: 1.35rem;
+  }
+
+  .kandid-app-theme .student-organization-catalog-head {
+    padding: 1rem 0 1.2rem !important;
+  }
+
+  .kandid-app-theme .student-organization-catalog .student-directory-filter-bar {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .kandid-app-theme .student-organization-catalog .student-directory-filter-chip {
+    min-width: 0;
+    padding-inline: 0.4rem !important;
+  }
+
+  .kandid-app-theme .student-org-detail-identity {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 1rem;
+  }
+
+  .kandid-app-theme .student-org-detail-logo {
+    width: 4.75rem !important;
+    height: 4.75rem !important;
+  }
+
+  .kandid-app-theme .student-organization-detail .student-org-detail-hero h1 {
+    max-width: none;
+    font-size: clamp(2.15rem, 11vw, 3rem);
+  }
+
+  .kandid-app-theme .student-org-detail-stats {
+    grid-template-columns: minmax(0, 1fr);
+    margin-top: 1rem;
+  }
+
+  .kandid-app-theme .student-org-detail-stats > div {
+    border-top: 1px solid var(--kandid-app-border);
+    border-left: 0;
+    padding: 0.65rem 0;
+  }
+
+  .kandid-app-theme .student-org-detail-stats > div:first-child {
+    border-top: 2px solid var(--kandid-app-orange);
+    border-left: 0;
+  }
+
+  .kandid-app-theme .student-organization-detail .student-org-detail-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .kandid-app-theme .student-organization-detail .student-org-detail-tabs button {
+    min-width: 0;
+    padding-inline: 0.4rem;
+  }
+}
+
+@media (min-width: 1025px) {
+  .kandid-app-theme .student-organization-catalog-head-copy-mobile {
+    display: none;
+  }
+
+  .kandid-app-theme .student-organization-catalog-head-copy-editorial {
+    display: block;
+  }
+
+  .kandid-app-theme .student-organization-catalog-head-copy-editorial h1 {
+    max-width: 49rem;
+    font-size: clamp(2.35rem, 3.6vw, 3.2rem);
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .kandid-app-theme .student-organization-catalog-head-copy-editorial p {
+    max-width: 43rem;
+    font-size: 0.95rem;
+    line-height: 1.55;
+  }
+
+  .kandid-app-theme .student-organization-catalog-directory .student-section-title {
+    gap: 0.45rem;
+    padding-bottom: 0.55rem;
+  }
+
+  .kandid-app-theme .student-organization-catalog-directory-total {
+    display: inline;
+    margin-left: auto;
+    padding-left: 0.6rem;
+    color: var(--kandid-app-muted);
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+  }
+
+  .kandid-app-theme .student-organization-catalog .student-directory-filter-bar {
+    margin-top: 0.9rem;
+  }
+
+  .kandid-app-theme
+    .student-organization-catalog
+    .student-directory-filter-chip-active,
+  .kandid-app-theme .student-organization-catalog .student-directory-filter-chip.is-active {
+    border-bottom-color: var(--kandid-app-orange) !important;
+    color: var(--kandid-app-ink) !important;
+  }
+
+  .kandid-app-theme
+    .student-organization-catalog
+    .student-directory-filter-chip-active strong {
+    color: var(--kandid-app-orange) !important;
+  }
+
+  .kandid-app-theme .student-organization-catalog .student-directory-state-label-default,
+  .kandid-app-theme .student-organization-catalog .student-directory-action-label-default {
+    display: none;
+  }
+
+  .kandid-app-theme .student-organization-catalog .student-directory-state-label-editorial,
+  .kandid-app-theme .student-organization-catalog .student-directory-action-label-editorial {
+    display: inline;
+  }
+
+  .kandid-app-theme .student-organization-catalog-group {
+    min-width: 0;
+  }
+
+  .kandid-app-theme
+    .student-organization-catalog-group
+    + .student-organization-catalog-group {
+    margin-top: 1.9rem;
+  }
+
+  .kandid-app-theme .student-organization-catalog-group-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-width: 0;
+    margin: 0 0 0.9rem;
+    border-top: 1px solid var(--kandid-app-border-strong);
+    padding-top: 0.75rem;
+  }
+
+  .kandid-app-theme .student-organization-catalog-group-title {
+    color: var(--kandid-app-ink);
+    font-size: 0.72rem;
+    font-weight: 950;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .kandid-app-theme .student-organization-catalog-group-count {
+    color: var(--kandid-app-muted);
+    font-size: 0.66rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+  }
+
+  .kandid-app-theme .student-organization-catalog-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0 !important;
+    margin-top: 0;
+    border: 0 !important;
+    border-left: 1px solid var(--kandid-app-border-strong) !important;
+    background: transparent !important;
+  }
+
+  .kandid-app-theme .student-organization-catalog-grid .student-directory-card {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "index  index"
+      "logo   acronym"
+      "logo   name"
+      "logo   desc"
+      "logo   meta"
+      "logo   action";
+    gap: 0.3rem 0.85rem;
+    min-height: 0 !important;
+    padding: 1.35rem 1.5rem 1.3rem !important;
+    border-right: 1px solid var(--kandid-app-border-strong) !important;
+    border-bottom: 1px solid var(--kandid-app-border-strong) !important;
+  }
+
+  .kandid-app-theme
+    .student-organization-catalog-grid
+    .student-directory-card:last-child:not(:nth-child(2n)) {
+    border-right: 0 !important;
+  }
+
+  .kandid-app-theme .student-directory-display-index {
+    display: block;
+    grid-area: index;
+    align-self: center;
+    justify-self: start;
+    color: var(--kandid-app-muted);
+    font-family: "Source Serif 4", Georgia, serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.06em;
+  }
+
+  .kandid-app-theme
+    .student-organization-catalog-grid
+    .student-directory-card-art,
+  .kandid-app-theme
+    .student-organization-catalog-grid
+    .student-directory-card-body,
+  .kandid-app-theme
+    .student-organization-catalog-grid
+    .student-directory-card-title-row {
+    display: contents !important;
+  }
+
+  .kandid-app-theme .student-organization-catalog-grid .student-directory-logo {
+    grid-area: logo;
+    align-self: start;
+    justify-self: start;
+    width: 3.5rem !important;
+    height: 3.5rem !important;
+    margin: 0;
+    padding: 0.42rem !important;
+  }
+
+  .kandid-app-theme .student-organization-catalog-grid .student-directory-type-chip {
+    display: none !important;
+  }
+
+  .kandid-app-theme
+    .student-organization-catalog-grid
+    .student-directory-identity-mark {
+    grid-area: acronym;
+    align-self: center;
+    position: static;
+    max-width: 100%;
+    overflow: visible;
+    color: var(--kandid-app-ink);
+    font-size: 1.22rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+  }
+
+  .kandid-app-theme .student-organization-catalog-grid .student-directory-card h2 {
+    grid-area: acronym;
+    align-self: center;
+    font-size: 1.22rem;
+    font-weight: 700;
+    line-height: 1.15;
+  }
+
+  .kandid-app-theme
+    .student-organization-catalog-grid
+    .student-directory-card
+    h2.student-directory-card-title-with-mark {
+    grid-area: name;
+    align-self: start;
+    margin-top: 0.2rem;
+    color: var(--kandid-app-muted);
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 700;
+    line-height: 1.45;
+  }
+
+  .kandid-app-theme
+    .student-organization-catalog-grid
+    .student-directory-state-chip {
+    display: none !important;
+  }
+
+  .kandid-app-theme .student-directory-entry-meta {
+    display: flex;
+    grid-area: meta;
+    align-items: baseline;
+    gap: 0.4rem;
+    margin: 0.15rem 0 0;
+    color: var(--kandid-app-muted);
+    font-size: 0.64rem;
+    font-weight: 900;
+    line-height: 1.2;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+  }
+
+  .kandid-app-theme .student-directory-entry-meta-state-member {
+    color: var(--kandid-app-orange);
+  }
+
+  .kandid-app-theme .student-directory-entry-meta-separator {
+    color: var(--kandid-app-border-strong);
+  }
+
+  .kandid-app-theme
+    .student-organization-catalog-grid
+    .student-directory-card-description {
+    grid-area: desc;
+    align-self: start;
+    display: -webkit-box;
+    margin-top: 0.1rem;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+
+  .kandid-app-theme
+    .student-organization-catalog-grid
+    .student-directory-card-footer {
+    grid-area: action;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    margin-top: 0.2rem;
+    border-top: 0 !important;
+    padding-top: 0;
+  }
+
+  .kandid-app-theme
+    .student-organization-catalog-grid
+    .student-directory-card-footer
+    > div {
+    display: none;
+  }
+
+  .kandid-app-theme
+    .student-organization-catalog-grid
+    .student-directory-card-label {
+    display: none;
+  }
+
+  .kandid-app-theme
+    .student-organization-catalog-grid
+    .student-directory-view-btn {
+    min-height: 0;
+    min-width: 0;
+    border: 0 !important;
+    background: transparent !important;
+    padding: 0.2rem 0 !important;
+    color: var(--kandid-app-orange) !important;
+    font-size: 0.75rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  .kandid-app-theme
+    .student-organization-catalog-grid
+    .student-directory-view-btn:hover {
+    background: transparent !important;
+    color: var(--kandid-app-ink) !important;
+    transform: none !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .kandid-app-theme .student-organization-catalog-group {
+    min-width: 0;
+  }
+
+  .kandid-app-theme
+    .student-organization-catalog-group
+    + .student-organization-catalog-group {
+    margin-top: 1.6rem;
+  }
+
+  .kandid-app-theme .student-organization-catalog-group-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-width: 0;
+    margin: 0 0 0.2rem;
+    border-top: 1px solid var(--kandid-app-border-strong);
+    padding-top: 0.7rem;
+  }
+
+  .kandid-app-theme .student-organization-catalog-group-title {
+    color: var(--kandid-app-ink);
+    font-size: 0.68rem;
+    font-weight: 950;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .kandid-app-theme .student-organization-catalog-group-count {
+    flex: 0 0 auto;
+    color: var(--kandid-app-muted);
+    font-size: 0.64rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+  }
+
+  .kandid-app-theme .student-organization-catalog .student-directory-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 1.1rem;
+    margin-top: 0.8rem;
+  }
+
+  .kandid-app-theme .student-organization-catalog .student-directory-filter-chip {
+    min-width: 0;
+    min-height: 2.2rem;
+    padding: 0.4rem 0 !important;
+    font-size: 0.66rem;
+    white-space: nowrap;
+  }
+
+  .kandid-app-theme
+    .student-organization-catalog
+    .student-directory-filter-chip-active {
+    border-bottom-color: var(--kandid-app-orange) !important;
+    color: var(--kandid-app-ink) !important;
+  }
+
+  .kandid-app-theme
+    .student-organization-catalog
+    .student-directory-filter-chip-active strong {
+    color: var(--kandid-app-orange) !important;
+  }
+
+  .kandid-app-theme .student-organization-catalog .student-directory-action-label-default {
+    display: none;
+  }
+
+  .kandid-app-theme .student-organization-catalog .student-directory-action-label-editorial {
+    display: inline;
+  }
+
+  .kandid-app-theme .student-organization-catalog-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-auto-rows: auto;
+    gap: 0 !important;
+    margin-top: 0;
+    border: 0 !important;
+    background: transparent !important;
+  }
+
+  .kandid-app-theme .student-organization-catalog-grid .student-directory-card {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto auto;
+    grid-template-areas:
+      "logo acronym"
+      "logo name"
+      "logo desc"
+      "logo meta"
+      "logo action";
+    gap: 0.18rem 0.8rem;
+    min-height: 0 !important;
+    padding: 1.05rem 0 !important;
+    border: 0 !important;
+    border-bottom: 1px solid var(--kandid-app-border) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .kandid-app-theme
+    .student-organization-catalog-grid
+    .student-directory-card-art,
+  .kandid-app-theme
+    .student-organization-catalog-grid
+    .student-directory-card-body,
+  .kandid-app-theme
+    .student-organization-catalog-grid
+    .student-directory-card-title-row {
+    display: contents !important;
+  }
+
+  .kandid-app-theme .student-organization-catalog-grid .student-directory-logo {
+    grid-area: logo;
+    align-self: start;
+    justify-self: start;
+    width: 3rem !important;
+    height: 3rem !important;
+    margin: 0 !important;
+    padding: 0.3rem !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .kandid-app-theme .student-organization-catalog-grid .student-directory-type-chip,
+  .kandid-app-theme
+    .student-organization-catalog-grid
+    .student-directory-state-chip {
+    display: none !important;
+  }
+
+  .kandid-app-theme
+    .student-organization-catalog-grid
+    .student-directory-identity-mark {
+    grid-area: acronym;
+    align-self: center;
+    position: static;
+    max-width: 100%;
+    overflow: visible;
+    color: var(--kandid-app-ink);
+    font-size: 1.12rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+  }
+
+  .kandid-app-theme .student-organization-catalog-grid .student-directory-card h2 {
+    grid-area: acronym;
+    align-self: center;
+    font-size: 1.12rem;
+    font-weight: 700;
+    line-height: 1.15;
+  }
+
+  .kandid-app-theme
+    .student-organization-catalog-grid
+    .student-directory-card
+    h2.student-directory-card-title-with-mark {
+    grid-area: name;
+    align-self: start;
+    margin-top: 0.15rem;
+    color: var(--kandid-app-muted);
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 700;
+    line-height: 1.45;
+  }
+
+  .kandid-app-theme .student-directory-entry-meta {
+    display: flex;
+    grid-area: meta;
+    align-items: baseline;
+    gap: 0.35rem;
+    margin: 0.45rem 0 0;
+    color: var(--kandid-app-muted);
+    font-size: 0.62rem;
+    font-weight: 900;
+    line-height: 1.2;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .kandid-app-theme .student-directory-entry-meta-state-member {
+    color: var(--kandid-app-orange);
+  }
+
+  .kandid-app-theme .student-directory-entry-meta-state-full {
+    display: none;
+  }
+
+  .kandid-app-theme .student-directory-entry-meta-state-short {
+    display: inline;
+  }
+
+  .kandid-app-theme
+    .student-organization-catalog-grid
+    .student-directory-card-description {
+    grid-area: desc;
+    align-self: start;
+    display: -webkit-box;
+    margin-top: 0.2rem;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+
+  .kandid-app-theme
+    .student-organization-catalog-grid
+    .student-directory-card-footer {
+    grid-area: action;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    margin-top: 0.1rem;
+    border-top: 0 !important;
+    padding-top: 0;
+  }
+
+  .kandid-app-theme
+    .student-organization-catalog-grid
+    .student-directory-card-footer
+    > div {
+    display: none;
+  }
+
+  .kandid-app-theme
+    .student-organization-catalog-grid
+    .student-directory-view-btn {
+    width: auto !important;
+    min-height: 2.5rem;
+    min-width: 0;
+    justify-content: flex-start;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    color: var(--kandid-app-orange) !important;
+    font-size: 0.75rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    text-align: left;
+    transform: none !important;
+  }
+
+  .kandid-app-theme
+    .student-organization-catalog-grid
+    .student-directory-view-btn:hover {
+    background: transparent !important;
+    color: var(--kandid-app-ink) !important;
+    transform: none !important;
+  }
+}
+
+/* ============================================================
+   CATALOG LOADING SKELETON
+   Mirrors the catalog rhythm without card framing.
+   ============================================================ */
+
+.kandid-app-theme
+  .student-organization-catalog-skeleton
+  .student-organization-catalog-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 1.6rem !important;
+  margin-top: 0;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.kandid-app-theme
+  .student-organization-catalog-skeleton
+  .student-skeleton-row {
+  gap: 0.8rem;
+  padding: 1.05rem 0;
+  border-bottom: 1px solid var(--kandid-app-border);
+}
+
+.kandid-app-theme
+  .student-org-detail-skeleton
+  .student-skeleton-stack + .student-skeleton-stack {
+  margin-top: 1.4rem;
+  padding-top: 1.4rem;
+  border-top: 1px solid var(--kandid-app-border);
+}
+
+@media (max-width: 640px) {
+  .kandid-app-theme
+    .student-organization-catalog-skeleton
+    .student-organization-catalog-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}

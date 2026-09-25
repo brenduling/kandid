@@ -1,13 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import { BarChart3, CalendarDays, CheckCircle, Clock3, Info, MapPin, Vote } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import ElectionManagementCard from "../../components/ElectionManagementCard";
-import { KandidInlineLoader } from "../../components/KandidLoader";
+import ElectionCover from "../../components/ElectionCover";
+import { OrganizationLogo } from "../../components/KandidImage";
+import {
+  StudentSkeletonGroup,
+  StudentSkeletonLine,
+} from "../../components/student/StudentSkeleton";
 import { supabase } from "../../lib/supabaseClient";
 import {
   canStudentViewResults,
   compareElectionScheduleValues,
   formatLocalDateTime,
+  formatScheduleRange,
   getElectionPhase,
   getElectionLocationLabel,
   isMissingElectionCoverColumn,
@@ -23,6 +28,89 @@ function friendlyPhase(phase) {
   if (phase === "closed") return "Closed";
   if (phase === "draft") return "Draft";
   return "Upcoming";
+}
+
+function phasePresentation(election, voted) {
+  const phase = getElectionPhase(election);
+  const resultsAvailable = canStudentViewResults(election);
+
+  if (phase === "campaign_upcoming") {
+    return {
+      label: "Upcoming",
+      tone: "upcoming",
+      summary: "Campaign information will be available when the campaign period begins.",
+      nextLabel: "Campaign opens",
+      nextValue: formatLocalDateTime(election.campaign_start),
+    };
+  }
+
+  if (phase === "campaign") {
+    return {
+      label: "Campaign period",
+      tone: "campaign",
+      summary: "The campaign period is open. Review the election before voting begins.",
+      nextLabel: "Campaign closes",
+      nextValue: formatLocalDateTime(election.campaign_end),
+    };
+  }
+
+  if (phase === "waiting") {
+    return {
+      label: "Voting next",
+      tone: "waiting",
+      summary: "Campaigning has ended. Your ballot will open at the scheduled voting time.",
+      nextLabel: "Voting opens",
+      nextValue: formatLocalDateTime(election.start_date),
+    };
+  }
+
+  if (phase === "voting" && voted) {
+    return {
+      label: "Ballot submitted",
+      tone: "recorded",
+      summary: "Your ballot is already recorded. Your choices are not shown here.",
+      nextLabel: "Voting closes",
+      nextValue: formatLocalDateTime(election.end_date),
+    };
+  }
+
+  if (phase === "voting") {
+    return {
+      label: "Voting open",
+      tone: "voting",
+      summary: "Your ballot is available now. Review every position before submitting.",
+      nextLabel: "Voting closes",
+      nextValue: formatLocalDateTime(election.end_date),
+    };
+  }
+
+  if (resultsAvailable) {
+    return {
+      label: "Results available",
+      tone: "results",
+      summary: "Results are available to students.",
+      nextLabel: "Voting closed",
+      nextValue: formatLocalDateTime(election.end_date),
+    };
+  }
+
+  if (phase === "closed") {
+    return {
+      label: "Election closed",
+      tone: "closed",
+      summary: "Voting has ended. Results will appear when released.",
+      nextLabel: "Results",
+      nextValue: "Awaiting publication",
+    };
+  }
+
+  return {
+    label: friendlyPhase(phase),
+    tone: "upcoming",
+    summary: "This election is not open for participation yet.",
+    nextLabel: "Voting opens",
+    nextValue: formatLocalDateTime(election.start_date),
+  };
 }
 
 const electionColumnsWithRelease = `
@@ -272,10 +360,12 @@ function StudentElections() {
     if (phase === "campaign") {
       return (
         <button
+          type="button"
           onClick={() => navigate(`/student/elections/${election.id}/campaign`)}
-          className="student-election-action"
+          className="student-election-action student-participation-action"
         >
-          Overview
+          View Campaign
+          <ArrowRight size={15} />
         </button>
       );
     }
@@ -283,47 +373,51 @@ function StudentElections() {
     if (phase === "voting" && !hasVoted(election.id)) {
       return (
         <button
+          type="button"
           onClick={() => navigate(`/student/vote/${election.id}`)}
-          className="student-election-action"
+          className="student-election-action student-participation-action"
         >
           Vote Now
+          <ArrowRight size={15} />
         </button>
       );
     }
 
     if (phase === "voting") {
       return (
-        <div className="student-election-note student-election-note-green">
-          <CheckCircle size={16} />
-          Already voted.
+        <div className="student-participation-recorded">
+          <span>
+            <strong>Ballot submitted</strong>
+            Your vote is recorded in Kandid.
+          </span>
         </div>
       );
     }
 
     if (canStudentViewResults(election)) {
       return (
-        <div className="flex flex-wrap gap-3">
+        <div className="student-participation-actions">
           <button
             type="button"
             onClick={() => navigate(`/student/elections/${election.id}/campaign`)}
-            className="student-election-action"
+            className="student-outline-btn student-participation-secondary-action"
           >
-            Overview
+            View Campaign
           </button>
           <button
             type="button"
             onClick={() => navigate(`/student/results?election=${election.id}`)}
-            className="student-election-action"
+            className="student-election-action student-participation-action"
           >
             View Results
+            <ArrowRight size={15} />
           </button>
         </div>
       );
     }
 
     return (
-      <div className="student-election-note">
-        <Info size={16} />
+      <div className="student-participation-unavailable">
         {phase === "campaign_upcoming"
           ? `Campaign begins ${formatLocalDateTime(election.campaign_start)}.`
           : phase === "waiting"
@@ -352,23 +446,42 @@ function StudentElections() {
   }, [elections, searchQuery]);
 
   return (
-    <div>
-      <div className="student-module-banner">
-        <div className="student-module-icon">
-          <BarChart3 size={22} />
+    <div className="student-elections-desktop">
+      <header className="student-elections-opening">
+        <div className="student-elections-opening-copy">
+          <span className="student-elections-kicker">Your election path</span>
+          <h1>Elections that matter to you.</h1>
+          <p>
+            See what is happening now, what you can do, and when the next step begins.
+          </p>
         </div>
-        <div>
-          <h1>Election Overview</h1>
-          <p>View and manage ongoing and upcoming elections.</p>
-        </div>
-      </div>
+      </header>
 
       {loading ? (
-        <div className="student-empty-card">
-          <KandidInlineLoader message="Loading elections..." />
-        </div>
+        <StudentSkeletonGroup label="Loading elections">
+          <div className="student-participation-list">
+            {[0, 1].map((index) => (
+              <div className="student-skeleton-row" key={index}>
+                <StudentSkeletonLine
+                  variant="media"
+                  width="3rem"
+                  height="3rem"
+                />
+
+                <div className="student-skeleton-copy">
+                  <StudentSkeletonLine width="38%" height="0.6rem" />
+                  <StudentSkeletonLine width="76%" height="1rem" />
+                  <StudentSkeletonLine width="28%" height="0.6rem" />
+                  <StudentSkeletonLine width="92%" height="0.65rem" />
+                  <StudentSkeletonLine width="64%" height="0.65rem" />
+                  <StudentSkeletonLine width="34%" height="0.85rem" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </StudentSkeletonGroup>
       ) : loadError ? (
-        <div className="student-empty-card">
+        <div className="student-empty-card student-elections-state">
           <div className="space-y-3">
             <p className="font-bold text-rose-600">Unable to load elections.</p>
             <p className="text-sm text-gray-500">{loadError}</p>
@@ -382,55 +495,103 @@ function StudentElections() {
           </div>
         </div>
       ) : filteredElections.length === 0 ? (
-        <div className="student-empty-card">
+        <div className="student-empty-card student-elections-state">
           {searchQuery
             ? "No elections match your search."
             : "No elections available for your account."}
         </div>
       ) : (
-        <div className="student-election-grid">
-          {filteredElections.map((election) => {
-            const phase = getElectionPhase(election);
+        <section className="student-elections-list" aria-label="Available elections">
+          <div className="student-elections-list-head">
+            <div>
+              <span className="student-elections-kicker">Participation</span>
+              <h2>Your elections</h2>
+            </div>
+            <span>
+              {filteredElections.length}{" "}
+              {filteredElections.length === 1 ? "Election" : "Elections"}
+            </span>
+          </div>
 
-            return (
-              <article key={election.id} className="student-election-card">
-                <ElectionManagementCard
-                  election={election}
-                  eyebrow="Student Election"
-                  statusLabel={friendlyPhase(phase)}
-                />
+          <div className="student-participation-list">
+            {filteredElections.map((election, index) => {
+              const voted = hasVoted(election.id);
+              const presentation = phasePresentation(election, voted);
+              const showActions = ["campaign", "voting", "results"].includes(
+                presentation.tone
+              );
 
-                <div className="student-election-meta">
-                  <p>
-                    <CalendarDays size={16} />
-                    Campaign Date: {formatLocalDateTime(election.campaign_start)}
-                  </p>
-                  <p>
-                    <CalendarDays size={16} />
-                    Election Date: {formatLocalDateTime(election.start_date)}
-                  </p>
-                  <p>
-                    <Clock3 size={16} />
-                    Time: {formatLocalDateTime(election.start_date)} -{" "}
-                    {formatLocalDateTime(election.end_date)}
-                  </p>
-                  <p>
-                    <MapPin size={16} />
-                    Venue: {getElectionLocationLabel(election)}
-                  </p>
-                </div>
+              return (
+                <article key={election.id} className="student-participation-card">
+                  <div className="student-participation-index" aria-hidden="true">
+                    {String(index + 1).padStart(2, "0")}
+                  </div>
 
-                <div className="student-election-note">
-                  <Vote size={16} />
-                  Eligible students can review candidates and vote during active
-                  election windows.
-                </div>
+                  <figure className="student-participation-media">
+                    {election.cover_url ? (
+                      <ElectionCover election={election} compact />
+                    ) : (
+                      <div className="student-participation-fallback">
+                        <OrganizationLogo
+                          organization={election.organizations}
+                          className="student-participation-fallback-logo"
+                        />
+                      </div>
+                    )}
+                  </figure>
 
-                {actionFor(election)}
-              </article>
-            );
-          })}
-        </div>
+                  <div className="student-participation-main">
+                    <div className="student-participation-organization">
+                      <OrganizationLogo
+                        organization={election.organizations}
+                        className="student-participation-logo"
+                      />
+                      <span>{election.organizations?.name || "Student Organization"}</span>
+                    </div>
+
+                    <h2 className="student-participation-title">{election.title}</h2>
+
+                    <div className="student-participation-status">
+                      <span
+                        className={`student-participation-state-mark is-${presentation.tone}`}
+                        aria-hidden="true"
+                      />
+                      <span className={`student-participation-phase is-${presentation.tone}`}>
+                        {presentation.label}
+                      </span>
+                    </div>
+
+                    <p className="student-participation-summary">{presentation.summary}</p>
+
+                    <details className="student-participation-schedule-details">
+                      <summary>Schedule</summary>
+                    </details>
+                    <dl className="student-participation-schedule">
+                      <div>
+                        <dt>Campaign</dt>
+                        <dd>{formatScheduleRange(election.campaign_start, election.campaign_end)}</dd>
+                      </div>
+                      <div>
+                        <dt>Voting</dt>
+                        <dd>{formatScheduleRange(election.start_date, election.end_date)}</dd>
+                      </div>
+                      <div>
+                        <dt>Access</dt>
+                        <dd>{getElectionLocationLabel(election)}</dd>
+                      </div>
+                    </dl>
+
+                    {showActions ? (
+                      <div className="student-participation-next">
+                        {actionFor(election)}
+                      </div>
+                    ) : null}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
       )}
     </div>
   );

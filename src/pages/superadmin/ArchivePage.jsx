@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import "./RemainingPages.css";
 import { Archive, Trash2 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { usePrompt } from "../../context/PromptContext";
@@ -60,11 +61,15 @@ function Archives() {
   }
 
   return (
-    <div>
-      <h1 className="text-3xl font-black">Archive Center</h1>
-      <p className="text-gray-500 mt-1">
-        View and manage archived elections.
-      </p>
+    <div className="sa-remaining-page sa-archives">
+      <div className="page-head">
+        <div>
+          <p className="sa-remaining-breadcrumb"><span>Kandid</span><span>/</span><span>Super Admin</span></p>
+          <div className="page-kicker">Historical Record</div>
+          <h1 className="page-title">Archive Center</h1>
+          <p className="page-subtitle">View and manage archived elections.</p>
+        </div>
+      </div>
 
       <div className="table-shell mt-8">
         <table className="app-table">

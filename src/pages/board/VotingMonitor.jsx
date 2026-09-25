@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import "./BoardRemainingPages.css";
 import { RefreshCw, Vote, Users, CheckCircle, Clock } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { formatLocalDateTime } from "../../utils/time";
@@ -81,9 +82,10 @@ function BoardVotingMonitor() {
   const candidateVotes = filteredVotes.filter((vote) => !vote.is_abstain).length;
 
   return (
-    <div>
+    <div className="board-remaining-page board-voting-monitor">
       <div className="page-head">
         <div>
+          <p className="board-remaining-breadcrumb"><span>Kandid</span><span>/</span><span>Electoral Board</span></p>
           <div className="page-kicker">Live Vote Activity</div>
           <h1 className="page-title">Board voting monitor</h1>
           <p className="page-subtitle">
@@ -178,7 +180,7 @@ function BoardVotingMonitor() {
             ) : (
               filteredVotes.map((vote) => (
                 <tr key={vote.id}>
-                  <td>
+                  <td data-label="Voter">
                     <p className="font-bold">
                       {vote.students?.first_name} {vote.students?.last_name}
                     </p>
@@ -187,15 +189,15 @@ function BoardVotingMonitor() {
                     </p>
                   </td>
 
-                  <td>
+                  <td data-label="Election">
                     {vote.elections?.title || "-"}
                   </td>
 
-                  <td>
+                  <td data-label="Position">
                     {vote.positions?.name || "-"}
                   </td>
 
-                  <td>
+                  <td data-label="Vote Type">
                     {vote.is_abstain ? (
                       <span className="status-pill !bg-slate-100 !text-slate-700">
                         Abstain
@@ -207,11 +209,11 @@ function BoardVotingMonitor() {
                     )}
                   </td>
 
-                  <td className="text-sm text-gray-600">
+                  <td data-label="Time" className="text-sm text-gray-600">
                     {formatLocalDateTime(vote.vote_timestamp, "-")}
                   </td>
 
-                  <td>
+                  <td data-label="Blockchain">
                     {vote.blockchain_tx_id ? (
                       <span className="status-pill !bg-emerald-100 !text-emerald-700">
                         Recorded

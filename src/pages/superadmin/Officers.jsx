@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import "./RemainingPages.css";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
 import PopupOverlay from "../../components/PopupOverlay";
 import StudentSearchPicker from "../../components/StudentSearchPicker";
@@ -217,9 +218,10 @@ function Officers() {
   }
 
   return (
-    <div>
+    <div className="sa-remaining-page sa-officers">
       <div className="page-head">
         <div>
+          <p className="sa-remaining-breadcrumb"><span>Kandid</span><span>/</span><span>Super Admin</span></p>
           <div className="page-kicker">Officer Management</div>
           <h1 className="page-title">
             Cross-organization
@@ -277,7 +279,7 @@ function Officers() {
 
       {formOpen && (
         <PopupOverlay>
-          <div className="popup-sheet popup-sheet-wide">
+          <div className="popup-sheet popup-sheet-wide sa-remaining-dialog">
             <div className="popup-header !mb-4">
               <div className="popup-header-copy">
                 <p className="field-label !mb-3">Officer Directory</p>

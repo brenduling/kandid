@@ -1,20 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, CalendarDays, Globe2, UserRound, UsersRound } from "lucide-react";
+import { Globe2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import {
-  OrganizationLogo,
-  StudentAvatar,
-} from "../../components/KandidImage";
 import StudentOrganizationCard, {
-  getOrganizationDescription,
-  getOrganizationTypeLabel,
+  getOrganizationIdentityMark,
 } from "../../components/student/StudentOrganizationCard";
+import StudentOrganizationDetail from "../../components/student/StudentOrganizationDetail";
+import {
+  StudentSkeletonGroup,
+  StudentSkeletonLine,
+} from "../../components/student/StudentSkeleton";
 import { supabase } from "../../lib/supabaseClient";
-import { formatLocalDate } from "../../utils/elections";
 import {
   getStudentOrganizationDirectory,
   selectActiveMemberships,
 } from "../../utils/organizationAccess";
+import "./Organizations.css";
 
 const ORGANIZATION_FILTERS = [
   { value: "all", label: "All" },
@@ -113,6 +113,46 @@ function StudentOrganizations() {
     [organizations],
   );
 
+  const directoryGroups = useMemo(() => {
+    const memberOrganizations = [];
+    const exploreOrganizations = [];
+
+    for (const organization of filteredOrganizations) {
+      if (memberIds.has(Number(organization.id))) {
+        memberOrganizations.push(organization);
+      } else {
+        exploreOrganizations.push(organization);
+      }
+    }
+
+    return [
+      {
+        key: "member",
+        label: "Your Organizations",
+        organizations: memberOrganizations,
+      },
+      {
+        key: "explore",
+        label: "Explore More",
+        organizations: exploreOrganizations,
+      },
+    ].filter((group) => group.organizations.length > 0);
+  }, [filteredOrganizations, memberIds]);
+
+  const displayOrder = useMemo(() => {
+    const order = new Map();
+    let position = 0;
+
+    for (const group of directoryGroups) {
+      for (const organization of group.organizations) {
+        position += 1;
+        order.set(organization.id, position);
+      }
+    }
+
+    return order;
+  }, [directoryGroups]);
+
   async function handleViewOrganization(organization) {
     setSelectedOrganization(organization);
     setOrganizationTab("about");
@@ -166,167 +206,45 @@ function StudentOrganizations() {
   }
 
   if (selectedOrganization) {
-    const isMember = memberIds.has(Number(selectedOrganization.id));
-    const visibleOfficers =
-      organizationOfficers.filter((officer) => officer.is_current).length > 0
-        ? organizationOfficers.filter((officer) => officer.is_current)
-        : organizationOfficers;
-
     return (
-      <div className="w-full max-w-none">
-        <button
-          type="button"
-          onClick={() => setSelectedOrganization(null)}
-          className="student-back-link"
-        >
-          <ArrowLeft size={15} />
-          Back to organizations
-        </button>
-
-        <section className="student-campaign-hero student-org-detail-hero w-full max-w-none overflow-hidden px-6 py-6 md:px-8 md:py-8 lg:px-10">
-          <div className="flex min-w-0 flex-1 items-center gap-6">
-            <OrganizationLogo
-              organization={selectedOrganization}
-              className="!h-[clamp(5.5rem,8vw,8rem)] !w-[clamp(5.5rem,8vw,8rem)] !p-2.5"
-              loading="eager"
-            />
-
-            <div className="min-w-0">
-              <span className="mb-2 inline-flex rounded-full bg-white/80 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#f4511e]">
-                {getOrganizationTypeLabel(selectedOrganization)}
-              </span>
-              <h1 className="truncate">{selectedOrganization.name}</h1>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-white/80 px-3 py-1 text-sm font-bold text-gray-700">
-                  {isMember ? "Member" : "Explore"}
-                </span>
-                <span className="rounded-full bg-white/80 px-3 py-1 text-sm font-bold text-gray-700">
-                  {organizationMemberCountError ||
-                    `${organizationMemberCount} active member${
-                      organizationMemberCount === 1 ? "" : "s"
-                    }`}
-                </span>
-                <span className="rounded-full bg-white/80 px-3 py-1 text-sm font-bold text-gray-700">
-                  {organizationElections.length} election{organizationElections.length === 1 ? "" : "s"}
-                </span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <div className="student-campaign-tabs w-full">
-          {["about", "officers", "elections"].map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              className={organizationTab === tab ? "active" : ""}
-              onClick={() => setOrganizationTab(tab)}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-
-        <section className="student-org-detail-panel w-full max-w-none px-5 py-6 md:px-8 lg:px-10">
-          {detailLoading ? (
-            <div className="student-empty-card flex min-h-[280px] w-full items-center justify-center">
-              Loading organization details...
-            </div>
-          ) : organizationTab === "about" ? (
-            <div className="student-org-about">
-              <p className="student-directory-card-label">About</p>
-              <h2>{selectedOrganization.name}</h2>
-              <p>{getOrganizationDescription(selectedOrganization)}</p>
-            </div>
-          ) : organizationTab === "officers" ? (
-            <div className="student-officer-stack w-full space-y-6 lg:space-y-8">
-              {visibleOfficers.length === 0 ? (
-                <div className="flex min-h-[240px] flex-col items-center justify-center rounded-3xl border border-dashed border-gray-300 bg-gray-50/70 px-6 py-12 text-center">
-                  <UsersRound size={28} className="text-[#f4511e]" />
-                  <h2 className="mt-5 text-xl font-black text-[#182033]">
-                    No officers to display
-                  </h2>
-                </div>
-              ) : (
-                visibleOfficers.map((officer) => {
-                  const fullName = officer.students
-                    ? `${officer.students.first_name} ${officer.students.last_name}`
-                    : officer.officer_name;
-
-                  return (
-                    <div key={officer.id}>
-                      <h2>{officer.position_title || "Officer"}</h2>
-                      <div className="student-officer-row w-full min-h-[110px] px-5 py-5 md:min-h-[130px] md:px-7 md:py-6 lg:min-h-[150px]">
-                        {officer.students ? (
-                          <StudentAvatar
-                            student={officer.students}
-                            className="student-officer-avatar !h-[clamp(4rem,6vw,6rem)] !w-[clamp(4rem,6vw,6rem)]"
-                          />
-                        ) : (
-                          <div className="student-officer-avatar !h-[clamp(4rem,6vw,6rem)] !w-[clamp(4rem,6vw,6rem)]">
-                            <UserRound size={34} />
-                          </div>
-                        )}
-                        <div>
-                          <strong>{fullName || "Officer"}</strong>
-                          <p>{officer.term_label || "Current Term"}</p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          ) : (
-            <div className="student-org-election-list grid w-full grid-cols-1 gap-5 lg:grid-cols-2">
-              {organizationElections.length === 0 ? (
-                <div className="flex min-h-[220px] flex-col items-center justify-center rounded-3xl border border-dashed border-gray-300 bg-gray-50/70 px-6 py-10 text-center">
-                  <CalendarDays size={30} className="text-[#f4511e]" />
-                  <h2 className="mt-4 text-xl font-black text-[#182033]">
-                    No elections listed
-                  </h2>
-                </div>
-              ) : (
-                organizationElections.map((election) => (
-                  <article
-                    key={election.id}
-                    className="student-org-election-card w-full min-w-0 min-h-[140px] px-6 py-6 lg:min-h-[170px] lg:px-8 lg:py-8"
-                  >
-                    <div>
-                      <h2>{election.title}</h2>
-                      <p>
-                        {election.start_date
-                          ? formatLocalDate(election.start_date)
-                          : "No start date"}
-                      </p>
-                    </div>
-                    <button type="button" onClick={() => navigate("/student/elections")}>
-                      View Overview
-                    </button>
-                  </article>
-                ))
-              )}
-            </div>
-          )}
-        </section>
-      </div>
+      <StudentOrganizationDetail
+        organization={selectedOrganization}
+        isMember={memberIds.has(Number(selectedOrganization.id))}
+        memberCount={organizationMemberCount}
+        memberCountError={organizationMemberCountError}
+        officers={organizationOfficers}
+        elections={organizationElections}
+        activeTab={organizationTab}
+        loading={detailLoading}
+        onBack={() => setSelectedOrganization(null)}
+        onTabChange={setOrganizationTab}
+        onElectionView={() => navigate("/student/elections")}
+      />
     );
   }
 
   return (
-    <div className="w-full max-w-none">
-      <div className="student-page-head">
-        <div>
+    <div className="student-organization-catalog w-full max-w-none">
+      <div className="student-page-head student-organization-catalog-head">
+        <div className="student-organization-catalog-head-copy-mobile">
           <span className="page-kicker">Explore Organizations</span>
           <h1>Organization Catalog</h1>
           <p>Browse student organizations and distinguish official membership from discovery.</p>
         </div>
+        <div className="student-organization-catalog-head-copy-editorial">
+          <span className="page-kicker">Explore Organizations</span>
+          <h1>Find your place in WIT.</h1>
+          <p>Browse the organizations that make up your student community.</p>
+        </div>
       </div>
 
-      <section className="student-section">
+      <section className="student-section student-organization-catalog-directory">
         <div className="student-section-title">
           <Globe2 size={16} />
-          Organizations
+          <span className="student-organization-catalog-directory-label">Organizations</span>
+          <span className="student-organization-catalog-directory-total">
+            {counts.all} total
+          </span>
         </div>
 
         <div className="student-directory-filter-bar" aria-label="Organization filters">
@@ -338,6 +256,7 @@ function StudentOrganizations() {
               className={`student-directory-filter-chip ${
                 filter === item.value ? "student-directory-filter-chip-active" : ""
               }`}
+              aria-pressed={filter === item.value}
             >
               <span>{item.label}</span>
               <strong>{counts[item.value]}</strong>
@@ -346,21 +265,64 @@ function StudentOrganizations() {
         </div>
 
         {loading ? (
-          <div className="student-empty-card mt-6">Loading organizations...</div>
+          <StudentSkeletonGroup
+            label="Loading organizations"
+            className="student-organization-catalog-skeleton"
+          >
+            <div className="student-explore-grid student-organization-catalog-grid">
+              {[0, 1, 2, 3].map((index) => (
+                <div className="student-skeleton-row" key={index}>
+                  <StudentSkeletonLine
+                    variant="media"
+                    width="2.9rem"
+                    height="2.9rem"
+                  />
+
+                  <div className="student-skeleton-copy">
+                    <StudentSkeletonLine width="46%" height="1rem" />
+                    <StudentSkeletonLine width="82%" height="0.7rem" />
+                    <StudentSkeletonLine width="34%" height="0.6rem" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </StudentSkeletonGroup>
         ) : filteredOrganizations.length === 0 ? (
           <div className="student-empty-card mt-6">No organizations available.</div>
         ) : (
-          <div className="student-explore-grid">
-            {filteredOrganizations.map((organization) => (
-              <StudentOrganizationCard
-                key={organization.id}
-                organization={organization}
-                membershipState={memberIds.has(Number(organization.id)) ? "member" : "explore"}
-                onView={handleViewOrganization}
-                compact
-              />
-            ))}
-          </div>
+          directoryGroups.map((group) => (
+            <section
+              key={group.key}
+              className="student-organization-catalog-group"
+              aria-label={group.label}
+            >
+              <div className="student-organization-catalog-group-head">
+                <span className="student-organization-catalog-group-title">
+                  {group.label}
+                </span>
+                <span className="student-organization-catalog-group-count">
+                  {group.organizations.length}
+                </span>
+              </div>
+
+              <div className="student-explore-grid student-organization-catalog-grid">
+                {group.organizations.map((organization) => (
+                  <StudentOrganizationCard
+                    key={organization.id}
+                    organization={organization}
+                    membershipState={
+                      memberIds.has(Number(organization.id)) ? "member" : "explore"
+                    }
+                    identityMark={getOrganizationIdentityMark(organization)}
+                    onView={handleViewOrganization}
+                    displayIndex={displayOrder.get(organization.id)}
+                    compact
+                    editorial
+                  />
+                ))}
+              </div>
+            </section>
+          ))
         )}
       </section>
     </div>

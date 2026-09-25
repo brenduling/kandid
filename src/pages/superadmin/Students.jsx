@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Plus, Pencil, Trash2, X, Search } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Plus, Pencil, Trash2, X, Search } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import PopupOverlay from "../../components/PopupOverlay";
 import { OrganizationLogo, StudentAvatar } from "../../components/KandidImage";
 import { supabase } from "../../lib/supabaseClient";
 import { readImageFileAsCompressedDataUrl } from "../../utils/files";
 import {
+  getPrograms,
   syncStudentOrganizationMemberships,
 } from "../../utils/organizationAccess";
 import { usePrompt } from "../../context/PromptContext";
@@ -13,7 +14,12 @@ import { logAuditEvent } from "../../utils/auditLog";
 import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
 import { formatAcademicTerm, getCurrentAcademicTerm } from "../../utils/academicTerms";
 import { isSupabaseAdminAuthMode } from "../../utils/auth";
-import { manuallyEnrollSuperAdminStudent } from "../../utils/superAdminManualEnrollment";
+import {
+  enrollExistingSuperAdminStudent,
+  registerNewSuperAdminStudent,
+  resolveSuperAdminStudentForTerm,
+} from "../../utils/superAdminManualEnrollment";
+import "./Students.css";
 
 const PAGE_SIZE = 10;
 const STUDENT_DIRECTORY_SELECT = `
@@ -31,6 +37,30 @@ const STUDENT_DIRECTORY_SELECT = `
   created_at
 `;
 const ORGANIZATION_CATALOG_SELECT = "id, name, description, organization_type";
+const EMPTY_STUDENT_FORM = {
+  student_number: "",
+  first_name: "",
+  last_name: "",
+  email: "",
+  photo_url: "",
+  program: "",
+  year_level: 1,
+  organization_id: "",
+  precinct_code: "",
+  batch_code: "",
+  status: "pending",
+};
+
+function studentDisplayName(student) {
+  return [student?.first_name, student?.last_name].filter(Boolean).join(" ") || "Student";
+}
+
+function yearLevelLabel(value) {
+  const year = Number(value);
+  if (!Number.isInteger(year)) return "Year level not recorded";
+  const suffix = year === 1 ? "st" : year === 2 ? "nd" : year === 3 ? "rd" : "th";
+  return `${year}${suffix} Year`;
+}
 
 const sortOptions = {
   name_asc: { label: "Name: A-Z", column: "last_name", ascending: true },
@@ -48,6 +78,7 @@ function Students() {
 
   const [students, setStudents] = useState([]);
   const [organizations, setOrganizations] = useState([]);
+  const [programs, setPrograms] = useState([]);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
@@ -67,28 +98,23 @@ function Students() {
   const [activeTerm, setActiveTerm] = useState(null);
   const [activeTermLoading, setActiveTermLoading] = useState(false);
   const [activeTermError, setActiveTermError] = useState("");
+  const [registrationStep, setRegistrationStep] = useState("student-id");
+  const [registrationResolution, setRegistrationResolution] = useState(null);
+  const [registrationResult, setRegistrationResult] = useState(null);
+  const [registrationError, setRegistrationError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [resolvingStudent, setResolvingStudent] = useState(false);
   const latestPhotoFetchId = useRef(0);
   const latestOrganizationLogoFetchId = useRef(0);
   const studentPhotoCache = useRef(new Map());
   const organizationLogoCache = useRef(new Map());
   const organizationCatalogRequest = useRef(null);
 
-  const [form, setForm] = useState({
-    student_number: "",
-    first_name: "",
-    last_name: "",
-    email: "",
-    photo_url: "",
-    program: "",
-    year_level: 1,
-    organization_id: "",
-    precinct_code: "",
-    batch_code: "",
-    status: "pending",
-  });
+  const [form, setForm] = useState(EMPTY_STUDENT_FORM);
 
   useEffect(() => {
     fetchOrganizations();
+    getPrograms().then((data) => setPrograms(data || []));
   }, []);
 
   useEffect(() => {
@@ -468,22 +494,27 @@ function Students() {
     setEditingStudent(null);
     setActiveTerm(null);
     setActiveTermError("");
-
-    setForm({
-      student_number: "",
-      first_name: "",
-      last_name: "",
-      email: "",
-      photo_url: "",
-      program: "",
-      year_level: 1,
-      organization_id: "",
-      precinct_code: "",
-      batch_code: "",
-      status: "pending",
-    });
+    setRegistrationStep("student-id");
+    setRegistrationResolution(null);
+    setRegistrationResult(null);
+    setRegistrationError("");
+    setFieldErrors({});
+    setResolvingStudent(false);
+    setSubmitting(false);
+    setForm({ ...EMPTY_STUDENT_FORM });
 
     setFormOpen(true);
+  }
+
+  function closeStudentForm() {
+    setFormOpen(false);
+    setRegistrationStep("student-id");
+    setRegistrationResolution(null);
+    setRegistrationResult(null);
+    setRegistrationError("");
+    setFieldErrors({});
+    setResolvingStudent(false);
+    setSubmitting(false);
   }
 
   async function openEditForm(student) {
@@ -559,10 +590,218 @@ function Students() {
     }));
   }
 
+  function handleStudentNumberChange(value) {
+    setForm({ ...EMPTY_STUDENT_FORM, student_number: value });
+    setRegistrationResolution(null);
+    setRegistrationResult(null);
+    setRegistrationError("");
+    setFieldErrors({});
+  }
+
+  function registrationOutcomeMessage(outcome, fallback = "We could not complete this request. Please try again.") {
+    const messages = {
+      INVALID_FORMAT: "New Student IDs must contain exactly five digits.",
+      INVALID_INPUT: "Review the required student details and try again.",
+      INVALID_TERM: "No active academic term is available for registration.",
+      IDENTITY_RECONCILIATION_REQUIRED: "This Student ID needs identity review before registration can continue.",
+      IDENTITY_RECHECK_REQUIRED: "The student record changed while you were working. Check the Student ID again.",
+      CLIENT_STATUS_NOT_ALLOWED: "Account status is managed separately from term registration.",
+      RESTORATION_REQUIRED: "The term enrollment was saved, but organization participation requires administrative review.",
+    };
+    return messages[outcome] || fallback;
+  }
+
+  function validateRegistrationDetails() {
+    const errors = {};
+    const isNewStudent = registrationResolution?.outcome === "NEW_STUDENT";
+    const yearLevel = Number(form.year_level);
+
+    if (isNewStudent && !form.first_name.trim()) errors.first_name = "Enter the student's first name.";
+    if (isNewStudent && !form.last_name.trim()) errors.last_name = "Enter the student's last name.";
+    if (isNewStudent && form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      errors.email = "Enter a valid email address.";
+    }
+    if (!form.program.trim()) errors.program = "Enter the student's program.";
+    if (!Number.isInteger(yearLevel) || yearLevel < 1 || yearLevel > 6) {
+      errors.year_level = "Choose a year level from 1 to 6.";
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  }
+
+  async function handleStudentIdCheck(event) {
+    event.preventDefault();
+    if (resolvingStudent || submitting) return;
+
+    const studentNumber = form.student_number.trim();
+    if (!studentNumber) {
+      setFieldErrors({ student_number: "Enter a Student ID." });
+      return;
+    }
+    if (!isSupabaseAdminAuthMode()) {
+      setRegistrationError("Student registration requires the secure Supabase Auth Super Admin flow.");
+      return;
+    }
+
+    setResolvingStudent(true);
+    setRegistrationError("");
+    setFieldErrors({});
+
+    const { data, error } = await resolveSuperAdminStudentForTerm(studentNumber);
+    setResolvingStudent(false);
+
+    if (!data?.outcome) {
+      setRegistrationError(error ? "Unable to check this Student ID. Try again." : "No registration result was returned.");
+      return;
+    }
+
+    if (data.outcome === "INVALID_FORMAT") {
+      setFieldErrors({ student_number: "Student ID must contain exactly 5 digits for a new record." });
+      return;
+    }
+
+    if (["INVALID_TERM", "IDENTITY_RECONCILIATION_REQUIRED"].includes(data.outcome)) {
+      setRegistrationError(registrationOutcomeMessage(data.outcome));
+      return;
+    }
+
+    setActiveTerm(data.academic_term || activeTerm);
+    setRegistrationResolution(data);
+
+    if (data.outcome === "NEW_STUDENT") {
+      setForm((current) => ({ ...EMPTY_STUDENT_FORM, student_number: data.student_number || current.student_number.trim() }));
+      setRegistrationStep("details");
+      return;
+    }
+
+    const resolvedStudent = data.student || {};
+    setForm((current) => ({
+      ...EMPTY_STUDENT_FORM,
+      student_number: resolvedStudent.student_number || current.student_number.trim(),
+      first_name: resolvedStudent.first_name || "",
+      last_name: resolvedStudent.last_name || "",
+      program: resolvedStudent.program || "",
+      year_level: resolvedStudent.year_level || 1,
+      status: resolvedStudent.status || "pending",
+    }));
+
+    if (data.outcome === "ALREADY_ENROLLED_CURRENT_TERM") {
+      setRegistrationResult({ ...data, outcome: data.outcome });
+      setRegistrationStep("complete");
+    } else {
+      setRegistrationStep("existing");
+    }
+  }
+
+  function continueToReview(event) {
+    event.preventDefault();
+    if (!validateRegistrationDetails()) return;
+    setRegistrationError("");
+    setRegistrationStep("review");
+  }
+
+  function returnToStudentId() {
+    setRegistrationStep("student-id");
+    setRegistrationResolution(null);
+    setRegistrationResult(null);
+    setRegistrationError("");
+    setFieldErrors({});
+  }
+
+  async function submitRegistration(event) {
+    event.preventDefault();
+    if (submitting || !validateRegistrationDetails()) return;
+
+    const isNewStudent = registrationResolution?.outcome === "NEW_STUDENT";
+    const payload = isNewStudent
+      ? {
+          student_number: form.student_number.trim(),
+          first_name: form.first_name.trim(),
+          last_name: form.last_name.trim(),
+          email: form.email.trim() || null,
+          photo_url: form.photo_url || null,
+          program: form.program.trim(),
+          year_level: Number(form.year_level),
+          organization_id: form.organization_id || null,
+          precinct_code: form.precinct_code.trim() || null,
+          batch_code: form.batch_code.trim() || null,
+        }
+      : {
+          student_number: form.student_number,
+          program: form.program.trim(),
+          year_level: Number(form.year_level),
+          organization_id: form.organization_id || null,
+        };
+
+    setSubmitting(true);
+    setRegistrationError("");
+    const result = isNewStudent
+      ? await registerNewSuperAdminStudent(payload)
+      : await enrollExistingSuperAdminStudent(payload);
+    setSubmitting(false);
+
+    const outcome = result.data?.outcome;
+    if (result.data?.organization_outcome === "RESTORATION_REQUIRED") {
+      setRegistrationResult({
+        ...result.data,
+        student: registrationResolution?.student || form,
+        requiresOrganizationReview: true,
+      });
+      setRegistrationStep("complete");
+      fetchStudents();
+      return;
+    }
+
+    if (outcome === "ALREADY_ENROLLED_CURRENT_TERM") {
+      setRegistrationResult({ ...result.data, student: registrationResolution?.student });
+      setRegistrationStep("complete");
+      fetchStudents();
+      return;
+    }
+
+    if (!["NEW_STUDENT_CREATED", "EXISTING_STUDENT_ENROLLED", "EXISTING_STUDENT_TERM_RESTORED"].includes(outcome)) {
+      if (outcome === "IDENTITY_RECHECK_REQUIRED") {
+        returnToStudentId();
+      }
+      setRegistrationError(registrationOutcomeMessage(result.data?.organization_outcome || outcome));
+      return;
+    }
+
+    setRegistrationResult({
+      ...result.data,
+      student: registrationResolution?.student || {
+        student_number: form.student_number,
+        first_name: form.first_name,
+        last_name: form.last_name,
+        program: form.program,
+        year_level: form.year_level,
+        status: "pending",
+      },
+    });
+    setRegistrationStep("complete");
+
+    await logAuditEvent({
+      action: isNewStudent ? "student_created" : "student_term_enrolled",
+      entityType: "student",
+      entityLabel: studentDisplayName(form),
+      organizationId: form.organization_id || null,
+      organizationName: organizations.find((org) => String(org.id) === String(form.organization_id))?.name || null,
+      status: "completed",
+      metadata: {
+        program: form.program,
+        year_level: Number(form.year_level),
+        student_status: result.data?.student_status || (isNewStudent ? "pending" : form.status),
+        registration_outcome: outcome,
+      },
+    });
+
+    fetchStudents();
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
-
-    if (submitting) return;
+    if (submitting || !editingStudent) return;
 
     setSubmitting(true);
 
@@ -578,153 +817,39 @@ function Students() {
       batch_code: form.batch_code || null,
       status: form.status,
     };
-
-    let result;
-    let savedStudentId =
-      editingStudent?.id || null;
-    let savedStudent = editingStudent || null;
-    let createdStudent = false;
-
-    // ============================================================
-    // SAVE STUDENT
-    // ============================================================
-
-    if (editingStudent) {
-      result = await supabase
-        .from("students")
-        .update(payload)
-        .eq("id", editingStudent.id);
-    } else {
-      if (!isSupabaseAdminAuthMode()) {
-        prompt.error(
-          "Manual semester enrollment requires the secure Supabase Auth Super Admin flow."
-        );
-        setSubmitting(false);
-        return;
-      }
-
-      if (activeTermLoading) {
-        prompt.info("Checking the active academic term. Try again in a moment.");
-        setSubmitting(false);
-        return;
-      }
-
-      if (!activeTerm) {
-        prompt.error(activeTermError || "Manual registration requires an active academic term.");
-        setSubmitting(false);
-        return;
-      }
-
-      result = await manuallyEnrollSuperAdminStudent({
-        ...payload,
-        organization_id: form.organization_id || null,
-      });
-      savedStudent = result?.data || null;
-      createdStudent = Boolean(result?.createdStudent);
-    }
-
-    const error = result?.error;
+    const savedStudentId = editingStudent.id;
+    const { error } = await supabase
+      .from("students")
+      .update(payload)
+      .eq("id", savedStudentId);
 
     if (error) {
-      console.error(
-        "Student save failed:",
-        error
-      );
+      console.error("Student save failed:", error);
+      prompt.error(error.message || "Failed to save student.");
+      setSubmitting(false);
+      return;
+    }
+    const {
+      error: syncError,
+      createdOrganizationIds = [],
+      existingOrganizationIds = [],
+    } = await syncStudentOrganizationMemberships({
+      studentId: savedStudentId,
+      program: form.program,
+      explicitOrganizationIds: form.organization_id ? [form.organization_id] : [],
+    });
 
-      prompt.error(
-        error.message || "Failed to save student."
-      );
-
+    if (syncError) {
+      console.error("Student organization sync failed:", syncError);
+      prompt.error(syncError.message || "Failed to link student to organizations.");
       setSubmitting(false);
       return;
     }
 
-    if (!editingStudent) {
-      savedStudentId =
-        result?.data?.id || null;
-    }
-
-    if (!savedStudentId) {
-      prompt.error(
-        "Student was saved, but the student ID could not be determined."
-      );
-
-      setSubmitting(false);
-      return;
-    }
-
-    let createdOrganizationIds = result?.createdOrganizationIds || [];
-    let existingOrganizationIds = result?.existingOrganizationIds || [];
-
-    if (editingStudent) {
-      const {
-        error: syncError,
-        createdOrganizationIds: editCreatedOrganizationIds = [],
-        existingOrganizationIds: editExistingOrganizationIds = [],
-      } =
-        await syncStudentOrganizationMemberships({
-          studentId: savedStudentId,
-          program: savedStudent?.program || form.program,
-          explicitOrganizationIds: form.organization_id
-            ? [form.organization_id]
-            : [],
-        });
-
-      if (syncError) {
-        console.error(
-          "Student organization sync failed:",
-          syncError
-        );
-
-        prompt.error(
-          syncError.message ||
-          "Failed to link student to organizations."
-        );
-
-        setSubmitting(false);
-        return;
-      }
-
-      createdOrganizationIds = editCreatedOrganizationIds;
-      existingOrganizationIds = editExistingOrganizationIds;
-    }
-
-    const selectedOrganizationName =
-      organizations.find((org) => String(org.id) === String(form.organization_id))?.name ||
-      "the selected organization";
-
-    if (editingStudent) {
-      prompt.success("Student record updated.");
-    } else if (
-      form.organization_id &&
-      existingOrganizationIds.includes(Number(form.organization_id)) &&
-      !createdOrganizationIds.includes(Number(form.organization_id))
-    ) {
-      prompt.info(
-        `${savedStudent?.first_name || form.first_name} ${savedStudent?.last_name || form.last_name}`.trim() ||
-          form.student_number,
-        "Already a Member"
-      );
-    } else if (!createdStudent) {
-      prompt.success(
-        form.organization_id
-          ? `Existing student linked to ${selectedOrganizationName}.`
-          : "Existing student record reused and departmental memberships synced."
-      );
-    } else {
-      prompt.success(
-        form.organization_id
-          ? `Student registered and added to ${selectedOrganizationName}.`
-          : "Student record created."
-      );
-    }
+    prompt.success("Student record updated.");
 
     await logAuditEvent({
-      action: editingStudent
-        ? "student_updated"
-        : createdStudent
-        ? "student_created"
-        : "student_existing_linked",
+      action: "student_updated",
       entityType: "student",
       entityId: savedStudentId,
       entityLabel: `${form.first_name} ${form.last_name}`.trim() || form.student_number,
@@ -737,7 +862,6 @@ function Students() {
         program: form.program,
         year_level: Number(form.year_level),
         student_status: form.status,
-        created_student: createdStudent,
         linked_organizations: createdOrganizationIds,
         existing_organizations: existingOrganizationIds,
       },
@@ -749,12 +873,10 @@ function Students() {
       [String(savedStudentId)]: form.photo_url || "",
     }));
 
-    setFormOpen(false);
+    closeStudentForm();
     setSubmitting(false);
 
     fetchStudents();
-    return;
-
   }
 
   async function handleDelete(id) {
@@ -866,367 +988,582 @@ function Students() {
   }
 
   const totalPages = Math.max(1, Math.ceil(totalStudents / PAGE_SIZE));
+  const visibleStatusCounts = students.reduce(
+    (counts, student) => ({
+      ...counts,
+      [student.status || "pending"]: (counts[student.status || "pending"] || 0) + 1,
+    }),
+    { active: 0, pending: 0, disabled: 0 },
+  );
+  const pageStart = totalStudents === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const pageEnd = Math.min(page * PAGE_SIZE, totalStudents);
+  const statusOptions = [
+    { value: "all", label: "All" },
+    { value: "active", label: "Active" },
+    { value: "pending", label: "Pending" },
+    { value: "disabled", label: "Disabled" },
+  ];
+
+  function renderRegistrationProgress() {
+    const stage = registrationStep === "student-id" ? 1 : registrationStep === "details" || registrationStep === "existing" ? 2 : 3;
+    const labels = registrationResolution?.outcome === "NEW_STUDENT"
+      ? ["Student ID", "Details", "Review"]
+      : ["Student ID", "Term details", "Review"];
+
+    return (
+      <ol className="sa-registration-progress" aria-label="Registration progress">
+        {labels.map((label, index) => (
+          <li key={label} className={stage === index + 1 ? "is-current" : stage > index + 1 ? "is-complete" : ""}>
+            <span>{String(index + 1).padStart(2, "0")} /</span>
+            <strong>{label}</strong>
+          </li>
+        ))}
+      </ol>
+    );
+  }
+
+  function renderIdentitySummary(student, label = "Existing student") {
+    return (
+      <section className="sa-registration-identity" aria-label="Resolved student">
+        <p>{label}</p>
+        <strong>{student?.student_number || form.student_number}</strong>
+        <h3>{studentDisplayName(student || form)}</h3>
+        <span>
+          {[student?.program, student?.year_level ? yearLevelLabel(student.year_level) : null]
+            .filter(Boolean)
+            .join(" / ") || "Academic details not recorded"}
+        </span>
+      </section>
+    );
+  }
+
+  function renderTermFields() {
+    return (
+      <div className="sa-registration-fields is-compact">
+        <div className="sa-registration-field">
+          <label htmlFor="registration-program">Program</label>
+          <input
+            id="registration-program"
+            list="registration-program-options"
+            value={form.program}
+            onChange={(event) => setForm((current) => ({ ...current, program: event.target.value }))}
+            aria-describedby={fieldErrors.program ? "registration-program-error" : undefined}
+          />
+          <datalist id="registration-program-options">
+            {programs.map((program) => (
+              <option key={program.id || program.code} value={program.code || program.name}>
+                {program.name || program.code}
+              </option>
+            ))}
+          </datalist>
+          {fieldErrors.program ? <small id="registration-program-error" className="sa-registration-field-error">{fieldErrors.program}</small> : null}
+        </div>
+        <div className="sa-registration-field">
+          <label htmlFor="registration-year">Year level</label>
+          <select
+            id="registration-year"
+            value={form.year_level}
+            onChange={(event) => setForm((current) => ({ ...current, year_level: event.target.value }))}
+            aria-describedby={fieldErrors.year_level ? "registration-year-error" : undefined}
+          >
+            {[1, 2, 3, 4, 5, 6].map((year) => <option key={year} value={year}>{yearLevelLabel(year)}</option>)}
+          </select>
+          {fieldErrors.year_level ? <small id="registration-year-error" className="sa-registration-field-error">{fieldErrors.year_level}</small> : null}
+        </div>
+        <div className="sa-registration-field is-wide">
+          <label htmlFor="registration-organization">Additional organization</label>
+          <select
+            id="registration-organization"
+            value={form.organization_id}
+            onChange={(event) => setForm((current) => ({ ...current, organization_id: event.target.value }))}
+          >
+            <option value="">No additional organization</option>
+            {organizations.map((organization) => (
+              <option key={organization.id} value={organization.id}>{organization.name}</option>
+            ))}
+          </select>
+          <small>Departmental memberships follow existing program coverage rules.</small>
+        </div>
+      </div>
+    );
+  }
+
+  function renderAddStudentFlow() {
+    const resolvedStudent = registrationResolution?.student;
+    const isNewStudent = registrationResolution?.outcome === "NEW_STUDENT";
+    const selectedOrganization = organizations.find((organization) => String(organization.id) === String(form.organization_id));
+    const resultOutcome = registrationResult?.outcome;
+    const trimmedStudentNumber = form.student_number.trim();
+    const hasNewStudentIdFormat = /^\d{5}$/.test(trimmedStudentNumber);
+    const studentNumberHelp = fieldErrors.student_number
+      || (trimmedStudentNumber && !hasNewStudentIdFormat
+        ? "New Student IDs must contain exactly 5 digits. Existing historical IDs can still be checked."
+        : "Student IDs are stored as entered; outer spaces are removed when checked.");
+
+    if (registrationStep === "student-id") {
+      return (
+        <form className="sa-registration-workspace" onSubmit={handleStudentIdCheck}>
+          {renderRegistrationProgress()}
+          <div className="sa-registration-focus">
+            <h3>Who is the student?</h3>
+            <p>Enter the student's ID number to check the current term and existing record.</p>
+            <div className="sa-registration-field">
+              <label htmlFor="registration-student-id">Student ID</label>
+              <input
+                id="registration-student-id"
+                value={form.student_number}
+                onChange={(event) => handleStudentNumberChange(event.target.value)}
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="59537"
+                aria-invalid={fieldErrors.student_number ? "true" : undefined}
+                aria-describedby="registration-student-id-help"
+              />
+              <small
+                id="registration-student-id-help"
+                className={fieldErrors.student_number ? "sa-registration-field-error" : "sa-registration-field-help"}
+              >
+                {studentNumberHelp}
+              </small>
+            </div>
+          </div>
+          {registrationError ? <p className="sa-registration-error" role="alert">{registrationError}</p> : null}
+          <div className="sa-registration-actions">
+            <button type="button" className="secondary-btn" onClick={closeStudentForm}>Cancel</button>
+            <button type="submit" className="primary-btn" disabled={resolvingStudent || activeTermLoading || !trimmedStudentNumber}>
+              {resolvingStudent ? "Checking..." : "Check Student ID"}
+              {!resolvingStudent ? <ArrowRight size={16} aria-hidden="true" /> : null}
+            </button>
+          </div>
+        </form>
+      );
+    }
+
+    if (registrationStep === "details") {
+      return (
+        <form className="sa-registration-workspace" onSubmit={continueToReview}>
+          {renderRegistrationProgress()}
+          <div className="sa-registration-heading">
+            <div><h3>Student details</h3></div>
+            <div><span>{form.student_number}</span><strong>New student</strong></div>
+          </div>
+          <div className="sa-registration-fields">
+            <div className="sa-registration-field">
+              <label htmlFor="registration-first-name">First name</label>
+              <input id="registration-first-name" value={form.first_name} onChange={(event) => setForm((current) => ({ ...current, first_name: event.target.value }))} />
+              {fieldErrors.first_name ? <small className="sa-registration-field-error">{fieldErrors.first_name}</small> : null}
+            </div>
+            <div className="sa-registration-field">
+              <label htmlFor="registration-last-name">Last name</label>
+              <input id="registration-last-name" value={form.last_name} onChange={(event) => setForm((current) => ({ ...current, last_name: event.target.value }))} />
+              {fieldErrors.last_name ? <small className="sa-registration-field-error">{fieldErrors.last_name}</small> : null}
+            </div>
+            <div className="sa-registration-field is-wide">
+              <label htmlFor="registration-email">Email <span>Optional</span></label>
+              <input id="registration-email" type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} />
+              {fieldErrors.email ? <small className="sa-registration-field-error">{fieldErrors.email}</small> : null}
+            </div>
+            {renderTermFields()}
+            <div className="sa-registration-field">
+              <label htmlFor="registration-precinct">Precinct code <span>Optional</span></label>
+              <input id="registration-precinct" value={form.precinct_code} onChange={(event) => setForm((current) => ({ ...current, precinct_code: event.target.value }))} />
+            </div>
+            <div className="sa-registration-field">
+              <label htmlFor="registration-batch">Batch code <span>Optional</span></label>
+              <input id="registration-batch" value={form.batch_code} onChange={(event) => setForm((current) => ({ ...current, batch_code: event.target.value }))} />
+            </div>
+            <div className="sa-registration-field is-wide">
+              <label htmlFor="registration-photo">Student photo <span>Optional</span></label>
+              <input id="registration-photo" type="file" accept="image/*" onChange={(event) => handlePhotoUpload(event.target.files?.[0])} />
+            </div>
+          </div>
+          <aside className="sa-registration-status"><span>Account status</span><strong>Pending</strong><p>New student records begin as Pending. Status can be managed later from the Students Registry.</p></aside>
+          {registrationError ? <p className="sa-registration-error" role="alert">{registrationError}</p> : null}
+          <div className="sa-registration-actions">
+            <button type="button" className="secondary-btn" onClick={returnToStudentId}><ArrowLeft size={16} aria-hidden="true" />Student ID</button>
+            <button type="submit" className="primary-btn">Review registration<ArrowRight size={16} aria-hidden="true" /></button>
+          </div>
+        </form>
+      );
+    }
+
+    if (registrationStep === "existing") {
+      const restoring = registrationResolution?.outcome === "EXISTING_STUDENT_NOT_IN_MASTERLIST";
+      return (
+        <form className="sa-registration-workspace" onSubmit={continueToReview}>
+          {renderRegistrationProgress()}
+          {renderIdentitySummary(resolvedStudent)}
+          <div className="sa-registration-note">
+            <strong>{restoring ? "Register for the current term" : "Not yet enrolled for this term"}</strong>
+            <p>{restoring ? "This student was not included in the current term's finalized masterlist. Registration can be restored without replacing the existing account." : "This student already has a Kandid record. Confirm the current-term academic details before enrollment."}</p>
+          </div>
+          {renderTermFields()}
+          <aside className="sa-registration-status"><span>Current account status</span><strong>{resolvedStudent?.status || "Not recorded"}</strong><p>Term registration will not change this account status.</p></aside>
+          {registrationError ? <p className="sa-registration-error" role="alert">{registrationError}</p> : null}
+          <div className="sa-registration-actions">
+            <button type="button" className="secondary-btn" onClick={returnToStudentId}><ArrowLeft size={16} aria-hidden="true" />Student ID</button>
+            <button type="submit" className="primary-btn">Review term enrollment<ArrowRight size={16} aria-hidden="true" /></button>
+          </div>
+        </form>
+      );
+    }
+
+    if (registrationStep === "review") {
+      return (
+        <form className="sa-registration-workspace" onSubmit={submitRegistration}>
+          {renderRegistrationProgress()}
+          <div className="sa-registration-heading"><div><h3>{isNewStudent ? "Register student" : "Confirm term enrollment"}</h3></div></div>
+          <div className="sa-registration-review">
+            <section><span>Student</span><strong>{form.student_number}</strong><p>{studentDisplayName(form)}</p>{isNewStudent && form.email ? <small>{form.email}</small> : null}</section>
+            <section><span>Academic</span><strong>{form.program}</strong><p>{yearLevelLabel(form.year_level)}</p><small>{formatAcademicTerm(activeTerm)}</small>{selectedOrganization ? <small>{selectedOrganization.name}</small> : null}</section>
+            <section><span>Account</span><strong>{isNewStudent ? "Pending" : form.status}</strong><p>{isNewStudent ? "New student records begin as Pending." : "The existing account status will not be changed."}</p></section>
+          </div>
+          {registrationResolution?.outcome === "EXISTING_STUDENT_NOT_IN_MASTERLIST" ? <p className="sa-registration-note">Registration will restore this student's enrollment for the current term while preserving the existing Kandid account.</p> : null}
+          {registrationError ? <p className="sa-registration-error" role="alert">{registrationError}</p> : null}
+          <div className="sa-registration-actions">
+            <button type="button" className="secondary-btn" onClick={() => setRegistrationStep(isNewStudent ? "details" : "existing")}><ArrowLeft size={16} aria-hidden="true" />{isNewStudent ? "Edit details" : "Back"}</button>
+            <button type="submit" className="primary-btn" disabled={submitting}>{submitting ? (isNewStudent ? "Registering student..." : "Enrolling student...") : (isNewStudent ? "Register student" : "Enroll for current term")}</button>
+          </div>
+        </form>
+      );
+    }
+
+    const alreadyEnrolled = resultOutcome === "ALREADY_ENROLLED_CURRENT_TERM";
+    const requiresOrganizationReview = registrationResult?.requiresOrganizationReview === true;
+    const resultStudent = registrationResult?.student || resolvedStudent || form;
+    const resultStatus = registrationResult?.student_status || resultStudent?.status || (resultOutcome === "NEW_STUDENT_CREATED" ? "pending" : "Not recorded");
+    return (
+      <div className="sa-registration-workspace sa-registration-complete" role="status">
+        {renderRegistrationProgress()}
+        <Check size={24} aria-hidden="true" />
+        <p className="sa-registration-kicker">{requiresOrganizationReview ? "Registration needs review" : alreadyEnrolled ? "Already registered" : resultOutcome === "NEW_STUDENT_CREATED" ? "Student registered" : resultOutcome === "EXISTING_STUDENT_TERM_RESTORED" ? "Term registration restored" : "Term registration complete"}</p>
+        <h3>{studentDisplayName(resultStudent)}</h3>
+        <strong>{resultStudent?.student_number || form.student_number}</strong>
+        <p>{requiresOrganizationReview ? "The term enrollment was saved, but organization participation requires administrative review." : alreadyEnrolled ? "This student is already enrolled for the current academic term." : resultOutcome === "NEW_STUDENT_CREATED" ? "The student was added for the current academic term." : "The existing student is now enrolled for the current academic term."}</p>
+        <div className="sa-registration-complete-status"><span>Account status</span><strong>{resultStatus}</strong></div>
+        <div className="sa-registration-actions">
+          <button type="button" className="secondary-btn" onClick={closeStudentForm}>Back to Students</button>
+          {!alreadyEnrolled && !requiresOrganizationReview ? <button type="button" className="primary-btn" onClick={openCreateForm}>Add another student<Plus size={16} aria-hidden="true" /></button> : null}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div>
-      {/* ========================================================
-          PAGE HEADER
-      ======================================================== */}
-
-      <div className="page-head">
-        <div>
-          <div className="page-kicker">
-            Student Directory
-          </div>
-
-          <h1 className="page-title">
-            Students
-          </h1>
-
-          <p className="page-subtitle">
-            Manage verified students,
-            programs, organizations, and
-            eligibility information.
+    <div className="sa-students">
+      <header className="sa-students-masthead">
+        <div className="sa-students-masthead-copy">
+          <p className="sa-students-brandline">
+            <span>Kandid</span>
+            <span>/</span>
+            <span>Super Admin</span>
+          </p>
+          <p className="sa-students-eyebrow">Student registry</p>
+          <h1>Students</h1>
+          <p className="sa-students-deck">
+            Review student identity, academic records, organization membership,
+            and administrative access across Kandid.
           </p>
         </div>
 
-        <button
-          onClick={openCreateForm}
-          className="primary-btn self-start lg:self-auto"
-          type="button"
-        >
-          <Plus size={18} />
-          Add Student
-        </button>
-      </div>
-
-      {/* ========================================================
-          SEARCH AND FILTERS
-      ======================================================== */}
-
-      <div className="mt-8 flex flex-col gap-4 lg:flex-row">
-        <div className="relative flex-1">
-          <Search
-            size={18}
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-          />
-
-          <input
-            value={search}
-            onChange={(e) =>
-              setSearch(e.target.value)
-            }
-            className="field-shell w-full pl-11"
-            placeholder="Search student number, name, or email..."
-          />
-        </div>
-
-        <select
-          value={organizationFilter}
-          onChange={(e) => {
-            setOrganizationFilter(e.target.value);
-            setPage(1);
-          }}
-          className="field-shell lg:w-56"
-        >
-          <option value="all">
-            All Organizations
-          </option>
-
-          {organizations.map((organization) => (
-            <option
-              key={organization.id}
-              value={organization.id}
-            >
-              {organization.name}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={statusFilter}
-          onChange={(e) => {
-            setStatusFilter(e.target.value);
-            setPage(1);
-          }}
-          className="field-shell lg:w-48"
-        >
-          <option value="all">
-            All Status
-          </option>
-
-          <option value="active">
-            Active
-          </option>
-
-          <option value="pending">
-            Pending
-          </option>
-
-          <option value="disabled">
-            Disabled
-          </option>
-        </select>
-
-        <select
-          value={sortBy}
-          onChange={(e) => {
-            setSortBy(e.target.value);
-            setPage(1);
-          }}
-          className="field-shell lg:w-56"
-        >
-          {Object.entries(sortOptions).map(([value, option]) => (
-            <option key={value} value={value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* ========================================================
-          STUDENT TABLE
-      ======================================================== */}
-
-      {loadingStudents ? (
-        <div className="empty-state mt-8">
-          Loading students...
-        </div>
-      ) : studentsError ? (
-        <div className="empty-state mt-8">
-          <p className="font-bold text-rose-600">Unable to load students.</p>
-          <p className="mt-2 text-sm text-gray-500">{studentsError}</p>
-          <button type="button" onClick={fetchStudents} className="secondary-btn mt-4">
-            Retry
+        <div className="sa-students-masthead-aside">
+          <span>Registry desk</span>
+          <strong>
+            {loadingStudents ? "Reading student records" : `${totalStudents} matching records`}
+          </strong>
+          <button className="sa-students-add" type="button" onClick={openCreateForm}>
+            <Plus size={16} aria-hidden="true" />
+            Add student
           </button>
         </div>
-      ) : students.length === 0 ? (
-        <div className="empty-state mt-8">
-          No students found.
+      </header>
+
+      {!loadingStudents && !studentsError ? (
+        <section className="sa-students-summary" aria-label="Current registry summary">
+          <div className="sa-students-summary-item is-primary">
+            <span>Matching records</span>
+            <strong>{totalStudents}</strong>
+            <small>Current search and filters</small>
+          </div>
+          <div className="sa-students-summary-item">
+            <span>Active on page</span>
+            <strong>{visibleStatusCounts.active}</strong>
+            <small>Active access state</small>
+          </div>
+          <div className="sa-students-summary-item is-pending">
+            <span>Pending on page</span>
+            <strong>{visibleStatusCounts.pending}</strong>
+            <small>Awaiting administrative review</small>
+          </div>
+          <div className="sa-students-summary-item is-disabled">
+            <span>Disabled on page</span>
+            <strong>{visibleStatusCounts.disabled}</strong>
+            <small>Restricted access state</small>
+          </div>
+        </section>
+      ) : null}
+
+      <section className="sa-students-registry" aria-labelledby="student-registry-heading">
+        <div className="sa-students-registry-head">
+          <div>
+            <p className="sa-students-eyebrow">Directory / 01</p>
+            <h2 id="student-registry-heading">Student records</h2>
+          </div>
+          <p>
+            {loadingStudents
+              ? "Loading the administrative register"
+              : `Page ${page} of ${totalPages}`}
+          </p>
         </div>
-      ) : (
-        <div className="mt-8 overflow-hidden rounded-2xl border border-gray-200 bg-white">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px]">
-              <thead>
-                <tr className="border-b bg-gray-50 text-left">
-                  <th className="px-5 py-4 text-xs font-black uppercase tracking-[0.12em] text-gray-500">
-                    Student
-                  </th>
 
-                  <th className="px-5 py-4 text-xs font-black uppercase tracking-[0.12em] text-gray-500">
-                    Student ID
-                  </th>
+        <div className="sa-students-toolbar">
+          <label className="sa-students-search">
+            <span>Search records</span>
+            <div>
+              <Search size={17} aria-hidden="true" />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Student number, name, or email"
+                type="search"
+              />
+            </div>
+          </label>
 
-                  <th className="px-5 py-4 text-xs font-black uppercase tracking-[0.12em] text-gray-500">
-                    Program
-                  </th>
+          <label className="sa-students-control">
+            <span>Organization</span>
+            <select
+              value={organizationFilter}
+              onChange={(event) => {
+                setOrganizationFilter(event.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="all">All organizations</option>
+              {organizations.map((organization) => (
+                <option key={organization.id} value={organization.id}>
+                  {organization.name}
+                </option>
+              ))}
+            </select>
+          </label>
 
-                  <th className="px-5 py-4 text-xs font-black uppercase tracking-[0.12em] text-gray-500">
-                    Year
-                  </th>
+          <label className="sa-students-control">
+            <span>Order</span>
+            <select
+              value={sortBy}
+              onChange={(event) => {
+                setSortBy(event.target.value);
+                setPage(1);
+              }}
+            >
+              {Object.entries(sortOptions).map(([value, option]) => (
+                <option key={value} value={value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
 
-                  <th className="px-5 py-4 text-xs font-black uppercase tracking-[0.12em] text-gray-500">
-                    Organizations
-                  </th>
+        <div className="sa-students-status-filter" aria-label="Filter by student status">
+          <span>Status</span>
+          <div>
+            {statusOptions.map((option) => (
+              <button
+                key={option.value}
+                className={statusFilter === option.value ? "is-active" : ""}
+                type="button"
+                aria-pressed={statusFilter === option.value}
+                onClick={() => {
+                  setStatusFilter(option.value);
+                  setPage(1);
+                }}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
-                  <th className="px-5 py-4 text-xs font-black uppercase tracking-[0.12em] text-gray-500">
-                    Status
-                  </th>
-
-                  <th className="px-5 py-4 text-xs font-black uppercase tracking-[0.12em] text-gray-500">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {students.map(
-                  (student) => {
-                    const studentOrganizations =
-                      getStudentOrganizations(
-                        student
-                      );
+        {loadingStudents ? (
+          <div className="sa-students-loading" role="status">
+            <p className="sa-students-eyebrow">Registry loading</p>
+            <strong>Reading student records</strong>
+            <div className="sa-students-loading-lines" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </div>
+          </div>
+        ) : studentsError ? (
+          <div className="sa-students-error" role="alert">
+            <p className="sa-students-eyebrow">Registry unavailable</p>
+            <h3>Student records could not be loaded.</h3>
+            <p>{studentsError}</p>
+            <button type="button" onClick={fetchStudents} className="sa-students-retry">
+              Retry directory
+            </button>
+          </div>
+        ) : students.length === 0 ? (
+          <div className="sa-students-empty">
+            <span aria-hidden="true">00</span>
+            <div>
+              <h3>No matching student records</h3>
+              <p>Adjust the current search or filters, or add a student record.</p>
+            </div>
+            <button type="button" onClick={openCreateForm} className="sa-students-text-action">
+              Add student
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="sa-students-table-wrap">
+              <table className="sa-students-table">
+                <caption className="sr-only">Student registry records</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Index</th>
+                    <th scope="col">Student</th>
+                    <th scope="col">Academic record</th>
+                    <th scope="col">Membership</th>
+                    <th scope="col">Access state</th>
+                    <th scope="col">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {students.map((student, index) => {
+                    const studentOrganizations = getStudentOrganizations(student);
+                    const studentStatus = student.status || "pending";
+                    const studentName = [student.first_name, student.last_name]
+                      .filter(Boolean)
+                      .join(" ") || "Unnamed Student";
 
                     return (
-                      <tr
-                        key={student.id}
-                        className="border-b last:border-b-0 hover:bg-gray-50"
-                      >
-                        {/* STUDENT */}
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-3">
+                      <tr key={student.id} className={`is-${studentStatus}`}>
+                        <td className="sa-students-index" data-label="Index">
+                          {String((page - 1) * PAGE_SIZE + index + 1).padStart(2, "0")}
+                        </td>
+                        <td className="sa-students-identity" data-label="Student">
+                          <div className="sa-students-identity-content">
                             <StudentAvatar
                               student={{
                                 ...student,
                                 photo_url: studentPhotos[String(student.id)] || "",
                               }}
+                              className="sa-students-avatar"
                               loading="lazy"
                             />
-
                             <div>
-                              <p className="font-black">
-                                {[
-                                  student.first_name,
-                                  student.last_name,
-                                ]
-                                  .filter(Boolean)
-                                  .join(" ") ||
-                                  "Unnamed Student"}
-                              </p>
-
-                              {student.email && (
-                                <p className="mt-1 text-xs text-gray-500">
-                                  {
-                                    student.email
-                                  }
-                                </p>
-                              )}
+                              <strong>{studentName}</strong>
+                              <span className="sa-students-number">
+                                Student no. {student.student_number || "Not recorded"}
+                              </span>
+                              {student.email ? <small>{student.email}</small> : null}
                             </div>
                           </div>
                         </td>
-
-                        {/* STUDENT NUMBER */}
-                        <td className="px-5 py-4 text-sm font-semibold text-gray-600">
-                          {student.student_number ||
-                            "-"}
-                        </td>
-
-                        {/* PROGRAM */}
-                        <td className="px-5 py-4">
-                          {student.program ||
-                            "-"}
-                        </td>
-
-                        {/* YEAR */}
-                        <td className="px-5 py-4 text-sm text-gray-600">
-                          {student.year_level ||
-                            "-"}
-                        </td>
-
-                        {/* ORGANIZATIONS */}
-                        <td className="px-5 py-4">
-                          <div className="student-org-logo-stack">
-                            {studentOrganizations.length >
-                              0 ? (
-                              <>
-                                {studentOrganizations.slice(0, 3).map((org) => (
-                                  <span
-                                    key={org.id}
-                                    className="student-org-logo-button"
-                                  >
-                                    <OrganizationLogo organization={org} />
-                                    <span className="student-org-logo-popover">
-                                      <strong>{org.name}</strong>
-                                      <span>
-                                        {org.description ||
-                                          (org.organization_type === "non_departmental"
-                                            ? "Non-departmental organization"
-                                            : "Departmental organization")}
-                                      </span>
-                                    </span>
-                                  </span>
-                                ))}
-                                {studentOrganizations.length > 3 ? (
-                                  <span className="config-badge">
-                                    +{studentOrganizations.length - 3}
-                                  </span>
-                                ) : null}
-                              </>
-                            ) : (
-                              <span className="text-sm text-gray-400">
-                                No organization
-                              </span>
-                            )}
+                        <td className="sa-students-academic" data-label="Academic record">
+                          <div className="sa-students-academic-content">
+                            <strong>{student.program || "Program not recorded"}</strong>
+                            <span>
+                              {student.year_level ? `Year ${student.year_level}` : "Year not recorded"}
+                            </span>
                           </div>
                         </td>
-
-                        {/* STATUS */}
-                        <td className="px-5 py-4">
-                          <span
-                            className={`rounded-full px-3 py-1 text-xs font-bold ${student.status ===
-                                "active"
-                                ? "bg-emerald-100 text-emerald-700"
-                                : student.status ===
-                                  "disabled"
-                                  ? "bg-red-100 text-red-700"
-                                  : "bg-amber-100 text-amber-700"
-                              }`}
-                          >
-                            {student.status ||
-                              "pending"}
-                          </span>
+                        <td className="sa-students-membership" data-label="Membership">
+                          {studentOrganizations.length > 0 ? (
+                            <div className="sa-students-membership-list">
+                              <div className="sa-students-org-marks" aria-hidden="true">
+                                {studentOrganizations.slice(0, 3).map((organization) => (
+                                  <OrganizationLogo
+                                    key={organization.id}
+                                    organization={organization}
+                                    className="sa-students-org-logo"
+                                  />
+                                ))}
+                              </div>
+                              <div>
+                                <strong>{studentOrganizations[0].name}</strong>
+                                <span>
+                                  {studentOrganizations.length > 1
+                                    ? `+${studentOrganizations.length - 1} more membership${studentOrganizations.length > 2 ? "s" : ""}`
+                                    : "Organization member"}
+                                </span>
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="sa-students-unassigned">No organization</span>
+                          )}
                         </td>
-
-                        {/* ACTIONS */}
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-2">
+                        <td className="sa-students-state" data-label="Access state">
+                          <div className="sa-students-state-content">
+                            <span className={`sa-students-state-mark is-${studentStatus}`} aria-hidden="true" />
+                            <div>
+                              <strong>{studentStatus}</strong>
+                              <span>
+                                {studentStatus === "active"
+                                  ? "Access enabled"
+                                  : studentStatus === "disabled"
+                                    ? "Access restricted"
+                                    : "Review pending"}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="sa-students-actions" data-label="Actions">
+                          <div className="sa-students-action-list">
                             <button
-                              onClick={() =>
-                                openEditForm(
-                                  student
-                                )
-                              }
-                              className="icon-action"
+                              onClick={() => openEditForm(student)}
                               type="button"
-                              title="Edit student"
+                              aria-label={`Edit ${studentName}`}
                             >
-                              <Pencil
-                                size={16}
-                              />
+                              <Pencil size={15} aria-hidden="true" />
+                              Edit
                             </button>
-
                             <button
-                              onClick={() =>
-                                handleDelete(
-                                  student.id
-                                )
-                              }
-                              className="icon-action icon-action-danger"
+                              onClick={() => handleDelete(student.id)}
+                              className="sa-students-delete"
                               type="button"
-                              title="Delete student"
+                              aria-label={`Delete ${studentName}`}
                             >
-                              <Trash2
-                                size={16}
-                              />
+                              <Trash2 size={15} aria-hidden="true" />
+                              Delete
                             </button>
                           </div>
                         </td>
                       </tr>
                     );
-                  }
-                )}
-              </tbody>
-            </table>
-          </div>
-          <div className="student-directory-pager">
-            <p className="text-sm font-semibold text-gray-500">
-              Showing {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, totalStudents)} of {totalStudents} students
-            </p>
-            <div className="student-directory-pager-actions">
-              <button
-                type="button"
-                className="secondary-btn"
-                disabled={page <= 1}
-                onClick={() => setPage((current) => Math.max(1, current - 1))}
-              >
-                Previous
-              </button>
-              <span className="text-sm font-bold text-gray-600">
-                Page {page} of {totalPages}
-              </span>
-              <button
-                type="button"
-                className="secondary-btn"
-                disabled={page >= totalPages}
-                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-              >
-                Next
-              </button>
+                  })}
+                </tbody>
+              </table>
             </div>
-          </div>
-        </div>
-      )}
+
+            <nav className="sa-students-pager" aria-label="Student directory pagination">
+              <p>
+                Showing {pageStart}-{pageEnd} of {totalStudents} students
+              </p>
+              <div>
+                <button
+                  type="button"
+                  disabled={page <= 1}
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                >
+                  Previous
+                </button>
+                <span aria-current="page">{String(page).padStart(2, "0")}</span>
+                <button
+                  type="button"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                >
+                  Next
+                </button>
+              </div>
+            </nav>
+          </>
+        )}
+      </section>
 
       {/* ========================================================
           CREATE / EDIT FORM
@@ -1234,57 +1571,43 @@ function Students() {
 
       {formOpen && (
         <PopupOverlay>
-          <div className="popup-sheet popup-sheet-wide max-h-[90vh] overflow-hidden">
+          <div className={`popup-sheet popup-sheet-wide sa-students-modal max-h-[90vh] overflow-hidden ${editingStudent ? "is-editing" : `is-registration is-${registrationStep}`}`} role="dialog" aria-modal="true" aria-labelledby="student-form-title">
             <div className="popup-header">
               <div className="popup-header-copy">
-                <p className="field-label !mb-3">
-                  Student Directory
-                </p>
+                {editingStudent ? <p className="field-label !mb-3">Student Directory</p> : null}
 
-                <h2 className="surface-title text-[2rem] font-black tracking-tight">
+                <h2 id="student-form-title" className="surface-title text-[2rem] font-black tracking-tight">
                   {editingStudent
                     ? "Edit Student"
                     : "Add Student"}
                 </h2>
 
                 <p className="surface-copy mt-2 text-sm leading-6">
-                  Student organization
-                  memberships are automatically
-                  managed based on the student's
-                  program and selected organization.
+                  {editingStudent
+                    ? "Update the central student record and organization membership."
+                    : activeTermLoading
+                      ? "Checking the current academic term..."
+                      : activeTerm
+                        ? `Registration for ${formatAcademicTerm(activeTerm)}`
+                        : activeTermError || "A current academic term is required."}
                 </p>
               </div>
 
               <button
-                onClick={() =>
-                  setFormOpen(false)
-                }
+                onClick={closeStudentForm}
                 className="popup-close"
                 type="button"
+                aria-label="Close student form"
               >
                 <X size={20} />
               </button>
             </div>
 
+            {editingStudent ? (
             <form
               onSubmit={handleSubmit}
               className="popup-content overflow-y-auto"
             >
-              {!editingStudent && (
-                <div
-                  className={`rounded-[1.35rem] border px-4 py-3 text-sm font-semibold ${
-                    activeTerm
-                      ? "border-[#ffd7c9] bg-[#fff4ed] text-[#c2410c]"
-                      : "border-rose-200 bg-rose-50 text-rose-700"
-                  }`}
-                >
-                  {activeTermLoading
-                    ? "Checking active academic term..."
-                    : activeTerm
-                      ? `Active term: ${formatAcademicTerm(activeTerm)}`
-                      : activeTermError || "Manual registration requires an active academic term."}
-                </div>
-              )}
               <div className="popup-form-grid">
                 <div className="space-y-4">
                   {/* STUDENT NUMBER */}
@@ -1590,9 +1913,7 @@ function Students() {
               <div className="popup-actions">
                 <button
                   type="button"
-                  onClick={() =>
-                    setFormOpen(false)
-                  }
+                  onClick={closeStudentForm}
                   className="secondary-btn"
                 >
                   Cancel
@@ -1605,12 +1926,15 @@ function Students() {
                 >
                   {submitting
                     ? "Saving..."
-                    : editingStudent
-                    ? "Save Changes"
-                    : "Create Student"}
+                    : "Save Changes"}
                 </button>
               </div>
             </form>
+            ) : (
+              <div className="popup-content overflow-y-auto">
+                {renderAddStudentFlow()}
+              </div>
+            )}
           </div>
         </PopupOverlay>
       )}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import "./RemainingPages.css";
 import { CalendarDays, Filter, RefreshCw, Search, ShieldCheck, X } from "lucide-react";
 import { fetchAuditLogs } from "../../utils/auditLog";
 import PopupOverlay from "../../components/PopupOverlay";
@@ -77,9 +78,10 @@ function AuditLogs() {
   }
 
   return (
-    <div>
+    <div className="sa-remaining-page sa-audit-logs">
       <div className="page-head">
         <div>
+          <p className="sa-remaining-breadcrumb"><span>Kandid</span><span>/</span><span>Super Admin</span></p>
           <div className="page-kicker">Security Ledger</div>
           <h1 className="page-title">Audit logs</h1>
           <p className="page-subtitle">
@@ -212,7 +214,7 @@ function AuditLogs() {
 
       {selectedLog ? (
         <PopupOverlay>
-          <div className="popup-sheet max-h-[90vh] overflow-y-auto">
+          <div className="popup-sheet max-h-[90vh] overflow-y-auto sa-remaining-dialog">
             <div className="popup-header">
               <div>
                 <p className="field-label">Audit Event</p>

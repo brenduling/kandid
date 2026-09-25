@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import "./RemainingPages.css";
 import { supabase } from "../../lib/supabaseClient";
 import { usePrompt } from "../../context/PromptContext";
 import {
@@ -263,11 +264,15 @@ function Results() {
   }
 
   return (
-    <div>
-      <h1 className="text-3xl font-black">Results Management</h1>
-      <p className="text-gray-500 mt-1">
-        View election results and vote tally.
-      </p>
+    <div className="sa-remaining-page sa-results">
+      <div className="page-head">
+        <div>
+          <p className="sa-remaining-breadcrumb"><span>Kandid</span><span>/</span><span>Super Admin</span></p>
+          <div className="page-kicker">Election Outcomes</div>
+          <h1 className="page-title">Results Management</h1>
+          <p className="page-subtitle">View election results and vote tally.</p>
+        </div>
+      </div>
 
       <div className="mt-6">
         <select

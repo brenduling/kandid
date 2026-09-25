@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertCircle, Eye, EyeOff, Home } from "lucide-react";
+import { AlertCircle, ArrowRight, Eye, EyeOff } from "lucide-react";
 import AuthLayout from "../../components/AuthLayout";
 import { KandidButtonLoader } from "../../components/KandidLoader";
 import { supabase } from "../../lib/supabaseClient";
@@ -320,6 +320,7 @@ function StudentLogin() {
   function renderCredentialsForm() {
     return (
       <form onSubmit={handleLogin} className={notFound ? "student-auth-blur" : ""}>
+        <h3 className="student-login-form-heading">Sign in</h3>
         <div className="student-auth-fields">
           <label>
             <span>Student ID Number</span>
@@ -334,10 +335,7 @@ function StudentLogin() {
           </label>
 
           <label>
-            <span className="flex items-center justify-between gap-3">
-              Password
-              <small>Supabase Auth</small>
-            </span>
+            <span>Password</span>
             <div className="student-auth-password">
               <input
                 required
@@ -377,26 +375,20 @@ function StudentLogin() {
           ) : null}
 
           <button type="submit" disabled={loading || sendingOtp} className="student-auth-submit">
-            {loading ? <KandidButtonLoader label="Signing in..." /> : "Sign In"}
+            {loading ? <KandidButtonLoader label="Signing in..." /> : <>Sign In <ArrowRight size={19} aria-hidden="true" /></>}
           </button>
         </div>
 
-        <div className="student-auth-divider">
-          <span />
-          <p>OR</p>
-          <span />
+        <div className="student-login-new-account">
+          <span>First time here?</span>
+          <button
+            type="button"
+            onClick={() => navigate("/student-setup")}
+            className="student-auth-setup-link"
+          >
+            Complete account setup <ArrowRight size={16} aria-hidden="true" />
+          </button>
         </div>
-
-        <button
-          type="button"
-          onClick={() => navigate("/student-setup")}
-          className="student-auth-setup-link"
-        >
-          <span className="student-auth-setup-icon">
-            <Home size={16} />
-          </span>
-          First time here? <strong>Complete account setup</strong>
-        </button>
       </form>
     );
   }
@@ -460,9 +452,10 @@ function StudentLogin() {
   return (
     <AuthLayout
       roleLabel="Student Portal"
-      title="Student Login"
+      title="Let's get you in."
       copy="Sign in to view your organizations, elections, receipts, and results."
       backTo="/"
+      screenClassName="kandid-auth-screen--student"
     >
       <div className="student-auth-card kandid-auth-form-card">
         {step === "otp" ? renderOtpForm() : renderCredentialsForm()}

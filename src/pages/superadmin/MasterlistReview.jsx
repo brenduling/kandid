@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import "./RemainingPages.css";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   AlertTriangle,
@@ -333,7 +334,7 @@ function MasterlistReview() {
 
   if (loading) {
     return (
-      <div className="content-section">
+      <div className="content-section sa-remaining-page sa-masterlist-review">
         <div className="soft-card">
           <p className="surface-heading font-black">Loading masterlist review...</p>
         </div>
@@ -343,7 +344,7 @@ function MasterlistReview() {
 
   if (!payload) {
     return (
-      <div className="content-section">
+      <div className="content-section sa-remaining-page sa-masterlist-review">
         <div className="soft-card">
           <p className="surface-heading font-black">Masterlist review unavailable.</p>
           <button
@@ -361,14 +362,15 @@ function MasterlistReview() {
   const finalized = masterlistImport?.import_status === "finalized";
 
   return (
-    <div className="content-section">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div className="content-section sa-remaining-page sa-masterlist-review">
+      <div className="page-head">
         <div>
+          <p className="sa-remaining-breadcrumb"><span>Kandid</span><span>/</span><span>Super Admin</span></p>
           <div className="page-kicker">Semester Masterlist</div>
-          <h1 className="text-3xl font-black">
+          <h1 className="page-title">
             {finalized ? "Masterlist Finalized" : "Masterlist Review"}
           </h1>
-          <p className="surface-subcopy mt-1">
+          <p className="page-subtitle">
             {term ? formatAcademicTerm(term) : "Academic term"} -{" "}
             {masterlistImport?.file_name || "CSV Import"}
           </p>
@@ -757,7 +759,7 @@ function MasterlistReview() {
 
       {editingRow && (
         <div className="modal-overlay">
-          <div className="modal-card max-w-2xl">
+          <div className="modal-card max-w-2xl sa-remaining-dialog">
             <div className="mb-6 flex items-start justify-between gap-4">
               <div>
                 <p className="page-kicker">Staged Masterlist Row</p>
