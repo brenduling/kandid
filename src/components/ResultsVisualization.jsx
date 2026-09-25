@@ -35,11 +35,16 @@ export function HorizontalStatChart({
   filters = [],
   activeFilter,
   onFilterChange,
+  presentation = "default",
 }) {
   const rows = chartRows(items, { mode });
 
   return (
-    <section className="horizontal-chart-panel">
+    <section
+      className={`horizontal-chart-panel ${
+        presentation === "editorial" ? "is-editorial" : ""
+      }`}
+    >
       <div className="horizontal-chart-head">
         <div>
           {eyebrow ? <p className="chart-eyebrow">{eyebrow}</p> : null}
@@ -174,7 +179,14 @@ function CandidateResultRow({ candidate, total, demographicMode, expectedLabels 
         <span className="candidate-result-copy">
           <strong>{candidate.name || "Candidate"}</strong>
           <small>
-            {candidate.partylistName || "Independent"} / {value} votes / {percentage}%
+            <span className="candidate-vote-meta-desktop">
+              {candidate.partylistName || "Independent"} / {value} votes / {percentage}%
+            </span>
+            <span className="candidate-vote-meta-mobile">
+              {isAbstain
+                ? `${percentage}%`
+                : `${candidate.partylistName || "Independent"} · ${percentage}%`}
+            </span>
           </small>
         </span>
 
@@ -185,7 +197,12 @@ function CandidateResultRow({ candidate, total, demographicMode, expectedLabels 
           />
         </span>
 
-        <strong className="candidate-result-value">{value}</strong>
+        <strong className="candidate-result-value">
+          <span className="candidate-result-count">{value}</span>
+          <span className="candidate-result-vote-suffix">
+            {value === 1 ? " VOTE" : " VOTES"}
+          </span>
+        </strong>
       </div>
 
       {breakdownRows.length > 0 ? (
@@ -261,7 +278,12 @@ export function PositionResultsChart({
   );
 }
 
-export function ElectionResultsChart({ groups = [], totalVoters = 0, dimensions = {} }) {
+export function ElectionResultsChart({
+  groups = [],
+  totalVoters = 0,
+  dimensions = {},
+  presentation = "default",
+}) {
   const [demographicMode, setDemographicMode] = useState("overall");
   const sortedGroups = [...groups].sort(
     (first, second) => Number(first.displayOrder || 0) - Number(second.displayOrder || 0),
@@ -274,7 +296,11 @@ export function ElectionResultsChart({ groups = [], totalVoters = 0, dimensions 
         : [];
 
   return (
-    <section className="election-results-chart">
+    <section
+      className={`election-results-chart ${
+        presentation === "editorial" ? "is-editorial" : ""
+      }`}
+    >
       <div className="result-chart-toolbar">
         <div>
           <p className="chart-eyebrow">Result View</p>

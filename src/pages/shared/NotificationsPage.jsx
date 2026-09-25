@@ -74,6 +74,17 @@ function NotificationsPage({ user }) {
 
   return (
     <div className="notifications-page">
+      <div className="notifications-mobile-head">
+        <p className="notifications-mobile-kicker">
+          {activeUser?.role === "student"
+            ? "Student"
+            : activeUser?.role === "electoral_board"
+              ? "Electoral Board"
+              : "Super Admin"}
+        </p>
+        <h1 className="notifications-mobile-title">Notifications</h1>
+        <p className="notifications-mobile-sub">What needs your attention.</p>
+      </div>
       <section className="page-hero">
         <div className="notifications-page-actions">
           <span className="notifications-count-pill">

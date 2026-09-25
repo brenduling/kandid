@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { StudentAvatar } from "../../components/KandidImage";
+import {
+  StudentSkeletonGroup,
+  StudentSkeletonLine,
+} from "../../components/student/StudentSkeleton";
 import { supabase } from "../../lib/supabaseClient";
 import { getEligibleStudentOrganizationIds } from "../../utils/organizationAccess";
 
@@ -77,110 +81,156 @@ function StudentOfficers() {
   }, [filter, officers, search]);
 
   return (
-    <div>
-      <div className="page-head">
-        <div>
-          <div className="page-kicker">Leadership Directory</div>
-          <h1 className="page-title">
-            Current and former
-            <span className="page-title-accent"> officers</span>
-          </h1>
-          <p className="page-subtitle">
-            Explore leadership history across organizations with clearer filters and
-            easier scanning.
+    <div className="student-officers-desktop">
+      <header className="student-officers-opening">
+        <div className="student-officers-opening-copy">
+          <span className="student-officers-kicker">Campus leadership</span>
+          <h1>Your organization leaders.</h1>
+          <p>Officers of your organizations.</p>
+          <p>
+            See the student leaders representing your organizations for the
+            current term.
           </p>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="glass-panel-strong rounded-[24px] p-4">
-            <label className="field-label">Search Directory</label>
+        <div className="student-officers-controls">
+          <label>
+            <span className="student-officers-control-label">Search</span>
             <input
+              type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Officer, role, organization"
-              className="field-shell w-full"
+              className="student-officers-field"
             />
-          </div>
-          <div className="glass-panel-strong rounded-[24px] p-4">
-            <label className="field-label">Filter by Term Status</label>
+          </label>
+          <label>
+            <span className="student-officers-control-label">Term status</span>
             <select
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              className="field-shell w-full"
+              className="student-officers-field"
             >
               <option value="current">Current Officers</option>
               <option value="previous">Previous Officers</option>
               <option value="all">All Officers</option>
             </select>
+          </label>
+        </div>
+      </header>
+
+      <section className="student-officers-section" aria-label="Officer directory">
+        <div className="student-officers-section-head">
+          <div>
+            <span className="student-officers-kicker">Directory</span>
+            <h2>Current officers</h2>
           </div>
+          {officers.length > 0 ? (
+            <span className="student-officers-section-count">
+              {visibleOfficers.length}{" "}
+              {visibleOfficers.length === 1 ? "Officer" : "Officers"}
+            </span>
+          ) : null}
         </div>
-      </div>
 
-      {loading ? (
-        <div className="glass-panel mt-8 rounded-[28px] p-8 text-gray-500">
-          Loading officers...
-        </div>
-      ) : visibleOfficers.length === 0 ? (
-        <div className="glass-panel mt-8 rounded-[28px] p-8 text-gray-500">
-          No officers matched your filter.
-        </div>
-      ) : (
-        <div className="section-grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-          {visibleOfficers.map((officer, index) => {
-            const fullName = officer.students
-              ? `${officer.students.first_name} ${officer.students.last_name}`
-              : officer.officer_name;
+        {loading ? (
+          <StudentSkeletonGroup label="Loading officers">
+            <ol className="student-officers-list">
+              {[0, 1, 2].map((index) => (
+                <li className="student-skeleton-row" key={index}>
+                  <StudentSkeletonLine
+                    variant="media"
+                    width="2.75rem"
+                    height="2.75rem"
+                  />
 
-            return (
-              <div
-                key={officer.id}
-                className="glass-panel-strong lift-card fade-up rounded-[30px] p-6"
-                style={{ animationDelay: `${index * 40}ms` }}
-              >
-                <div className="flex items-start justify-between gap-3">
+                  <div className="student-skeleton-copy">
+                    <StudentSkeletonLine width="40%" height="0.6rem" />
+                    <StudentSkeletonLine width="58%" height="0.95rem" />
+                    <StudentSkeletonLine width="86%" height="0.6rem" />
+                  </div>
+
+                  <StudentSkeletonLine width="4rem" height="0.7rem" />
+                </li>
+              ))}
+            </ol>
+          </StudentSkeletonGroup>
+        ) : officers.length === 0 ? (
+          <div className="student-officers-empty">
+            <p className="student-officers-empty-title">
+              No officers published yet.
+            </p>
+            <p className="student-officers-empty-copy">
+              Your organization hasn't published its current officer list. When
+              it does, you'll find it here.
+            </p>
+          </div>
+        ) : visibleOfficers.length === 0 ? (
+          <div className="student-officers-empty">
+            <p className="student-officers-empty-title">
+              No officers matched your filter.
+            </p>
+            <p className="student-officers-empty-copy">
+              Adjust your search or term filter to see more results.
+            </p>
+          </div>
+        ) : (
+          <ol className="student-officers-list">
+            {visibleOfficers.map((officer, index) => {
+              const fullName = officer.students
+                ? `${officer.students.first_name} ${officer.students.last_name}`
+                : officer.officer_name || "Officer";
+
+              return (
+                <li key={officer.id} className="student-officer-row">
+                  <span className="student-officer-index" aria-hidden="true">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+
                   {officer.students ? (
                     <StudentAvatar
                       student={officer.students}
-                      className="!h-14 !w-14 shrink-0 !rounded-2xl"
+                      className="student-officer-avatar"
                     />
-                  ) : null}
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#d35a25]">
+                  ) : (
+                    <span className="student-officer-avatar-fallback" aria-hidden="true" />
+                  )}
+
+                  <div className="student-officer-main">
+                    <div className="student-officer-org">
                       {officer.organizations?.name || "Organization"}
-                    </p>
-                    <h2 className="mt-2 text-2xl font-black">{fullName}</h2>
+                    </div>
+                    <h3 className="student-officer-name">{fullName}</h3>
+                    <dl className="student-officer-meta">
+                      <div>
+                        <dt>Position</dt>
+                        <dd>{officer.position_title || "—"}</dd>
+                      </div>
+                      <div>
+                        <dt>Term</dt>
+                        <dd>{officer.term_label || "Not specified"}</dd>
+                      </div>
+                      <div>
+                        <dt>ID</dt>
+                        <dd>{officer.students?.student_number || "—"}</dd>
+                      </div>
+                    </dl>
                   </div>
-                  <span className="status-pill">
+
+                  <span
+                    className={`student-officer-status is-${
+                      officer.is_current ? "current" : "previous"
+                    }`}
+                  >
+                    <span className="student-officer-status-mark" aria-hidden="true" />
                     {officer.is_current ? "Current" : "Previous"}
                   </span>
-                </div>
-
-                <div className="mt-5 rounded-[24px] bg-white/50 p-4">
-                  <p className="field-label !mb-1">Position</p>
-                  <p className="font-semibold text-[#1d262f]">
-                    {officer.position_title}
-                  </p>
-                </div>
-
-                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                  <div className="rounded-2xl bg-white/40 p-4">
-                    <p className="field-label !mb-1">Term Label</p>
-                    <p className="font-semibold text-[#1d262f]">
-                      {officer.term_label || "Not specified"}
-                    </p>
-                  </div>
-                  <div className="rounded-2xl bg-white/40 p-4">
-                    <p className="field-label !mb-1">Student Number</p>
-                    <p className="font-semibold text-[#1d262f]">
-                      {officer.students?.student_number || "N/A"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </section>
     </div>
   );
 }

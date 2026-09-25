@@ -18,7 +18,10 @@ import {
   formatAbsoluteTimestampAsManilaDateTime,
   formatUtcTimestampAsManilaDateTime,
 } from "../../utils/time";
-import { KandidInlineLoader } from "../../components/KandidLoader";
+import {
+  StudentSkeletonGroup,
+  StudentSkeletonLine,
+} from "../../components/student/StudentSkeleton";
 import {
   fetchStudentVotes,
   getBlockchainStatusMeta,
@@ -185,19 +188,42 @@ function ReceiptDetails() {
       : "";
 
   function goBack() {
-    if (window.history.length > 1) {
-      navigate(-1);
-      return;
-    }
-
     navigate("/student/receipt");
   }
 
   if (loading && !currentVote) {
     return (
-      <div className="glass-panel rounded-[28px] p-8">
-        <KandidInlineLoader message="Loading receipt details..." />
-      </div>
+      <StudentSkeletonGroup
+        label="Loading receipt details"
+        className="receipt-detail-skeleton"
+      >
+        <div className="page-head">
+          <div className="student-skeleton-stack">
+            <StudentSkeletonLine width="34%" height="0.6rem" />
+            <StudentSkeletonLine width="56%" height="1.5rem" />
+            <StudentSkeletonLine width="88%" height="0.7rem" />
+            <StudentSkeletonLine width="72%" height="0.7rem" />
+          </div>
+        </div>
+
+        <section className="student-receipt-paper receipt-detail-panel">
+          <div className="student-skeleton-row">
+            <StudentSkeletonLine variant="media" width="3.25rem" height="3.25rem" />
+
+            <div className="student-skeleton-copy">
+              <StudentSkeletonLine width="48%" height="0.7rem" />
+              <StudentSkeletonLine width="66%" height="1rem" />
+              <StudentSkeletonLine width="38%" height="0.6rem" />
+            </div>
+          </div>
+
+          <div className="student-skeleton-stack">
+            <StudentSkeletonLine width="100%" height="0.6rem" />
+            <StudentSkeletonLine width="94%" height="0.6rem" />
+            <StudentSkeletonLine width="76%" height="0.6rem" />
+          </div>
+        </section>
+      </StudentSkeletonGroup>
     );
   }
 
@@ -238,7 +264,7 @@ function ReceiptDetails() {
 
         <button type="button" onClick={goBack} className="secondary-btn self-start lg:self-auto">
           <ArrowLeft size={18} />
-          Back
+          Receipt
         </button>
       </div>
 

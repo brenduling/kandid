@@ -1,298 +1,342 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
+  ArrowRight,
+  BadgeCheck,
   Building2,
-  CheckCircle,
-  Clock,
+  CheckCircle2,
+  Clock3,
+  ListChecks,
   RefreshCw,
-  TrendingUp,
   Users,
+  Vote,
 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { fetchAuditLogs } from "../../utils/auditLog";
+import { fetchAuthoritativeNow, getElectionPhase } from "../../utils/elections";
+import "./Dashboard.css";
+
+const EMPTY_STATS = {
+  organizations: 0,
+  students: 0,
+  activeElections: 0,
+  votes: 0,
+  pendingReview: 0,
+};
+
+const EMPTY_ELECTION_PULSE = [
+  { id: "draft", label: "Draft", count: 0 },
+  { id: "upcoming", label: "Upcoming", count: 0 },
+  { id: "campaigning", label: "Campaigning", count: 0 },
+  { id: "voting", label: "Voting", count: 0 },
+  { id: "awaiting-results", label: "Awaiting results", count: 0 },
+  { id: "published", label: "Results published", count: 0 },
+  { id: "archived", label: "Archived", count: 0 },
+  { id: "other", label: "Other status", count: 0 },
+];
+
+function buildElectionPulse(elections, now) {
+  const counts = Object.fromEntries(EMPTY_ELECTION_PULSE.map((item) => [item.id, 0]));
+
+  elections.forEach((election) => {
+    const status = String(election.status || "draft").toLowerCase();
+    const phase = getElectionPhase(election, now);
+
+    if (status === "archived" || phase === "archived") {
+      counts.archived += 1;
+    } else if (election.results_released_at) {
+      counts.published += 1;
+    } else if (phase === "draft") {
+      counts.draft += 1;
+    } else if (phase === "campaign") {
+      counts.campaigning += 1;
+    } else if (phase === "voting") {
+      counts.voting += 1;
+    } else if (phase === "closed") {
+      counts["awaiting-results"] += 1;
+    } else if (["campaign_upcoming", "scheduled", "waiting"].includes(phase)) {
+      counts.upcoming += 1;
+    } else {
+      counts.other += 1;
+    }
+  });
+
+  return EMPTY_ELECTION_PULSE.map((item) => ({ ...item, count: counts[item.id] }));
+}
 
 function Dashboard() {
-  const [stats, setStats] = useState({
-    organizations: 0,
-    students: 0,
-    activeElections: 0,
-    votes: 0,
-    pendingReview: 0,
-  });
+  const [stats, setStats] = useState(EMPTY_STATS);
   const [programStats, setProgramStats] = useState([]);
+  const [electionPulse, setElectionPulse] = useState(EMPTY_ELECTION_PULSE);
   const [recentActivities, setRecentActivities] = useState([]);
+  const [activityUnavailable, setActivityUnavailable] = useState(false);
   const [loading, setLoading] = useState(true);
-  const voteGraphTones = [
-    "linear-gradient(180deg, #ff6a33 0%, #d63d12 100%)",
-    "linear-gradient(180deg, #f59e0b 0%, #c2410c 100%)",
-    "linear-gradient(180deg, #14b8a6 0%, #0f766e 100%)",
-    "linear-gradient(180deg, #64748b 0%, #334155 100%)",
-    "linear-gradient(180deg, #fb7185 0%, #be123c 100%)",
-    "linear-gradient(180deg, #38bdf8 0%, #2563eb 100%)",
-  ];
+  const [error, setError] = useState("");
 
-  useEffect(() => {
-    fetchDashboardData();
-    window.addEventListener("kandid-audit-updated", fetchDashboardData);
-    return () => window.removeEventListener("kandid-audit-updated", fetchDashboardData);
-  }, []);
-
-  async function fetchDashboardData() {
+  const fetchDashboardData = useCallback(async () => {
     setLoading(true);
+    setError("");
 
     try {
       const [
-        { count: orgCount },
-        { count: studentCount },
-        { count: activeElectionCount },
-        { count: voteCount },
-        { count: pendingCount },
-        { data: studentPrograms },
+        organizationsResult,
+        studentsResult,
+        votesResult,
+        pendingResult,
+        programsResult,
+        electionsResult,
+        now,
       ] = await Promise.all([
         supabase.from("organizations").select("id", { count: "exact", head: true }),
         supabase.from("students").select("id", { count: "exact", head: true }),
-        supabase
-          .from("elections")
-          .select("id", { count: "exact", head: true })
-          .eq("status", "active"),
         supabase.from("votes").select("id", { count: "exact", head: true }),
         supabase
           .from("students")
           .select("id", { count: "exact", head: true })
           .eq("status", "pending"),
         supabase.from("students").select("program"),
+        supabase
+          .from("elections")
+          .select(
+            "id, status, campaign_start, campaign_end, start_date, end_date, results_released_at",
+          ),
+        fetchAuthoritativeNow(),
       ]);
 
-      setStats({
-        organizations: orgCount || 0,
-        students: studentCount || 0,
-        activeElections: activeElectionCount || 0,
-        votes: voteCount || 0,
-        pendingReview: pendingCount || 0,
-      });
+      const coreResults = [
+        organizationsResult,
+        studentsResult,
+        votesResult,
+        pendingResult,
+        programsResult,
+        electionsResult,
+      ];
+      if (coreResults.some((result) => result.error)) {
+        throw new Error("dashboard_data_unavailable");
+      }
 
-      const programCounts = (studentPrograms || []).reduce((accumulator, student) => {
-        const key = student.program || "Unassigned";
+      const elections = electionsResult.data || [];
+      const nextElectionPulse = buildElectionPulse(elections, now);
+
+      setStats({
+        organizations: organizationsResult.count ?? 0,
+        students: studentsResult.count ?? 0,
+        activeElections: elections.filter((election) => election.status === "active").length,
+        votes: votesResult.count ?? 0,
+        pendingReview: pendingResult.count ?? 0,
+      });
+      setElectionPulse(nextElectionPulse);
+
+      const programCounts = (programsResult.data || []).reduce((accumulator, student) => {
+        const key = String(student.program || "Unassigned").trim() || "Unassigned";
         accumulator[key] = (accumulator[key] || 0) + 1;
         return accumulator;
       }, {});
-
       const totalPrograms = Object.values(programCounts).reduce(
         (sum, count) => sum + count,
         0,
       );
 
-      const normalizedPrograms = Object.entries(programCounts)
-        .map(([program, count]) => ({
-          program,
-          count,
-          share: totalPrograms > 0 ? Math.round((count / totalPrograms) * 100) : 0,
-          percent:
-            totalPrograms > 0 ? Math.max(8, Math.round((count / totalPrograms) * 100)) : 0,
-        }))
-        .sort((left, right) => right.count - left.count)
-        .slice(0, 6);
-
-      setProgramStats(normalizedPrograms);
+      setProgramStats(
+        Object.entries(programCounts)
+          .map(([program, count]) => ({
+            program,
+            count,
+            share: totalPrograms > 0 ? Math.round((count / totalPrograms) * 100) : 0,
+          }))
+          .sort((left, right) => right.count - left.count || left.program.localeCompare(right.program))
+          .slice(0, 6),
+      );
 
       const { data: auditActivities, error: auditError } = await fetchAuditLogs({ limit: 5 });
-      if (auditError) {
-        console.warn("Failed to load recent audit activity:", auditError);
-      }
-      setRecentActivities(auditActivities || []);
-    } catch (err) {
-      console.error("Error fetching dashboard data:", err);
+      setActivityUnavailable(Boolean(auditError));
+      setRecentActivities(auditError ? [] : auditActivities || []);
+    } catch (dashboardError) {
+      console.error("Error fetching dashboard data:", dashboardError);
+      setError("The current system overview could not be loaded. Please try again.");
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    const loadTimer = window.setTimeout(fetchDashboardData, 0);
+    window.addEventListener("kandid-audit-updated", fetchDashboardData);
+    return () => {
+      window.clearTimeout(loadTimer);
+      window.removeEventListener("kandid-audit-updated", fetchDashboardData);
+    };
+  }, [fetchDashboardData]);
+
+  const metrics = [
+    { label: "Organizations", value: stats.organizations, detail: "Institutional workspaces", path: "/super-admin/organizations", icon: Building2 },
+    { label: "Students", value: stats.students, detail: "Student records", path: "/super-admin/students", icon: Users },
+    { label: "Active elections", value: stats.activeElections, detail: "Status marked active", path: "/super-admin/elections", icon: BadgeCheck },
+    { label: "Votes recorded", value: stats.votes, detail: "Stored vote rows", path: "/super-admin/voting-monitor", icon: Vote },
+    { label: "Pending review", value: stats.pendingReview, detail: "Student records", path: "/super-admin/students", icon: ListChecks },
+  ];
+
+  const awaitingResults =
+    electionPulse.find((item) => item.id === "awaiting-results")?.count || 0;
+  const attentionItems = [
+    stats.pendingReview > 0
+      ? {
+          id: "pending-students",
+          count: stats.pendingReview,
+          title: "Student records await review",
+          description: "Review pending student records before they enter election operations.",
+          path: "/super-admin/students",
+        }
+      : null,
+    awaitingResults > 0
+      ? {
+          id: "awaiting-results",
+          count: awaitingResults,
+          title: "Elections await result publication",
+          description: "Voting has closed and official results have not yet been released.",
+          path: "/super-admin/results",
+        }
+      : null,
+  ].filter(Boolean);
+  const totalElections = electionPulse.reduce((sum, item) => sum + item.count, 0);
 
   return (
-    <div>
-      <div className="page-head">
-        <div>
-          <div className="page-kicker">System Overview</div>
-          <h1 className="page-title">
-            Super admin
-            <span className="page-title-accent"> command center</span>
-          </h1>
-          <p className="page-subtitle">
-            Monitor institutional election health, participation, and audit
-            activity from a cleaner oversight dashboard.
+    <div className="sa-dashboard">
+      <header className="sa-dashboard-masthead">
+        <div className="sa-dashboard-masthead-copy">
+          <p className="sa-dashboard-brandline">
+            <span>Kandid</span><span aria-hidden="true">/</span>Super Admin
+          </p>
+          <p className="sa-dashboard-eyebrow">System overview</p>
+          <h1>Election Command Center</h1>
+          <p className="sa-dashboard-deck">
+            Monitor election operations, institutional records, and system activity across Kandid.
           </p>
         </div>
 
-        <button onClick={fetchDashboardData} className="primary-btn self-start lg:self-auto uppercase tracking-wider text-xs">
-          <RefreshCw size={14} />
-          Refresh Data
-        </button>
-      </div>
+        <div className="sa-dashboard-masthead-aside">
+          <p>Platform oversight</p>
+          <strong>Current records, one operational view.</strong>
+          <button type="button" onClick={fetchDashboardData} className="sa-dashboard-refresh" disabled={loading}>
+            <RefreshCw size={15} aria-hidden="true" />
+            {loading ? "Refreshing" : "Refresh data"}
+          </button>
+        </div>
+      </header>
 
       {loading ? (
-        <div className="glass-panel mt-8 rounded-[28px] p-8 text-gray-500">
-          Loading dashboard...
-        </div>
+        <section className="sa-dashboard-loading" role="status" aria-live="polite">
+          <p className="sa-dashboard-eyebrow">System overview</p>
+          <strong>Preparing current platform records</strong>
+          <div className="sa-dashboard-loading-lines" aria-hidden="true"><span /><span /><span /></div>
+        </section>
+      ) : error ? (
+        <section className="sa-dashboard-error" role="alert">
+          <p className="sa-dashboard-eyebrow">Overview unavailable</p>
+          <h2>System records could not be loaded.</h2>
+          <p>{error}</p>
+          <button type="button" onClick={fetchDashboardData} className="sa-dashboard-text-action">
+            Try again <ArrowRight size={15} aria-hidden="true" />
+          </button>
+        </section>
       ) : (
         <>
-          {/* Main Grid: Turnout (Left) + Metrics (Right) */}
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.6fr_1fr] mt-8">
-            
-            {/* Turnout Snapshot (Left Column) */}
-            <div className="graph-card flex flex-col justify-between min-h-[380px]">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Total Votes Cast</p>
-                  <h2 className="mt-2 text-6xl font-black tracking-tight text-[#c2410c]">
-                    {stats.votes.toLocaleString()}
-                  </h2>
-                </div>
-                <span className="inline-flex items-center gap-1.2 rounded-full bg-[#c2410c]/8 px-3.5 py-1 text-xs font-bold text-[#c2410c]">
-                  <TrendingUp size={13} />
-                  +12% this week
-                </span>
-              </div>
-
-              {/* Bar Chart */}
-              <div className="mt-6">
-                <div className="flex h-[200px] items-end gap-3 overflow-visible rounded-[24px] bg-slate-50/50 border border-slate-100/80 px-6 pb-6 pt-6">
-                  {(programStats.length > 0
-                    ? programStats
-                    : [
-                        { program: "CSIT", count: 40, percent: 80 },
-                        { program: "ECE", count: 25, percent: 50 },
-                        { program: "ME", count: 20, percent: 40 },
-                        { program: "CE", count: 15, percent: 30 },
-                        { program: "EE", count: 10, percent: 20 },
-                        { program: "BBA", count: 10, percent: 20 },
-                      ]
-                  ).map((item, index) => (
-                    <div
-                      key={item.program}
-                      className="group relative flex min-w-0 flex-1 flex-col items-center justify-end gap-3 h-full"
-                      tabIndex={0}
-                    >
-                      <div className="pointer-events-none absolute bottom-[calc(100%+0.75rem)] left-1/2 z-20 w-44 -translate-x-1/2 rounded-2xl border border-orange-100 bg-white px-4 py-3 text-left opacity-0 shadow-2xl shadow-orange-100/70 transition duration-150 group-hover:opacity-100 group-focus:opacity-100">
-                        <p className="truncate text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
-                          {item.program}
-                        </p>
-                        <div className="mt-2 flex items-end justify-between gap-3">
-                          <strong className="text-2xl font-black leading-none text-[#c2410c]">
-                            {item.count.toLocaleString()}
-                          </strong>
-                          <span className="rounded-full bg-orange-50 px-2.5 py-1 text-xs font-black text-[#c2410c]">
-                            {item.share ?? item.percent}%
-                          </span>
-                        </div>
-                        <p className="mt-1 text-xs font-semibold text-slate-500">
-                          votes from this program
-                        </p>
-                      </div>
-                      <div
-                        className="w-full rounded-t-[10px] shadow-[0_8px_18px_rgba(194,65,12,0.15)] transition duration-150 group-hover:-translate-y-1 group-hover:shadow-[0_14px_28px_rgba(194,65,12,0.24)] group-focus:-translate-y-1 group-focus:shadow-[0_14px_28px_rgba(194,65,12,0.24)]"
-                        style={{
-                          height: `${Math.max(item.percent * 1.5, 20)}px`,
-                          background: voteGraphTones[index % voteGraphTones.length],
-                        }}
-                      />
-                      <p className="w-full truncate text-center text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
-                        {item.program}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+          <section className="sa-dashboard-metrics" aria-labelledby="system-pulse-title">
+            <div className="sa-dashboard-section-heading sa-dashboard-section-heading-inline">
+              <div><p className="sa-dashboard-eyebrow">System pulse</p><h2 id="system-pulse-title">Kandid at a glance</h2></div>
+              <p>Live totals from current platform records.</p>
             </div>
-
-            {/* 2x2 Grid of Metrics (Right Column) */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {[
-                {
-                  title: "ORGANIZATIONS",
-                  value: stats.organizations,
-                  icon: Building2,
-                },
-                {
-                  title: "STUDENTS",
-                  value: stats.students,
-                  icon: Users,
-                },
-                {
-                  title: "ACTIVE ELECTIONS",
-                  value: stats.activeElections,
-                  icon: CheckCircle,
-                },
-                {
-                  title: "PENDING REVIEW",
-                  value: stats.pendingReview,
-                  icon: Clock,
-                },
-              ].map((card) => {
-                const Icon = card.icon;
+            <div className="sa-dashboard-metric-rail">
+              {metrics.map((metric, index) => {
+                const Icon = metric.icon;
                 return (
-                  <div
-                    key={card.title}
-                    className="metric-card flex flex-col justify-between p-6 hover:translate-y-[-2px] transition-transform duration-200"
-                  >
-                    <div className="flex items-start justify-between">
-                      <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-400">
-                        {card.title}
-                      </p>
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#c2410c]/10 text-[#c2410c]">
-                        <Icon size={18} />
-                      </div>
-                    </div>
-                    <h3 className="mt-6 text-4xl font-black text-slate-900 leading-none sm:text-5xl">
-                      {card.value}
-                    </h3>
-                  </div>
+                <Link key={metric.label} to={metric.path} className="sa-dashboard-metric">
+                  <span className="sa-dashboard-metric-meta">
+                    <span>{String(index + 1).padStart(2, "0")}</span>
+                    <Icon size={18} strokeWidth={1.7} aria-hidden="true" />
+                  </span>
+                  <strong>{metric.value.toLocaleString()}</strong>
+                  <span>{metric.label}</span>
+                  <small>{metric.detail}</small>
+                </Link>
                 );
               })}
             </div>
+          </section>
+
+          <div className="sa-dashboard-primary-grid">
+            <section className="sa-dashboard-section sa-dashboard-election-pulse" aria-labelledby="election-pulse-title">
+              <div className="sa-dashboard-section-heading sa-dashboard-section-heading-inline">
+                <div><p className="sa-dashboard-eyebrow">01 / Election pulse</p><h2 id="election-pulse-title">Lifecycle distribution</h2></div>
+                <Link to="/super-admin/elections" className="sa-dashboard-text-action">Manage elections <ArrowRight size={15} aria-hidden="true" /></Link>
+              </div>
+              {totalElections === 0 ? (
+                <p className="sa-dashboard-empty">No election records are available yet.</p>
+              ) : (
+                <div className="sa-dashboard-pulse-list">
+                  {electionPulse.map((item) => (
+                    <div key={item.id} className="sa-dashboard-pulse-row" data-phase={item.id}><span className="sa-dashboard-pulse-mark" aria-hidden="true" /><span>{item.label}</span><span aria-hidden="true" /><strong>{item.count.toLocaleString()}</strong></div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section className="sa-dashboard-section sa-dashboard-attention" aria-labelledby="attention-title">
+              <div className="sa-dashboard-section-heading"><p className="sa-dashboard-eyebrow">02 / System attention</p><h2 id="attention-title">What needs review</h2></div>
+              {attentionItems.length === 0 ? (
+                <div className="sa-dashboard-attention-clear"><CheckCircle2 size={20} aria-hidden="true" /><div><strong>No immediate system actions need attention.</strong><p>Current review and result-release queues are clear.</p></div></div>
+              ) : (
+                <div className="sa-dashboard-attention-list">
+                  {attentionItems.map((item) => (
+                    <Link key={item.id} to={item.path} className="sa-dashboard-attention-item">
+                      <span className="sa-dashboard-attention-count">{item.count}</span>
+                      <span><strong>{item.title}</strong><small>{item.description}</small></span>
+                      <ArrowRight size={16} aria-hidden="true" />
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </section>
           </div>
 
-          {/* Full Width Recent Activity Table */}
-          <div className="table-shell mt-6">
-            <div className="border-b border-slate-100 px-6 py-5">
-              <h3 className="text-lg font-black text-slate-900">Recent Activity</h3>
-            </div>
-            
-            <div className="overflow-x-auto">
-              <table className="app-table">
-                <thead>
-                  <tr>
-                    <th>Event</th>
-                    <th>Organization</th>
-                    <th>Status</th>
-                    <th>Time</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentActivities.length === 0 ? (
-                    <tr>
-                      <td colSpan="4" className="px-6 py-10 text-center empty-copy">
-                        No recent activity yet.
-                      </td>
-                    </tr>
-                  ) : recentActivities.map((activity) => (
-                    <tr key={activity.id}>
-                      <td className="font-bold text-slate-800">
-                        {activity.event}
-                      </td>
-                      <td className="text-slate-500 font-medium">{activity.organization}</td>
-                      <td>
-                        <span className={`status-pill ${
-                          activity.status === "Completed" ? "bg-emerald-50 text-emerald-700 border border-emerald-100/60" :
-                          activity.status === "Draft" ? "bg-slate-100 text-slate-700 border border-slate-200/60" :
-                          "bg-rose-50 text-rose-700 border border-rose-100/60"
-                        }`}>
-                          {activity.status}
-                        </span>
-                      </td>
-                      <td className="text-slate-400 font-medium">{activity.time}</td>
-                    </tr>
+          <div className="sa-dashboard-secondary-grid">
+            <section className="sa-dashboard-section sa-dashboard-programs" aria-labelledby="programs-title">
+              <div className="sa-dashboard-section-heading"><p className="sa-dashboard-eyebrow">03 / Student composition</p><h2 id="programs-title">Largest program groups</h2><p>Top six program values recorded across student accounts.</p></div>
+              {programStats.length === 0 ? (
+                <p className="sa-dashboard-empty">No program distribution data is available.</p>
+              ) : (
+                <div className="sa-dashboard-program-list">
+                  {programStats.map((item) => (
+                    <div key={item.program} className="sa-dashboard-program-row">
+                      <div><span title={item.program}>{item.program}</span><strong>{item.count.toLocaleString()}</strong></div>
+                      <div className="sa-dashboard-program-track" aria-hidden="true"><span style={{ width: `${item.share}%` }} /></div>
+                      <small>{item.share}% of student records</small>
+                    </div>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                </div>
+              )}
+            </section>
+
+            <section className="sa-dashboard-section sa-dashboard-activity" aria-labelledby="activity-title">
+              <div className="sa-dashboard-section-heading sa-dashboard-section-heading-inline">
+                <div><p className="sa-dashboard-eyebrow">04 / Recent activity</p><h2 id="activity-title">Audit register</h2></div>
+                <Link to="/super-admin/audit-logs" className="sa-dashboard-text-action">View audit logs <ArrowRight size={15} aria-hidden="true" /></Link>
+              </div>
+              {activityUnavailable ? (
+                <div className="sa-dashboard-activity-state"><Clock3 size={18} aria-hidden="true" /><p>Recent audit activity is temporarily unavailable.</p></div>
+              ) : recentActivities.length === 0 ? (
+                <p className="sa-dashboard-empty">No recent audit activity has been recorded.</p>
+              ) : (
+                <div className="sa-dashboard-activity-list">
+                  {recentActivities.map((activity) => (
+                    <article key={activity.id} className="sa-dashboard-activity-row">
+                      <div><strong>{activity.event}</strong><span>{activity.organization}</span></div>
+                      <div><span className="sa-dashboard-activity-status">{activity.status}</span><time dateTime={activity.createdAt}>{activity.time}</time></div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
           </div>
         </>
       )}

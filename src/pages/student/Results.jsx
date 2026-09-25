@@ -1,5 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { ChevronDown } from "lucide-react";
+import {
+  StudentSkeletonGroup,
+  StudentSkeletonLine,
+} from "../../components/student/StudentSkeleton";
 import { supabase } from "../../lib/supabaseClient";
 import {
   canStudentViewResults,
@@ -53,12 +58,197 @@ async function fetchResultElections(
   };
 }
 
+function electionMetaLine(election) {
+  const parts = [];
+  if (election.organizations?.name) parts.push(election.organizations.name);
+  const visibility = resultVisibilityLabel(
+    election.student_result_visibility,
+    election.results_released_at,
+  );
+  if (visibility) parts.push(visibility);
+  return parts.join(" · ");
+}
+
+function electionOrgName(election) {
+  return election.organizations?.name || "Organization";
+}
+
+function ElectionChooser({ elections, selectedElection, onSelect }) {
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const containerRef = useRef(null);
+  const listRef = useRef(null);
+
+  const selected =
+    elections.find((election) => election.id === Number(selectedElection)) || null;
+
+  useEffect(() => {
+    function handlePointerDown(event) {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setOpen(false);
+      }
+    }
+    function handleKeyDown(event) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      setActiveIndex(
+        Math.max(elections.findIndex((e) => e.id === Number(selectedElection)), 0),
+      );
+    }
+  }, [open, elections, selectedElection]);
+
+  useEffect(() => {
+    if (!open || activeIndex < 0) return;
+    listRef.current?.children[activeIndex]?.scrollIntoView({ block: "nearest" });
+  }, [open, activeIndex]);
+
+  function choose(index) {
+    const election = elections[index];
+    if (election) onSelect(String(election.id));
+    setOpen(false);
+  }
+
+  function handleTriggerKeyDown(event) {
+    if (event.key === "Escape") {
+      setOpen(false);
+      return;
+    }
+    if (!open) {
+      if (event.key === "Enter" || event.key === " " || event.key === "ArrowDown") {
+        event.preventDefault();
+        setOpen(true);
+      }
+      return;
+    }
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setActiveIndex((index) => Math.min(index + 1, elections.length - 1));
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveIndex((index) => Math.max(index - 1, 0));
+    } else if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      if (activeIndex >= 0 && activeIndex < elections.length) choose(activeIndex);
+    } else if (event.key === "Tab") {
+      setOpen(false);
+    }
+  }
+
+  return (
+    <div className="student-elections-selector" ref={containerRef}>
+      <label className="text-xs font-bold uppercase tracking-[0.18em] text-gray-600">
+        Choose Election
+      </label>
+      <button
+        type="button"
+        className={`student-elections-trigger${open ? " is-open" : ""}`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        onKeyDown={handleTriggerKeyDown}
+      >
+        <span className="student-elections-trigger-copy">
+          <strong>{selected ? selected.title : "Select Election"}</strong>
+          <small>
+            {selected
+              ? electionMetaLine(selected)
+              : elections.length === 0
+                ? "No elections available"
+                : "Select an election to view results"}
+          </small>
+        </span>
+        <ChevronDown size={15} className="student-elections-trigger-chevron" />
+      </button>
+
+      {open ? (
+        <ul className="student-elections-chooser" role="listbox" ref={listRef}>
+          {elections.length === 0 ? (
+            <li className="student-elections-chooser-empty" role="presentation">
+              No elections available.
+            </li>
+          ) : (
+            elections.map((election, index) => {
+              const isSelected = election.id === Number(selectedElection);
+              const isActive = index === activeIndex;
+              return (
+                <li key={election.id} role="option" aria-selected={isSelected}>
+                  <button
+                    type="button"
+                    className={`student-elections-option${isSelected ? " is-selected" : ""}${isActive ? " is-active" : ""}`}
+                    onClick={() => choose(index)}
+                    onMouseEnter={() => setActiveIndex(index)}
+                    tabIndex={-1}
+                    aria-selected={isSelected}
+                  >
+                    <span className="student-elections-option-copy">
+                      <strong>{election.title}</strong>
+                      <small>{electionOrgName(election)}</small>
+                    </span>
+                  </button>
+                </li>
+              );
+            })
+          )}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
+function ResultsLoadingSkeleton() {
+  return (
+    <StudentSkeletonGroup label="Loading results">
+      <section className="results-chapter">
+        <div className="student-skeleton-stack">
+          <StudentSkeletonLine width="16%" height="0.6rem" />
+          <StudentSkeletonLine width="34%" height="0.95rem" />
+        </div>
+
+        <div className="student-skeleton-stack student-results-skeleton-rows">
+          {[0, 1, 2].map((index) => (
+            <div className="student-skeleton-row" key={index}>
+              <StudentSkeletonLine
+                variant="media"
+                width="2.7rem"
+                height="2.7rem"
+              />
+
+              <div className="student-skeleton-copy">
+                <StudentSkeletonLine width="46%" height="0.9rem" />
+                <StudentSkeletonLine width="64%" height="0.6rem" />
+              </div>
+
+              <StudentSkeletonLine
+                variant="track"
+                width="100%"
+                height="0.32rem"
+              />
+            </div>
+          ))}
+        </div>
+      </section>
+    </StudentSkeletonGroup>
+  );
+}
+
 function StudentResults() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [elections, setElections] = useState([]);
   const [votes, setVotes] = useState([]);
   const [candidates, setCandidates] = useState([]);
   const [voteLoadError, setVoteLoadError] = useState("");
+  const [resultsLoading, setResultsLoading] = useState(false);
+  const [electionsLoading, setElectionsLoading] = useState(true);
   const [voterBreakdownMode, setVoterBreakdownMode] = useState("program");
   const [resultDimensions, setResultDimensions] = useState({ programs: [], yearLevels: [] });
   const [selectedElection, setSelectedElection] = useState(
@@ -71,9 +261,14 @@ function StudentResults() {
     let active = true;
 
     async function loadResults() {
+      setElectionsLoading(true);
+
       const organizationIds = await getStudentElectionOrganizationIds(user);
 
-      if (organizationIds.length === 0) return;
+      if (organizationIds.length === 0) {
+        setElectionsLoading(false);
+        return;
+      }
 
       let { data: electionData, error: electionError } =
         await fetchResultElections(organizationIds);
@@ -98,6 +293,7 @@ function StudentResults() {
         if (current) return current;
         return String(visibleElections.find((election) => canStudentViewResults(election))?.id || "");
       });
+      setElectionsLoading(false);
     }
 
     loadResults();
@@ -122,6 +318,8 @@ function StudentResults() {
 
       if (!activeElection || !canStudentViewResults(activeElection)) return;
 
+      setResultsLoading(true);
+
       const [resultDataset, dimensions] = await Promise.all([
         fetchElectionResultDataset(activeElection),
         fetchResultDimensions(activeElection),
@@ -132,6 +330,7 @@ function StudentResults() {
       if (!active) return;
 
       if (resultsError) {
+        setResultsLoading(false);
         setVoteLoadError(resultsError.message || "Unable to load result totals.");
         return;
       }
@@ -139,6 +338,7 @@ function StudentResults() {
       setVotes(voteData || []);
       setCandidates(candidateData || []);
       setResultDimensions(dimensions);
+      setResultsLoading(false);
     }
 
     loadSelectedVotes();
@@ -199,49 +399,54 @@ function StudentResults() {
   }
 
   return (
-    <div>
-      <div className="page-head">
-        <div>
-          <div className="page-kicker">Results Center</div>
-          <h1 className="page-title">
-            Published election
-            <span className="page-title-accent"> tallies</span>
-          </h1>
-          <p className="page-subtitle">
-            Result visibility follows election settings. Students only see live or
-            closed results when permitted by the election team.
-          </p>
+    <div className="student-elections-desktop">
+      <header className="student-elections-opening">
+        <div className="student-elections-opening-copy">
+          <span className="student-elections-kicker">Results Center</span>
+          <h1>Published election tallies</h1>
+          <p>See the official results released by your election team.</p>
         </div>
 
-        <div className="glass-panel-strong rounded-[24px] p-4">
-          <label className="field-label">Choose Election</label>
-          <select
-            value={selectedElection}
-            onChange={(e) => handleSelectElection(e.target.value)}
-            className="field-shell min-w-[280px]"
-          >
-            <option value="">Select Election</option>
-            {elections.map((election) => (
-              <option key={election.id} value={election.id}>
-                {election.title}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-      {activeElection?.cover_url ? (
-        <div className="mt-4 max-w-xl">
-          <ElectionCover election={activeElection} />
+        <ElectionChooser
+          elections={elections}
+          selectedElection={selectedElection}
+          onSelect={handleSelectElection}
+        />
+      </header>
+
+      {activeElection ? (
+        <div className="flex items-center gap-4 py-1.5">
+          {activeElection.cover_url ? (
+            <div className="student-results-context-thumb">
+              <ElectionCover election={activeElection} compact />
+            </div>
+          ) : null}
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <span className="text-xs font-bold uppercase tracking-[0.18em] text-[#ef4e23]">
+              {analytics.organizationName}
+            </span>
+            <h2 className="truncate font-serif text-2xl font-bold leading-tight text-gray-900">
+              {activeElection.title}
+            </h2>
+            <span className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">
+              {resultVisibilityLabel(
+                activeElection.student_result_visibility,
+                activeElection.results_released_at,
+              )}
+            </span>
+          </div>
         </div>
       ) : null}
 
-      <div className="mt-8 space-y-6">
-        {!selectedElection ? (
-          <div className="glass-panel rounded-[28px] p-8 text-gray-500">
+      <div className="student-results-body space-y-5">
+        {electionsLoading ? (
+          <ResultsLoadingSkeleton />
+        ) : !selectedElection ? (
+          <div className="student-empty-card student-elections-state">
             Select an election to view results.
           </div>
         ) : !canStudentViewResults(activeElection) ? (
-          <div className="glass-panel rounded-[28px] p-8 text-gray-500">
+          <div className="student-empty-card student-elections-state">
             {activeElection
               ? `${resultVisibilityLabel(
                   activeElection.student_result_visibility,
@@ -249,31 +454,50 @@ function StudentResults() {
                 )}: results are not available to students yet.`
               : "Results are hidden until the election team releases them."}
           </div>
+        ) : resultsLoading ? (
+          <ResultsLoadingSkeleton />
         ) : voteLoadError ? (
-          <div className="glass-panel rounded-[28px] p-8 text-gray-500">
+          <div className="student-empty-card student-elections-state">
             {voteLoadError}
           </div>
         ) : Object.keys(analytics.groupedResults).length === 0 ? (
-          <div className="glass-panel rounded-[28px] p-8 text-gray-500">
+          <div className="student-empty-card student-elections-state">
             No results yet.
           </div>
         ) : (
           <>
-            <div className="section-grid grid-cols-1 md:grid-cols-3">
+            <div className="student-summary-rail section-grid grid-cols-1 md:grid-cols-3">
               {[
-                ["Vote Entries", analytics.totalVoteEntries, "All submitted vote rows in this election"],
-                ["Unique Voters", analytics.totalUniqueVoters, `Student turnout for ${analytics.organizationName}`],
-                ["Abstain Count", analytics.totalAbstains, "Recorded abstain selections across positions"],
+                ["Total Ballots", analytics.totalVoteEntries, "All submitted vote rows in this election"],
+                ["Voters", analytics.totalUniqueVoters, `Student turnout for ${analytics.organizationName}`],
+                ["Abstentions", analytics.totalAbstains, "Recorded abstain selections across positions"],
               ].map(([label, value, hint]) => (
-                <div key={label} className="metric-card lift-card">
-                  <p className="text-sm font-semibold text-gray-500">{label}</p>
-                  <h2 className="mt-4 text-5xl font-black tracking-tight">{value}</h2>
+                <div key={label} className="border-t border-black/10 pt-3">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">{label}</p>
+                  <h2 className="mt-2 font-serif text-5xl font-bold tracking-tight">{value}</h2>
                   <p className="mt-3 text-sm text-gray-500">{hint}</p>
                 </div>
               ))}
             </div>
 
-            <div className="section-grid grid-cols-1 xl:grid-cols-[0.9fr_1.1fr]">
+            <section className="results-chapter">
+              <div className="results-chapter-head">
+                <span className="results-chapter-index">01</span>
+                <span className="results-chapter-label">Official Tally</span>
+              </div>
+              <ElectionResultsChart
+                groups={Object.values(analytics.groupedResults)}
+                totalVoters={analytics.totalUniqueVoters}
+                dimensions={analytics.resultDimensions}
+                presentation="editorial"
+              />
+            </section>
+
+            <section className="results-chapter">
+              <div className="results-chapter-head">
+                <span className="results-chapter-index">02</span>
+                <span className="results-chapter-label">Voter Breakdown</span>
+              </div>
               <HorizontalStatChart
                 eyebrow={voterBreakdownConfig.label}
                 title="Voter distribution"
@@ -288,26 +512,26 @@ function StudentResults() {
                 ]}
                 activeFilter={voterBreakdownMode}
                 onFilterChange={setVoterBreakdownMode}
+                presentation="editorial"
               />
+            </section>
 
-              <div className="glass-panel-dark rounded-[30px] p-7 text-white">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">
-                  Election Scope
-                </p>
-                <h3 className="mt-3 text-3xl font-black">Current and previous results</h3>
-                <p className="mt-4 text-sm leading-7 text-white/65">
+            <section className="results-chapter">
+              <div className="results-chapter-head">
+                <span className="results-chapter-index">03</span>
+                <span className="results-chapter-label">Election Record</span>
+              </div>
+              <div className="results-chapter-record">
+                <h3 className="font-serif text-xl font-bold leading-tight text-gray-900">
+                  Current and previous results
+                </h3>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
                   Result summaries stay available for older elections in the same
                   selection list, so you can compare turnout and demographic allocation
                   across election cycles.
                 </p>
               </div>
-            </div>
-
-            <ElectionResultsChart
-              groups={Object.values(analytics.groupedResults)}
-              totalVoters={analytics.totalUniqueVoters}
-              dimensions={analytics.resultDimensions}
-            />
+            </section>
           </>
         )}
       </div>

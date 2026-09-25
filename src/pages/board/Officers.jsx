@@ -31,6 +31,7 @@ function BoardOfficers() {
 
   const user = JSON.parse(localStorage.getItem("user"));
   const orgId = user?.organization_id;
+  const orgName = user?.organization_name || user?.organizations?.name || "your organization";
 
   useEffect(() => {
     let active = true;
@@ -229,20 +230,102 @@ function BoardOfficers() {
     refreshOfficers();
   }
 
+  function officerDisplayName(officer) {
+    return officer.students
+      ? `${officer.students.first_name || ""} ${officer.students.last_name || ""}`.trim()
+      : officer.officer_name || "Officer";
+  }
+
+  function officerInitials(officer) {
+    const name = officerDisplayName(officer);
+    return name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join("") || "O";
+  }
+
+  function officerPeriod(officer) {
+    if (officer.term_start && officer.term_end) return `${officer.term_start} - ${officer.term_end}`;
+    if (officer.term_start) return `From ${officer.term_start}`;
+    if (officer.term_end) return `Until ${officer.term_end}`;
+    return "Period not set";
+  }
+
+  const currentOfficers = officers.filter((officer) => officer.is_current);
+  const previousOfficers = officers.filter((officer) => !officer.is_current);
+
+  function renderOfficerRecord(officer, section = "current") {
+    return (
+      <article key={officer.id} className={`board-officer-record is-${section}`}>
+        <div className="board-officer-office">
+          <span>Office</span>
+          <strong>{officer.position_title}</strong>
+        </div>
+
+        <div className="board-officer-person">
+          <div className="board-officer-avatar">
+            {officer.photo_url ? (
+              <img src={officer.photo_url} alt="" loading="lazy" />
+            ) : (
+              <span>{officerInitials(officer)}</span>
+            )}
+          </div>
+          <div>
+            <h3>{officerDisplayName(officer)}</h3>
+            <p>
+              {officer.students?.student_number
+                ? `Student No. ${officer.students.student_number}`
+                : "Unlinked officer record"}
+            </p>
+          </div>
+        </div>
+
+        <div className="board-officer-period">
+          <span>{officer.term_label || "No term label"}</span>
+          <strong>{officerPeriod(officer)}</strong>
+        </div>
+
+        <div className="board-officer-actions">
+          <span className={`board-officer-state ${officer.is_current ? "is-current" : "is-previous"}`}>
+            {officer.is_current ? "Current" : "Previous"}
+          </span>
+          <button
+            type="button"
+            onClick={() => openEditForm(officer)}
+            className="icon-action"
+            aria-label={`Edit ${officerDisplayName(officer)}`}
+          >
+            <Pencil size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={() => handleDelete(officer)}
+            className="icon-action icon-action-danger"
+            aria-label={`Delete ${officerDisplayName(officer)}`}
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      </article>
+    );
+  }
+
   return (
-    <div>
-      <div className="page-head">
-        <div>
-          <div className="page-kicker">Officer Directory</div>
-          <h1 className="page-title">Board officers</h1>
+    <div className="board-officers-desktop">
+      <div className="page-head board-officers-opening">
+        <div className="board-officers-opening-copy">
+          <div className="page-kicker board-officers-kicker">Organizational Leadership</div>
+          <h1 className="page-title board-officers-title">Officer record</h1>
           <p className="page-subtitle">
-            Manage current and previous officers for your organization.
+            Maintain current and previous leadership records for {orgName}.
           </p>
         </div>
 
         <button
           onClick={openCreateForm}
-          className="primary-btn self-start lg:self-auto"
+          className="primary-btn board-officers-create self-start lg:self-auto"
         >
           <Plus size={18} />
           Add Officer
@@ -250,38 +333,45 @@ function BoardOfficers() {
       </div>
 
       {officers.length === 0 ? (
-        <div className="empty-state mt-8">No officers found.</div>
+        <div className="empty-state board-officers-state">No officers found.</div>
       ) : (
-        <div className="entity-grid">
-          {officers.map((officer) => (
-            <div key={officer.id} className="entity-card lift-card">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#ff7a35]">
-                    {officer.position_title}
-                  </p>
-                  <h2 className="entity-card-title mt-2">
-                    {officer.students
-                      ? `${officer.students.first_name} ${officer.students.last_name}`
-                      : officer.officer_name}
-                  </h2>
-                </div>
-                <span className={`status-pill ${officer.is_current ? "" : "!bg-white/60 !text-[#5a5548]"}`}>
-                  {officer.is_current ? "Current" : "Previous"}
-                </span>
+        <>
+          <section className="board-officers-roster" aria-label="Current officers">
+            <div className="board-officers-section-head">
+              <div>
+                <p className="board-officers-section-kicker">Current leadership</p>
+                <h2>Current officers</h2>
               </div>
-              <p className="entity-meta">{officer.term_label || "No term label"}</p>
-              <div className="entity-actions">
-                <button onClick={() => openEditForm(officer)} className="icon-action">
-                  <Pencil size={16} />
-                </button>
-                <button onClick={() => handleDelete(officer)} className="icon-action icon-action-danger">
-                  <Trash2 size={16} />
-                </button>
-              </div>
+              <span>{currentOfficers.length} records</span>
             </div>
-          ))}
-        </div>
+
+            {currentOfficers.length === 0 ? (
+              <div className="board-officers-empty">No current officers recorded.</div>
+            ) : (
+              <div className="board-officers-list">
+                {currentOfficers.map((officer) => renderOfficerRecord(officer, "current"))}
+              </div>
+            )}
+          </section>
+
+          <section className="board-officers-roster is-history" aria-label="Previous officers">
+            <div className="board-officers-section-head">
+              <div>
+                <p className="board-officers-section-kicker">Leadership history</p>
+                <h2>Previous officers</h2>
+              </div>
+              <span>{previousOfficers.length} records</span>
+            </div>
+
+            {previousOfficers.length === 0 ? (
+              <div className="board-officers-empty">No previous officer records.</div>
+            ) : (
+              <div className="board-officers-list">
+                {previousOfficers.map((officer) => renderOfficerRecord(officer, "previous"))}
+              </div>
+            )}
+          </section>
+        </>
       )}
 
       {formOpen && (
@@ -294,7 +384,7 @@ function BoardOfficers() {
                   {editingOfficer ? "Edit officer" : "Add officer"}
                 </h2>
                 <p className="surface-copy mt-1 text-sm leading-5">
-                  Keep officer assignments and term details in a cleaner, wider form.
+                  Keep office assignments, linked students, and term details in one record.
                 </p>
               </div>
               <button

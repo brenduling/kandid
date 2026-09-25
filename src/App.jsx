@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
 import PWAInstallPrompt from "./components/PWAInstallPrompt";
 import PWAOfflineNotice from "./components/PWAOfflineNotice";
@@ -20,6 +20,7 @@ const StudentOrganizations = lazy(() => import("./pages/student/Organizations"))
 const StudentVotePage = lazy(() => import("./pages/student/VotePage"));
 const StudentReceipt = lazy(() => import("./pages/student/Receipt"));
 const StudentReceiptDetails = lazy(() => import("./pages/student/ReceiptDetails"));
+const StudentBallotVerification = lazy(() => import("./pages/student/BallotVerification"));
 const StudentCampaign = lazy(() => import("./pages/student/Campaign"));
 const StudentResults = lazy(() => import("./pages/student/Results"));
 const StudentOfficers = lazy(() => import("./pages/student/Officers"));
@@ -68,7 +69,28 @@ const StudentLogin = lazy(() => import("./pages/auth/StudentLogin"));
 const AdminAuthSetup = lazy(() => import("./pages/auth/AdminAuthSetup"));
 
 function RouteFallback() {
-  return <KandidRouteLoader message="Opening your workspace..." />;
+  const { pathname } = useLocation();
+  let message = "Opening Kandid...";
+
+  if (pathname.startsWith("/student-setup")) {
+    message = "Opening account setup...";
+  } else if (pathname.startsWith("/student-login")) {
+    message = "Opening Student Login...";
+  } else if (pathname.startsWith("/student")) {
+    message = "Preparing your Student Portal...";
+  } else if (pathname.startsWith("/board-login") || pathname.startsWith("/eb-login")) {
+    message = "Opening Electoral Board sign in...";
+  } else if (pathname.startsWith("/board-portal")) {
+    message = "Opening Electoral Board access...";
+  } else if (pathname.startsWith("/board") || pathname.startsWith("/eb-")) {
+    message = "Preparing your Electoral Board workspace...";
+  } else if (pathname.startsWith("/super-admin")) {
+    message = "Preparing system administration...";
+  } else if (pathname.startsWith("/admin-")) {
+    message = "Opening administrator access...";
+  }
+
+  return <KandidRouteLoader message={message} />;
 }
 
 function App() {
@@ -423,6 +445,11 @@ function App() {
             <Route
               path="receipt/:voteId"
               element={<StudentReceiptDetails />}
+            />
+
+            <Route
+              path="receipt/:voteId/verification"
+              element={<StudentBallotVerification />}
             />
 
             <Route

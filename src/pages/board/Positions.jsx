@@ -31,6 +31,11 @@ function isPositionReorderSetupError(error) {
   );
 }
 
+function selectionLimitLabel(maxVotes) {
+  const limit = Number(maxVotes || 1);
+  return `${limit} selection${limit === 1 ? "" : "s"} allowed`;
+}
+
 function BoardPositions() {
   const prompt = usePrompt();
   const navigate = useNavigate();
@@ -42,7 +47,7 @@ function BoardPositions() {
   const [editing, setEditing] = useState(null);
   const [positionFilter, setPositionFilter] = useState("active");
   const [positionLifecycleReady, setPositionLifecycleReady] = useState(true);
-  const [selectedElectionId, setSelectedElectionId] = useState(focusedElectionId);
+  const [selectedElectionFallbackId, setSelectedElectionId] = useState("");
   const [positionCounts, setPositionCounts] = useState({});
   const [draggedPositionId, setDraggedPositionId] = useState(null);
 
@@ -56,18 +61,14 @@ function BoardPositions() {
   const user = JSON.parse(localStorage.getItem("user"));
   const orgId = user?.organization_id;
   const orgName = user?.organizations?.name;
+  const selectedElectionId = focusedElectionId || selectedElectionFallbackId;
 
   useEffect(() => {
     fetchElections();
   }, []);
 
   useEffect(() => {
-    setSelectedElectionId(focusedElectionId);
-  }, [focusedElectionId]);
-
-  useEffect(() => {
     if (!selectedElectionId) {
-      setPositions([]);
       return;
     }
 
@@ -560,19 +561,19 @@ function BoardPositions() {
   }
 
   return (
-    <div>
-      <div className="page-head">
-        <div>
-          <div className="page-kicker">Ballot Structure</div>
-          <h1 className="page-title">Board positions</h1>
+    <div className="board-positions-desktop">
+      <div className="page-head board-positions-opening">
+        <div className="board-positions-opening-copy">
+          <div className="page-kicker board-positions-kicker">Ballot Structure</div>
+          <h1 className="page-title board-positions-title">Ballot positions</h1>
           <p className="page-subtitle">
-            Manage election positions for your assigned organization.
+            Structure offices and selection limits for {orgName || "your assigned organization"}.
           </p>
         </div>
 
         <button
           onClick={() => openCreate()}
-          className="primary-btn self-start lg:self-auto"
+          className="primary-btn board-positions-create self-start lg:self-auto"
         >
           <Plus size={18} />
           Add Position
@@ -580,38 +581,47 @@ function BoardPositions() {
       </div>
 
       {!positionLifecycleReady ? (
-        <div className="mt-6 rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm font-semibold leading-6 text-orange-800">
+        <div className="board-positions-warning">
           Position lifecycle migration is not applied in Supabase yet. Existing positions are shown as active, and Retired filtering/Retire Position will be enabled after the migration is applied.
         </div>
       ) : null}
 
       {!selectedElectionId ? (
         elections.length === 0 ? (
-          <div className="empty-state mt-8">No elections available.</div>
+          <div className="empty-state board-positions-state">No elections available.</div>
         ) : (
-          <div className="election-management-grid mt-8">
-            {elections.map((election) => (
-              <ElectionManagementCard
-                key={election.id}
-                election={election}
-                organization={user?.organizations}
-                eyebrow="Position Setup"
-                counts={[
-                  {
-                    label: `position${positionCountsByElection[election.id] === 1 ? "" : "s"}`,
-                    value: positionCountsByElection[election.id] || 0,
-                  },
-                ]}
-                onClick={() => {
-                  setSelectedElectionId(String(election.id));
-                  setSearchParams({ election: String(election.id) });
-                }}
-              />
-            ))}
-          </div>
+          <section className="board-positions-election-picker" aria-label="Election selection">
+            <div className="board-positions-section-head">
+              <div>
+                <p className="board-positions-section-kicker">Election context</p>
+                <h2>Select a ballot to structure</h2>
+              </div>
+              <span>{elections.length} election{elections.length === 1 ? "" : "s"}</span>
+            </div>
+            <div className="election-management-grid board-positions-election-grid">
+              {elections.map((election) => (
+                <ElectionManagementCard
+                  key={election.id}
+                  election={election}
+                  organization={user?.organizations}
+                  eyebrow="Position Setup"
+                  counts={[
+                    {
+                      label: `position${positionCountsByElection[election.id] === 1 ? "" : "s"}`,
+                      value: positionCountsByElection[election.id] || 0,
+                    },
+                  ]}
+                  onClick={() => {
+                    setSelectedElectionId(String(election.id));
+                    setSearchParams({ election: String(election.id) });
+                  }}
+                />
+              ))}
+            </div>
+          </section>
         )
       ) : !selectedElection ? (
-        <div className="empty-state mt-8">
+        <div className="empty-state board-positions-state">
           Selected election could not be found.
           <button
             type="button"
@@ -625,19 +635,19 @@ function BoardPositions() {
           </button>
         </div>
       ) : (
-        <div className="mt-8">
+        <div className="board-positions-workspace">
           <button
             type="button"
             onClick={() => {
               setSelectedElectionId("");
               setSearchParams({});
             }}
-            className="mb-4 text-sm font-black uppercase tracking-[0.12em] text-[#ef4e23]"
+            className="board-positions-back"
           >
             Back to Elections
           </button>
 
-          <div className="entity-card mb-4 grid gap-4 lg:grid-cols-[minmax(0,15rem)_1fr_auto] lg:items-center">
+          <div className="entity-card board-positions-context">
             <ElectionManagementCard
               election={selectedElection}
               organization={user?.organizations}
@@ -649,12 +659,17 @@ function BoardPositions() {
                 },
               ]}
             />
-            <div>
-              <p className="page-kicker">Positions</p>
-              <h2 className="entity-card-title mt-2">{selectedElection.title}</h2>
-              <p className="entity-meta mt-2">
-                Manage only the positions assigned to this election.
+            <div className="board-positions-context-copy">
+              <p className="board-positions-section-kicker">Selected ballot</p>
+              <h2>{selectedElection.title}</h2>
+              <p>
+                Positions below appear in the order used for this election ballot.
               </p>
+              <div className="board-positions-context-ledger">
+                <span>{activePositionCount} active</span>
+                <span>{retiredPositionCount} retired</span>
+                <span>{positionCountsByElection[selectedElection.id] || 0} total</span>
+              </div>
             </div>
             {["closed", "archived", "done"].includes(String(getElectionPhase(selectedElection)).toLowerCase()) ? (
               <span className="status-pill">Closed</span>
@@ -670,7 +685,7 @@ function BoardPositions() {
             )}
           </div>
 
-          <div className="mb-4 flex flex-wrap gap-2">
+          <div className="board-positions-filters">
             {[
               ["active", `Active (${activePositionCount})`],
               ["retired", `Retired (${retiredPositionCount})`],
@@ -689,7 +704,7 @@ function BoardPositions() {
           </div>
 
           {visiblePositions.length === 0 ? (
-            <div className="empty-state">
+            <div className="empty-state board-positions-state">
               <p>No positions have been created for this election yet.</p>
               {["closed", "archived", "done"].includes(String(getElectionPhase(selectedElection)).toLowerCase()) ? null : (
                 <button
@@ -703,60 +718,83 @@ function BoardPositions() {
               )}
             </div>
           ) : (
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-              {visiblePositions.map((position) => (
-                      <div
-                        key={position.id}
-                        className={`position-card-tile ${Number(draggedPositionId) === Number(position.id) ? "is-dragging" : ""}`}
-                        draggable={(position.status || "active") !== "retired"}
-                        onDragStart={() => setDraggedPositionId(position.id)}
-                        onDragOver={(event) => event.preventDefault()}
-                        onDragEnd={() => setDraggedPositionId(null)}
-                        onDrop={() => dropPosition(position)}
-                        onDoubleClick={() => movePosition(position, 1)}
-                        title="Drag to reorder, or double-click to move down."
+            <section className="board-positions-structure" aria-label="Ballot position order">
+              <div className="board-positions-section-head">
+                <div>
+                  <p className="board-positions-section-kicker">Ballot order</p>
+                  <h2>Office sequence</h2>
+                </div>
+                <span>Drag or use arrows to reorder</span>
+              </div>
+              <div className="board-position-list">
+                {visiblePositions.map((position, index) => (
+                  <div
+                    key={position.id}
+                    className={`position-card-tile board-position-row ${Number(draggedPositionId) === Number(position.id) ? "is-dragging" : ""}`}
+                    draggable={(position.status || "active") !== "retired"}
+                    onDragStart={() => setDraggedPositionId(position.id)}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDragEnd={() => setDraggedPositionId(null)}
+                    onDrop={() => dropPosition(position)}
+                    onDoubleClick={() => movePosition(position, 1)}
+                    title="Drag to reorder, or double-click to move down."
+                  >
+                    <div className="board-position-sequence">
+                      <span>Order</span>
+                      <strong>
+                        {String(Number(position.display_order || index + 1)).padStart(2, "0")}
+                      </strong>
+                    </div>
+                    <div className="board-position-main">
+                      <h3>{position.name}</h3>
+                      <p>{selectionLimitLabel(position.max_votes)}</p>
+                    </div>
+                    <div className="board-position-actions position-card-actions">
+                      <button
+                        type="button"
+                        onClick={() => movePosition(position, -1)}
+                        className="icon-action"
+                        title="Move up"
+                        aria-label={`Move ${position.name} up`}
                       >
-                        <div className="min-w-0 flex-1">
-                          <h3 className="text-lg font-black">
-                            {position.name}
-                          </h3>
-                          <p className="mt-1 text-sm text-gray-500">
-                            Students may select up to {position.max_votes} candidate{position.max_votes > 1 ? "s" : ""}.
-                          </p>
-                        </div>
-                        <div className="position-card-actions flex flex-wrap items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => movePosition(position, -1)}
-                            className="icon-action"
-                            title="Move up"
-                          >
-                            <ArrowUp size={16} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => movePosition(position, 1)}
-                            className="icon-action"
-                            title="Move down"
-                          >
-                            <ArrowDown size={16} />
-                          </button>
-                          {position.status === "retired" ? (
-                            <span className="status-pill !bg-orange-100 !text-orange-700">
-                              <Archive size={14} />
-                              Retired
-                            </span>
-                          ) : null}
-                          <button onClick={() => openEdit(position)} className="icon-action">
-                            <Pencil size={16} />
-                          </button>
-                          <button onClick={() => handleDelete(position.id)} className="icon-action icon-action-danger">
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </div>
+                        <ArrowUp size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => movePosition(position, 1)}
+                        className="icon-action"
+                        title="Move down"
+                        aria-label={`Move ${position.name} down`}
+                      >
+                        <ArrowDown size={16} />
+                      </button>
+                      {position.status === "retired" ? (
+                        <span className="status-pill !bg-orange-100 !text-orange-700">
+                          <Archive size={14} />
+                          Retired
+                        </span>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => openEdit(position)}
+                        className="icon-action"
+                        aria-label={`Edit ${position.name}`}
+                      >
+                        <Pencil size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(position.id)}
+                        className="icon-action icon-action-danger"
+                        aria-label={`Delete ${position.name}`}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
               ))}
-            </div>
+              </div>
+            </section>
           )}
         </div>
       )}

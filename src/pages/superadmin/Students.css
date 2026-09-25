@@ -1,0 +1,1155 @@
+.sa-students {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  color: var(--kandid-app-ink, #171717);
+}
+
+.sa-students-masthead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(13rem, 16rem);
+  gap: clamp(1.75rem, 3.2vw, 3.5rem);
+  align-items: end;
+  border-top: 2px solid var(--kandid-app-ink, #171717);
+  border-bottom: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+  padding: clamp(1.1rem, 1.8vw, 1.8rem) 0 clamp(1.15rem, 1.7vw, 1.65rem);
+}
+
+.sa-students-masthead-copy,
+.sa-students-masthead-aside,
+.sa-students-registry,
+.sa-students-registry-head,
+.sa-students-toolbar,
+.sa-students-search,
+.sa-students-control,
+.sa-students-table-wrap,
+.sa-students-identity,
+.sa-students-identity-content,
+.sa-students-identity-content > div,
+.sa-students-membership,
+.sa-students-membership-list,
+.sa-students-membership-list > div:last-child,
+.sa-students-state,
+.sa-students-state-content {
+  min-width: 0;
+}
+
+.sa-students-brandline,
+.sa-students-eyebrow,
+.sa-students-deck,
+.sa-students-masthead-aside span,
+.sa-students-masthead-aside strong,
+.sa-students-summary-item span,
+.sa-students-summary-item strong,
+.sa-students-summary-item small,
+.sa-students-registry-head p,
+.sa-students-registry-head h2,
+.sa-students-loading p,
+.sa-students-loading strong,
+.sa-students-error h3,
+.sa-students-error p,
+.sa-students-empty h3,
+.sa-students-empty p,
+.sa-students-pager p {
+  margin: 0;
+}
+
+.sa-students-brandline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+  color: var(--kandid-app-muted, #69645c);
+  font-size: 0.69rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.sa-students-brandline span:first-child { color: var(--kandid-app-ink, #171717); }
+.sa-students-brandline span:nth-child(2) { color: var(--kandid-app-orange, #ef4e23); }
+
+.sa-students-eyebrow {
+  color: var(--kandid-app-orange, #ef4e23);
+  font-size: 0.68rem;
+  font-weight: 850;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.sa-students-masthead .sa-students-eyebrow {
+  margin-top: clamp(0.8rem, 1.4vw, 1.25rem);
+}
+
+.sa-students-masthead h1 {
+  max-width: 48rem;
+  margin: 0.35rem 0 0;
+  color: var(--kandid-app-ink, #171717);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(2.35rem, 3.45vw, 3.65rem);
+  font-weight: 700;
+  line-height: 0.96;
+}
+
+.sa-students-deck {
+  max-width: 46rem;
+  margin-top: 0.7rem;
+  color: var(--kandid-app-ink-3, #514d46);
+  font-size: clamp(0.95rem, 1.1vw, 1.05rem);
+  font-weight: 560;
+  line-height: 1.55;
+}
+
+.sa-students-masthead-aside {
+  display: grid;
+  gap: 0.55rem;
+  border-left: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+  padding: 0.25rem 0 0.2rem 1.25rem;
+}
+
+.sa-students-masthead-aside > span {
+  color: var(--kandid-app-orange, #ef4e23);
+  font-size: 0.66rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.sa-students-masthead-aside > strong {
+  color: var(--kandid-app-ink, #171717);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.35rem;
+  font-weight: 650;
+  line-height: 1.15;
+}
+
+.sa-students-add,
+.sa-students-retry,
+.sa-students-text-action {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border: 0;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.sa-students-add {
+  margin-top: 0.35rem;
+  background: var(--kandid-app-orange, #ef4e23);
+  color: #fff;
+  padding: 0.72rem 0.9rem;
+}
+
+.sa-students-add:hover { background: var(--kandid-app-ink, #171717); }
+
+.sa-students-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-bottom: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+}
+
+.sa-students-summary-item {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  gap: 0.22rem;
+  padding: clamp(0.9rem, 1.6vw, 1.3rem);
+}
+
+.sa-students-summary-item::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1.8rem;
+  height: 2px;
+  background: var(--kandid-app-border-strong, #cfc9bf);
+  content: "";
+}
+
+.sa-students-summary-item.is-primary::before,
+.sa-students-summary-item.is-pending::before {
+  background: var(--kandid-app-orange, #ef4e23);
+}
+
+.sa-students-summary-item.is-disabled::before { background: #786f66; }
+
+.sa-students-summary-item + .sa-students-summary-item {
+  border-left: 1px solid var(--kandid-app-border, #e1ddd5);
+}
+
+.sa-students-summary-item > span {
+  color: var(--kandid-app-muted, #69645c);
+  font-size: 0.62rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.sa-students-summary-item > strong {
+  margin-top: 0.28rem;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(1.85rem, 2.6vw, 2.8rem);
+  font-weight: 700;
+  line-height: 0.95;
+}
+
+.sa-students-summary-item > small {
+  margin-top: 0.35rem;
+  color: var(--kandid-app-muted, #69645c);
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.sa-students-registry { margin-top: clamp(2rem, 3.4vw, 3.6rem); }
+
+.sa-students-registry-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1.5rem;
+  align-items: end;
+  border-bottom: 2px solid var(--kandid-app-ink, #171717);
+  padding-bottom: 0.9rem;
+}
+
+.sa-students-registry-head h2 {
+  margin-top: 0.28rem;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(1.55rem, 2.25vw, 2.15rem);
+  font-weight: 650;
+  line-height: 1.05;
+}
+
+.sa-students-registry-head > p {
+  color: var(--kandid-app-muted, #69645c);
+  font-size: 0.67rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.sa-students-toolbar {
+  display: grid;
+  grid-template-columns: minmax(15rem, 1.45fr) minmax(11rem, 0.7fr) minmax(11rem, 0.7fr);
+  gap: 1rem;
+  align-items: end;
+  border-bottom: 1px solid var(--kandid-app-border, #e1ddd5);
+  padding: 1.1rem 0;
+}
+
+.sa-students-search,
+.sa-students-control {
+  display: grid;
+  gap: 0.42rem;
+}
+
+.sa-students-search > span,
+.sa-students-control > span,
+.sa-students-status-filter > span {
+  color: var(--kandid-app-muted, #69645c);
+  font-size: 0.61rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.sa-students-search > div {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.sa-students-search svg {
+  position: absolute;
+  left: 0;
+  color: var(--kandid-app-orange, #ef4e23);
+  pointer-events: none;
+}
+
+.sa-students-search input,
+.sa-students-control select {
+  width: 100%;
+  min-width: 0;
+  height: 2.8rem;
+  border: 0;
+  border-bottom: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+  border-radius: 0;
+  background: transparent;
+  color: var(--kandid-app-ink, #171717);
+  font: inherit;
+  font-size: 0.8rem;
+  outline: none;
+}
+
+.sa-students-search input { padding: 0.5rem 0.25rem 0.5rem 1.75rem; }
+.sa-students-control select { padding: 0.5rem 1.8rem 0.5rem 0; }
+
+.sa-students-search input:focus,
+.sa-students-control select:focus {
+  border-color: var(--kandid-app-orange, #ef4e23);
+}
+
+.sa-students-status-filter {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: clamp(1rem, 2vw, 2rem);
+  border-bottom: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+}
+
+.sa-students-status-filter > div {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: clamp(0.85rem, 1.8vw, 1.6rem);
+}
+
+.sa-students-status-filter button {
+  position: relative;
+  border: 0;
+  background: transparent;
+  color: var(--kandid-app-muted, #69645c);
+  min-height: 3rem;
+  padding: 0.45rem 0;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 820;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.sa-students-status-filter button::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: var(--kandid-app-orange, #ef4e23);
+  content: "";
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 160ms ease;
+}
+
+.sa-students-status-filter button:hover,
+.sa-students-status-filter button.is-active { color: var(--kandid-app-ink, #171717); }
+.sa-students-status-filter button:hover::after,
+.sa-students-status-filter button.is-active::after { transform: scaleX(1); }
+
+.sa-students-table-wrap {
+  width: 100%;
+  max-width: 100%;
+}
+
+.sa-students-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.sa-students-table th {
+  border-bottom: 1px solid var(--kandid-app-border, #e1ddd5);
+  color: var(--kandid-app-muted, #69645c);
+  padding: 0.72rem 0.55rem;
+  font-size: 0.59rem;
+  font-weight: 850;
+  text-align: left;
+  text-transform: uppercase;
+  vertical-align: bottom;
+}
+
+.sa-students-table th:first-child,
+.sa-students-table td:first-child { width: 5%; padding-left: 0; }
+.sa-students-table th:nth-child(2) { width: 27%; }
+.sa-students-table th:nth-child(3) { width: 15%; }
+.sa-students-table th:nth-child(4) { width: 22%; }
+.sa-students-table th:nth-child(5) { width: 13%; }
+.sa-students-table th:nth-child(6) { width: 18%; text-align: right; padding-right: 0; }
+
+.sa-students-table td {
+  min-width: 0;
+  border-bottom: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+  padding: 1rem 0.55rem;
+  vertical-align: middle;
+}
+
+.sa-students-table tbody tr {
+  position: relative;
+  transition: background-color 160ms ease;
+}
+
+.sa-students-table tbody tr::after {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 2.5rem;
+  height: 2px;
+  background: var(--kandid-app-orange, #ef4e23);
+  content: "";
+  transform: scaleX(0.16);
+  transform-origin: left;
+  transition: transform 160ms ease;
+}
+
+.sa-students-table tbody tr:hover { background: rgba(255, 255, 255, 0.48); }
+.sa-students-table tbody tr:hover::after { transform: scaleX(1); }
+.sa-students-table tbody tr.is-disabled { color: #66615a; }
+
+.sa-students-index {
+  color: var(--kandid-app-orange, #ef4e23);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.sa-students-identity-content {
+  display: grid;
+  grid-template-columns: 2.6rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.sa-students .sa-students-avatar {
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+  border-radius: 0;
+}
+
+.sa-students-identity-content > div,
+.sa-students-academic-content,
+.sa-students-state-content > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.sa-students-identity strong {
+  overflow-wrap: anywhere;
+  color: var(--kandid-app-ink, #171717);
+  font-size: 0.86rem;
+  font-weight: 850;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.sa-students-number {
+  color: var(--kandid-app-ink-3, #514d46);
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.sa-students-identity small {
+  overflow-wrap: anywhere;
+  color: var(--kandid-app-muted, #69645c);
+  font-size: 0.67rem;
+  line-height: 1.3;
+}
+
+.sa-students-academic strong,
+.sa-students-membership-list strong,
+.sa-students-state strong {
+  overflow-wrap: anywhere;
+  color: var(--kandid-app-ink-3, #514d46);
+  font-size: 0.7rem;
+  font-weight: 850;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+
+.sa-students-academic span,
+.sa-students-membership-list span,
+.sa-students-state span:not(.sa-students-state-mark),
+.sa-students-unassigned {
+  color: var(--kandid-app-muted, #69645c);
+  font-size: 0.64rem;
+  line-height: 1.35;
+}
+
+.sa-students-membership-list {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: center;
+}
+
+.sa-students-membership-list > div:last-child { display: grid; gap: 0.2rem; }
+
+.sa-students-org-marks { display: flex; align-items: center; }
+
+.sa-students .sa-students-org-logo {
+  width: 1.8rem;
+  height: 1.8rem;
+  border: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 0.15rem;
+}
+
+.sa-students .sa-students-org-logo + .sa-students-org-logo { margin-left: -0.42rem; }
+
+.sa-students-state-content {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.sa-students-state-mark {
+  width: 0.48rem;
+  height: 0.48rem;
+  flex: 0 0 auto;
+  border: 1px solid currentColor;
+  color: #79736b;
+}
+
+.sa-students-state-mark.is-active {
+  border-color: #176b4a;
+  background: #176b4a;
+}
+
+.sa-students-state-mark.is-pending {
+  border-color: var(--kandid-app-orange, #ef4e23);
+  background: transparent;
+}
+
+.sa-students-state-mark.is-disabled {
+  width: 0.58rem;
+  height: 1px;
+  border: 0;
+  background: #69645c;
+}
+
+.sa-students-state strong { text-transform: uppercase; }
+
+.sa-students-action-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.7rem;
+}
+
+.sa-students-action-list button,
+.sa-students-pager button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  border: 0;
+  border-bottom: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+  background: transparent;
+  color: var(--kandid-app-ink-3, #514d46);
+  min-height: 2.45rem;
+  padding: 0.35rem 0;
+  font: inherit;
+  font-size: 0.64rem;
+  font-weight: 820;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.sa-students-action-list button:hover,
+.sa-students-pager button:not(:disabled):hover {
+  border-color: var(--kandid-app-orange, #ef4e23);
+  color: var(--kandid-app-ink, #171717);
+}
+
+.sa-students-action-list .sa-students-delete:hover {
+  border-color: #b42318;
+  color: #b42318;
+}
+
+.sa-students-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+  padding: 0.85rem 0;
+}
+
+.sa-students-pager p {
+  color: var(--kandid-app-muted, #69645c);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.sa-students-pager > div { display: flex; align-items: center; gap: 0.8rem; }
+
+.sa-students-pager span {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border: 1px solid var(--kandid-app-orange, #ef4e23);
+  color: var(--kandid-app-ink, #171717);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.sa-students-pager button:disabled { cursor: not-allowed; opacity: 0.38; }
+
+.sa-students-loading,
+.sa-students-error {
+  display: grid;
+  min-height: 18rem;
+  align-content: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+}
+
+.sa-students-loading > strong,
+.sa-students-error h3 {
+  color: var(--kandid-app-ink, #171717);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(1.65rem, 2.7vw, 2.45rem);
+  line-height: 1.05;
+}
+
+.sa-students-loading-lines {
+  display: grid;
+  max-width: 38rem;
+  gap: 0.45rem;
+  margin-top: 0.45rem;
+}
+
+.sa-students-loading-lines span { height: 0.3rem; background: var(--kandid-app-border, #e1ddd5); }
+.sa-students-loading-lines span:nth-child(1) { width: 100%; }
+.sa-students-loading-lines span:nth-child(2) { width: 72%; }
+.sa-students-loading-lines span:nth-child(3) { width: 44%; }
+
+.sa-students-error > p:not(.sa-students-eyebrow) {
+  max-width: 38rem;
+  color: var(--kandid-app-muted, #69645c);
+  line-height: 1.55;
+}
+
+.sa-students-retry,
+.sa-students-text-action {
+  border-bottom: 2px solid var(--kandid-app-orange, #ef4e23);
+  background: transparent;
+  color: var(--kandid-app-ink, #171717);
+  padding: 0.45rem 0;
+}
+
+.sa-students-empty {
+  display: grid;
+  grid-template-columns: 3.5rem minmax(0, 1fr) auto;
+  gap: 1.5rem;
+  align-items: center;
+  min-height: 12rem;
+  border-bottom: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+}
+
+.sa-students-empty > span {
+  color: var(--kandid-app-orange, #ef4e23);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.sa-students-empty h3 {
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.45rem;
+  line-height: 1.1;
+}
+
+.sa-students-empty p {
+  margin-top: 0.4rem;
+  color: var(--kandid-app-muted, #69645c);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.sa-students button:focus-visible,
+.sa-students input:focus-visible,
+.sa-students select:focus-visible {
+  outline: 2px solid var(--kandid-app-orange, #ef4e23);
+  outline-offset: 3px;
+}
+
+.sa-students-modal {
+  border-top: 3px solid var(--kandid-app-orange, #ef4e23);
+}
+
+.sa-students-modal .popup-header {
+  border-bottom: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+}
+
+.modal-overlay .sa-students-modal.is-registration {
+  width: min(46rem, calc(100vw - 2rem)) !important;
+  max-height: calc(100dvh - 2rem) !important;
+  padding: 0 !important;
+  border-top: 0 !important;
+  border-radius: 0 !important;
+  background: #f8f6f1;
+  box-shadow: 0 14px 32px rgba(22, 20, 17, 0.18) !important;
+}
+
+.sa-students-modal.is-registration .popup-header {
+  margin-bottom: 0 !important;
+  border-top: 3px solid var(--kandid-app-ink, #171717);
+  padding: 1.25rem 1.5rem 1rem;
+}
+
+.sa-students-modal.is-registration .popup-header-copy {
+  gap: 0;
+}
+
+.sa-students-modal.is-registration .popup-header h2 {
+  margin: 0;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-weight: 700;
+  line-height: 0.98;
+}
+
+.sa-students-modal.is-registration .popup-header .surface-copy {
+  margin-top: 0.5rem !important;
+  color: var(--kandid-app-muted, #69645c);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.modal-overlay .sa-students-modal.is-registration .popup-close {
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 0 !important;
+  border-bottom: 1px solid var(--kandid-app-border-strong, #cfc9bf) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.modal-overlay .sa-students-modal.is-registration .popup-close:hover {
+  border-color: var(--kandid-app-orange, #ef4e23) !important;
+  background: rgba(239, 78, 35, 0.08) !important;
+  color: var(--kandid-app-orange, #ef4e23) !important;
+}
+
+.sa-students-modal.is-registration > .popup-content {
+  padding: 1.25rem 1.5rem 1.5rem;
+}
+
+.sa-registration-workspace {
+  display: grid;
+  min-width: 0;
+  gap: 1.15rem;
+  color: var(--kandid-app-ink, #171717);
+}
+
+.sa-registration-progress {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sa-registration-progress li {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 0.35rem;
+  border-top: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+  padding: 0.55rem 0.75rem 0 0;
+  color: var(--kandid-app-muted, #69645c);
+}
+
+.sa-registration-progress li + li { padding-left: 0.75rem; }
+.sa-registration-progress li.is-current,
+.sa-registration-progress li.is-complete { border-color: var(--kandid-app-orange, #ef4e23); }
+.sa-registration-progress li.is-current { color: var(--kandid-app-ink, #171717); }
+
+.sa-registration-progress span {
+  color: var(--kandid-app-orange, #ef4e23);
+  font-size: 0.62rem;
+  font-weight: 850;
+}
+
+.sa-registration-progress strong {
+  overflow-wrap: anywhere;
+  font-size: 0.61rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.sa-registration-focus {
+  display: grid;
+  width: min(100%, 34rem);
+  gap: 0.65rem;
+  padding: 0.45rem 0 0.2rem;
+}
+
+.sa-registration-kicker,
+.sa-registration-heading p,
+.sa-registration-focus > p,
+.sa-registration-note p,
+.sa-registration-status p,
+.sa-registration-review p,
+.sa-registration-review small,
+.sa-registration-complete p,
+.sa-registration-complete h3,
+.sa-registration-complete > strong {
+  margin: 0;
+}
+
+.sa-registration-kicker {
+  color: var(--kandid-app-orange, #ef4e23);
+  font-size: 0.66rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.sa-registration-focus h3,
+.sa-registration-heading h3,
+.sa-registration-identity h3,
+.sa-registration-complete h3 {
+  margin: 0;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(1.65rem, 2.5vw, 2.35rem);
+  font-weight: 650;
+  line-height: 1.05;
+}
+
+.sa-registration-focus > p:not(.sa-registration-kicker),
+.sa-registration-note p,
+.sa-registration-status p,
+.sa-registration-complete > p:not(.sa-registration-kicker) {
+  max-width: 42rem;
+  color: var(--kandid-app-muted, #69645c);
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.sa-registration-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.15rem 1.5rem;
+}
+
+.sa-registration-fields > .sa-registration-fields { grid-column: 1 / -1; }
+.sa-registration-field { display: grid; min-width: 0; gap: 0.42rem; }
+.sa-registration-field.is-wide { grid-column: 1 / -1; }
+
+.sa-registration-field label {
+  color: var(--kandid-app-ink-3, #514d46);
+  font-size: 0.65rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.sa-registration-field label span {
+  color: var(--kandid-app-muted, #69645c);
+  font-weight: 650;
+}
+
+.modal-overlay .sa-students-modal.is-registration .sa-registration-field input,
+.modal-overlay .sa-students-modal.is-registration .sa-registration-field select,
+.modal-overlay .sa-students-modal.is-registration .sa-registration-field textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.9rem;
+  border: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+  border-radius: 0 !important;
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--kandid-app-ink, #171717);
+  padding: 0.68rem 0.75rem;
+  font: inherit;
+  font-size: 0.86rem;
+  outline: none;
+}
+
+.modal-overlay .sa-students-modal.is-registration .sa-registration-field input[type="file"] { padding: 0.58rem 0.65rem; }
+.sa-registration-field input:focus,
+.sa-registration-field select:focus,
+.sa-registration-field textarea:focus { border-color: var(--kandid-app-orange, #ef4e23); }
+
+.modal-overlay .sa-students-modal.is-registration #registration-student-id {
+  border-bottom: 2px solid var(--kandid-app-ink, #171717);
+  background: #fff !important;
+}
+
+.modal-overlay .sa-students-modal.is-registration #registration-student-id:focus {
+  border-bottom-color: var(--kandid-app-orange, #ef4e23);
+}
+
+.modal-overlay .sa-students-modal.is-registration #registration-student-id[aria-invalid="true"] {
+  border-color: #a13228;
+}
+
+.sa-registration-field > small {
+  color: var(--kandid-app-muted, #69645c);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.sa-registration-field .sa-registration-field-error {
+  color: #a13228;
+  font-weight: 700;
+}
+
+.sa-registration-field .sa-registration-field-help {
+  color: var(--kandid-app-muted, #69645c);
+  font-weight: 600;
+}
+
+.sa-registration-field input[aria-invalid="true"] {
+  border-color: #a13228;
+}
+
+.sa-registration-heading {
+  display: flex;
+  min-width: 0;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1.5rem;
+  border-bottom: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+  padding-bottom: 1rem;
+}
+
+.sa-registration-heading > div:first-child { display: grid; gap: 0.35rem; }
+.sa-registration-heading > div:last-child { display: grid; gap: 0.18rem; text-align: right; }
+.sa-registration-heading > div:last-child span { font-family: "Source Serif 4", Georgia, serif; font-size: 1.2rem; font-weight: 700; }
+.sa-registration-heading > div:last-child strong { color: var(--kandid-app-muted, #69645c); font-size: 0.62rem; text-transform: uppercase; }
+
+.sa-registration-identity {
+  display: grid;
+  gap: 0.32rem;
+  border-bottom: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+  padding: 0.35rem 0 1.15rem;
+}
+
+.sa-registration-identity p,
+.sa-registration-identity span { margin: 0; color: var(--kandid-app-muted, #69645c); font-size: 0.72rem; }
+.sa-registration-identity p { color: var(--kandid-app-orange, #ef4e23); font-weight: 850; text-transform: uppercase; }
+.sa-registration-identity > strong { font-size: 0.76rem; letter-spacing: 0; }
+
+.sa-registration-note,
+.sa-registration-status {
+  display: grid;
+  gap: 0.35rem;
+  border-left: 2px solid var(--kandid-app-orange, #ef4e23);
+  padding: 0.2rem 0 0.2rem 1rem;
+}
+
+.sa-registration-note strong,
+.sa-registration-status strong { font-size: 0.8rem; font-weight: 850; text-transform: uppercase; }
+.sa-registration-status span { color: var(--kandid-app-muted, #69645c); font-size: 0.62rem; font-weight: 850; text-transform: uppercase; }
+
+.sa-registration-review {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+  border-bottom: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+}
+
+.sa-registration-review,
+.sa-registration-review section,
+.sa-registration-note,
+.sa-registration-status,
+.sa-registration-error,
+.sa-registration-complete-status {
+  border-radius: 0;
+}
+
+.sa-registration-review section { display: grid; min-width: 0; align-content: start; gap: 0.35rem; padding: 1rem; }
+.sa-registration-review section + section { border-left: 1px solid var(--kandid-app-border, #e1ddd5); }
+.sa-registration-review span { color: var(--kandid-app-orange, #ef4e23); font-size: 0.61rem; font-weight: 850; text-transform: uppercase; }
+.sa-registration-review strong { overflow-wrap: anywhere; font-family: "Source Serif 4", Georgia, serif; font-size: 1.15rem; line-height: 1.1; }
+.sa-registration-review p,
+.sa-registration-review small { overflow-wrap: anywhere; color: var(--kandid-app-muted, #69645c); font-size: 0.72rem; line-height: 1.4; }
+
+.sa-registration-error {
+  margin: 0;
+  border-left: 2px solid #a13228;
+  color: #8b2b23;
+  padding: 0.15rem 0 0.15rem 0.9rem;
+  font-size: 0.78rem;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.sa-registration-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  border-top: 1px solid var(--kandid-app-border, #e1ddd5);
+  padding-top: 1rem;
+}
+
+.sa-registration-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem; }
+.modal-overlay .sa-students-modal.is-registration .sa-registration-actions .primary-btn,
+.modal-overlay .sa-students-modal.is-registration .sa-registration-actions .secondary-btn {
+  min-height: 2.7rem;
+  border-radius: 0 !important;
+  font-size: 0.68rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.modal-overlay .sa-students-modal.is-registration .sa-registration-actions .primary-btn {
+  box-shadow: 0 6px 14px rgba(239, 78, 35, 0.16) !important;
+}
+
+.modal-overlay .sa-students-modal.is-registration .sa-registration-actions .secondary-btn {
+  border: 0;
+  border-bottom: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+  background: transparent;
+  box-shadow: none !important;
+  padding-right: 0.15rem;
+  padding-left: 0.15rem;
+}
+.sa-registration-actions button:focus-visible,
+.sa-registration-field input:focus-visible,
+.sa-registration-field select:focus-visible,
+.sa-registration-field textarea:focus-visible {
+  outline: 2px solid var(--kandid-app-orange, #ef4e23);
+  outline-offset: 3px;
+}
+
+.sa-registration-complete { justify-items: start; padding-top: 0.25rem; }
+.sa-registration-complete > svg { color: var(--kandid-app-orange, #ef4e23); }
+.sa-registration-complete > strong { color: var(--kandid-app-muted, #69645c); font-size: 0.82rem; }
+.sa-registration-complete-status { display: grid; gap: 0.2rem; border-top: 1px solid var(--kandid-app-border-strong, #cfc9bf); padding-top: 0.75rem; }
+.sa-registration-complete-status span { color: var(--kandid-app-muted, #69645c); font-size: 0.62rem; font-weight: 850; text-transform: uppercase; }
+.sa-registration-complete-status strong { font-size: 0.84rem; text-transform: uppercase; }
+.sa-registration-complete .sa-registration-actions { width: 100%; }
+
+@media (max-width: 1180px) {
+  .sa-students-table th:nth-child(2) { width: 29%; }
+  .sa-students-table th:nth-child(3) { width: 14%; }
+  .sa-students-table th:nth-child(4) { width: 20%; }
+  .sa-students-table th:nth-child(5) { width: 14%; }
+  .sa-students-table th:nth-child(6) { width: 18%; }
+
+  .sa-students-identity-content { grid-template-columns: minmax(0, 1fr); }
+  .sa-students .sa-students-avatar { display: none; }
+  .sa-students-membership-list { grid-template-columns: minmax(0, 1fr); }
+  .sa-students-org-marks { display: none; }
+}
+
+@media (max-width: 900px) {
+  .sa-students-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sa-students-summary-item:nth-child(3) { border-left: 0; }
+  .sa-students-summary-item:nth-child(n + 3) { border-top: 1px solid var(--kandid-app-border, #e1ddd5); }
+
+  .sa-students-toolbar { grid-template-columns: minmax(0, 1fr) repeat(2, minmax(9rem, 0.7fr)); }
+  .sa-students-table thead { display: none; }
+  .sa-students-table,
+  .sa-students-table tbody { display: block; width: 100%; }
+
+  .sa-students-table tbody tr {
+    display: grid;
+    grid-template-columns: 2.5rem minmax(0, 1.4fr) minmax(8rem, 0.65fr);
+    gap: 0.7rem 1rem;
+    align-items: start;
+    border-bottom: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+    padding: 1rem 0;
+  }
+
+  .sa-students-table td {
+    display: block;
+    width: auto;
+    border: 0;
+    padding: 0;
+  }
+
+  .sa-students-table td:first-child { width: auto; }
+
+  .sa-students-index { grid-column: 1; grid-row: 1 / span 3; }
+  .sa-students-identity { grid-column: 2; grid-row: 1; }
+  .sa-students-identity-content { grid-template-columns: 2.6rem minmax(0, 1fr); }
+  .sa-students .sa-students-avatar { display: block; }
+  .sa-students-state { grid-column: 3; grid-row: 1; }
+  .sa-students-academic { grid-column: 2; grid-row: 2; }
+  .sa-students-membership { grid-column: 2; grid-row: 3; }
+  .sa-students-membership-list { grid-template-columns: auto minmax(0, 1fr); }
+  .sa-students-org-marks { display: flex; }
+  .sa-students-actions {
+    grid-column: 3;
+    grid-row: 2 / span 2;
+  }
+
+  .sa-students-action-list { justify-content: flex-start; }
+}
+
+@media (max-width: 767px) {
+  .sa-students-masthead { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
+  .sa-students-masthead h1 { font-size: clamp(2.2rem, 10vw, 3.1rem); }
+  .sa-students-masthead-aside {
+    border-top: 1px solid var(--kandid-app-border, #e1ddd5);
+    border-left: 0;
+    padding: 1rem 0 0;
+  }
+
+  .sa-students-registry-head { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; }
+  .sa-students-toolbar { grid-template-columns: minmax(0, 1fr); }
+  .sa-students-status-filter { align-items: flex-start; flex-direction: column; gap: 0.25rem; padding-top: 0.8rem; }
+  .sa-students-status-filter > div { width: 100%; justify-content: space-between; }
+
+  .sa-students-table tbody tr {
+    grid-template-columns: 2.25rem minmax(0, 1fr);
+    gap: 0.85rem;
+  }
+
+  .sa-students-index { grid-column: 1; grid-row: 1 / span 5; }
+  .sa-students-identity,
+  .sa-students-state,
+  .sa-students-academic,
+  .sa-students-membership,
+  .sa-students-actions {
+    grid-column: 2;
+    grid-row: auto;
+  }
+
+  .sa-students-action-list { justify-content: flex-start; }
+  .sa-students-pager { align-items: flex-start; flex-direction: column; }
+  .sa-students-empty { grid-template-columns: 2.25rem minmax(0, 1fr); gap: 0.8rem; }
+  .sa-students-empty .sa-students-text-action { grid-column: 2; }
+
+  .sa-students-modal { width: min(calc(100vw - 1rem), 46rem); max-height: calc(100dvh - 1rem); }
+  .sa-students-modal .popup-header,
+  .sa-students-modal .popup-content { padding-right: 1rem; padding-left: 1rem; }
+  .sa-registration-fields,
+  .sa-registration-review { grid-template-columns: minmax(0, 1fr); }
+  .sa-registration-fields > .sa-registration-fields,
+  .sa-registration-field.is-wide { grid-column: 1; }
+  .sa-registration-review section + section { border-top: 1px solid var(--kandid-app-border, #e1ddd5); border-left: 0; }
+}
+
+@media (max-width: 430px) {
+  .sa-students-masthead h1 { font-size: 2.1rem; }
+  .sa-students-summary { grid-template-columns: minmax(0, 1fr); }
+  .sa-students-summary-item + .sa-students-summary-item {
+    border-top: 1px solid var(--kandid-app-border, #e1ddd5);
+    border-left: 0;
+  }
+
+  .sa-students-status-filter > div { gap: 0.75rem; justify-content: flex-start; }
+  .sa-students-identity-content { grid-template-columns: minmax(0, 1fr); }
+  .sa-students .sa-students-avatar { display: none; }
+  .sa-students-membership-list { grid-template-columns: minmax(0, 1fr); }
+  .sa-students-org-marks { display: none; }
+  .sa-students-action-list { gap: 1rem; }
+  .sa-registration-progress li { padding-right: 0.35rem; }
+  .sa-registration-progress li + li { padding-left: 0.35rem; }
+  .sa-registration-progress strong { font-size: 0.56rem; }
+  .sa-registration-heading { align-items: start; flex-direction: column; gap: 0.75rem; }
+  .sa-registration-heading > div:last-child { text-align: left; }
+  .sa-registration-actions { align-items: stretch; flex-direction: column-reverse; }
+  .sa-registration-actions button { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sa-students-status-filter button::after,
+  .sa-students-table tbody tr,
+  .sa-students-table tbody tr::after,
+  .sa-registration-workspace {
+    transition: none;
+  }
+}

@@ -159,10 +159,18 @@ export async function updateCurrentUserProfile(payload) {
       return { data: null, error: sessionError || new Error("No active student session.") };
     }
 
+    if (payload.password) {
+      const { error: passwordError } = await supabase.auth.updateUser({
+        password: payload.password,
+      });
+      if (passwordError) {
+        return { data: null, error: passwordError };
+      }
+    }
+
     const allowedPayload = {
       email: payload.email || null,
       photo_url: payload.photo_url || null,
-      ...(payload.password ? { password: payload.password } : {}),
     };
 
     const { error } = await supabase

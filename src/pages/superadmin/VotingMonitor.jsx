@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import "./RemainingPages.css";
 import { RefreshCw, Vote, Users, Clock, CheckCircle } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { formatLocalDateTime } from "../../utils/time";
@@ -81,11 +82,13 @@ function VotingMonitor() {
     totalStudents > 0 ? ((totalVoters / totalStudents) * 100).toFixed(1) : 0;
 
   return (
-    <div>
-      <div className="flex items-center justify-between">
+    <div className="sa-remaining-page sa-voting-monitor">
+      <div className="page-head">
         <div>
-          <h1 className="text-3xl font-black">Voting Monitor</h1>
-          <p className="text-gray-500 mt-1">
+          <p className="sa-remaining-breadcrumb"><span>Kandid</span><span>/</span><span>Super Admin</span></p>
+          <div className="page-kicker">Live Operations</div>
+          <h1 className="page-title">Voting Monitor</h1>
+          <p className="page-subtitle">
             Monitor vote submissions, turnout, and election activity.
           </p>
         </div>
@@ -187,11 +190,11 @@ function VotingMonitor() {
 
                   <td className="px-6 py-4">
                     {vote.is_abstain ? (
-                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-700">
+                      <span className="sa-vote-type is-abstain">
                         Abstain
                       </span>
                     ) : (
-                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">
+                      <span className="sa-vote-type is-candidate">
                         Candidate Vote
                       </span>
                     )}

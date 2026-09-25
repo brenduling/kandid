@@ -1,39 +1,32 @@
 import logo from "../assets/kandidlogo.png";
 
-export function KandidVoteLoader({ message = "Counting access..." }) {
-  return (
-    <div className="kandid-vote-loader" role="status" aria-live="polite">
-      <span />
-      <span />
-      <span />
-      <span />
-      <strong>{message}</strong>
-    </div>
-  );
+export function KandidLoadingRule() {
+  return <span className="kandid-loading-rule" aria-hidden="true" />;
 }
 
-export function KandidRouteLoader({ message = "Opening KANDID..." }) {
+export function KandidRouteLoader({ message = "Opening Kandid..." }) {
   return (
-    <div className="kandid-route-loader" role="status" aria-live="polite">
-      <div className="kandid-loader-card">
-        <img src={logo} alt="KANDID" />
-        <div>
+    <main className="kandid-route-loader">
+      <div className="kandid-loader-content">
+        <div className="kandid-loader-brand">
+          <img src={logo} alt="" />
+          <span>KANDID</span>
+        </div>
+        <div className="kandid-loader-message" role="status" aria-live="polite">
           <strong>Wait, you can count on me.</strong>
           <p>{message}</p>
-          <KandidVoteLoader message="" />
+          <KandidLoadingRule />
         </div>
       </div>
-    </div>
+    </main>
   );
 }
 
-export function KandidInlineLoader({ message = "Loading..." }) {
+export function KandidInlineLoader({ message = "Preparing records..." }) {
   return (
     <div className="kandid-inline-loader" role="status" aria-live="polite">
-      <i />
-      <i />
-      <i />
-      {message}
+      <KandidLoadingRule />
+      <span>{message}</span>
     </div>
   );
 }
@@ -51,9 +44,7 @@ export function KandidSkeleton({ rows = 3 }) {
 export function KandidButtonLoader({ label = "Saving..." }) {
   return (
     <span className="kandid-button-loader">
-      <i />
-      <i />
-      <i />
+      <KandidLoadingRule />
       {label}
     </span>
   );

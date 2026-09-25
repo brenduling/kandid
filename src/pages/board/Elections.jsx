@@ -490,32 +490,63 @@ function BoardElections() {
     });
   }, [elections, searchQuery]);
 
+  const electionStatusSummary = useMemo(
+    () => ({
+      draft: elections.filter((election) => election.status === "draft").length,
+      active: elections.filter((election) => election.status === "active").length,
+      closed: elections.filter((election) => election.status === "closed").length,
+    }),
+    [elections],
+  );
+
   return (
-    <div>
-      <div className="page-head">
-        <div>
-          <div className="page-kicker">Election Setup</div>
-          <h1 className="page-title">Board elections</h1>
+    <div className="board-elections-desktop">
+      <div className="page-head board-elections-opening">
+        <div className="board-elections-opening-copy">
+          <div className="page-kicker board-elections-kicker">Election Setup</div>
+          <h1 className="page-title board-elections-title">Board elections</h1>
           <p className="page-subtitle">
-            Create and manage elections for your assigned organization.
+            Create and manage elections for {orgName || "your assigned organization"}.
           </p>
         </div>
 
         <button
           onClick={openCreate}
-          className="primary-btn self-start lg:self-auto"
+          className="primary-btn board-elections-create self-start lg:self-auto"
         >
           <Plus size={18} />
           Create Election
         </button>
       </div>
 
+      <section className="board-elections-summary" aria-label="Election workspace summary">
+        <div className="board-elections-summary-main">
+          <p className="board-elections-section-kicker">Records</p>
+          <strong>{filteredElections.length}</strong>
+          <span>{searchQuery ? "matching elections" : "elections in this workspace"}</span>
+        </div>
+        <div className="board-elections-status-ledger" aria-label="Election status totals">
+          <div>
+            <span>Draft</span>
+            <strong>{electionStatusSummary.draft}</strong>
+          </div>
+          <div>
+            <span>Active</span>
+            <strong>{electionStatusSummary.active}</strong>
+          </div>
+          <div>
+            <span>Closed</span>
+            <strong>{electionStatusSummary.closed}</strong>
+          </div>
+        </div>
+      </section>
+
       {loading ? (
-        <div className="empty-state mt-8">
+        <div className="empty-state board-elections-state">
           <KandidInlineLoader message="Loading elections..." />
         </div>
       ) : loadError ? (
-        <div className="empty-state mt-8">
+        <div className="empty-state board-elections-state">
           <p className="font-bold text-rose-600">Unable to load elections.</p>
           <p className="text-sm text-gray-500">{loadError}</p>
           <button type="button" onClick={refreshElections} className="secondary-btn mt-3">
@@ -523,52 +554,82 @@ function BoardElections() {
           </button>
         </div>
       ) : filteredElections.length === 0 ? (
-        <div className="empty-state mt-8">
+        <div className="empty-state board-elections-state">
           {searchQuery ? "No elections match your search." : "No elections yet."}
         </div>
       ) : (
-        <div className="election-management-grid mt-8">
-          {filteredElections.map((election) => (
-            <article key={election.id} className="entity-card">
-              <ElectionManagementCard
-                election={election}
-                organization={election.organizations || user?.organizations}
-                eyebrow="Election Setup"
-                onClick={() => navigate(`/board/positions?election=${election.id}`)}
-              />
+        <section className="board-elections-records" aria-label="Election records">
+          <div className="board-elections-records-head">
+            <div>
+              <p className="board-elections-section-kicker">Election register</p>
+              <h2>Manage ballot setup</h2>
+            </div>
+            <span>{filteredElections.length} shown</span>
+          </div>
+          <div className="election-management-grid board-elections-grid">
+            {filteredElections.map((election) => (
+              <article key={election.id} className="entity-card board-election-card">
+                <ElectionManagementCard
+                  election={election}
+                  organization={election.organizations || user?.organizations}
+                  eyebrow="Election Setup"
+                  onClick={() => navigate(`/board/positions?election=${election.id}`)}
+                />
 
-              <div className="mt-4 flex flex-wrap gap-2">
-                <span className="status-pill">{getElectionPhase(election)}</span>
-                <span className="status-pill">
-                  {resultVisibilityLabel(
-                    election.student_result_visibility,
-                    election.results_released_at,
-                  )}
-                </span>
-                <span className="status-pill">
-                  {getVotingAccessModeLabel(election.voting_access_mode)}
-                </span>
-              </div>
+                <div className="board-election-status-row">
+                  <span className="status-pill">{getElectionPhase(election)}</span>
+                  <span className="status-pill">
+                    {resultVisibilityLabel(
+                      election.student_result_visibility,
+                      election.results_released_at,
+                    )}
+                  </span>
+                  <span className="status-pill">
+                    {getVotingAccessModeLabel(election.voting_access_mode)}
+                  </span>
+                </div>
 
-              <div className="mt-4 grid gap-2 text-sm text-[#5f6f86]">
-                <p><span className="font-black text-[#111827]">Campaign:</span> {formatLocalDateTime(election.campaign_start)}</p>
-                <p><span className="font-black text-[#111827]">Voting:</span> {formatLocalDateTime(election.start_date)} - {formatLocalDateTime(election.end_date)}</p>
-              </div>
+                <div className="board-election-schedule">
+                  <p>
+                    <span className="font-black text-[#111827]">Campaign:</span>{" "}
+                    {formatLocalDateTime(election.campaign_start)}
+                  </p>
+                  <p>
+                    <span className="font-black text-[#111827]">Voting:</span>{" "}
+                    {formatLocalDateTime(election.start_date)} -{" "}
+                    {formatLocalDateTime(election.end_date)}
+                  </p>
+                </div>
 
-              <div className="mt-5 flex flex-wrap justify-end gap-2">
-                <button type="button" onClick={() => navigate(`/board/positions?election=${election.id}`)} className="secondary-btn !px-3 !py-2 text-xs">
-                  Manage Setup
-                </button>
-                <button type="button" onClick={() => openEdit(election)} className="icon-action">
-                  <Pencil size={16} />
-                </button>
-                <button type="button" onClick={() => handleDelete(election.id)} className="icon-action icon-action-danger">
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
+                <div className="board-election-actions">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/board/positions?election=${election.id}`)}
+                    className="secondary-btn board-election-setup-btn"
+                  >
+                    Manage Setup
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openEdit(election)}
+                    className="icon-action"
+                    aria-label={`Edit ${election.title || "election"}`}
+                  >
+                    <Pencil size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(election.id)}
+                    className="icon-action icon-action-danger"
+                    aria-label={`Delete ${election.title || "election"}`}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
       )}
 
       {formOpen && (

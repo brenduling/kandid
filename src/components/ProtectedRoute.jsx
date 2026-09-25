@@ -73,7 +73,7 @@ function ProtectedRoute({ children, role }) {
 
   if (shouldVerifyAdminWithSupabase) {
     if (adminCheck.loading) {
-      return <KandidRouteLoader message="Verifying secure session..." />;
+      return <KandidRouteLoader message={role === "electoral_board" ? "Checking Electoral Board access..." : "Checking system administration access..."} />;
     }
 
     if (!adminCheck.user) {
@@ -85,7 +85,7 @@ function ProtectedRoute({ children, role }) {
 
   if (isStudentRole) {
     if (studentCheck.loading) {
-      return <KandidRouteLoader message="Verifying secure session..." />;
+      return <KandidRouteLoader message="Checking your Student Portal access..." />;
     }
 
     if (!studentCheck.user) {

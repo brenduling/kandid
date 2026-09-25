@@ -1,0 +1,797 @@
+.student-setup-auth-screen {
+  background: #f8f6f1;
+}
+
+.student-setup-auth-screen::before,
+.student-setup-auth-screen::after {
+  content: none;
+}
+
+.student-setup-auth-screen .kandid-auth-identity {
+  border-right: 1px solid #e5e0d6;
+  background: #fcfbf8;
+}
+
+.student-setup-auth-screen .kandid-auth-identity p {
+  width: fit-content;
+  border-bottom: 1px solid rgba(239, 78, 35, 0.32);
+  padding-bottom: 0.4rem;
+  color: #ef4e23;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.student-setup-auth-screen .kandid-auth-identity > div:last-child {
+  max-width: 26rem;
+}
+
+.student-setup-auth-screen .kandid-auth-identity h1 {
+  margin-top: 0.9rem;
+  color: #1a1a17;
+}
+
+.student-setup-auth-screen .kandid-auth-identity > div:last-child > span {
+  display: block;
+  max-width: 24rem;
+  margin-top: 0.75rem;
+  color: #6f6b63;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.student-setup-auth-screen .kandid-auth-main {
+  display: block;
+  min-width: 0;
+  background: #f8f6f1;
+  padding: clamp(1.5rem, 3vw, 2.75rem) clamp(1.5rem, 4.5vw, 5rem);
+}
+
+.student-setup-auth-screen .kandid-auth-back {
+  display: flex;
+  width: fit-content;
+  margin-left: auto;
+  color: #625c53;
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.student-setup-auth-screen .kandid-auth-card {
+  width: min(100%, 56rem) !important;
+  max-width: 56rem;
+  margin: clamp(2rem, 6vh, 4rem) auto 3rem;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+.student-setup-auth-screen .kandid-auth-card-head > span {
+  display: none;
+}
+
+.student-setup-auth-screen .kandid-auth-card-head h2 {
+  margin: 0;
+  color: #1a1a17;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(2.45rem, 3.5vw, 3.4rem);
+  font-weight: 700;
+  line-height: 1.02;
+}
+
+.student-setup-auth-screen .kandid-auth-card-head p {
+  display: none;
+}
+
+.student-setup-auth-screen .student-setup-card {
+  width: 100% !important;
+  max-width: none;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+.student-setup-auth-screen .student-setup-progress {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin-top: clamp(1.65rem, 4vh, 2.4rem);
+  border-top: 2px solid #25221e;
+}
+
+.student-setup-auth-screen .student-setup-progress-step {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 0.6rem;
+  border-bottom: 2px solid #d8d0c3;
+  padding: 0.85rem 0.65rem 0.75rem;
+  color: #777168;
+}
+
+.student-setup-auth-screen .student-setup-progress-step:first-child {
+  padding-left: 0;
+}
+
+.student-setup-auth-screen .student-setup-progress-step.is-complete {
+  color: #302d29;
+}
+
+.student-setup-auth-screen .student-setup-progress-step.is-current {
+  border-bottom-color: #d8401a;
+  color: #1a1a17;
+}
+
+.student-setup-auth-screen .student-setup-progress-step > span {
+  color: #d8401a;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.student-setup-auth-screen .student-setup-progress-step strong {
+  font-size: 0.78rem;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.student-setup-auth-screen .student-setup-progress-short {
+  display: none;
+}
+
+.student-setup-auth-screen .student-setup-stage {
+  min-width: 0;
+  margin-top: clamp(1.6rem, 3vw, 2.4rem);
+  animation: student-setup-enter 200ms ease-out both;
+}
+
+@keyframes student-setup-enter {
+  from { opacity: 0; transform: translateY(0.45rem); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.student-setup-auth-screen .student-setup-stage-intro h3 {
+  margin: 0;
+  color: #1a1a17;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(1.7rem, 2.5vw, 2.2rem);
+  font-weight: 700;
+  line-height: 1.08;
+}
+
+.student-setup-auth-screen .student-setup-stage-intro p {
+  max-width: 37rem;
+  margin: 0.55rem 0 0;
+  color: #625c53;
+  font-size: 0.91rem;
+  line-height: 1.5;
+}
+
+.student-setup-auth-screen .student-setup-lookup,
+.student-setup-auth-screen .student-setup-verify {
+  max-width: 33rem;
+}
+
+.student-setup-auth-screen .student-auth-fields {
+  gap: 1.15rem;
+  margin-top: 1.4rem;
+}
+
+.student-setup-auth-screen .student-auth-card label,
+.student-setup-auth-screen .student-setup-label {
+  gap: 0.25rem;
+}
+
+.student-setup-auth-screen .student-auth-card label span,
+.student-setup-auth-screen .student-setup-label span {
+  color: #302d29 !important;
+  font-size: 0.82rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+  text-transform: none;
+}
+
+.student-setup-auth-screen .student-auth-card input {
+  min-height: 3.25rem !important;
+  border: 0 !important;
+  border-bottom: 1px solid #999184 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 0.1rem;
+  color: #1a1a17 !important;
+  box-shadow: none !important;
+}
+
+.student-setup-auth-screen .student-auth-card input::placeholder {
+  color: #817b72;
+  opacity: 1;
+}
+
+.student-setup-auth-screen .student-auth-card input:focus {
+  border-bottom-color: #d8401a !important;
+  box-shadow: 0 2px 0 #d8401a !important;
+  outline: none;
+}
+
+.student-setup-auth-screen .student-auth-password {
+  border: 0 !important;
+  border-bottom: 1px solid #999184 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding-right: 0.35rem !important;
+}
+
+.student-setup-auth-screen .student-auth-password:focus-within {
+  border-bottom-color: #d8401a !important;
+  box-shadow: 0 2px 0 #d8401a !important;
+}
+
+.student-setup-auth-screen .student-auth-password input,
+.student-setup-auth-screen .student-auth-password input:focus {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.student-setup-auth-screen .student-auth-eye-btn {
+  border-radius: 0 !important;
+  color: #625c53 !important;
+}
+
+.student-setup-auth-screen .student-auth-submit {
+  justify-content: space-between;
+  width: 100%;
+  min-height: 3.45rem !important;
+  margin-top: 0.25rem;
+  border: 1px solid #dd431d !important;
+  border-radius: 0 !important;
+  background: #dd431d !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  padding-inline: 1.1rem;
+  font-size: 0.94rem !important;
+  font-weight: 750 !important;
+  letter-spacing: 0 !important;
+  text-transform: none;
+}
+
+.student-setup-auth-screen .student-auth-submit:hover:not(:disabled) {
+  border-color: #bc3514 !important;
+  background: #bc3514 !important;
+}
+
+.student-setup-auth-screen .student-auth-submit:disabled {
+  border-color: #c9c0b3 !important;
+  background: #c9c0b3 !important;
+  color: #403b35 !important;
+  box-shadow: none !important;
+}
+
+.student-setup-auth-screen .student-setup-return {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 0.5rem;
+  margin-top: 1.7rem;
+  border-top: 1px solid #d8d0c3;
+  padding-top: 1rem;
+  color: #625c53;
+  font-size: 0.89rem;
+}
+
+.student-setup-auth-screen .student-setup-return button,
+.student-setup-auth-screen .student-otp-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #bd3916;
+  font-size: inherit;
+  font-weight: 750;
+}
+
+.student-setup-auth-screen .student-setup-return button:hover,
+.student-setup-auth-screen .student-otp-actions button:hover:not(:disabled) {
+  color: #9f2e10;
+  text-decoration: underline;
+  text-underline-offset: 0.2rem;
+}
+
+.student-setup-auth-screen .student-setup-feedback {
+  border-left: 3px solid #b42318;
+  background: #fbf0ec;
+  padding: 0.8rem 1rem;
+  color: #6e271d;
+  font-size: 0.87rem;
+  line-height: 1.45;
+}
+
+.student-setup-auth-screen .student-setup-feedback.is-warning {
+  border-left-color: #ab6a13;
+  background: #f7f0e4;
+  color: #5d4320;
+}
+
+.student-setup-auth-screen .student-setup-feedback.is-blocked {
+  border-left-color: #6c655c;
+  background: #efebe5;
+  color: #39352e;
+}
+
+.student-setup-auth-screen .student-setup-feedback strong {
+  display: block;
+  font-weight: 800;
+}
+
+.student-setup-auth-screen .student-setup-feedback p {
+  margin: 0.2rem 0 0;
+}
+
+.student-setup-auth-screen .student-setup-operation {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0.85rem 0 0;
+  color: #625c53;
+  font-size: 0.86rem;
+  font-weight: 650;
+}
+
+.student-setup-auth-screen .student-setup-operation::before {
+  width: 1.3rem;
+  height: 2px;
+  flex: 0 0 auto;
+  background: #d8401a;
+  content: "";
+  animation: student-setup-checking 1.1s ease-in-out infinite alternate;
+}
+
+@keyframes student-setup-checking {
+  from { opacity: 0.35; }
+  to { opacity: 1; }
+}
+
+.student-setup-auth-screen .student-setup-flow {
+  gap: 1.5rem;
+}
+
+.student-setup-auth-screen .student-setup-section-head {
+  align-items: baseline;
+  margin-bottom: 0.55rem;
+}
+
+.student-setup-auth-screen .student-setup-section-head > span {
+  color: #1a1a17;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.student-setup-auth-screen .student-setup-section-head p {
+  align-items: center;
+  color: #625c53;
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.student-setup-auth-screen .student-setup-identity,
+.student-setup-auth-screen .student-setup-password-panel,
+.student-setup-auth-screen .student-otp-card {
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+
+.student-setup-auth-screen .student-setup-identity,
+.student-setup-auth-screen .student-setup-password-panel {
+  border-top: 1px solid #d8d0c3;
+  padding-top: 0.85rem;
+}
+
+.student-setup-auth-screen .student-setup-identity-grid {
+  grid-template-columns: minmax(12rem, 1.4fr) repeat(2, minmax(0, 1fr));
+  gap: 0.7rem 1.4rem;
+}
+
+.student-setup-auth-screen .student-setup-identity-item {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 0.15rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.student-setup-auth-screen .student-setup-identity-item.is-name {
+  grid-row: span 2;
+}
+
+.student-setup-auth-screen .student-setup-identity-item span {
+  color: #777168;
+  font-size: 0.73rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.student-setup-auth-screen .student-setup-identity-item strong {
+  color: #302d29;
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.student-setup-auth-screen .student-setup-identity-item.is-name strong {
+  color: #1a1a17;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(1.4rem, 2vw, 1.7rem);
+  line-height: 1.12;
+}
+
+.student-setup-auth-screen .student-setup-record-note {
+  margin: 0.85rem 0 0;
+  color: #625c53;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.student-setup-auth-screen .student-setup-password-panel {
+  width: min(100%, 34rem);
+  gap: 0.85rem;
+  margin-top: 0.35rem;
+  border-top-color: #25221e;
+  padding-top: 1.15rem;
+}
+
+.student-setup-auth-screen .student-setup-password-panel h4 {
+  margin: 0;
+  color: #1a1a17;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(1.45rem, 2vw, 1.7rem);
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.student-setup-auth-screen .student-password-security {
+  gap: 0.45rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.student-setup-auth-screen .student-password-strength-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.student-setup-auth-screen .student-password-security span,
+.student-setup-auth-screen .student-password-rules > span {
+  color: #625c53;
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.student-setup-auth-screen .student-password-security strong {
+  color: #1a1a17;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.student-setup-auth-screen .student-password-strength-bars {
+  gap: 0.25rem;
+}
+
+.student-setup-auth-screen .student-password-strength-bars i {
+  height: 0.22rem;
+  border-radius: 0;
+  background: #d8d0c3;
+}
+
+.student-setup-auth-screen .student-password-strength-bars i.is-active {
+  background: #d8401a;
+}
+
+.student-setup-auth-screen .student-password-rules {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem 1rem;
+  border-top: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.student-setup-auth-screen .student-password-rules > span {
+  grid-column: 1 / -1;
+  margin-bottom: 0.15rem;
+}
+
+.student-setup-auth-screen .student-password-rules > div {
+  gap: 0;
+}
+
+.student-setup-auth-screen .student-password-rules > div p {
+  justify-content: flex-start;
+  gap: 0.5rem;
+  color: #625c53;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.student-setup-auth-screen .student-password-rule-mark {
+  display: inline-flex;
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 1rem;
+  align-items: center;
+  justify-content: center;
+  color: #d8401a;
+  font-size: 0.8rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.student-setup-auth-screen .student-password-rule-mark:empty::before {
+  width: 0.55rem;
+  height: 1px;
+  background: #aaa294;
+  content: "";
+}
+
+.student-setup-auth-screen .student-password-rules > div.is-met .student-password-rule-mark {
+  color: #b83a18;
+}
+
+.student-setup-auth-screen .student-password-rules > div.is-met p {
+  color: #302d29;
+}
+
+.student-setup-auth-screen .student-password-rule-voice {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.student-setup-auth-screen .student-confirm-status {
+  min-height: 0;
+}
+
+.student-setup-auth-screen .student-confirm-status p {
+  color: #625c53;
+  font-size: 0.77rem;
+}
+
+.student-setup-auth-screen .student-confirm-status p.is-match {
+  color: #176446;
+}
+
+.student-setup-auth-screen .student-confirm-status p.is-mismatch {
+  color: #a63720;
+}
+
+.student-setup-auth-screen .student-setup-activation .student-auth-submit:disabled {
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+.student-setup-auth-screen .student-otp-card {
+  display: grid;
+  gap: 1.1rem;
+  margin-top: 1.4rem;
+  text-align: left;
+}
+
+.student-setup-auth-screen .student-otp-boxes {
+  width: min(100%, 27rem);
+  gap: clamp(0.35rem, 1.4vw, 0.6rem);
+}
+
+.student-setup-auth-screen .student-otp-boxes input {
+  min-width: 0;
+  min-height: 3.2rem !important;
+  border: 1px solid #999184 !important;
+  border-radius: 0 !important;
+  background: #fffefa !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  font-size: 1.15rem;
+  text-align: center;
+}
+
+.student-setup-auth-screen .student-otp-boxes input:focus {
+  border-color: #d8401a !important;
+  box-shadow: 0 0 0 2px rgba(216, 64, 26, 0.14) !important;
+}
+
+.student-setup-auth-screen .student-otp-actions {
+  justify-content: flex-start;
+  border-top: 1px solid #d8d0c3;
+  padding-top: 1rem;
+  color: #625c53;
+}
+
+.student-setup-auth-screen .student-auth-submit:focus-visible,
+.student-setup-auth-screen .student-setup-return button:focus-visible,
+.student-setup-auth-screen .student-otp-actions button:focus-visible,
+.student-setup-auth-screen .kandid-auth-back:focus-visible {
+  outline: 2px solid #d8401a;
+  outline-offset: 3px;
+}
+
+@media (min-width: 1024px) {
+  .student-setup-auth-screen {
+    height: 100dvh;
+    overflow: hidden;
+    grid-template-columns: minmax(18rem, 28rem) minmax(0, 1fr);
+  }
+
+  .student-setup-auth-screen .kandid-auth-identity {
+    position: sticky;
+    top: 0;
+    height: 100dvh;
+    min-height: 0;
+  }
+
+  .student-setup-auth-screen .kandid-auth-main {
+    height: 100dvh;
+    min-height: 0;
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 1023px) {
+  .student-setup-auth-screen {
+    overflow-x: clip;
+    overflow-y: visible;
+    overscroll-behavior-y: auto;
+  }
+
+  .student-setup-auth-screen .kandid-auth-identity {
+    border-right: 0;
+    border-bottom: 1px solid #e5e0d6;
+  }
+
+  .student-setup-auth-screen .kandid-auth-main {
+    min-height: 0 !important;
+    padding: 1.2rem clamp(1.2rem, 4vw, 2.5rem) max(2.5rem, calc(env(safe-area-inset-bottom) + 1.5rem)) !important;
+  }
+
+  .student-setup-auth-screen .kandid-auth-card {
+    margin: 1.4rem auto 0;
+  }
+
+  .student-setup-auth-screen .kandid-auth-identity h1,
+  .student-setup-auth-screen .kandid-auth-identity > div:last-child > span {
+    margin-top: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .student-setup-auth-screen .kandid-auth-identity {
+    gap: 0.55rem;
+    padding: 0.8rem 1.2rem 0.7rem !important;
+  }
+
+  .student-setup-auth-screen .kandid-auth-identity > div:last-child > span {
+    display: none;
+  }
+
+  .student-setup-auth-screen .kandid-auth-identity h1 {
+    max-width: 18rem;
+    font-size: clamp(1.85rem, 7.5vw, 2.35rem) !important;
+    line-height: 0.98;
+  }
+
+  .student-setup-auth-screen .kandid-auth-main {
+    padding-top: 0.7rem !important;
+    padding-inline: 1.2rem !important;
+  }
+
+  .student-setup-auth-screen .kandid-auth-card {
+    width: 100% !important;
+    margin-top: 0.55rem;
+  }
+
+  .student-setup-auth-screen .kandid-auth-card-head h2 {
+    font-size: 2.15rem;
+  }
+
+  .student-setup-auth-screen .kandid-auth-card-head p {
+    display: block;
+    margin-top: 0.2rem;
+    color: #625c53;
+    font-size: 0.82rem;
+    line-height: 1.4;
+  }
+
+  .student-setup-auth-screen .student-setup-progress {
+    margin-top: 0.75rem;
+  }
+
+  .student-setup-auth-screen .student-setup-progress-step {
+    display: grid;
+    gap: 0.2rem;
+    padding: 0.4rem 0.35rem;
+  }
+
+  .student-setup-auth-screen .student-setup-progress-label {
+    display: none;
+  }
+
+  .student-setup-auth-screen .student-setup-progress-short {
+    display: block;
+  }
+
+  .student-setup-auth-screen .student-setup-stage {
+    margin-top: 0.9rem;
+  }
+
+  .student-setup-auth-screen .student-setup-activation {
+    gap: 0.9rem;
+  }
+
+  .student-setup-auth-screen .student-setup-identity {
+    padding-top: 0.55rem;
+  }
+
+  .student-setup-auth-screen .student-setup-identity .student-setup-section-head {
+    margin-bottom: 0.4rem;
+  }
+
+  .student-setup-auth-screen .student-setup-identity .student-setup-section-head p {
+    display: none;
+  }
+
+  .student-setup-auth-screen .student-setup-identity-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem 0.65rem;
+  }
+
+  .student-setup-auth-screen .student-setup-identity-item.is-name,
+  .student-setup-auth-screen .student-setup-identity-item:last-child {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+
+  .student-setup-auth-screen .student-setup-identity-item strong {
+    overflow-wrap: anywhere;
+  }
+
+  .student-setup-auth-screen .student-setup-record-note {
+    margin-top: 0.45rem;
+  }
+
+  .student-setup-auth-screen .student-setup-password-panel {
+    margin-top: 0;
+    padding-top: 0.7rem;
+  }
+
+  .student-setup-auth-screen .student-password-rules {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.45rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .student-setup-auth-screen .student-setup-stage,
+  .student-setup-auth-screen .student-setup-operation::before {
+    animation: none;
+  }
+}

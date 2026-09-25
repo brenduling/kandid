@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import "./RemainingPages.css";
 import {
   AlertTriangle,
   Clock,
@@ -132,9 +133,10 @@ function BlockchainVerification() {
   }, [contractAddress, walletAddress]);
 
   return (
-    <div>
+    <div className="sa-remaining-page sa-blockchain-verification">
       <div className="page-head">
         <div>
+          <p className="sa-remaining-breadcrumb"><span>Kandid</span><span>/</span><span>Super Admin</span></p>
           <div className="page-kicker">Sepolia Verification</div>
           <h1 className="page-title">
             Blockchain

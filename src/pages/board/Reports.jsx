@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import "./BoardRemainingPages.css";
 import { Download, FileText, Vote, Users, BarChart3 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { usePrompt } from "../../context/PromptContext";
@@ -166,9 +167,10 @@ function BoardReports() {
   const uniqueVoters = new Set(votes.map((vote) => vote.student_id)).size;
 
   return (
-    <div>
+    <div className="board-remaining-page board-reports">
       <div className="page-head">
         <div>
+          <p className="board-remaining-breadcrumb"><span>Kandid</span><span>/</span><span>Electoral Board</span></p>
           <div className="page-kicker">Records Export</div>
           <h1 className="page-title">Board reports</h1>
           <p className="page-subtitle">

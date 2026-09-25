@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   BarChart3,
   CalendarRange,
@@ -10,6 +10,7 @@ import {
   Vote,
 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
+import { KandidInlineLoader } from "../../components/KandidLoader";
 import { fetchAuditLogs } from "../../utils/auditLog";
 import { formatLocalDateTime } from "../../utils/elections";
 
@@ -30,23 +31,7 @@ function BoardDashboard() {
   const orgId = user?.organization_id;
   const orgName = user?.organizations?.name || "Assigned Organization";
 
-  async function fetchDashboardData() {
-    await loadDashboardData(() => true);
-  }
-
-  useEffect(() => {
-    let active = true;
-
-    loadDashboardData(() => active);
-    window.addEventListener("kandid-audit-updated", fetchDashboardData);
-
-    return () => {
-      active = false;
-      window.removeEventListener("kandid-audit-updated", fetchDashboardData);
-    };
-  }, [orgId]);
-
-  async function loadDashboardData(isActive = () => true) {
+  const loadDashboardData = useCallback(async (isActive = () => true) => {
     if (isActive()) {
       setLoading(true);
     }
@@ -125,7 +110,26 @@ function BoardDashboard() {
     }
     setRecentActivities(auditActivities || []);
     setLoading(false);
-  }
+  }, [orgId]);
+
+  const fetchDashboardData = useCallback(async () => {
+    await loadDashboardData(() => true);
+  }, [loadDashboardData]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadTimer = window.setTimeout(() => {
+      loadDashboardData(() => active);
+    }, 0);
+    window.addEventListener("kandid-audit-updated", fetchDashboardData);
+
+    return () => {
+      active = false;
+      window.clearTimeout(loadTimer);
+      window.removeEventListener("kandid-audit-updated", fetchDashboardData);
+    };
+  }, [fetchDashboardData, loadDashboardData]);
 
   const cards = [
     {
@@ -185,24 +189,23 @@ function BoardDashboard() {
   }
 
   return (
-    <div>
-      <div className="page-head">
-        <div>
-          <div className="page-kicker">Board Overview</div>
-          <h1 className="page-title">
-            Election board
-            <span className="page-title-accent"> command desk</span>
+    <div className="board-dashboard-desktop">
+      <div className="page-head board-dashboard-opening">
+        <div className="board-dashboard-opening-copy">
+          <div className="page-kicker board-dashboard-kicker">Electoral Board</div>
+          <h1 className="page-title board-dashboard-title">
+            Election operations
+            <span className="page-title-accent"> for your organization</span>
           </h1>
           <p className="page-subtitle">
-            Manage election operations for{" "}
-            <span className="font-bold text-[#11806a]">{orgName}</span> with a
-            cleaner summary of turnout, setup progress, and recent activity.
+            <span className="font-bold text-[#11806a]">{orgName}</span> is the active workspace for ballots,
+            candidates, positions, and board activity.
           </p>
         </div>
 
         <button
           onClick={fetchDashboardData}
-          className="primary-btn self-start lg:self-auto"
+          className="primary-btn board-dashboard-refresh self-start lg:self-auto"
         >
           <RefreshCw size={18} />
           Refresh Dashboard
@@ -210,26 +213,28 @@ function BoardDashboard() {
       </div>
 
       {loading ? (
-        <div className="glass-panel mt-8 rounded-[28px] p-8 text-gray-500">
-          Loading dashboard...
-        </div>
+        <section className="board-dashboard-loading">
+          <p>Electoral Board / Dashboard</p>
+          <strong>Preparing your board dashboard</strong>
+          <KandidInlineLoader message="Checking elections, votes, and recent activity..." />
+        </section>
       ) : (
         <>
-          <div className="section-grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+          <div className="section-grid board-dashboard-metrics grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
             {cards.map((card) => {
               const Icon = card.icon;
 
               return (
-                <div key={card.title} className="metric-card lift-card">
-                  <div className="flex items-center justify-between">
+                <div key={card.title} className="metric-card lift-card board-dashboard-metric">
+                  <div className="board-dashboard-metric-inner">
                     <div>
-                      <p className="text-sm font-semibold text-gray-500">{card.title}</p>
-                      <h2 className="mt-4 text-5xl font-black tracking-tight">
+                      <p className="board-dashboard-metric-label">{card.title}</p>
+                      <h2 className="board-dashboard-metric-value">
                         {card.value}
                       </h2>
                     </div>
                     <div
-                      className={`flex h-14 w-14 items-center justify-center rounded-2xl ${card.tone}`}
+                      className={`board-dashboard-metric-icon ${card.tone}`}
                     >
                       <Icon size={24} />
                     </div>
@@ -239,34 +244,38 @@ function BoardDashboard() {
             })}
           </div>
 
-          <div className="section-grid grid-cols-1 xl:grid-cols-[0.86fr_1.14fr]">
-            <div className="glass-panel-dark rounded-[30px] p-7 text-white">
-              <div className="flex items-center justify-between">
+          <div className="section-grid board-dashboard-operation-grid grid-cols-1 xl:grid-cols-[0.86fr_1.14fr]">
+            <div className="glass-panel-dark board-dashboard-org-panel rounded-[30px] p-7 text-white">
+              <div className="board-dashboard-panel-head">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">
-                    Organization Focus
+                  <p className="board-dashboard-panel-kicker">
+                    Organization Scope
                   </p>
-                  <h2 className="mt-3 text-3xl font-black">{orgName}</h2>
+                  <h2>{orgName}</h2>
                 </div>
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10">
+                <div className="board-dashboard-panel-icon">
                   <Layers3 size={24} />
                 </div>
               </div>
 
-              <div className="mt-6 space-y-4">
-                <div className="rounded-2xl bg-white/8 px-4 py-4">
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">
+              <div className="board-dashboard-org-stack">
+                <div className="board-dashboard-participation">
+                  <p>
                     Participation Index
                   </p>
-                  <p className="mt-2 text-4xl font-black">
+                  <strong>
                     {stats.voters > 0 && stats.votes > 0
                       ? `${Math.round((stats.voters / stats.votes) * 100)}`
                       : "0"}
-                    <span className="ml-1 text-base font-semibold text-white/60">%</span>
-                  </p>
+                    <span>%</span>
+                  </strong>
                 </div>
 
-                <div className="space-y-3">
+                <div className="board-dashboard-org-note">
+                  Counts reflect records currently tied to this assigned organization.
+                </div>
+
+                <div className="board-dashboard-ledger">
                   {[
                     ["Total ballots recorded", stats.votes],
                     ["Unique student voters", stats.voters],
@@ -274,28 +283,28 @@ function BoardDashboard() {
                   ].map(([label, value]) => (
                     <div
                       key={label}
-                      className="flex items-center justify-between rounded-2xl bg-white/8 px-4 py-3"
+                      className="board-dashboard-ledger-row"
                     >
-                      <span className="text-sm text-white/65">{label}</span>
-                      <span className="text-sm font-bold text-white">{value}</span>
+                      <span>{label}</span>
+                      <strong>{value}</strong>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
 
-            <div className="soft-card">
-              <div className="flex items-center justify-between">
+            <div className="soft-card board-dashboard-snapshot">
+              <div className="board-dashboard-panel-head">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#55726b]">
+                  <p className="board-dashboard-section-kicker">
                     Board Readiness
                   </p>
-                  <h3 className="mt-2 text-2xl font-black">Operational Snapshot</h3>
+                  <h3>Operational Snapshot</h3>
                 </div>
                 <span className="status-pill">Ready</span>
               </div>
 
-              <div className="mt-6 space-y-4">
+              <div className="board-dashboard-snapshot-list">
                 {[
                   ["Configured elections", `${stats.elections} total`],
                   ["Open election windows", `${stats.activeElections} active`],
@@ -310,19 +319,19 @@ function BoardDashboard() {
             </div>
           </div>
 
-          <div className="section-grid grid-cols-1 xl:grid-cols-2">
-            <div className="graph-card">
-              <div className="flex items-center justify-between">
+          <div className="section-grid board-dashboard-graph-grid grid-cols-1 xl:grid-cols-2">
+            <div className="graph-card board-dashboard-graph-card">
+              <div className="board-dashboard-panel-head">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#55726b]">
-                    Board Graph
+                  <p className="board-dashboard-section-kicker">
+                    Election Progress
                   </p>
-                  <h3 className="mt-2 text-2xl font-black">Election Progress View</h3>
+                  <h3>Current operation</h3>
                 </div>
                 <span className="status-pill">Live</span>
               </div>
 
-              <div className="mt-6 space-y-4">
+              <div className="board-dashboard-graph-stack">
                 {[
                   ["Election readiness", electionReadiness, `${stats.activeElections}/${stats.elections || 0}`, "chart-fill"],
                   ["Participation index", participationIndex, `${stats.voters}/${stats.votes || 0}`, "chart-fill-blue"],
@@ -347,18 +356,18 @@ function BoardDashboard() {
               </div>
             </div>
 
-            <div className="graph-card">
-              <div className="flex items-center justify-between">
+            <div className="graph-card board-dashboard-graph-card">
+              <div className="board-dashboard-panel-head">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#55726b]">
-                    Operations Graph
+                  <p className="board-dashboard-section-kicker">
+                    Resource Mix
                   </p>
-                  <h3 className="mt-2 text-2xl font-black">Board Capacity Mix</h3>
+                  <h3>Management records</h3>
                 </div>
-                <span className="status-pill">Colored View</span>
+                <span className="status-pill">Summary</span>
               </div>
 
-              <div className="mt-6 space-y-4">
+              <div className="board-dashboard-graph-stack">
                 {[
                   ["Positions configured", stats.positions, 100, "chart-fill-dark"],
                   ["Candidates added", stats.candidates, candidateDensity, "chart-fill"],
@@ -378,13 +387,13 @@ function BoardDashboard() {
             </div>
           </div>
 
-          <div className="section-grid grid-cols-1">
-            <div className="table-shell">
-              <div className="border-b border-[rgba(104,86,72,0.1)] px-6 py-5">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#55726b]">
+          <div className="section-grid board-dashboard-list-grid grid-cols-1">
+            <div className="table-shell board-dashboard-list-panel">
+              <div className="board-dashboard-list-head border-b border-[rgba(104,86,72,0.1)] px-6 py-5">
+                <p className="board-dashboard-section-kicker">
                   Recent Elections
                 </p>
-                <h3 className="mt-2 text-xl font-black">
+                <h3>
                   Latest elections for {orgName}
                 </h3>
               </div>
@@ -420,13 +429,13 @@ function BoardDashboard() {
             </div>
           </div>
 
-          <div className="section-grid grid-cols-1">
-            <div className="table-shell">
-              <div className="border-b border-[rgba(104,86,72,0.1)] px-6 py-5">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#55726b]">
+          <div className="section-grid board-dashboard-list-grid grid-cols-1">
+            <div className="table-shell board-dashboard-list-panel">
+              <div className="board-dashboard-list-head border-b border-[rgba(104,86,72,0.1)] px-6 py-5">
+                <p className="board-dashboard-section-kicker">
                   Recent Activity
                 </p>
-                <h3 className="mt-2 text-xl font-black">
+                <h3>
                   Latest actions for {orgName}
                 </h3>
               </div>

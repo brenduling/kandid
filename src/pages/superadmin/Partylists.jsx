@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import "./RemainingPages.css";
 import { Plus, Pencil, Trash2, X, UsersRound } from "lucide-react";
 import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
@@ -180,9 +181,10 @@ function Partylists() {
   }
 
   return (
-    <div>
+    <div className="sa-remaining-page sa-partylists">
       <div className="page-head">
         <div>
+          <p className="sa-remaining-breadcrumb"><span>Kandid</span><span>/</span><span>Super Admin</span></p>
           <div className="page-kicker">Political Groups</div>
           <h1 className="page-title">Partylist management</h1>
           <p className="page-subtitle">
@@ -238,7 +240,7 @@ function Partylists() {
 
       {formOpen && (
         <PopupOverlay>
-          <div className="modal-card max-w-xl">
+          <div className="modal-card max-w-xl sa-remaining-dialog">
             <div className="flex justify-between mb-6">
               <h2 className="text-2xl font-black">
                 {editing ? "Edit Partylist" : "Add Partylist"}

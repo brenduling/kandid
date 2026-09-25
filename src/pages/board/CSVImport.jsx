@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import "./BoardRemainingPages.css";
 import Papa from "papaparse";
 import { AlertTriangle, CheckCircle, FileUp, ShieldCheck, Upload, XCircle } from "lucide-react";
 import { logAuditEvent } from "../../utils/auditLog";
@@ -207,9 +208,10 @@ function BoardCSVImport() {
   const issueCount = previewSummary.issues || 0;
 
   return (
-    <div>
+    <div className="board-remaining-page board-csv-import">
       <div className="page-head">
         <div>
+          <p className="board-remaining-breadcrumb"><span>Kandid</span><span>/</span><span>Electoral Board</span></p>
           <div className="page-kicker">Student Records</div>
           <h1 className="page-title">Board CSV import</h1>
           <p className="page-subtitle">

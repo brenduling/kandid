@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 430" fill="none">
+  <title>Ballot recorded, receipt issued</title>
+  <g stroke="#17181c" stroke-linejoin="miter">
+    <path d="M218 37h244v314H218z" fill="#17181c" stroke-width="2"/>
+    <path d="M248 67h184v254H248z" fill="#f8f6f1" stroke-width="2"/>
+    <path d="M217 145h32v70h-32zM431 231h32v70h-32z" fill="#f8f6f1" stroke-width="2"/>
+    <path d="M277 95h126v198H277z" stroke-width="1.5"/>
+    <path d="M290 108h100M290 280h100" stroke-width="1"/>
+    <path d="M302 129h76v76h-76z" stroke-width="2"/>
+    <path d="M314 141h52v52h-52z" fill="#f4512c" stroke="#f4512c" stroke-width="2"/>
+    <path d="M330 157h20v20h-20z" fill="#17181c" stroke-width="2"/>
+    <path d="M290 227h100M290 243h66M290 259h83" stroke-width="1.5"/>
+  </g>
+  <path d="M248 180h43M378 180h28v86h40" stroke="#f4512c" stroke-width="3"/>
+  <path d="m438 259 8 7-8 7" stroke="#f4512c" stroke-width="3" stroke-linecap="square"/>
+  <g stroke="#17181c" stroke-linejoin="miter">
+    <path d="M34 82h218v161H34z" fill="#f8f6f1" stroke-width="2.5"/>
+    <path d="M56 105h112" stroke-width="4"/>
+    <path d="M56 128h174" stroke-width="1.5"/>
+    <path d="M56 151h15v15H56zM82 156h91M188 156h42" stroke-width="1.5"/>
+    <path d="M56 181h15v15H56zM82 186h104M200 186h30" stroke-width="1.5"/>
+    <path d="M56 211h15v15H56zM82 216h83M180 216h50" stroke-width="1.5"/>
+    <path d="M58 183h11v11H58z" fill="#f4512c" stroke="#f4512c" stroke-width="1"/>
+    <path d="M429 231h164v167H429z" fill="#f8f6f1" stroke-width="2.5"/>
+    <path d="M450 254h95" stroke-width="4"/>
+    <path d="M450 277h122" stroke-width="1.5"/>
+    <path d="M450 299h122M450 315h79M450 331h106" stroke-width="1.5"/>
+    <path d="M450 354h13v17h-13zM469 354h6v17h-6zM481 354h15v17h-15zM502 354h7v17h-7zM515 354h11v17h-11zM532 354h5v17h-5zM543 354h16v17h-16zM565 354h7v17h-7z" fill="#17181c" stroke-width="1"/>
+  </g>
+  <path d="M450 254h37" stroke="#f4512c" stroke-width="4"/>
+</svg>

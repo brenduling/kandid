@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import "./RemainingPages.css";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
 import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
@@ -167,9 +168,10 @@ function EligibilityRules() {
   }
 
   return (
-    <div>
+    <div className="sa-remaining-page sa-eligibility-rules">
       <div className="page-head">
         <div>
+          <p className="sa-remaining-breadcrumb"><span>Kandid</span><span>/</span><span>Super Admin</span></p>
           <div className="page-kicker">Voting Access</div>
           <h1 className="page-title">Eligibility rules</h1>
           <p className="page-subtitle">
@@ -221,7 +223,7 @@ function EligibilityRules() {
 
       {formOpen && (
         <PopupOverlay>
-          <div className="modal-card max-w-lg">
+          <div className="modal-card max-w-lg sa-remaining-dialog">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-black">
                 {editing ? "Edit Eligibility Rule" : "Add Eligibility Rule"}

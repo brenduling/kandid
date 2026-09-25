@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
-import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
-  ArrowLeft,
   ChevronDown,
   LogOut,
 } from "lucide-react";
@@ -37,14 +36,12 @@ import { logAuditEvent } from "../utils/auditLog";
 
 function StudentLayout() {
   const navigate = useNavigate();
-  const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const [user, setUser] = useState(() => getStoredUser());
 
   const prompt = usePrompt();
   const homePath = "/student/dashboard";
-  const showBackButton = location.pathname !== homePath;
 
   /*
    * ============================================================
@@ -83,14 +80,14 @@ function StudentLayout() {
    */
   async function handleLogout() {
     const ok = await prompt.confirm({
-      title: "Logout Confirmation",
-
+      eyebrow: "Signing out",
+      title: "Leaving Kandid?",
       message:
-        "Are you sure you want to sign out of the Student Portal?",
-
-      type: "warning",
-
+        "You'll need to sign in again to access your Student Portal.",
+      type: "info",
+      variant: "editorial",
       confirmText: "Logout",
+      cancelText: "Stay signed in",
     });
 
     if (!ok) return;
@@ -110,15 +107,6 @@ function StudentLayout() {
         replace: true,
       }
     );
-  }
-
-  function handleBack() {
-    if (window.history.length > 1) {
-      navigate(-1);
-      return;
-    }
-
-    navigate(homePath);
   }
 
   return (
@@ -160,6 +148,7 @@ function StudentLayout() {
                 key={item.path}
                 to={item.path}
                 aria-label={item.name}
+                title={item.name}
                 data-tooltip={item.name}
                 className={({ isActive }) =>
                   `student-sidebar-link nav-item ${isActive
@@ -186,6 +175,7 @@ function StudentLayout() {
           onClick={handleLogout}
           className="student-sidebar-logout sidebar-logout-btn"
           aria-label="Logout"
+          title="Logout"
           data-tooltip="Logout"
         >
           <span className="nav-item-icon">
@@ -261,17 +251,6 @@ function StudentLayout() {
             PAGE CONTENT
             ==================================================== */}
         <section className="student-content content-stack pb-24 pt-20 lg:pb-8 lg:pt-8">
-          {showBackButton ? (
-            <button
-              type="button"
-              onClick={handleBack}
-              className="app-page-back-button"
-            >
-              <ArrowLeft size={15} />
-              Back
-            </button>
-          ) : null}
-
           <Outlet />
         </section>
       </main>

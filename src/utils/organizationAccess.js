@@ -585,7 +585,9 @@ export async function getStudentExplicitOrganizations(studentId) {
       organizations (
         id,
         name,
-        organization_type
+        description,
+        organization_type,
+        logo_url
       )
     `,
     [["student_id", studentId]],

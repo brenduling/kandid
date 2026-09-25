@@ -45,10 +45,14 @@ function SuperAdminLayout() {
   }, []);
   async function handleLogout() {
     const ok = await prompt.confirm({
-      title: "Logout Confirmation",
-      message: "Are you sure you want to sign out of the Super Admin Portal?",
-      type: "warning",
+      eyebrow: "Signing out",
+      title: "Leaving Kandid?",
+      message:
+        "You'll need to sign in again to access your Super Admin Portal.",
+      type: "info",
+      variant: "editorial",
       confirmText: "Logout",
+      cancelText: "Stay signed in",
     });
     if (!ok) return;
 
@@ -140,6 +144,7 @@ function SuperAdminLayout() {
                             key={item.path}
                             to={item.path}
                             aria-label={item.name}
+                            title={item.name}
                             data-tooltip={item.name}
                             className={({ isActive }) =>
                               `fade-up nav-item ${isActive ? "nav-item-active" : ""}`
@@ -166,18 +171,21 @@ function SuperAdminLayout() {
             onClick={handleLogout}
             className="sidebar-logout-btn"
             aria-label="Logout"
+            title="Logout"
             data-tooltip="Logout"
           >
-            <LogOut size={18} />
+            <span className="nav-item-icon">
+              <LogOut size={18} />
+            </span>
             <span className="sidebar-reveal">Logout</span>
           </button>
         </aside>
 
         <main className="workspace-main">
-          <header className="glass-panel shell-header kandid-header hidden lg:flex fade-up">
+          <header className="shell-header kandid-header hidden lg:flex fade-up">
             <GlobalSearch
               user={user}
-              className="glass-panel-strong shell-search lg:max-w-xl"
+              className="shell-search lg:max-w-xl"
             />
 
             <div className="kandid-header-actions hidden w-full items-center justify-between gap-3 sm:w-auto sm:justify-end lg:flex">
@@ -185,20 +193,20 @@ function SuperAdminLayout() {
 
               <button
                 onClick={() => navigate(getProfileRoute(user?.role))}
-                className="glass-panel-strong shell-profile-chip"
+                className="shell-profile-chip"
               >
                 {user?.photo_url ? (
                   <img
                     src={user.photo_url}
                     alt="Admin profile"
-                    className="h-12 w-12 rounded-2xl object-cover"
+                    className="shell-profile-avatar h-12 w-12 object-cover"
                   />
                 ) : (
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[rgba(239,78,35,0.1)] text-sm font-black text-[#ef4e23]">
+                  <div className="shell-profile-avatar shell-profile-monogram flex h-12 w-12 items-center justify-center text-sm font-black">
                     SA
                   </div>
                 )}
-                <div className="min-w-0 text-left">
+                <div className="shell-profile-copy min-w-0 text-left">
                   <p className="truncate text-sm font-bold text-[#18212b]">
                     {user?.full_name || "Super Admin"}
                   </p>

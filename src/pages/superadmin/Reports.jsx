@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import "./RemainingPages.css";
 import { Download, BarChart3, Users, Vote, FileText } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 
@@ -106,12 +107,14 @@ function Reports() {
   ];
 
   return (
-    <div>
-      <div>
-        <h1 className="text-3xl font-black">Reports and Analytics</h1>
-        <p className="text-gray-500 mt-1">
-          Generate administrative reports and export election data.
-        </p>
+    <div className="sa-remaining-page sa-reports">
+      <div className="page-head">
+        <div>
+          <p className="sa-remaining-breadcrumb"><span>Kandid</span><span>/</span><span>Super Admin</span></p>
+          <div className="page-kicker">Institutional Exports</div>
+          <h1 className="page-title">Reports and Analytics</h1>
+          <p className="page-subtitle">Generate administrative reports and export election data.</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 mt-8 sm:grid-cols-2 xl:grid-cols-4 xl:gap-6">

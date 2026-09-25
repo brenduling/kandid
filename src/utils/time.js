@@ -11,6 +11,13 @@ const MANILA_DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-PH", {
   hour12: true,
 });
 
+const MANILA_DATE_FORMATTER = new Intl.DateTimeFormat("en-PH", {
+  timeZone: MANILA_TIME_ZONE,
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+});
+
 function hasExplicitTimezone(value) {
   return /(?:[zZ]|[+-]\d{2}:?\d{2})$/.test(String(value || ""));
 }
@@ -121,6 +128,11 @@ export function formatManilaDateTime(value, fallback = "Time unavailable") {
 export function formatUtcTimestampAsManilaDateTime(value, fallback = "Time unavailable") {
   const date = parseUtcTimestamp(value);
   return date ? formatManilaDateTime(date, fallback) : fallback;
+}
+
+export function formatUtcTimestampAsManilaDate(value, fallback = "Date unavailable") {
+  const date = parseUtcTimestamp(value);
+  return date ? MANILA_DATE_FORMATTER.format(date) : fallback;
 }
 
 export function formatAbsoluteTimestampAsManilaDateTime(value, fallback = "Time unavailable") {

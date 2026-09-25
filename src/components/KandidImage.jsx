@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 function initialsFrom(text) {
   return String(text || "")
@@ -18,9 +18,15 @@ function KandidImage({
   loading = "lazy",
   title,
 }) {
-  const [failed, setFailed] = useState(false);
+  const imageSrc = typeof src === "string" ? src.trim() : src;
+  const [failedSrc, setFailedSrc] = useState(null);
   const initials = useMemo(() => initialsFrom(label || alt), [alt, label]);
-  const canRenderImage = Boolean(src) && !failed;
+  const canRenderImage = Boolean(imageSrc) && failedSrc !== imageSrc;
+  const handleImageNode = useCallback((node) => {
+    if (node?.complete && node.naturalWidth === 0) {
+      setFailedSrc(imageSrc);
+    }
+  }, [imageSrc]);
 
   return (
     <span
@@ -30,11 +36,12 @@ function KandidImage({
     >
       {canRenderImage ? (
         <img
-          src={src}
+          ref={handleImageNode}
+          src={imageSrc}
           alt={alt || label || ""}
           loading={loading}
           decoding="async"
-          onError={() => setFailed(true)}
+          onError={() => setFailedSrc(imageSrc)}
           style={{ objectFit: fit }}
         />
       ) : (

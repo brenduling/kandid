@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import PopupOverlay from "./PopupOverlay";
 import StudentSearchPicker from "./StudentSearchPicker";
 import ElectionManagementCard from "./ElectionManagementCard";
+import { OrganizationLogo } from "./KandidImage";
 import { supabase } from "../lib/supabaseClient";
 import {
   createCampaignMaterialsDraft,
@@ -16,6 +17,23 @@ import { analyzeDeleteDependencies, dependencyMessage } from "../utils/deleteGua
 import { getElectionPhase, isMissingElectionCoverColumn } from "../utils/elections";
 import { fetchEligibleStudentsForOrganization } from "../utils/organizationAccess";
 import { isMissingPositionOrderError } from "../utils/positionOrder";
+
+const ELECTION_PHASE_LABELS = {
+  draft: "Draft",
+  archived: "Archived",
+  closed: "Concluded",
+  campaign_upcoming: "Campaign upcoming",
+  campaign: "Campaigning",
+  waiting: "Awaiting voting",
+  voting: "Voting now",
+  scheduled: "Scheduled",
+  active: "Active",
+};
+
+const electionPhaseLabel = (election) => {
+  const phase = getElectionPhase(election);
+  return ELECTION_PHASE_LABELS[phase] || String(phase || "Status unavailable").replaceAll("_", " ");
+};
 
 function createInitialForm() {
   return {
@@ -35,6 +53,12 @@ function candidateName(candidate) {
   return `${candidate?.students?.first_name || ""} ${candidate?.students?.last_name || ""}`.trim();
 }
 
+function candidateInitials(candidate) {
+  const first = candidate?.students?.first_name?.trim()?.[0] || "";
+  const last = candidate?.students?.last_name?.trim()?.[0] || "";
+  return `${first}${last}`.toUpperCase() || "C";
+}
+
 function attachCandidateContext(candidate, positionsById, electionsById) {
   const position = positionsById.get(Number(candidate.position_id));
   const election = electionsById.get(Number(position?.election_id));
@@ -52,6 +76,7 @@ function attachCandidateContext(candidate, positionsById, electionsById) {
 
 function CandidateManagement({
   boardScoped = false,
+  superAdminEditorial = false,
   title = "Candidate management",
   subtitle = "Assign students as candidates and prepare campaign details.",
 }) {
@@ -127,6 +152,8 @@ function CandidateManagement({
     setCandidateCounts(counts);
   }, []);
 
+  // Existing async load pattern intentionally preserved for this presentation-only pass.
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const loadLandingData = useCallback(async () => {
     if (boardScoped && !orgId) {
       setElections([]);
@@ -231,10 +258,12 @@ function CandidateManagement({
     setPartylists(partyRows);
     setLandingLoading(false);
     fetchCandidateCounts(positionRows);
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   }, [boardScoped, fetchCandidateCounts, orgId]);
 
   useEffect(() => {
     let active = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadLandingData().finally(() => {
       if (!active) return;
     });
@@ -242,6 +271,12 @@ function CandidateManagement({
       active = false;
     };
   }, [loadLandingData]);
+
+  useEffect(() => {
+    if (!superAdminEditorial) return undefined;
+    document.body.classList.add("sa-candidates-page-active");
+    return () => document.body.classList.remove("sa-candidates-page-active");
+  }, [superAdminEditorial]);
 
   useEffect(() => {
     if (!preselectedPositionId) return;
@@ -252,8 +287,10 @@ function CandidateManagement({
     if (!selectedPosition) return;
 
     handledPreselectRef.current = preselectedPositionId;
+    // eslint-disable-next-line react-hooks/immutability
     openCreateForm(preselectedPositionId, selectedPosition.election_id);
     setSearchParams({}, { replace: true });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preselectedPositionId, positions, setSearchParams]);
 
   async function refreshCandidates(electionId = selectedElectionId || form.election_id) {
@@ -662,29 +699,58 @@ function CandidateManagement({
   }
 
   const selectedElection = selectedElectionOption();
+  const selectedElectionPositionGroups = groupedCandidatesForSelectedElection();
+  const selectedElectionPositionCount = selectedElectionPositionGroups.length;
 
   return (
-    <div>
-      <div className="page-head">
-        <div>
-          <div className="page-kicker">Candidate Lineup</div>
-          <h1 className="page-title">{title}</h1>
-          <p className="page-subtitle">{subtitle}</p>
+    <div className={boardScoped ? "board-candidates-desktop" : superAdminEditorial ? "sa-candidates" : undefined}>
+      <div className={`page-head ${boardScoped ? "board-candidates-opening" : superAdminEditorial ? "sa-candidates-masthead" : ""}`}>
+        <div className={boardScoped ? "board-candidates-opening-copy" : undefined}>
+          {superAdminEditorial ? <p className="sa-candidates-breadcrumb">Kandid / Super Admin</p> : null}
+          <div className={`page-kicker ${boardScoped ? "board-candidates-kicker" : superAdminEditorial ? "sa-candidates-eyebrow" : ""}`}>
+            Candidate Field
+          </div>
+          <h1 className={`page-title ${boardScoped ? "board-candidates-title" : ""}`}>
+            {superAdminEditorial ? "Candidates" : title}
+          </h1>
+          <p className="page-subtitle">
+            {superAdminEditorial
+              ? "Shape each election field by ballot position, student identity, and campaign record."
+              : subtitle}
+          </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => openCreateForm()}
-          className="primary-btn self-start lg:self-auto"
-          disabled={landingLoading || Boolean(landingError)}
-        >
-          <Plus size={18} />
-          Add Candidate
-        </button>
+        {superAdminEditorial ? (
+          <aside className="sa-candidates-masthead-aside">
+            <span>Election field</span>
+            <strong>{candidateElectionOptions().length} election{candidateElectionOptions().length === 1 ? "" : "s"}</strong>
+            {!selectedElectionId ? (
+              <button
+                type="button"
+                onClick={() => openCreateForm()}
+                className="primary-btn self-start lg:self-auto sa-candidates-add"
+                disabled={landingLoading || Boolean(landingError)}
+              >
+                <Plus size={18} />
+                Add Candidate
+              </button>
+            ) : null}
+          </aside>
+        ) : (
+            <button
+              type="button"
+              onClick={() => openCreateForm()}
+              className={`primary-btn self-start lg:self-auto ${boardScoped ? "board-candidates-create" : ""}`}
+              disabled={landingLoading || Boolean(landingError)}
+            >
+              <Plus size={18} />
+              Add Candidate
+            </button>
+        )}
       </div>
 
       {landingError ? (
-        <div className="soft-card mt-8">
+        <div className={`soft-card ${boardScoped ? "board-candidates-state" : superAdminEditorial ? "sa-candidates-state" : "mt-8"}`}>
           <p className="page-kicker">Candidate Data Error</p>
           <h2 className="mt-2 text-2xl font-black">Unable to load candidate setup</h2>
           <p className="mt-2 text-sm font-semibold text-[#667085]">{landingError}</p>
@@ -693,7 +759,7 @@ function CandidateManagement({
           </button>
         </div>
       ) : landingLoading ? (
-        <div className="soft-card mt-8">
+        <div className={`soft-card ${boardScoped ? "board-candidates-state" : superAdminEditorial ? "sa-candidates-state" : "mt-8"}`}>
           <p className="page-kicker">Candidate Setup</p>
           <h2 className="mt-2 text-2xl font-black">Loading elections...</h2>
           <p className="mt-2 text-sm font-semibold text-[#667085]">
@@ -701,40 +767,113 @@ function CandidateManagement({
           </p>
         </div>
       ) : !selectedElectionId ? (
-        <div className="election-management-grid mt-8">
+        <section className={boardScoped ? "board-candidates-election-picker" : superAdminEditorial ? "sa-candidates-election-picker" : "election-management-grid mt-8"}>
           {candidateElectionOptions().length === 0 ? (
-            <div className="empty-state">No elections are available for candidate setup.</div>
+            <div className={`empty-state ${boardScoped ? "board-candidates-state" : superAdminEditorial ? "sa-candidates-state" : ""}`}>
+              No elections are available for candidate setup.
+            </div>
           ) : (
-            candidateElectionOptions().map((election) => {
-              const electionPositions = positions.filter(
-                (position) => Number(position.election_id) === Number(election.id),
-              );
-              const electionCandidateCount = candidateCounts[election.id] || 0;
+            <>
+              {boardScoped || superAdminEditorial ? (
+                <div className={boardScoped ? "board-candidates-section-head" : "sa-candidates-section-head"}>
+                  <div>
+                    <p className={boardScoped ? "board-candidates-section-kicker" : "sa-candidates-eyebrow"}>Election context</p>
+                    <h2>Select the field to manage.</h2>
+                  </div>
+                  <span>{candidateElectionOptions().length} election{candidateElectionOptions().length === 1 ? "" : "s"}</span>
+                </div>
+              ) : null}
+              {superAdminEditorial ? (
+                <div className="sa-candidates-election-register">
+                  <div className="sa-candidates-election-columns" aria-hidden="true">
+                    <span>No.</span>
+                    <span>Election</span>
+                    <span>Organization</span>
+                    <span>Phase</span>
+                    <span>Positions</span>
+                    <span>Candidates</span>
+                    <span>Action</span>
+                  </div>
+                  <div className="sa-candidates-election-list">
+                    {candidateElectionOptions().map((election, index) => {
+                      const electionPositions = positions.filter(
+                        (position) => Number(position.election_id) === Number(election.id),
+                      );
+                      const electionCandidateCount = candidateCounts[election.id] || 0;
 
-              return (
-                <ElectionManagementCard
-                  key={election.id}
-                  election={election}
-                  organization={boardScoped ? user?.organizations : undefined}
-                  eyebrow="Candidate Setup"
-                  counts={[
-                    {
-                      label: `position${electionPositions.length === 1 ? "" : "s"}`,
-                      value: electionPositions.length,
-                    },
-                    {
-                      label: `candidate${electionCandidateCount === 1 ? "" : "s"}`,
-                      value: electionCandidateCount,
-                    },
-                  ]}
-                  onClick={() => openElectionPanel(election.id)}
-                />
-              );
-            })
+                      return (
+                        <button
+                          key={election.id}
+                          type="button"
+                          className="sa-candidates-election-record"
+                          onClick={() => openElectionPanel(election.id)}
+                        >
+                          <span className="sa-candidates-election-index">
+                            {String(index + 1).padStart(2, "0")}
+                          </span>
+                          <span className="sa-candidates-election-identity">
+                            <small>Candidate field</small>
+                            <strong>{election.title || "Untitled Election"}</strong>
+                          </span>
+                          <span className="sa-candidates-election-organization">
+                            <OrganizationLogo
+                              organization={election.organizations}
+                              className="sa-candidates-election-logo"
+                            />
+                            <span>{election.organizations?.name || "Organization not assigned"}</span>
+                          </span>
+                          <span className="sa-candidates-election-phase">
+                            {electionPhaseLabel(election)}
+                          </span>
+                          <span className="sa-candidates-election-count">
+                            <strong>{electionPositions.length}</strong>
+                            <small>Position{electionPositions.length === 1 ? "" : "s"}</small>
+                          </span>
+                          <span className="sa-candidates-election-count">
+                            <strong>{electionCandidateCount}</strong>
+                            <small>Candidate{electionCandidateCount === 1 ? "" : "s"}</small>
+                          </span>
+                          <span className="sa-candidates-election-command">Manage Candidates</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className={boardScoped ? "election-management-grid board-candidates-election-grid" : "election-management-grid"}>
+                  {candidateElectionOptions().map((election) => {
+                    const electionPositions = positions.filter(
+                      (position) => Number(position.election_id) === Number(election.id),
+                    );
+                    const electionCandidateCount = candidateCounts[election.id] || 0;
+
+                    return (
+                      <ElectionManagementCard
+                        key={election.id}
+                        election={election}
+                        organization={boardScoped ? user?.organizations : undefined}
+                        eyebrow="Candidate Setup"
+                        counts={[
+                          {
+                            label: `position${electionPositions.length === 1 ? "" : "s"}`,
+                            value: electionPositions.length,
+                          },
+                          {
+                            label: `candidate${electionCandidateCount === 1 ? "" : "s"}`,
+                            value: electionCandidateCount,
+                          },
+                        ]}
+                        onClick={() => openElectionPanel(election.id)}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
-        </div>
+        </section>
       ) : (
-        <div className="mt-8">
+        <div className={boardScoped ? "board-candidates-workspace" : superAdminEditorial ? "sa-candidates-workspace" : "mt-8"}>
           <button
             type="button"
             onClick={() => {
@@ -744,12 +883,12 @@ function CandidateManagement({
               setStudents([]);
               setCandidateError("");
             }}
-            className="mb-4 text-sm font-black uppercase tracking-[0.12em] text-[#ef4e23]"
+            className={boardScoped ? "board-candidates-back" : superAdminEditorial ? "sa-candidates-back" : "mb-4 text-sm font-black uppercase tracking-[0.12em] text-[#ef4e23]"}
           >
             Back to elections
           </button>
 
-          <div className="entity-card mb-4 grid gap-4 lg:grid-cols-[minmax(0,17rem)_1fr_auto] lg:items-center">
+          <div className={`entity-card ${boardScoped ? "board-candidates-context" : superAdminEditorial ? "sa-candidates-context" : "mb-4 grid gap-4 lg:grid-cols-[minmax(0,17rem)_1fr_auto] lg:items-center"}`}>
             <ElectionManagementCard
               election={selectedElection}
               organization={boardScoped ? user?.organizations : undefined}
@@ -761,15 +900,37 @@ function CandidateManagement({
                 },
               ]}
             />
-            <div>
-              <p className="page-kicker">Selected Election</p>
-              <h2 className="entity-card-title mt-2">{selectedElection?.title || "Election"}</h2>
+            <div className={boardScoped ? "board-candidates-context-copy" : superAdminEditorial ? "sa-candidates-context-copy" : undefined}>
+              <p className={boardScoped ? "board-candidates-section-kicker" : superAdminEditorial ? "sa-candidates-eyebrow" : "page-kicker"}>Selected Election</p>
+              <h2 className={boardScoped || superAdminEditorial ? "" : "entity-card-title mt-2"}>{selectedElection?.title || "Election"}</h2>
+              {boardScoped ? (
+                <>
+                  <p>
+                    Candidate records are organized by the ballot office they are running for.
+                  </p>
+                  <div className="board-candidates-context-ledger">
+                    <span>{selectedElectionPositionCount} position{selectedElectionPositionCount === 1 ? "" : "s"}</span>
+                    <span>{selectedElectionCandidates.length} candidate{selectedElectionCandidates.length === 1 ? "" : "s"}</span>
+                    <span>{partylistsForSelectedElection().length} partylist{partylistsForSelectedElection().length === 1 ? "" : "s"}</span>
+                  </div>
+                </>
+              ) : null}
+              {superAdminEditorial ? (
+                <>
+                  <p>{selectedElection?.organizations?.name || "Organization not assigned"}</p>
+                  <div className="sa-candidates-context-ledger">
+                    <span>{selectedElectionPositionCount} position{selectedElectionPositionCount === 1 ? "" : "s"}</span>
+                    <span>{selectedElectionCandidates.length} candidate{selectedElectionCandidates.length === 1 ? "" : "s"}</span>
+                    <span>{partylistsForSelectedElection().length} partylist{partylistsForSelectedElection().length === 1 ? "" : "s"}</span>
+                  </div>
+                </>
+              ) : null}
             </div>
             {!isElectionDone(selectedElection) ? (
               <button
                 type="button"
                 onClick={() => openCreateForm("", selectedElectionId)}
-                className="primary-btn self-start sm:self-auto"
+                className={`primary-btn self-start sm:self-auto ${boardScoped ? "board-candidates-context-action" : superAdminEditorial ? "sa-candidates-add" : ""}`}
               >
                 <Plus size={18} />
                 Add Candidate
@@ -780,7 +941,7 @@ function CandidateManagement({
           </div>
 
           {candidateError ? (
-            <div className="soft-card">
+            <div className={`soft-card ${boardScoped ? "board-candidates-state" : superAdminEditorial ? "sa-candidates-state" : ""}`}>
               <p className="page-kicker">Candidate Data Error</p>
               <h2 className="mt-2 text-2xl font-black">Unable to load candidates</h2>
               <p className="mt-2 text-sm font-semibold text-[#667085]">{candidateError}</p>
@@ -793,44 +954,82 @@ function CandidateManagement({
               </button>
             </div>
           ) : candidateLoading ? (
-            <div className="soft-card">
+            <div className={`soft-card ${boardScoped ? "board-candidates-state" : superAdminEditorial ? "sa-candidates-state" : ""}`}>
               <p className="page-kicker">Candidate Records</p>
               <h2 className="mt-2 text-2xl font-black">Loading candidates...</h2>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {groupedCandidatesForSelectedElection().map(({ position, candidates: positionCandidates }) => (
-                <section key={position.id} className="entity-card">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            ) : (
+              <div className={boardScoped ? "board-candidates-field" : superAdminEditorial ? "sa-candidates-field" : "space-y-4"}>
+              {superAdminEditorial && selectedElectionPositionGroups.length === 0 ? (
+                <div className="sa-candidates-no-positions">
+                  <span>00</span>
+                  <div>
+                    <h3>No ballot positions</h3>
+                    <p>Add positions to this election before assigning candidates.</p>
+                  </div>
+                </div>
+              ) : null}
+              {selectedElectionPositionGroups.map(({ position, candidates: positionCandidates }, positionIndex) => (
+                <section key={position.id} className={`entity-card ${boardScoped ? "board-candidate-position-group" : superAdminEditorial ? "sa-candidate-position-group" : ""}`}>
+                  <div className={boardScoped ? "board-candidate-position-head" : superAdminEditorial ? "sa-candidate-position-head" : "flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"}>
+                    {superAdminEditorial ? <span className="sa-candidate-position-index">{String(position.display_order || positionIndex + 1).padStart(2, "0")}</span> : null}
                     <div>
-                      <p className="page-kicker">Position</p>
-                      <h3 className="entity-card-title mt-2">{position.name}</h3>
+                      <p className={boardScoped ? "board-candidates-section-kicker" : superAdminEditorial ? "sa-candidates-eyebrow" : "page-kicker"}>Ballot Position</p>
+                      <h3 className={boardScoped || superAdminEditorial ? "" : "entity-card-title mt-2"}>{position.name}</h3>
                     </div>
-                    <span className="status-pill">
+                    <span className={superAdminEditorial ? "sa-candidate-position-count" : "status-pill"}>
                       {positionCandidates.length} candidate{positionCandidates.length === 1 ? "" : "s"}
                     </span>
                   </div>
 
-                  <div className="mt-4 grid gap-3">
+                  <div className={boardScoped ? "board-candidate-list" : superAdminEditorial ? "sa-candidate-list" : "mt-4 grid gap-3"}>
                     {positionCandidates.length === 0 ? (
-                      <div className="empty-copy rounded-[18px] border border-dashed border-[rgba(24,54,49,0.12)] bg-white/60 p-4">
+                      <div className={boardScoped ? "board-candidate-empty-position" : superAdminEditorial ? "sa-candidate-empty-position" : "empty-copy rounded-[18px] border border-dashed border-[rgba(24,54,49,0.12)] bg-white/60 p-4"}>
                         No candidates configured for this position.
                       </div>
                     ) : (
-                      positionCandidates.map((candidate) => (
-                        <div key={candidate.id} className="flex flex-col gap-3 rounded-[18px] border border-[rgba(24,54,49,0.08)] bg-white/80 p-4 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <p className="font-black text-[#111827]">{candidateName(candidate)}</p>
-                            <p className="text-sm font-bold text-[#6b7280]">
-                              {candidate.students?.student_number || "-"} {"-"} {candidate.partylists?.name || "Independent"} {"-"} {parseCampaignMaterials(candidate.campaign_materials, candidate.campaign_media_urls).length} media
-                            </p>
+                      positionCandidates.map((candidate, candidateIndex) => (
+                        <div key={candidate.id} className={boardScoped ? "board-candidate-record" : superAdminEditorial ? "sa-candidate-record" : "flex flex-col gap-3 rounded-[18px] border border-[rgba(24,54,49,0.08)] bg-white/80 p-4 sm:flex-row sm:items-center sm:justify-between"}>
+                          {superAdminEditorial ? <span className="sa-candidate-index">{String(candidateIndex + 1).padStart(2, "0")}</span> : null}
+                          <div className={boardScoped ? "board-candidate-identity" : superAdminEditorial ? "sa-candidate-identity" : undefined}>
+                            {boardScoped || superAdminEditorial ? (
+                              <div className={boardScoped ? "board-candidate-avatar" : "sa-candidate-avatar"}>
+                                {candidate.photo ? (
+                                  <img src={candidate.photo} alt="" />
+                                ) : (
+                                  <span>{candidateInitials(candidate)}</span>
+                                )}
+                              </div>
+                            ) : null}
+                            <div>
+                              <p className={boardScoped ? "board-candidate-name" : superAdminEditorial ? "sa-candidate-name" : "font-black text-[#111827]"}>
+                                {candidateName(candidate)}
+                              </p>
+                              <p className={boardScoped ? "board-candidate-meta" : superAdminEditorial ? "sa-candidate-meta" : "text-sm font-bold text-[#6b7280]"}>
+                                <span>{candidate.students?.student_number || "-"}</span>
+                                <span>{candidate.partylists?.name || "Independent"}</span>
+                                <span>{parseCampaignMaterials(candidate.campaign_materials, candidate.campaign_media_urls).length} media</span>
+                              </p>
+                            </div>
                           </div>
-                          <div className="flex gap-2">
-                            <button type="button" onClick={() => openEditForm(candidate)} className="icon-action">
+                          <div className={boardScoped ? "board-candidate-actions" : superAdminEditorial ? "sa-candidate-actions" : "flex gap-2"}>
+                            <button
+                              type="button"
+                              onClick={() => openEditForm(candidate)}
+                              className="icon-action"
+                              aria-label={`Edit ${candidateName(candidate) || "candidate"}`}
+                            >
                               <Pencil size={16} />
+                              {superAdminEditorial ? <span>Edit</span> : null}
                             </button>
-                            <button type="button" onClick={() => handleDelete(candidate)} className="icon-action icon-action-danger">
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(candidate)}
+                              className="icon-action icon-action-danger"
+                              aria-label={`Delete ${candidateName(candidate) || "candidate"}`}
+                            >
                               <Trash2 size={16} />
+                              {superAdminEditorial ? <span>Delete</span> : null}
                             </button>
                           </div>
                         </div>
@@ -846,19 +1045,40 @@ function CandidateManagement({
 
       {formOpen && (
         <PopupOverlay>
-          <div className="modal-card max-w-3xl">
-            <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-2xl font-black">
-                {editingCandidate ? "Edit Candidate" : "Add Candidate"}
-              </h2>
+          <div className={superAdminEditorial ? "modal-card candidate-form-dialog" : "modal-card max-w-3xl"}>
+            <div className={superAdminEditorial ? "candidate-form-header" : "mb-6 flex items-center justify-between"}>
+              {superAdminEditorial ? (
+              <div>
+                {superAdminEditorial ? <p>Candidate Field</p> : null}
+                <h2 className={superAdminEditorial ? "" : "text-2xl font-black"}>
+                  {editingCandidate ? "Edit Candidate" : "Add Candidate"}
+                </h2>
+                {superAdminEditorial ? (
+                  <span>
+                    {editingCandidate
+                      ? "Update this candidate's ballot identity and campaign record."
+                      : "Assign an eligible student to one ballot position."}
+                  </span>
+                ) : null}
+              </div>
+              ) : (
+                <h2 className="text-2xl font-black">
+                  {editingCandidate ? "Edit Candidate" : "Add Candidate"}
+                </h2>
+              )}
 
-              <button type="button" onClick={() => setFormOpen(false)} className="icon-action">
+              <button type="button" onClick={() => setFormOpen(false)} className={superAdminEditorial ? "candidate-form-close" : "icon-action"} aria-label="Close candidate form">
                 <X size={20} />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="modal-form-stack">
-              <div>
+            <form onSubmit={handleSubmit} className={superAdminEditorial ? "candidate-form-workspace" : "modal-form-stack"}>
+              {superAdminEditorial ? (
+                <div className="candidate-form-section-head">
+                  <span>01</span><div><h3>Ballot assignment</h3><p>Choose the election and office this candidate will appear under.</p></div>
+                </div>
+              ) : null}
+              <div className={superAdminEditorial ? "candidate-form-field" : undefined}>
                 <label className="field-label">Election</label>
                 <select
                   required
@@ -887,7 +1107,7 @@ function CandidateManagement({
                 </select>
               </div>
 
-              <div>
+              <div className={superAdminEditorial ? "candidate-form-field" : undefined}>
                 <label className="field-label">Position</label>
                 <select
                   required
@@ -914,7 +1134,12 @@ function CandidateManagement({
                 </select>
               </div>
 
-              <div>
+              {superAdminEditorial ? (
+                <div className="candidate-form-section-head">
+                  <span>02</span><div><h3>Candidate identity</h3><p>Select the eligible student and record their ballot affiliation.</p></div>
+                </div>
+              ) : null}
+              <div className={superAdminEditorial ? "candidate-form-field candidate-form-student" : undefined}>
                 <StudentSearchPicker
                   label="Eligible Student"
                   students={studentsAvailableForCandidate()}
@@ -927,7 +1152,7 @@ function CandidateManagement({
                 />
               </div>
 
-              <div>
+              <div className={superAdminEditorial ? "candidate-form-field" : undefined}>
                 <label className="field-label">Partylist</label>
                 <select
                   value={form.partylist_id}
@@ -945,7 +1170,7 @@ function CandidateManagement({
                 </select>
               </div>
 
-              <div>
+              <div className={superAdminEditorial ? "candidate-form-field" : undefined}>
                 <label className="field-label">Photo URL</label>
                 <input
                   value={form.photo}
@@ -955,7 +1180,12 @@ function CandidateManagement({
                 />
               </div>
 
-              <div>
+              {superAdminEditorial ? (
+                <div className="candidate-form-section-head">
+                  <span>03</span><div><h3>Campaign profile</h3><p>Prepare the student-facing information for this candidate.</p></div>
+                </div>
+              ) : null}
+              <div className={superAdminEditorial ? "candidate-form-field candidate-form-copy" : undefined}>
                 <label className="field-label">Platform</label>
                 <textarea
                   value={form.platform}
@@ -966,7 +1196,7 @@ function CandidateManagement({
                 />
               </div>
 
-              <div>
+              <div className={superAdminEditorial ? "candidate-form-field candidate-form-copy" : undefined}>
                 <label className="field-label">Credentials</label>
                 <textarea
                   value={form.credentials}
@@ -979,7 +1209,7 @@ function CandidateManagement({
                 />
               </div>
 
-              <div>
+              <div className={superAdminEditorial ? "candidate-form-field candidate-form-copy" : undefined}>
                 <label className="field-label">Bio</label>
                 <textarea
                   value={form.bio}
@@ -990,7 +1220,7 @@ function CandidateManagement({
                 />
               </div>
 
-              <div className="upload-shell">
+              <div className={superAdminEditorial ? "upload-shell candidate-form-materials" : "upload-shell"}>
                 <p className="text-sm font-bold text-[#1d262f]">Campaign Materials</p>
                 <p className="mt-1 text-xs text-[#5a5548]">
                   Add up to 3 downloadable or viewable materials per candidate.
@@ -998,7 +1228,7 @@ function CandidateManagement({
 
                 <div className="mt-3 space-y-3">
                   {form.campaign_materials.map((material, index) => (
-                    <div key={index} className="modal-form-grid rounded-xl border border-[rgba(255,115,22,0.12)] bg-white/45 p-4">
+                    <div key={index} className={superAdminEditorial ? "modal-form-grid candidate-material-record" : "modal-form-grid rounded-xl border border-[rgba(255,115,22,0.12)] bg-white/45 p-4"}>
                       <input
                         value={material.label}
                         onChange={(event) =>
@@ -1026,7 +1256,7 @@ function CandidateManagement({
                         placeholder="https://..."
                         className="field-shell md:col-span-2"
                       />
-                      <label className="md:col-span-2 flex items-center gap-3 rounded-xl bg-white/60 px-4 py-3 text-sm font-semibold text-[#1d262f]">
+                      <label className={superAdminEditorial ? "candidate-material-download md:col-span-2 flex items-center gap-3 px-4 py-3 text-sm font-semibold text-[#1d262f]" : "md:col-span-2 flex items-center gap-3 rounded-xl bg-white/60 px-4 py-3 text-sm font-semibold text-[#1d262f]"}>
                         <input
                           type="checkbox"
                           checked={material.downloadable}
@@ -1041,9 +1271,18 @@ function CandidateManagement({
                 </div>
               </div>
 
-              <button type="submit" className="primary-btn w-full">
-                {editingCandidate ? "Save Changes" : "Add Candidate"}
-              </button>
+              {superAdminEditorial ? (
+                <footer className="candidate-form-actions">
+                  <button type="button" className="secondary-btn" onClick={() => setFormOpen(false)}>Cancel</button>
+                  <button type="submit" className="primary-btn">
+                    {editingCandidate ? "Save Changes" : "Add Candidate"}
+                  </button>
+                </footer>
+              ) : (
+                <button type="submit" className="primary-btn w-full">
+                  {editingCandidate ? "Save Changes" : "Add Candidate"}
+                </button>
+              )}
             </form>
           </div>
         </PopupOverlay>

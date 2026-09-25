@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Plus, Search } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { KandidButtonLoader, KandidInlineLoader } from "../../components/KandidLoader";
 import PopupOverlay from "../../components/PopupOverlay";
 import { StudentAvatar } from "../../components/KandidImage";
@@ -372,86 +372,112 @@ function BoardStudents() {
   const pageEnd = Math.min(currentPage * PAGE_SIZE, totalStudents);
 
   return (
-    <div>
-      <div className="page-head">
-        <div>
-          <div className="page-kicker">Organization Members</div>
-          <h1 className="page-title">Board students</h1>
+    <div className="board-students-desktop">
+      <div className="page-head board-students-opening">
+        <div className="board-students-opening-copy">
+          <div className="page-kicker board-students-kicker">Organization Electorate</div>
+          <h1 className="page-title board-students-title">Student registry</h1>
           <p className="page-subtitle">
-            Manage students under your assigned organization.
+            Manage student membership records for {orgName}.
           </p>
         </div>
 
-        <button
-          onClick={() => setFormOpen(true)}
-          className="primary-btn self-start lg:self-auto"
-        >
-          <Plus size={18} />
-          Add Student
-        </button>
+        <div className="board-students-actions">
+          <Link to="/board/csv-import" className="secondary-btn board-students-secondary-action">
+            Import CSV
+          </Link>
+          <button
+            onClick={() => setFormOpen(true)}
+            className="primary-btn board-students-create self-start lg:self-auto"
+          >
+            <Plus size={18} />
+            Add Student
+          </button>
+        </div>
       </div>
 
-      <div className="toolbar-row">
-      <div className="inline-flex rounded-[1.2rem] border border-[#e7edf3] bg-white p-1 shadow-sm">
-        <button
-          type="button"
-          onClick={() => {
-            setViewMode("active");
-            setCurrentPage(1);
-          }}
-          className={`rounded-[0.95rem] px-4 py-2 text-xs font-black uppercase tracking-[0.12em] ${
-            viewMode === "active"
-              ? "bg-[#f4512c] text-white shadow-sm"
-              : "text-[#667085] hover:bg-[#fff4ed] hover:text-[#f4512c]"
-          }`}
-        >
-          Active
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setViewMode("removed");
-            setCurrentPage(1);
-          }}
-          className={`rounded-[0.95rem] px-4 py-2 text-xs font-black uppercase tracking-[0.12em] ${
-            viewMode === "removed"
-              ? "bg-[#f4512c] text-white shadow-sm"
-              : "text-[#667085] hover:bg-[#fff4ed] hover:text-[#f4512c]"
-          }`}
-        >
-          Removed
-        </button>
-      </div>
-      <div className="search-shell">
-        <Search size={18} className="text-gray-400" />
-        <input
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setCurrentPage(1);
-          }}
-          placeholder="Search student..."
-        />
-      </div>
-      <select
-        value={sortBy}
-        onChange={(event) => {
-          setSortBy(event.target.value);
-          setCurrentPage(1);
-        }}
-        className="field-shell lg:w-56"
-      >
-        <option value="name_asc">Name: A-Z</option>
-        <option value="name_desc">Name: Z-A</option>
-        <option value="newest">Newest Added</option>
-        <option value="oldest">Oldest Added</option>
-        <option value="id_asc">Student ID: Low-High</option>
-        <option value="id_desc">Student ID: High-Low</option>
-      </select>
-      </div>
+      <section className="board-students-summary" aria-label="Student registry summary">
+        <div className="board-students-summary-main">
+          <p className="board-students-section-kicker">Registry</p>
+          <strong>{totalStudents}</strong>
+          <span>{viewMode === "removed" ? "removed records" : "current members"}</span>
+        </div>
+        <div className="board-students-ledger" aria-label="Registry context">
+          <div>
+            <span>Organization</span>
+            <strong>{orgName}</strong>
+          </div>
+          <div>
+            <span>Academic Term</span>
+            <strong>{activeTerm ? formatAcademicTerm(activeTerm) : "Current term"}</strong>
+          </div>
+        </div>
+      </section>
 
-      <div className="table-shell mt-6">
-        <table className="app-table">
+      <section className="board-students-register" aria-label="Student registry">
+        <div className="board-students-section-head">
+          <div>
+            <p className="board-students-section-kicker">Student records</p>
+            <h2>{viewMode === "removed" ? "Removed organization members" : "Current organization members"}</h2>
+          </div>
+          <span>
+            Showing {pageStart}-{pageEnd} of {totalStudents}
+          </span>
+        </div>
+
+        <div className="board-students-toolbar">
+          <div className="board-students-view-toggle" aria-label="Student membership view">
+            <button
+              type="button"
+              onClick={() => {
+                setViewMode("active");
+                setCurrentPage(1);
+              }}
+              className={viewMode === "active" ? "is-active" : undefined}
+            >
+              Active
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setViewMode("removed");
+                setCurrentPage(1);
+              }}
+              className={viewMode === "removed" ? "is-active" : undefined}
+            >
+              Removed
+            </button>
+          </div>
+          <div className="search-shell board-students-search">
+            <Search size={18} className="text-gray-400" />
+            <input
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
+              placeholder="Search student..."
+            />
+          </div>
+          <select
+            value={sortBy}
+            onChange={(event) => {
+              setSortBy(event.target.value);
+              setCurrentPage(1);
+            }}
+            className="field-shell board-students-sort"
+          >
+            <option value="name_asc">Name: A-Z</option>
+            <option value="name_desc">Name: Z-A</option>
+            <option value="newest">Newest Added</option>
+            <option value="oldest">Oldest Added</option>
+            <option value="id_asc">Student ID: Low-High</option>
+            <option value="id_desc">Student ID: High-Low</option>
+          </select>
+        </div>
+
+      <div className="table-shell board-students-table-shell">
+        <table className="app-table board-students-table">
           <thead>
             <tr>
               <th>Student ID</th>
@@ -467,13 +493,13 @@ function BoardStudents() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="7" className="px-6 py-10 text-center">
+                <td colSpan="7" className="board-students-state-cell">
                   <KandidInlineLoader message="Loading students..." />
                 </td>
               </tr>
             ) : loadError ? (
               <tr>
-                <td colSpan="7" className="px-6 py-10 text-center">
+                <td colSpan="7" className="board-students-state-cell">
                   <div className="mx-auto max-w-md space-y-3">
                     <p className="font-bold text-rose-600">Unable to load students.</p>
                     <p className="text-sm text-gray-500">{loadError}</p>
@@ -485,57 +511,57 @@ function BoardStudents() {
               </tr>
             ) : students.length === 0 ? (
               <tr>
-                <td colSpan="7" className="px-6 py-10 text-center empty-copy">
-                  No students found.
+                <td colSpan="7" className="board-students-state-cell empty-copy">
+                  {debouncedSearch ? "No matching student records found." : "No students found."}
                 </td>
               </tr>
             ) : (
               students.map((student) => (
-                <tr key={student.id}>
-                  <td className="font-bold">
+                <tr key={student.id} className="board-student-row">
+                  <td className="board-student-number">
                     {student.student_number}
                   </td>
                   <td>
-                    <div className="flex items-center gap-3">
+                    <div className="board-student-identity">
                       <StudentAvatar
                         student={student}
                         loading="lazy"
                         className="!h-10 !w-10"
                       />
                       <div>
-                        {student.first_name} {student.last_name}
-                        <p className="text-xs text-gray-500">{student.email}</p>
+                        <p className="board-student-name">{student.first_name} {student.last_name}</p>
+                        <p className="board-student-email">{student.email}</p>
                       </div>
                     </div>
                   </td>
                   <td>{student.program}</td>
                   <td>{student.year_level}</td>
                   <td>
-                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-700">
+                    <span className="board-student-status">
                       {student.status}
                     </span>
                   </td>
-                  <td className="text-[#5a5548]">
+                  <td className="board-student-date">
                     {(viewMode === "removed" ? student.removed_at : student.created_at)
                       ? new Date(
                           viewMode === "removed" ? student.removed_at : student.created_at,
                         ).toLocaleDateString()
                       : "-"}
                     {viewMode === "removed" && student.removal_reason ? (
-                      <p className="mt-1 max-w-[14rem] text-xs text-gray-500">
+                      <p className="board-student-reason">
                         {student.removal_reason}
                       </p>
                     ) : null}
                   </td>
                   <td>
-                    <div className="flex flex-wrap items-center justify-end gap-2">
+                    <div className="board-student-membership">
                       <span
-                        className={`rounded-full px-3 py-1 text-xs font-bold ${
+                        className={`board-student-membership-pill ${
                           student.membership_status === "removed"
-                            ? "bg-rose-100 text-rose-700"
+                            ? "is-removed"
                             : student.membership_status === "inactive"
-                            ? "bg-amber-100 text-amber-700"
-                            : "bg-emerald-100 text-emerald-700"
+                              ? "is-inactive"
+                              : "is-active"
                         }`}
                       >
                         {student.membership_status === "removed"
@@ -547,7 +573,7 @@ function BoardStudents() {
                       {viewMode === "removed" ? (
                         <button
                           type="button"
-                          className="primary-btn min-h-[2.35rem] px-3 text-xs"
+                          className="primary-btn board-student-record-action"
                           onClick={() => handleRestoreMembership(student)}
                         >
                           Restore
@@ -555,7 +581,7 @@ function BoardStudents() {
                       ) : (
                         <button
                           type="button"
-                          className="danger-btn min-h-[2.35rem] px-3 text-xs"
+                          className="danger-btn board-student-record-action"
                           onClick={() => handleRemoveMembership(student)}
                         >
                           Remove
@@ -569,11 +595,12 @@ function BoardStudents() {
           </tbody>
         </table>
       </div>
+      </section>
 
       {!loading && !loadError && totalStudents > 0 && (
-        <div className="mt-4 flex flex-col gap-3 rounded-[1.35rem] border border-[#e7edf3] bg-white/90 px-4 py-3 text-sm text-[#667085] shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="board-students-pagination">
           <p className="font-semibold">
-            Showing {pageStart}-{pageEnd} of {totalStudents} students
+            Showing {pageStart}-{pageEnd} of {totalStudents} students · {PAGE_SIZE} per page
           </p>
           <div className="flex items-center gap-2">
             <button
@@ -607,7 +634,7 @@ function BoardStudents() {
                 <p className="field-label !mb-3">Student Registry</p>
                 <h2 className="surface-title text-[2rem] font-black tracking-tight">Add student</h2>
                 <p className="surface-copy mt-2 text-sm leading-6">
-                  Add voter details, voting group codes, and profile information in one view.
+                  Add student registry details, organization codes, and profile information in one view.
                 </p>
               </div>
               <button type="button" onClick={() => setFormOpen(false)} className="popup-close">

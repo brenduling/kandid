@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, Copy, ExternalLink, ReceiptText, RefreshCw, ShieldCheck } from "lucide-react";
-import { KandidInlineLoader } from "../../components/KandidLoader";
-import { getBlockchainExplorerTxUrl } from "../../utils/blockchain";
-import { formatUtcTimestampAsManilaDateTime } from "../../utils/time";
+import { ChevronRight, Copy, ExternalLink, RefreshCw, ShieldCheck } from "lucide-react";
+import { OrganizationLogo } from "../../components/KandidImage";
+import {
+  StudentSkeletonGroup,
+  StudentSkeletonLine,
+} from "../../components/student/StudentSkeleton";
+import { formatUtcTimestampAsManilaDate, formatUtcTimestampAsManilaDateTime } from "../../utils/time";
 import {
   BLOCKCHAIN_POLL_INTERVAL_MS,
   fetchStudentVotes,
@@ -103,10 +106,10 @@ function SelectionIntegrityHash({ value }) {
 
 function BallotProgress({ status }) {
   const steps = [
-    "Complete Ballot",
-    "Ballot Sealed",
-    "Integrity Record",
-    "Blockchain",
+    "Vote cast",
+    "Ballot sealed",
+    "Receipt recorded",
+    "Secured",
     "Verified",
   ];
   const activeIndex = status.className === "verified"
@@ -241,109 +244,130 @@ function StudentReceipt() {
   }
 
   return (
-    <div>
-      <div className="page-head">
-        <div>
-          <div className="student-receipt-success-seal" aria-hidden="true">
-            <ShieldCheck size={22} />
-          </div>
-          <div className="page-kicker">Vote Receipt</div>
-          <h1 className="page-title">
-            Your vote has
-            <span className="page-title-accent"> been recorded.</span>
-          </h1>
-          <p className="page-subtitle">
-            Your ballot has been successfully submitted to Kandid. Kandid is completing
-            the security verification of your receipt in the background. You may safely
-            leave this page.
+    <div className="student-receipts-desktop">
+      <header className="student-receipts-opening">
+        <div className="student-receipts-opening-copy">
+          <span className="student-receipts-kicker">Vote receipt</span>
+          <h1>Your vote has been recorded.</h1>
+          <p>
+            Kandid is completing the security verification of your ballot
+            receipt in the background. You may safely leave this page.
           </p>
         </div>
 
         <button
+          type="button"
           onClick={() => loadVotes()}
           disabled={loading}
-          className="primary-btn self-start lg:self-auto"
+          className="student-receipts-refresh"
         >
-          <RefreshCw size={18} />
+          <RefreshCw size={15} />
           Refresh
         </button>
-      </div>
+      </header>
 
-      <div className="mt-8 space-y-6">
+      <div className="student-receipts-list">
         {loading ? (
-          <div className="glass-panel rounded-[28px] p-8">
-            <KandidInlineLoader message="Loading receipts..." />
-          </div>
+          <StudentSkeletonGroup label="Loading receipts">
+            <div className="student-receipts-register-head" role="presentation">
+              <span>Your Receipts</span>
+            </div>
+
+            {[0, 1].map((index) => (
+              <div className="student-receipt-paper" key={index}>
+                <div className="student-skeleton-row">
+                  <StudentSkeletonLine
+                    variant="media"
+                    width="2.4rem"
+                    height="0.7rem"
+                  />
+
+                  <div className="student-skeleton-copy">
+                    <StudentSkeletonLine width="56%" height="0.95rem" />
+                    <StudentSkeletonLine width="38%" height="0.6rem" />
+                  </div>
+
+                  <StudentSkeletonLine width="5.5rem" height="0.6rem" />
+                </div>
+              </div>
+            ))}
+          </StudentSkeletonGroup>
         ) : loadError ? (
-          <div className="glass-panel rounded-[28px] p-8">
+          <div className="student-receipts-state">
             <div className="space-y-3">
               <p className="font-bold text-rose-600">Unable to load receipts.</p>
               <p className="text-sm text-gray-500">{loadError}</p>
-              <button type="button" onClick={() => loadVotes()} className="secondary-btn">
+              <button type="button" onClick={() => loadVotes()} className="student-outline-btn">
                 Retry
               </button>
             </div>
           </div>
         ) : receiptGroups.length === 0 ? (
-          <div className="glass-panel rounded-[28px] p-8 text-gray-500">
-            No vote records found.
+          <div className="student-receipts-state">
+            <p>No vote records found.</p>
           </div>
         ) : (
-          receiptGroups.map((receipt, index) => (
-            <section
-              key={receipt.key}
-              className={`student-receipt-paper fade-up ${isReceiptExpanded(receipt, index) ? "is-expanded" : ""}`}
-              style={{ animationDelay: `${index * 35}ms` }}
-            >
-              <button
-                type="button"
-                className="student-receipt-toggle"
-                onClick={() => toggleReceipt(receipt.key)}
-                aria-expanded={isReceiptExpanded(receipt, index)}
+          <>
+            <div className="student-receipts-register-head" role="presentation">
+              <span>Your Receipts</span>
+            </div>
+            {receiptGroups.map((receipt, index) => (
+              <section
+                key={receipt.key}
+                className={`student-receipt-paper fade-up ${isReceiptExpanded(receipt, index) ? "is-expanded" : ""}`}
+                style={{ animationDelay: `${index * 35}ms` }}
               >
-                <div className="student-receipt-toggle-main">
-                  <div className="student-receipt-mark">
-                    <ReceiptText size={22} />
-                  </div>
-                  <div>
-                    <span>KANDID Receipt</span>
-                    <strong>{receipt.electionTitle}</strong>
-                    <em>{receipt.organizationName}</em>
-                  </div>
-                </div>
-                <ChevronDown size={20} />
-              </button>
+                <button
+                  type="button"
+                  className="student-receipt-toggle"
+                  onClick={() => toggleReceipt(receipt.key)}
+                  aria-expanded={isReceiptExpanded(receipt, index)}
+                >
+                  <span className="student-receipt-index" aria-hidden="true">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <strong className="student-receipt-row-election">{receipt.electionTitle}</strong>
+                  <span className="student-receipt-row-org">{receipt.organizationName}</span>
+                  <time className="student-receipt-row-date">
+                    {formatUtcTimestampAsManilaDate(receipt.submittedAt)}
+                  </time>
+                  <ChevronRight size={15} className="student-receipt-row-arrow" />
+                </button>
 
               {isReceiptExpanded(receipt, index) ? (
-                isBallotV1Receipt(receipt) ? (
-                  <>
+                <>
+                  <div className="student-receipt-document">
+                    <div className="student-receipt-identity-lockup">
+                      <OrganizationLogo
+                        organization={{
+                          name: receipt.organizationName,
+                          description: receipt.organizationDescription,
+                          logo_url: receipt.organizationLogoUrl,
+                        }}
+                        className="student-receipt-org-logo"
+                      />
+                      <p className="student-receipt-org-name">{receipt.organizationName}</p>
+                    </div>
+                    {receipt.organizationDescription &&
+                    receipt.organizationDescription !== receipt.organizationName ? (
+                      <p className="student-receipt-org-full">{receipt.organizationDescription}</p>
+                    ) : null}
+                    <p className="student-receipt-doc-label">Official Ballot Receipt</p>
+                    <h2 className="student-receipt-election-title">{receipt.electionTitle}</h2>
+                    <p className="student-receipt-tagline">Your ballot was successfully recorded.</p>
+                  </div>
+                  {isBallotV1Receipt(receipt) ? (
+                    <>
                     {(() => {
                       const status = getReceiptBlockchainStatusMeta(receipt);
                       const ballotRecord = getReceiptBlockchainRecord(receipt);
                       const isVerified = status.className === "verified";
-                      const hasSepoliaTx =
-                        ballotRecord?.blockchain_network === "sepolia" &&
-                        Boolean(ballotRecord?.blockchain_tx_id);
-                      const explorerUrl = hasSepoliaTx
-                        ? getBlockchainExplorerTxUrl(ballotRecord.blockchain_tx_id)
-                        : "";
 
                       return (
                         <>
-                          <div className="student-receipt-divider" />
-
-                          <div className="student-receipt-brand">
-                            <p>KANDID</p>
-                            <div className="student-receipt-title">
-                              <p>Official Ballot Receipt</p>
-                              <h2>{receipt.electionTitle}</h2>
-                              <em>One ballot. One record. One proof.</em>
-                            </div>
-                          </div>
-
                           <div className="student-receipt-meta">
                             <div>
-                              <span>Submitted On</span>
+                              <span>Submitted</span>
                               <strong>{formatUtcTimestampAsManilaDateTime(receipt.submittedAt)}</strong>
                             </div>
                             <div>
@@ -351,13 +375,13 @@ function StudentReceipt() {
                               <strong>{receipt.votes.length}</strong>
                             </div>
                             <div>
-                              <span>Ballot Seal</span>
-                              <strong>
-                                {ballotRecord?.ballot_hash
-                                  ? "Integrity record created"
+                              <span>Verification</span>
+                              <strong className={isVerified ? "is-verified" : ""}>
+                                {isVerified
+                                  ? "Verified"
                                   : receipt.ballotVerificationUnavailable
-                                    ? "Verification details unavailable"
-                                    : "Preparing integrity record"}
+                                    ? "Details unavailable"
+                                    : "Verifying"}
                               </strong>
                             </div>
                           </div>
@@ -375,8 +399,8 @@ function StudentReceipt() {
                                 {receipt.votes.map((vote) => (
                                   <div key={vote.id} className="student-ballot-selection">
                                     <div className="student-ballot-selection-main">
-                                      <span>{vote.positions?.name || "Position"}</span>
-                                      <strong>{vote.is_abstain ? "Abstained" : "Candidate vote recorded"}</strong>
+                                      <span>{vote.is_abstain ? "Abstained" : "Recorded"}</span>
+                                      <strong>{vote.positions?.name || "Position"}</strong>
                                     </div>
                                     <SelectionIntegrityHash value={vote.vote_hash || ""} />
                                   </div>
@@ -389,38 +413,29 @@ function StudentReceipt() {
                               <span>Ballot Status</span>
                               <strong className={`student-receipt-status ${status.className}`}>
                                 <ShieldCheck size={15} />
-                                {status.label}
+                                {isVerified ? "Ballot verified" : status.label}
                               </strong>
-                              <em>{status.detail}</em>
+                              <em>
+                                {isVerified
+                                  ? "Your ballot's integrity record has been secured on the blockchain."
+                                  : status.detail}
+                              </em>
                               <p className="student-ballot-hash-note">
                                 Each selection has its own integrity hash. Kandid then seals your complete
                                 ballot into one integrity record for blockchain verification.
                               </p>
-                              {explorerUrl ? (
-                                <a
-                                  className="student-receipt-tx-link student-receipt-secondary-action"
-                                  href={explorerUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  <ExternalLink size={14} />
-                                  View Verification
-                                </a>
-                              ) : (
-                                <button
+                              <button
                                   type="button"
                                   className="student-receipt-tx-link student-receipt-secondary-action"
-                                  disabled={status.className !== "verified" && !receipt.ballotVerificationUnavailable}
                                   onClick={() =>
-                                    navigate(`/student/receipt/${receipt.votes[0].id}`, {
+                                    navigate(`/student/receipt/${receipt.votes[0].id}/verification`, {
                                       state: { vote: receipt.votes[0], receipt },
                                     })
                                   }
                                 >
                                   <ExternalLink size={14} />
-                                  View Details
+                                  View Verification
                                 </button>
-                              )}
                             </div>
                           </div>
 
@@ -459,8 +474,6 @@ function StudentReceipt() {
                   </>
                 ) : (
                   <>
-                  <div className="student-receipt-divider" />
-
                   <div className="student-receipt-meta">
                     <div>
                       <span>Election ID</span>
@@ -521,7 +534,7 @@ function StudentReceipt() {
                                       type="button"
                                       className="student-receipt-tx-link"
                                       onClick={() =>
-                                        navigate(`/student/receipt/${vote.id}`, {
+                                        navigate(`/student/receipt/${vote.id}/verification`, {
                                           state: { vote, receipt },
                                         })
                                       }
@@ -588,10 +601,12 @@ function StudentReceipt() {
                     );
                   })()}
                 </>
-                )
-              ) : null}
+                )}
+              </>
+            ) : null}
             </section>
-          ))
+            ))}
+          </>
         )}
       </div>
     </div>
