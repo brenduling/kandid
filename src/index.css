@@ -25752,6 +25752,13 @@ body:has(.kandid-public-site) .kandid-pwa-install {
   font-size: 0.89rem;
 }
 
+.kandid-auth-screen.kandid-auth-screen--student .student-login-migration-note {
+  margin: 0;
+  color: #302d29;
+  font-size: 0.89rem;
+  line-height: 1.5;
+}
+
 .kandid-auth-screen.kandid-auth-screen--student .student-auth-setup-link {
   display: inline-flex;
   justify-content: flex-start;

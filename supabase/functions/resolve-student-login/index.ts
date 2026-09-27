@@ -29,6 +29,7 @@ function genericLoginResponse() {
     data: {
       login_available: false,
       setup_required: false,
+      legacy_migration_available: false,
       recovery_available: false,
       login_email: null,
     },
@@ -148,6 +149,7 @@ Deno.serve(async (request) => {
     data: {
       login_available: student.status === "active" && Boolean(student.auth_user_id),
       setup_required: student.status === "pending",
+      legacy_migration_available: student.status === "active" && !student.auth_user_id,
       recovery_available: student.status === "active" && Boolean(student.auth_user_id),
       login_email: studentEmail,
       auth_linked: Boolean(student.auth_user_id),

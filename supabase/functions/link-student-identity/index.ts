@@ -185,6 +185,14 @@ Deno.serve(async (request) => {
     return safeLinkingError(409);
   }
 
+  if (setupMode && student.status !== "pending") {
+    logLinkFailure("setup_mode_requires_pending_student", {
+      student_id: student.id,
+      status: student.status || null,
+    });
+    return safeLinkingError(403);
+  }
+
   if (student.status !== "active" && !(setupMode && student.status === "pending")) {
     logLinkFailure("student_status_not_active", {
       student_id: student.id,

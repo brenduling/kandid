@@ -114,6 +114,16 @@ function StudentLogin() {
       return;
     }
 
+    if (data.legacy_migration_available) {
+      setRecoveryCandidate({
+        student_number: studentNumber.trim(),
+        email: data.login_email,
+        legacyMigration: true,
+      });
+      setLoading(false);
+      return;
+    }
+
     if (!data.login_available) {
       setAuthError("We couldn't sign you in. Check your Student ID and password.");
       setLoading(false);
@@ -163,7 +173,7 @@ function StudentLogin() {
     setPendingStudent(recoveryCandidate);
     setOtpDigits(Array(OTP_LENGTH).fill(""));
     setStep("otp");
-    setAuthError("We sent a verification code to your registered email.");
+    setAuthError(recoveryCandidate.legacyMigration ? "" : "We sent a verification code to your registered email.");
     window.setTimeout(() => {
       document.querySelector("[data-student-login-otp-index='0']")?.focus();
     }, 80);
@@ -363,6 +373,12 @@ function StudentLogin() {
             </div>
           ) : null}
 
+          {recoveryCandidate?.legacyMigration ? (
+            <p className="student-login-migration-note" role="status">
+              Kandid found your existing student account. Verify your registered email to continue.
+            </p>
+          ) : null}
+
           {recoveryCandidate ? (
             <button
               type="button"
@@ -370,25 +386,29 @@ function StudentLogin() {
               disabled={sendingOtp || loading}
               className="student-auth-submit"
             >
-              {sendingOtp ? <KandidButtonLoader label="Sending code..." /> : "Set up or reset password"}
+              {sendingOtp ? <KandidButtonLoader label="Sending code..." /> : recoveryCandidate.legacyMigration ? "Verify existing account" : "Set up or reset password"}
             </button>
           ) : null}
 
-          <button type="submit" disabled={loading || sendingOtp} className="student-auth-submit">
-            {loading ? <KandidButtonLoader label="Signing in..." /> : <>Sign In <ArrowRight size={19} aria-hidden="true" /></>}
-          </button>
+          {!recoveryCandidate?.legacyMigration ? (
+            <button type="submit" disabled={loading || sendingOtp} className="student-auth-submit">
+              {loading ? <KandidButtonLoader label="Signing in..." /> : <>Sign In <ArrowRight size={19} aria-hidden="true" /></>}
+            </button>
+          ) : null}
         </div>
 
-        <div className="student-login-new-account">
-          <span>First time here?</span>
-          <button
-            type="button"
-            onClick={() => navigate("/student-setup")}
-            className="student-auth-setup-link"
-          >
-            Complete account setup <ArrowRight size={16} aria-hidden="true" />
-          </button>
-        </div>
+        {!recoveryCandidate?.legacyMigration ? (
+          <div className="student-login-new-account">
+            <span>First time here?</span>
+            <button
+              type="button"
+              onClick={() => navigate("/student-setup")}
+              className="student-auth-setup-link"
+            >
+              Complete account setup <ArrowRight size={16} aria-hidden="true" />
+            </button>
+          </div>
+        ) : null}
       </form>
     );
   }
@@ -400,7 +420,7 @@ function StudentLogin() {
           <div className="student-setup-step-pill">Verify Account</div>
           <div className="student-otp-card">
             <div className="student-otp-brand">KANDID</div>
-            <h3>Check your registered email</h3>
+            <h3>{pendingStudent?.legacyMigration ? "Verify your existing account" : "Check your registered email"}</h3>
             <p>
               We sent a verification code to{" "}
               <strong>{maskEmail(pendingStudent?.email)}</strong>.
