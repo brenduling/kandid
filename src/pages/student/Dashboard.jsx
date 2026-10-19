@@ -20,8 +20,10 @@ import {
 } from "../../utils/elections";
 import {
   getStudentOrganizationDirectory,
-  selectActiveMemberships,
+  getCurrentOrganizationMemberCount,
 } from "../../utils/organizationAccess";
+import { adaptOfficerDirectoryRows } from "../../utils/officerDirectory";
+import { getStudentVotedElectionIds } from "../../utils/voteAccess";
 
 const ORGANIZATION_FILTERS = [
   { value: "all", label: "All" },
@@ -72,8 +74,11 @@ function StudentDashboard() {
 
   const [detailLoading, setDetailLoading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [organizationError, setOrganizationError] = useState("");
+  const [organizationReload, setOrganizationReload] = useState(0);
 
   const user = JSON.parse(localStorage.getItem("user"));
+  const studentId = user?.id;
   const navigate = useNavigate();
 
   /*
@@ -96,12 +101,14 @@ function StudentDashboard() {
     let active = true;
 
     async function loadOrganizations() {
-      if (!user?.id) {
+      if (!studentId) {
+        setOrganizationError("Your verified Student profile is unavailable. Sign in again.");
         setLoading(false);
         return;
       }
 
       setLoading(true);
+      setOrganizationError("");
 
       try {
         /*
@@ -110,7 +117,7 @@ function StudentDashboard() {
         const {
           memberOrganizations,
           otherOrganizations: explorableOrganizations,
-        } = await getStudentOrganizationDirectory(user);
+        } = await getStudentOrganizationDirectory({ id: studentId });
 
         if (!active) return;
 
@@ -208,13 +215,13 @@ function StudentDashboard() {
             logo_url: logoMap.get(organization.id) || null,
           }))
         );
-      } catch (error) {
-        console.error(
-          "Unexpected organization loading error:",
-          error
-        );
+      } catch {
+        console.error("Current Student organizations are unavailable.");
 
         if (active) {
+          setMyOrganizations([]);
+          setOtherOrganizations([]);
+          setOrganizationError("We couldn't load your current-term organizations. Try again. Your membership records have not been changed.");
           setLoading(false);
         }
       }
@@ -225,7 +232,7 @@ function StudentDashboard() {
     return () => {
       active = false;
     };
-  }, [user?.id]);
+  }, [studentId, organizationReload]);
 
   const filteredOtherOrganizations = useMemo(() => {
     if (organizationFilter === "all") {
@@ -276,8 +283,6 @@ function StudentDashboard() {
     .sort((first, second) => first - second)
     .join(",");
 
-  const studentId = user?.id;
-
   const [votingState, setVotingState] = useState({
     status: "loading",
     openElection: null,
@@ -296,10 +301,7 @@ function StudentDashboard() {
       }
 
       const [votesResponse, electionsResponse] = await Promise.all([
-        supabase
-          .from("votes")
-          .select("election_id")
-          .eq("student_id", studentId),
+        getStudentVotedElectionIds(),
         supabase
           .from("elections")
           .select(
@@ -320,7 +322,7 @@ function StudentDashboard() {
 
       const votedIds = new Set(
         (votesResponse.data || [])
-          .map((voteRow) => Number(voteRow.election_id))
+          .map(Number)
           .filter(Boolean)
       );
 
@@ -486,29 +488,18 @@ function StudentDashboard() {
       const [
         { data: officers, error: officersError },
         { data: electionRows, error: initialElectionsError },
-        { data: memberships, error: countError },
+        { data: memberCountData, error: countError },
       ] = await Promise.all([
         supabase
-          .from("officers")
-          .select(`
-            *,
-            students (
-              first_name,
-              last_name,
-              student_number,
-              photo_url
-            )
-          `)
+          .from("officer_directory")
+          .select("id, organization_id, organization_name, officer_name, position_title, term_label, term_start, term_end, leadership_academic_year, status, is_current, display_order, photo_url, first_name, last_name")
             .eq("organization_id", organization.id)
             .order("is_current", { ascending: false })
             .order("display_order", { ascending: true }),
 
         buildOrganizationElectionQuery(true),
 
-        selectActiveMemberships(
-          "organization_id",
-          [["organization_id", organization.id]],
-        ),
+        getCurrentOrganizationMemberCount(organization.id, { studentView: true }),
       ]);
 
       if (officersError) {
@@ -541,11 +532,12 @@ function StudentDashboard() {
         );
       }
 
-      setOrganizationOfficers(officers || []);
+      setOrganizationOfficers(adaptOfficerDirectoryRows(officers || []));
       setOrganizationElections(elections || []);
-      setOrganizationMemberCount(countError ? 0 : (memberships || []).length);
+      setOrganizationMemberCount(countError ? 0 : memberCountData.count);
       setOrganizationMemberCountError(countError ? "Member count unavailable" : "");
     } catch (error) {
+      setOrganizationMemberCountError("Member count unavailable");
       console.error(
         "Unexpected organization detail error:",
         error
@@ -675,6 +667,12 @@ function StudentDashboard() {
             </div>
           </div>
         </StudentSkeletonGroup>
+      ) : organizationError ? (
+        <section className="student-empty-card" role="alert">
+          <h2>Organizations unavailable</h2>
+          <p>{organizationError}</p>
+          <button type="button" className="student-solid-btn" onClick={() => setOrganizationReload((current) => current + 1)}>Try again</button>
+        </section>
       ) : (
         <div className="student-dashboard-grid">
           <aside className="student-dashboard-brief">

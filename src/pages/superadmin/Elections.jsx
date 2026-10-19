@@ -1,13 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, Plus, Pencil, Trash2, X, QrCode, Power, ImagePlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import PopupOverlay from "../../components/PopupOverlay";
 import ElectionCover from "../../components/ElectionCover";
 import OrganizationSelect from "../../components/OrganizationSelect";
+import AcademicTermSelect from "../../components/AcademicTermSelect";
+import SuperAdminPageHeader from "../../components/SuperAdminPageHeader";
 import ScheduleDateTimePicker, {
   currentDateTimeInputValue,
 } from "../../components/ScheduleDateTimePicker";
 import { supabase } from "../../lib/supabaseClient";
+import { loadElectionForEdit, saveElectionEdit, electionSaveError, electionEditLocks } from "../../utils/electionEditContract";
+import { createElectionSubmission } from "../../utils/electionCreateContract";
+import { electionManagementQuery, verifyElectionRemovalReadiness } from "../../utils/electionManagementCompatibility";
+import { isElectionSoftRemovalEnabled } from "../../utils/electionRemovalFeatureGate";
+import { useElectionClock } from "../../utils/useElectionClock";
 import {
   formatLocalDateTime,
   formValueToScheduleTimestamp,
@@ -16,7 +23,7 @@ import {
   scheduleTimestampToFormValue,
   validateElectionSchedule,
 } from "../../utils/elections";
-import { uploadPublicImage } from "../../utils/files";
+import { uploadElectionCover, electionCoverError } from "../../utils/electionCovers";
 import {
   generateAccessToken,
   getAccessQrImageUrl,
@@ -27,6 +34,9 @@ import {
 import { usePrompt } from "../../context/PromptContext";
 import { logAuditEvent } from "../../utils/auditLog";
 import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
+import BoardElectionDeleteSheet from "../board/BoardElectionDeleteSheet";
+import { loadElectionDeleteReview } from "../../utils/electionDeleteReview";
+import { callElectionRemoval, electionRemovalErrorMessage } from "../../utils/electionRemoval";
 import {
   fetchOrderedPositions,
   isMissingPositionOrderError,
@@ -63,8 +73,19 @@ const isPositionOrderConflict = (error) =>
 
 function Elections() {
   const prompt = usePrompt();
+  const now = useElectionClock();
   const navigate = useNavigate();
   const [elections, setElections] = useState([]);
+  const [removalReady, setRemovalReady] = useState(false);
+  const [removalUnavailable, setRemovalUnavailable] = useState(false);
+  const [removedView, setRemovedView] = useState(false);
+  const [removedElections, setRemovedElections] = useState([]);
+  const [removedTotal, setRemovedTotal] = useState(0);
+  const [removedOffset, setRemovedOffset] = useState(0);
+  const [removedError, setRemovedError] = useState("");
+  const [deleteReview, setDeleteReview] = useState(null);
+  const [removalBusy, setRemovalBusy] = useState(false);
+  const removalReviewRequest = useRef(0);
   const [organizations, setOrganizations] = useState([]);
   const [accessTokens, setAccessTokens] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
@@ -79,6 +100,14 @@ function Elections() {
   const [selectedElection, setSelectedElection] = useState(null);
   const [editingPosition, setEditingPosition] = useState(null);
   const [coverUploading, setCoverUploading] = useState(false);
+  const coverUploadRequest = useRef(0);
+  const coverUploadBusy = useRef(false);
+  function closeCoverForm() {
+    coverUploadRequest.current++;
+    coverUploadBusy.current = false;
+    setCoverUploading(false);
+    setFormOpen(false);
+  }
   const [positionForm, setPositionForm] = useState({
     name: "",
     max_votes: 1,
@@ -93,6 +122,7 @@ function Elections() {
   const [form, setForm] = useState({
     organization_id: "",
     title: "",
+    academic_term_id: "",
     cover_url: "",
     campaign_start: "",
     campaign_end: "",
@@ -107,6 +137,10 @@ function Elections() {
     geo_radius_meters: "",
   });
   const scheduleMin = editingElection ? "" : currentDateTimeInputValue();
+  const editLocks = electionEditLocks(editingElection);
+  const [savingElection, setSavingElection] = useState(false);
+  const saveInFlight = useRef(false);
+  const createSubmission = useRef(null);
 
   useEffect(() => {
     fetchOrganizations();
@@ -125,16 +159,12 @@ function Elections() {
   async function fetchElections() {
     setElectionsLoading(true);
     setElectionsError("");
-    const { data, error } = await supabase
-      .from("elections")
-      .select(`
-        *,
-        organizations (
-          name,
-          logo_url
-        )
-      `)
-      .order("created_at", { ascending: false });
+    const requested = isElectionSoftRemovalEnabled();
+    const ready = await verifyElectionRemovalReadiness(requested, callElectionRemoval);
+    setRemovalReady(ready);
+    setRemovalUnavailable(requested && !ready);
+    if (!ready) setRemovedView(false);
+    const { data, error } = await electionManagementQuery(supabase, { removalReady: ready });
 
     if (error) {
       console.error("Failed to load elections:", error);
@@ -393,10 +423,15 @@ function Elections() {
   }
 
   function openCreateForm() {
+    coverUploadRequest.current++;
+    coverUploadBusy.current = false;
+    setCoverUploading(false);
+    createSubmission.current = createElectionSubmission(supabase);
     setEditingElection(null);
     setForm({
       organization_id: "",
       title: "",
+      academic_term_id: "",
       cover_url: "",
       campaign_start: "",
       campaign_end: "",
@@ -430,10 +465,21 @@ function Elections() {
   }
 
   async function openEditForm(election) {
+    coverUploadRequest.current++;
+    coverUploadBusy.current = false;
+    setCoverUploading(false);
+    try {
+      election = await loadElectionForEdit(supabase, election.id);
+    } catch (error) {
+      prompt.error(electionSaveError(error));
+      return;
+    }
+    const geofence = election;
     setEditingElection(election);
     setForm({
       organization_id: election.organization_id || "",
       title: election.title || "",
+      academic_term_id: election.academic_term_id ?? "",
       cover_url: election.cover_url || "",
       campaign_start: election.campaign_start
         ? scheduleTimestampToFormValue(election.campaign_start)
@@ -452,9 +498,9 @@ function Elections() {
           : election.student_result_visibility || "after_close",
       voting_access_mode: election.voting_access_mode || "anywhere",
       location_label: election.location_label || "",
-      geo_lat: election.geo_lat ?? "",
-      geo_lng: election.geo_lng ?? "",
-      geo_radius_meters: election.geo_radius_meters ?? "",
+      geo_lat: geofence.geo_lat ?? "",
+      geo_lng: geofence.geo_lng ?? "",
+      geo_radius_meters: geofence.geo_radius_meters ?? "",
     });
     await fetchAccessTokens(election.id);
     setTokenForm({
@@ -467,6 +513,16 @@ function Elections() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (saveInFlight.current) return;
+    if (coverUploadBusy.current) return;
+    saveInFlight.current = true;
+    setSavingElection(true);
+    try {
+
+    if (!form.academic_term_id) {
+      prompt.error("Choose the academic term this election belongs to.");
+      return;
+    }
 
     const validationMessage = validateElectionSchedule(form);
     if (validationMessage) {
@@ -477,6 +533,7 @@ function Elections() {
     const payload = {
       organization_id: Number(form.organization_id),
       title: form.title,
+      academic_term_id: Number(form.academic_term_id),
       cover_url: form.cover_url || null,
       campaign_start: formValueToScheduleTimestamp(form.campaign_start),
       campaign_end: formValueToScheduleTimestamp(form.campaign_end),
@@ -496,13 +553,8 @@ function Elections() {
 
     const saveElection = (nextPayload) =>
       editingElection
-        ? supabase
-            .from("elections")
-            .update(nextPayload)
-            .eq("id", editingElection.id)
-            .select("id")
-            .single()
-        : supabase.from("elections").insert([nextPayload]).select("id").single();
+        ? saveElectionEdit(supabase, editingElection, nextPayload)
+        : (createSubmission.current ||= createElectionSubmission(supabase))(nextPayload);
 
     let result = await saveElection(payload);
 
@@ -535,7 +587,7 @@ function Elections() {
       prompt.error(
         isResultVisibilityConstraintError(error) && form.student_result_visibility === "manual"
           ? "Manual admin release requires the updated result visibility schema in Supabase."
-          : error.message || "Failed to save election."
+          : electionSaveError(error)
       );
       return;
     }
@@ -544,6 +596,10 @@ function Elections() {
       (org) => String(org.id) === String(payload.organization_id),
     );
 
+    if (result.unchanged) {
+      prompt.info("No changes to save.");
+      return;
+    }
     let reusedPositions = { copiedCount: 0, sourceElection: null };
 
     if (editingElection) {
@@ -583,26 +639,30 @@ function Elections() {
         reusedFromElectionTitle: reusedPositions.sourceElection?.title || "",
       });
     }
+    } catch (error) { prompt.error(electionSaveError(error)); } finally { saveInFlight.current = false; setSavingElection(false); }
   }
 
   async function handleCoverUpload(file) {
-    if (!file) return;
+    if (!file || coverUploadBusy.current || saveInFlight.current) return;
 
+    const request = ++coverUploadRequest.current;
+    coverUploadBusy.current = true;
     setCoverUploading(true);
     try {
-      const publicUrl = await uploadPublicImage(supabase, file, {
-        bucket: "election-covers",
-        folder: "covers",
+      const publicUrl = await uploadElectionCover(supabase, file, {
+        organizationId: form.organization_id,
+        electionId: editingElection?.id ?? null,
       });
+      if (request !== coverUploadRequest.current) return;
       setForm((currentForm) => ({ ...currentForm, cover_url: publicUrl }));
-      prompt.success("Election cover uploaded.");
+      prompt.success("Cover uploaded. Save the election to keep this change.");
     } catch (error) {
-      console.error("Election cover upload failed:", error);
-      prompt.error(
-        `${error.message || "Failed to upload cover image."} Make sure the election-covers storage bucket migration is applied.`,
-      );
+      if (request === coverUploadRequest.current) prompt.error(electionCoverError(error));
     } finally {
-      setCoverUploading(false);
+      if (request === coverUploadRequest.current) {
+        coverUploadBusy.current = false;
+        setCoverUploading(false);
+      }
     }
   }
 
@@ -652,65 +712,62 @@ function Elections() {
   }
 
   async function handleDelete(id) {
+    const request = ++removalReviewRequest.current;
     const election = elections.find((item) => item.id === id) || {};
-    const analysis = await analyzeDeleteDependencies("election", { id });
-
-    if (analysis.blocked) {
-      await logAuditEvent({
-        action: "election_delete_blocked",
-        entityType: "election",
-        entityId: id,
-        entityLabel: election.title || "Election",
-        organizationId: election.organization_id,
-        organizationName: election.organizations?.name,
-        status: "requires_action",
-        metadata: { dependencies: analysis.dependencies },
-      });
-
-      await prompt.alert({
-        title: analysis.severity === "archive" ? "Archive Recommended" : "Election Cannot Be Deleted Yet",
-        message: dependencyMessage(election.title || "This election", analysis),
-        type: "warning",
-        confirmText: "Review Related Records",
-      });
+    setDeleteReview({ id, election, phase: "reviewing", mode: "remove", analysis: null, error: "" });
+    const analysis = await loadElectionDeleteReview(id, removalReady ? callElectionRemoval : undefined, { removalReady });
+    if (request !== removalReviewRequest.current) return;
+    if (analysis.severity === "unavailable") {
+      setDeleteReview({ id, election, phase: "unavailable", mode: "remove", analysis, error: "" });
       return;
     }
+    setDeleteReview({ id, election, phase: "review", mode: "remove", analysis, error: "" });
+  }
 
-    const confirmDelete = await prompt.confirm({
-      title: "Delete Election?",
-      message: dependencyMessage(election.title || "This election", analysis),
-      type: "danger",
-      confirmText: "Delete Election",
-    });
-    if (!confirmDelete) return;
+  function closeElectionRemovalReview() {
+    if (removalBusy) return;
+    removalReviewRequest.current += 1;
+    setDeleteReview(null);
+  }
 
-    const recheck = await analyzeDeleteDependencies("election", { id });
-    if (recheck.blocked) {
-      prompt.error(dependencyMessage(election.title || "This election", recheck));
-      return;
+  async function openRemovedElections(offset = 0) {
+    if (!removalReady) return;
+    setRemovedError("");
+    const { data, error } = await callElectionRemoval("list_removed", { limit: 50, offset });
+    if (error || !Array.isArray(data?.elections)) {
+      setRemovedError(electionRemovalErrorMessage(error));
+      setRemovedElections([]);
+    } else {
+      setRemovedElections(data.elections);
+      setRemovedTotal(Number(data.total || 0));
+      setRemovedOffset(Number(data.offset || 0));
     }
+    setRemovedView(true);
+  }
 
-    const { error } = await supabase.from("elections").delete().eq("id", id);
-    if (error) {
-      prompt.error(error.message || "Failed to delete election.");
-      return;
+  async function confirmElectionChange(password) {
+    if (!removalReady || removalBusy || deleteReview?.phase !== "danger_zone" || !password) return;
+    setRemovalBusy(true);
+    const mode = deleteReview.mode;
+    const action = mode === "restore" ? "restore" : "soft_remove";
+    setDeleteReview((current) => ({ ...current, phase: mode === "restore" ? "restoring" : "removing", error: "" }));
+    try {
+      const { data, error } = await callElectionRemoval(action, { election_id: Number(deleteReview.id), password });
+      if (error || (mode === "restore" ? data?.restored !== true : data?.removed !== true)) throw error || new Error("The election change was not confirmed.");
+      setDeleteReview(null);
+      prompt.success(mode === "restore" ? "Election restored to the normal management list." : "Election removed. Related records remain preserved.");
+      await fetchElections();
+      if (mode === "restore") await openRemovedElections(removedOffset);
+    } catch (error) {
+      setDeleteReview((current) => ({ ...current, phase: "danger_zone", error: electionRemovalErrorMessage(error) }));
+    } finally {
+      setRemovalBusy(false);
     }
-    prompt.success("Election deleted.");
-    await logAuditEvent({
-      action: "election_deleted",
-      entityType: "election",
-      entityId: id,
-      entityLabel: election.title || "Election",
-      organizationId: election.organization_id,
-      organizationName: election.organizations?.name,
-      status: "completed",
-    });
-    fetchElections();
   }
 
   const phaseCounts = elections.reduce(
     (counts, election) => {
-      const phase = getElectionPhase(election);
+      const phase = getElectionPhase(election, now);
       if (["campaign", "waiting", "voting"].includes(phase)) counts.inProgress += 1;
       if (["campaign_upcoming", "scheduled"].includes(phase)) counts.scheduled += 1;
       if (["closed", "archived"].includes(phase)) counts.concluded += 1;
@@ -721,26 +778,23 @@ function Elections() {
 
   return (
     <div className="sa-elections">
-      <header className="sa-elections-masthead">
-        <div className="sa-elections-masthead-copy">
-          <p className="sa-elections-breadcrumb">Kandid / Super Admin</p>
-          <p className="sa-elections-eyebrow">Election register</p>
-          <h1>Elections</h1>
-          <p>
-            Manage election schedules, participating organizations, and lifecycle control across Kandid.
-          </p>
-        </div>
-
-        <aside className="sa-elections-masthead-aside" aria-label="Election register action">
+      <SuperAdminPageHeader
+        section="Election operations"
+        title="Elections"
+        description="Review and manage elections across Kandid organizations."
+        actions={(
+          <>
           <span>Schedule control</span>
-          <strong>{elections.length} recorded</strong>
+          <strong>{electionsLoading ? "Loading" : electionsError ? "Register unavailable" : `${elections.length} recorded`}</strong>
           <button type="button" onClick={openCreateForm} className="sa-elections-add">
             <Plus size={17} />
             Add Election
           </button>
-        </aside>
-      </header>
+          </>
+        )}
+      />
 
+      {removalUnavailable ? <div role="status"><p>Soft removal is unavailable. The existing election register remains available.</p><button type="button" onClick={fetchElections}>Retry readiness check</button></div> : null}
       <section className="sa-elections-summary" aria-label="Election summary">
         {[
           ["Total elections", elections.length],
@@ -750,7 +804,7 @@ function Elections() {
         ].map(([label, value], index) => (
           <div key={label} className="sa-elections-summary-item">
             <span>{String(index + 1).padStart(2, "0")}</span>
-            <strong>{value}</strong>
+            <strong data-unavailable={Boolean(electionsError)}>{electionsLoading ? "Loading" : electionsError ? "Unavailable" : value}</strong>
             <p>{label}</p>
           </div>
         ))}
@@ -759,13 +813,28 @@ function Elections() {
       <section className="sa-elections-register" aria-labelledby="election-register-title">
         <div className="sa-elections-register-head">
           <div>
-            <p className="sa-elections-eyebrow">Register / {String(elections.length).padStart(2, "0")}</p>
+            <p className="sa-elections-eyebrow">Register / {electionsError ? "Unavailable" : String(elections.length).padStart(2, "0")}</p>
             <h2 id="election-register-title">Election schedule</h2>
           </div>
-          <p>Campaign, voting, result release, and ballot setup in one operational register.</p>
+          <div><p>Campaign, voting, result release, and ballot setup in one operational register.</p>{removalReady ? <button type="button" className="sa-election-primary-action" onClick={() => openRemovedElections()}>Removed Elections</button> : null}</div>
         </div>
 
-        {electionsLoading ? (
+        {removalReady && removedView ? (
+          <div className="sa-elections-list" aria-label="Removed elections">
+            <div className="sa-elections-register-head"><h3>Removed Elections</h3><button type="button" onClick={() => setRemovedView(false)}>Back to schedule</button></div>
+            {removedError ? <p role="alert">{removedError}</p> : null}
+            {!removedError && removedElections.length === 0 ? <p>No removed elections are available.</p> : null}
+            {removedElections.map((election) => <article key={election.id} className="sa-election-record">
+              <div className="sa-election-identity"><p>{election.organizations?.name || "Organization unavailable"}</p><h3>{election.title || "Untitled Election"}</h3><span>Removed {election.removed_at ? new Date(election.removed_at).toLocaleString() : ""}</span></div>
+              <div className="sa-election-actions"><button type="button" onClick={() => setDeleteReview({ id: election.id, election, phase: "danger_zone", mode: "restore", analysis: null, error: "" })}>Restore</button></div>
+            </article>)}
+            <div className="sa-election-actions" aria-label="Removed election pages">
+              <button type="button" onClick={() => openRemovedElections(Math.max(0, removedOffset - 50))} disabled={removedOffset === 0}>Previous</button>
+              <span>{removedTotal ? `${removedOffset + 1}–${Math.min(removedOffset + removedElections.length, removedTotal)} of ${removedTotal}` : "0 removed elections"}</span>
+              <button type="button" onClick={() => openRemovedElections(removedOffset + 50)} disabled={removedOffset + 50 >= removedTotal}>Next</button>
+            </div>
+          </div>
+        ) : electionsLoading ? (
           <div className="sa-elections-loading" role="status">
             <strong>Loading election register</strong>
             <div aria-hidden="true"><span /><span /><span /></div>
@@ -789,7 +858,7 @@ function Elections() {
         ) : (
           <div className="sa-elections-list">
             {elections.map((election, index) => {
-              const phase = getElectionPhase(election);
+              const phase = getElectionPhase(election, now);
               return (
                 <article key={election.id} className="sa-election-record">
                   <div className="sa-election-index">{String(index + 1).padStart(2, "0")}</div>
@@ -1046,7 +1115,7 @@ function Elections() {
               </div>
               <button
                 type="button"
-                onClick={() => setFormOpen(false)}
+                onClick={closeCoverForm}
                 className="election-form-close"
                 aria-label="Close election form"
               >
@@ -1055,6 +1124,7 @@ function Elections() {
             </header>
 
             <form onSubmit={handleSubmit} className="election-form-workspace">
+              {editingElection ? <p role="note">The academic term is permanent. {editLocks.settings ? "Frozen or released elections retain their organization, schedules and voting settings. Only permitted presentation fields remain editable." : "All changes remain subject to current permissions and election lifecycle rules."}</p> : null}
               <section className="election-form-section">
                 <header>
                   <span>01</span>
@@ -1066,6 +1136,9 @@ function Elections() {
                 <div className="election-form-fields">
               <div>
                 <OrganizationSelect
+                  disabled={editLocks.frozen || coverUploading || savingElection}
+                  id="sa-election-organization"
+                  required
                   organizations={organizations}
                   value={form.organization_id}
                   onChange={(organizationId) =>
@@ -1088,9 +1161,12 @@ function Elections() {
                         {form.cover_url ? "Change Cover" : "Add Cover"}
                         <input
                           type="file"
-                          accept="image/*"
-                          disabled={coverUploading}
-                          onChange={(event) => handleCoverUpload(event.target.files?.[0])}
+                          accept="image/jpeg,image/png,image/webp,image/gif"
+                          disabled={coverUploading || savingElection}
+                          onChange={(event) => {
+                            handleCoverUpload(event.target.files?.[0]);
+                            event.target.value = "";
+                          }}
                           className="sr-only"
                         />
                       </label>
@@ -1098,6 +1174,7 @@ function Elections() {
                         <button
                           type="button"
                           onClick={() => setForm({ ...form, cover_url: "" })}
+                          disabled={coverUploading || savingElection}
                           className="secondary-btn"
                         >
                           Remove
@@ -1106,6 +1183,7 @@ function Elections() {
                     </div>
                     <input
                       value={form.cover_url}
+                      disabled={coverUploading || savingElection}
                       onChange={(event) =>
                         setForm({ ...form, cover_url: event.target.value })
                       }
@@ -1129,6 +1207,17 @@ function Elections() {
                   className="field-shell w-full"
                 />
               </div>
+              <div>
+                <label className="field-label" htmlFor="sa-election-academic-term">Academic Term</label>
+                <AcademicTermSelect
+                  disabled={editLocks.term}
+                  id="sa-election-academic-term"
+                  required
+                  value={form.academic_term_id}
+                  onChange={(academicTermId) => setForm({ ...form, academic_term_id: academicTermId })}
+                  className="field-shell w-full"
+                />
+              </div>
                 </div>
               </section>
 
@@ -1143,6 +1232,11 @@ function Elections() {
               <div className="grid gap-4 md:grid-cols-2">
                 <ScheduleDateTimePicker
                   label="Campaign Start Date & Time"
+                  disabled={editLocks.settings}
+                  validationId="sa-election-campaign-start"
+                  beforeField="#sa-election-campaign-end"
+                  beforeLabel="campaign end"
+                  beforeMessage="Campaign start must be before campaign end."
                   required={form.status !== "draft" && form.status !== "archived"}
                   value={form.campaign_start}
                   min={scheduleMin}
@@ -1152,6 +1246,15 @@ function Elections() {
 
                 <ScheduleDateTimePicker
                   label="Campaign End Date & Time"
+                  disabled={editLocks.settings}
+                  validationId="sa-election-campaign-end"
+                  afterField="#sa-election-campaign-start"
+                  afterLabel="campaign start"
+                  afterMessage="Campaign end must be after campaign start."
+                  beforeField="#sa-election-voting-start"
+                  beforeLabel="voting start"
+                  beforeMessage="Campaign end must be before or equal to voting start."
+                  beforeInclusive
                   required={form.status !== "draft" && form.status !== "archived"}
                   value={form.campaign_end}
                   min={form.campaign_start || scheduleMin}
@@ -1161,6 +1264,15 @@ function Elections() {
 
                 <ScheduleDateTimePicker
                   label="Voting Start Date & Time"
+                  disabled={editLocks.frozen}
+                  validationId="sa-election-voting-start"
+                  afterField="#sa-election-campaign-end"
+                  afterLabel="campaign end"
+                  afterMessage="Voting must start at or after campaign end."
+                  afterInclusive
+                  beforeField="#sa-election-voting-end"
+                  beforeLabel="voting end"
+                  beforeMessage="Voting must end after it starts."
                   required
                   value={form.start_date}
                   min={form.campaign_end || scheduleMin}
@@ -1170,6 +1282,11 @@ function Elections() {
 
                 <ScheduleDateTimePicker
                   label="Voting End Date & Time"
+                  disabled={editLocks.frozen}
+                  validationId="sa-election-voting-end"
+                  afterField="#sa-election-voting-start"
+                  afterLabel="voting start"
+                  afterMessage="Voting must end after it starts."
                   required
                   value={form.end_date}
                   min={form.start_date || form.campaign_end || scheduleMin}
@@ -1190,6 +1307,8 @@ function Elections() {
                   <label>
                     <span className="field-label">Election Status</span>
                     <select
+                      data-validation-dependents="#sa-election-campaign-start,#sa-election-campaign-end"
+                      disabled={editLocks.settings}
                       value={form.status}
                       onChange={(e) => setForm({ ...form, status: e.target.value })}
                       className="field-shell w-full"
@@ -1204,6 +1323,7 @@ function Elections() {
                   <label>
                     <span className="field-label">Student Result Visibility</span>
                     <select
+                      disabled={editLocks.visibility}
                       value={form.student_result_visibility}
                       onChange={(e) =>
                         setForm({
@@ -1226,6 +1346,8 @@ function Elections() {
                   <label>
                     <span className="sr-only">Voting access mode</span>
                     <select
+                      data-validation-dependents="#sa-election-geo-lat,#sa-election-geo-lng,#sa-election-geo-radius"
+                      disabled={editLocks.settings}
                       value={form.voting_access_mode}
                       onChange={(e) =>
                         setForm({ ...form, voting_access_mode: e.target.value })
@@ -1243,6 +1365,7 @@ function Elections() {
                   <label>
                     <span className="sr-only">Voting location label</span>
                     <input
+                      disabled={editLocks.settings}
                       value={form.location_label}
                       onChange={(e) =>
                         setForm({ ...form, location_label: e.target.value })
@@ -1256,24 +1379,36 @@ function Elections() {
                 {form.voting_access_mode === "location_range" ? (
                   <div className="mt-4 grid gap-4 md:grid-cols-3">
                     <input
+                      id="sa-election-geo-lat"
+                      aria-label="Latitude"
                       type="number"
                       step="any"
+                      required={form.voting_access_mode === "location_range"}
+                      disabled={editLocks.settings}
                       value={form.geo_lat}
                       onChange={(e) => setForm({ ...form, geo_lat: e.target.value })}
                       placeholder="Latitude"
                       className="field-shell w-full"
                     />
                     <input
+                      id="sa-election-geo-lng"
+                      aria-label="Longitude"
                       type="number"
                       step="any"
+                      required={form.voting_access_mode === "location_range"}
+                      disabled={editLocks.settings}
                       value={form.geo_lng}
                       onChange={(e) => setForm({ ...form, geo_lng: e.target.value })}
                       placeholder="Longitude"
                       className="field-shell w-full"
                     />
                     <input
+                      id="sa-election-geo-radius"
+                      aria-label="Radius in meters"
                       type="number"
                       min="1"
+                      required={form.voting_access_mode === "location_range"}
+                      disabled={editLocks.settings}
                       value={form.geo_radius_meters}
                       onChange={(e) =>
                         setForm({ ...form, geo_radius_meters: e.target.value })
@@ -1396,11 +1531,11 @@ function Elections() {
               ) : null}
 
               <footer className="election-form-actions">
-                <button type="button" className="secondary-btn" onClick={() => setFormOpen(false)}>
+                <button type="button" className="secondary-btn" onClick={closeCoverForm}>
                   Cancel
                 </button>
-                <button type="submit" className="primary-btn">
-                  {editingElection ? "Save Changes" : "Create Election"}
+                <button type="submit" className="primary-btn" disabled={savingElection || coverUploading}>
+                  {savingElection ? "Saving..." : editingElection ? "Save Changes" : "Create Election"}
                 </button>
               </footer>
             </form>
@@ -1454,6 +1589,21 @@ function Elections() {
           </div>
         </PopupOverlay>
       )}
+
+      {deleteReview ? <BoardElectionDeleteSheet
+        key={deleteReview.id}
+        election={deleteReview.election}
+        orgName={deleteReview.election?.organizations?.name || "All organizations"}
+        phase={deleteReview.phase}
+        analysis={deleteReview.analysis}
+        mode={deleteReview.mode}
+          removalReady={removalReady}
+        error={deleteReview.error}
+        onClose={closeElectionRemovalReview}
+        onRetry={() => handleDelete(deleteReview.id)}
+        onContinue={() => { if (removalReady) setDeleteReview((current) => ({ ...current, phase: "danger_zone" })); }}
+        onConfirm={confirmElectionChange}
+      /> : null}
     </div>
   );
 }

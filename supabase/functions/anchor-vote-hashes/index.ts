@@ -54,15 +54,9 @@ Deno.serve(async (req) => {
   const deployerPrivateKey = Deno.env.get("DEPLOYER_PRIVATE_KEY");
   const registryAddress = Deno.env.get("VOTE_REGISTRY_ADDRESS");
 
-  if (
-    !supabaseUrl ||
-    !serviceRoleKey ||
-    !sepoliaRpcUrl ||
-    !deployerPrivateKey ||
-    !registryAddress
-  ) {
+  if (!supabaseUrl || !serviceRoleKey) {
     return jsonResponse(
-      { error: "Server blockchain configuration is incomplete." },
+      { error: "Server worker configuration is incomplete." },
       500,
     );
   }
@@ -71,31 +65,10 @@ Deno.serve(async (req) => {
     auth: { persistSession: false },
   });
 
-  const provider = new ethers.JsonRpcProvider(sepoliaRpcUrl);
-  const signer = new ethers.Wallet(deployerPrivateKey, provider);
-  const contract = new ethers.Contract(
-    registryAddress,
-    VOTE_REGISTRY_ABI,
-    signer,
-  );
-
-  const network = await provider.getNetwork();
-
-  if (network.chainId !== EXPECTED_CHAIN_ID) {
-    return jsonResponse({ error: "Unexpected blockchain network." }, 500);
-  }
-
-  const contractOwner = await contract.owner();
-  const signerAddress = await signer.getAddress();
-
-  if (contractOwner.toLowerCase() !== signerAddress.toLowerCase()) {
-    return jsonResponse(
-      { error: "Configured signer is not the contract owner." },
-      500,
-    );
-  }
-
   const results: Array<Record<string, unknown>> = [];
+  let provider: ethers.JsonRpcProvider | null = null;
+  let signer: ethers.Wallet | null = null;
+  let contract: ethers.Contract | null = null;
 
   for (let attempt = 0; attempt < MAX_VOTES_PER_RUN; attempt++) {
     const { data: claimedRows, error: claimError } = await adminClient.rpc(
@@ -121,6 +94,33 @@ Deno.serve(async (req) => {
     const voteHash = String(claimed.vote_hash || "");
 
     try {
+      if (!sepoliaRpcUrl || !deployerPrivateKey || !registryAddress) {
+        throw new Error("Server blockchain configuration is incomplete.");
+      }
+
+      if (!provider || !signer || !contract) {
+        provider = new ethers.JsonRpcProvider(sepoliaRpcUrl);
+        signer = new ethers.Wallet(deployerPrivateKey, provider);
+        contract = new ethers.Contract(
+          registryAddress,
+          VOTE_REGISTRY_ABI,
+          signer,
+        );
+
+        const network = await provider.getNetwork();
+
+        if (network.chainId !== EXPECTED_CHAIN_ID) {
+          throw new Error("Unexpected blockchain network.");
+        }
+
+        const contractOwner = await contract.owner();
+        const signerAddress = await signer.getAddress();
+
+        if (contractOwner.toLowerCase() !== signerAddress.toLowerCase()) {
+          throw new Error("Configured signer is not the contract owner.");
+        }
+      }
+
       const alreadyRecorded = await contract.isVoteHashRecorded(voteHash);
 
       if (alreadyRecorded) {

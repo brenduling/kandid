@@ -1,401 +1,339 @@
-import { useCallback, useEffect, useState } from "react";
-import {
-  BarChart3,
-  CalendarRange,
-  CheckCircle,
-  Layers3,
-  RefreshCw,
-  UserCheck,
-  Users,
-  Vote,
-} from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import "./Dashboard.css";
+import { RefreshCw } from "lucide-react";
+import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
-import { KandidInlineLoader } from "../../components/KandidLoader";
-import { fetchAuditLogs } from "../../utils/auditLog";
-import { formatLocalDateTime } from "../../utils/elections";
+import { getElectionPhase } from "../../utils/elections";
+import { countOperationalElections } from "../../utils/electionLifecycle";
+import { useElectionClock } from "../../utils/useElectionClock";
+import { callVoteAccess } from "../../utils/voteAccess";
+import { toBoardFacingError } from "../../utils/boardFeedback";
+import {
+  boardAuditActionLabel,
+  boardAuditActorLabel,
+  boardAuditCategoryLabel,
+  boardAuditTargetLabel,
+  buildBoardAuditRpcArgs,
+} from "../../utils/boardAuditTrail";
+import { electionPhaseLabel } from "./electionDisplay";
+import { usePrompt } from "../../context/PromptContext";
+
+const SCHEDULE_DAY = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
+
+const SCHEDULE_CLOCK = new Intl.DateTimeFormat("en-US", {
+  hour: "numeric",
+  minute: "2-digit",
+  hour12: true,
+});
+
+/* Presentation only: typesets the existing start/end timestamps into a
+   compact single-line schedule. Same values, no data or query change. */
+function formatElectionSchedule(start, end) {
+  if (!start && !end) return "No schedule recorded";
+  if (!start) return `No start date \u00b7 ${SCHEDULE_DAY.format(new Date(end))}`;
+  if (!end) return `${SCHEDULE_DAY.format(new Date(start))} \u00b7 No end date`;
+
+  const from = new Date(start);
+  const to = new Date(end);
+  const sameDay = SCHEDULE_DAY.format(from) === SCHEDULE_DAY.format(to);
+
+  if (sameDay) {
+    return `${SCHEDULE_DAY.format(from)} \u00b7 ${SCHEDULE_CLOCK.format(from)} \u2013 ${SCHEDULE_CLOCK.format(to)}`;
+  }
+
+  return `${SCHEDULE_DAY.format(from)} \u2013 ${SCHEDULE_DAY.format(to)}`;
+}
+
+function formatDashboardActivityTime(value) {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return "Time unavailable";
+  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(date);
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="board-dashboard-skeleton" role="status" aria-label="Loading dashboard" aria-busy="true">
+      <span className="sr-only">Loading dashboard information</span>
+      <section className="board-dashboard-pulse">
+        <div className="board-dashboard-section-head">
+          <div className="board-dashboard-skeleton-copy">
+            <span className="board-dashboard-skeleton-bar is-short" />
+            <span className="board-dashboard-skeleton-bar is-heading" />
+          </div>
+        </div>
+        <div className="board-dashboard-skeleton-metrics">
+          {Array.from({ length: 6 }, (_, index) => <span className="board-dashboard-skeleton-metric" key={index} />)}
+        </div>
+      </section>
+      {[
+        ["Elections", "Election record"],
+        ["Recent activity", "Recent action"],
+      ].map(([label, rowLabel]) => (
+        <section className="board-dashboard-skeleton-register" key={label} aria-label={`Loading ${label}`}>
+          <div className="board-dashboard-skeleton-copy">
+            <span className="board-dashboard-skeleton-bar is-short" />
+            <span className="board-dashboard-skeleton-bar is-heading" />
+          </div>
+          {[0, 1, 2].map((row) => (
+            <div className="board-dashboard-skeleton-row" key={`${rowLabel}-${row}`}>
+              <span className="board-dashboard-skeleton-bar is-medium" />
+              <span className="board-dashboard-skeleton-bar is-long" />
+              <span className="board-dashboard-skeleton-bar is-short" />
+            </div>
+          ))}
+        </section>
+      ))}
+    </div>
+  );
+}
 
 function BoardDashboard() {
+  const { error: showError } = usePrompt();
+  const hasLoaded = useRef(false);
+  const activityRequestId = useRef(0);
   const [stats, setStats] = useState({
     elections: 0,
-    activeElections: 0,
     positions: 0,
     candidates: 0,
     votes: 0,
     voters: 0,
   });
   const [recentElections, setRecentElections] = useState([]);
+  const [lifecycleElections, setLifecycleElections] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
+  const serverNow = useElectionClock();
+  const activeElectionCount = countOperationalElections(lifecycleElections, serverNow);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [activityLoading, setActivityLoading] = useState(true);
+  const [activityError, setActivityError] = useState("");
 
   const user = JSON.parse(localStorage.getItem("user"));
   const orgId = user?.organization_id;
   const orgName = user?.organizations?.name || "Assigned Organization";
 
   const loadDashboardData = useCallback(async (isActive = () => true) => {
-    if (isActive()) {
-      setLoading(true);
-    }
+    const firstLoad = !hasLoaded.current;
+    if (firstLoad) setLoading(true);
+    else setRefreshing(true);
+    setLoadError("");
 
-    if (!orgId) {
+    try {
+      if (!orgId) {
+        throw new Error("This Electoral Board account has no assigned organization. Ask a Super Admin to assign one.");
+      }
+
+      const electionResult = await supabase
+        .from("elections")
+        .select("id, title, campaign_start, campaign_end, start_date, end_date, status, created_at")
+        .eq("organization_id", orgId)
+        .order("created_at", { ascending: false });
+
+      if (electionResult.error) throw electionResult.error;
+      const electionsData = electionResult.data || [];
+      const electionIds = electionsData.map((election) => election.id);
+
+      let positionsData = [];
+      let candidatesData = [];
+      let voteSummary = { votes: 0, voters: 0 };
+
+      if (electionIds.length > 0) {
+        const [positionResult, voteResult] = await Promise.all([
+          supabase.from("positions").select("id").in("election_id", electionIds),
+          callVoteAccess("board_dashboard_counts", { election_ids: electionIds }),
+        ]);
+        if (positionResult.error) throw positionResult.error;
+        if (voteResult.error) throw voteResult.error;
+        positionsData = positionResult.data || [];
+        voteSummary = Object.values(voteResult.data?.by_election || {}).reduce((summary, item) => ({
+          votes: summary.votes + Number(item.votes || 0),
+          voters: summary.voters + Number(item.voters || 0),
+        }), { votes: 0, voters: 0 });
+
+        const positionIds = positionsData.map((position) => position.id);
+        if (positionIds.length > 0) {
+          const candidateResult = await supabase.from("candidates").select("id").in("position_id", positionIds);
+          if (candidateResult.error) throw candidateResult.error;
+          candidatesData = candidateResult.data || [];
+        }
+      }
+
+      if (!isActive()) return;
+
+      setStats({
+        elections: electionsData.length,
+        positions: positionsData.length,
+        candidates: candidatesData.length,
+        votes: voteSummary.votes,
+        voters: voteSummary.voters,
+      });
+      setLifecycleElections(electionsData);
+      setRecentElections(electionsData.slice(0, 5));
+      hasLoaded.current = true;
+    } catch (error) {
+      console.error("Failed to load Board dashboard data:", error);
+      if (!isActive()) return;
+      if (hasLoaded.current) {
+        showError("Dashboard refresh failed. The last loaded information is still shown.");
+      } else {
+        setLoadError("Dashboard information could not be loaded. Check your connection and try again.");
+      }
+    } finally {
       if (isActive()) {
         setLoading(false);
-      }
-      return;
-    }
-
-    const { data: electionsData, error: electionError } = await supabase
-      .from("elections")
-      .select("id, title, start_date, end_date, status, created_at")
-      .eq("organization_id", orgId)
-      .order("created_at", { ascending: false });
-
-    if (electionError) {
-      console.error("Failed to load board elections:", electionError);
-    }
-
-    const electionIds = electionsData?.map((election) => election.id) || [];
-
-    let positionsData = [];
-    let candidatesData = [];
-    let votesData = [];
-
-    if (electionIds.length > 0) {
-      const [{ data: posData }, { data: voteData }] = await Promise.all([
-        supabase
-          .from("positions")
-          .select("id")
-          .in("election_id", electionIds),
-        supabase
-          .from("votes")
-          .select("student_id")
-          .in("election_id", electionIds),
-      ]);
-
-      positionsData = posData || [];
-      votesData = voteData || [];
-
-      const positionIds = positionsData.map((position) => position.id);
-
-      if (positionIds.length > 0) {
-        const { data: candData } = await supabase
-          .from("candidates")
-          .select("id")
-          .in("position_id", positionIds);
-
-        candidatesData = candData || [];
+        setRefreshing(false);
       }
     }
+  }, [orgId, showError]);
 
-    if (!isActive()) return;
+  const loadRecentActivity = useCallback(async (isActive = () => true) => {
+    const requestId = activityRequestId.current + 1;
+    activityRequestId.current = requestId;
+    setActivityLoading(true);
+    setActivityError("");
 
-    const uniqueVoters = new Set(votesData.map((vote) => vote.student_id));
-
-    setStats({
-      elections: electionsData?.length || 0,
-      activeElections:
-        electionsData?.filter((election) => election.status === "active").length || 0,
-      positions: positionsData.length,
-      candidates: candidatesData.length,
-      votes: votesData.length,
-      voters: uniqueVoters.size,
-    });
-
-    setRecentElections(electionsData?.slice(0, 5) || []);
-    const { data: auditActivities, error: auditError } = await fetchAuditLogs({
-      limit: 5,
-      organizationId: orgId,
-    });
-    if (auditError) {
-      console.warn("Failed to load board audit activity:", auditError);
+    try {
+      const { data, error } = await supabase.rpc(
+        "kandid_list_board_audit_events",
+        buildBoardAuditRpcArgs({ pageSize: 5 }),
+      );
+      if (error) throw error;
+      if (!isActive() || activityRequestId.current !== requestId) return;
+      setRecentActivities(Array.isArray(data?.events) ? data.events.slice(0, 5) : []);
+    } catch (error) {
+      if (!isActive() || activityRequestId.current !== requestId) return;
+      setActivityError(toBoardFacingError(error?.message, "Recent activity is temporarily unavailable."));
+      setRecentActivities([]);
+    } finally {
+      if (isActive() && activityRequestId.current === requestId) setActivityLoading(false);
     }
-    setRecentActivities(auditActivities || []);
-    setLoading(false);
-  }, [orgId]);
+  }, []);
 
   const fetchDashboardData = useCallback(async () => {
-    await loadDashboardData(() => true);
-  }, [loadDashboardData]);
+    await Promise.all([loadDashboardData(() => true), loadRecentActivity(() => true)]);
+  }, [loadDashboardData, loadRecentActivity]);
 
   useEffect(() => {
     let active = true;
-
-    const loadTimer = window.setTimeout(() => {
-      loadDashboardData(() => active);
-    }, 0);
+    Promise.resolve().then(() => {
+      if (active) {
+        loadDashboardData(() => active);
+        loadRecentActivity(() => active);
+      }
+    });
     window.addEventListener("kandid-audit-updated", fetchDashboardData);
 
     return () => {
       active = false;
-      window.clearTimeout(loadTimer);
       window.removeEventListener("kandid-audit-updated", fetchDashboardData);
     };
-  }, [fetchDashboardData, loadDashboardData]);
+  }, [fetchDashboardData, loadDashboardData, loadRecentActivity]);
 
   const cards = [
     {
       title: "Elections",
       value: stats.elections,
-      icon: Vote,
-      tone: "text-[#315f57] bg-[rgba(49,95,87,0.12)]",
     },
     {
       title: "Active Elections",
-      value: stats.activeElections,
-      icon: CheckCircle,
-      tone: "text-[#36936f] bg-[rgba(54,147,111,0.12)]",
+      value: activeElectionCount,
     },
     {
       title: "Positions",
       value: stats.positions,
-      icon: Users,
-      tone: "text-[#3b82f6] bg-[rgba(59,130,246,0.12)]",
     },
     {
       title: "Candidates",
       value: stats.candidates,
-      icon: UserCheck,
-      tone: "text-[#11806a] bg-[rgba(17,128,106,0.12)]",
     },
     {
-      title: "Votes Cast",
+      title: "Vote Records",
       value: stats.votes,
-      icon: BarChart3,
-      tone: "text-[#b39a2b] bg-[rgba(208,199,109,0.16)]",
     },
     {
       title: "Unique Voters",
       value: stats.voters,
-      icon: Users,
-      tone: "text-[#0f6a58] bg-[rgba(25,162,140,0.12)]",
     },
   ];
-  const participationIndex =
-    stats.votes > 0 ? Math.round((stats.voters / stats.votes) * 100) : 0;
-  const electionReadiness =
-    stats.elections > 0 ? Math.round((stats.activeElections / stats.elections) * 100) : 0;
-  const candidateDensity =
-    stats.positions > 0 ? Math.min(Math.round((stats.candidates / stats.positions) * 100), 100) : 0;
-
-  if (!orgId) {
-    return (
-      <div className="empty-state">
-        <h1 className="text-3xl font-black text-red-600">No Organization Assigned</h1>
-        <p className="mt-2 text-gray-500">
-          This Electoral Board account has no assigned organization. Please ask
-          the Super Admin to assign one.
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div className="board-dashboard-desktop">
-      <div className="page-head board-dashboard-opening">
-        <div className="board-dashboard-opening-copy">
-          <div className="page-kicker board-dashboard-kicker">Electoral Board</div>
-          <h1 className="page-title board-dashboard-title">
-            Election operations
-            <span className="page-title-accent"> for your organization</span>
-          </h1>
-          <p className="page-subtitle">
-            <span className="font-bold text-[#11806a]">{orgName}</span> is the active workspace for ballots,
-            candidates, positions, and board activity.
-          </p>
+      <header className="board-dashboard-masthead">
+        <div className="board-dashboard-context">
+          <span className="board-dashboard-kicker">Electoral Board / {orgName}</span>
+          <span className="board-dashboard-context-rule" aria-hidden="true" />
         </div>
-
-        <button
-          onClick={fetchDashboardData}
-          className="primary-btn board-dashboard-refresh self-start lg:self-auto"
-        >
-          <RefreshCw size={18} />
-          Refresh Dashboard
-        </button>
-      </div>
+        <div className="board-dashboard-baseline">
+          <h1 className="page-title board-dashboard-title">Dashboard</h1>
+          <button
+            onClick={fetchDashboardData}
+            type="button"
+            className="board-dashboard-refresh"
+            disabled={refreshing || loading}
+          >
+            <RefreshCw size={15} aria-hidden="true" className={refreshing ? "is-spinning" : ""} />
+            {loading ? "Loading" : refreshing ? "Refreshing" : "Refresh"}
+          </button>
+        </div>
+        <p className="page-subtitle board-dashboard-standfirst">
+          Elections, candidates, ballots, and recent activity for {orgName}.
+        </p>
+      </header>
 
       {loading ? (
-        <section className="board-dashboard-loading">
-          <p>Electoral Board / Dashboard</p>
-          <strong>Preparing your board dashboard</strong>
-          <KandidInlineLoader message="Checking elections, votes, and recent activity..." />
+        <DashboardSkeleton />
+      ) : loadError ? (
+        <section className="board-dashboard-load-error" role="alert">
+          <p className="board-dashboard-section-kicker">Workspace unavailable</p>
+          <h2>Dashboard information could not be loaded.</h2>
+          <p>{loadError}</p>
+          <button type="button" onClick={fetchDashboardData} className="board-dashboard-refresh" disabled={refreshing || loading}>
+            {refreshing ? "Refreshing" : "Try again"}
+          </button>
         </section>
       ) : (
         <>
-          <div className="section-grid board-dashboard-metrics grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-            {cards.map((card) => {
-              const Icon = card.icon;
-
-              return (
-                <div key={card.title} className="metric-card lift-card board-dashboard-metric">
-                  <div className="board-dashboard-metric-inner">
-                    <div>
-                      <p className="board-dashboard-metric-label">{card.title}</p>
-                      <h2 className="board-dashboard-metric-value">
-                        {card.value}
-                      </h2>
-                    </div>
-                    <div
-                      className={`board-dashboard-metric-icon ${card.tone}`}
-                    >
-                      <Icon size={24} />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="section-grid board-dashboard-operation-grid grid-cols-1 xl:grid-cols-[0.86fr_1.14fr]">
-            <div className="glass-panel-dark board-dashboard-org-panel rounded-[30px] p-7 text-white">
-              <div className="board-dashboard-panel-head">
-                <div>
-                  <p className="board-dashboard-panel-kicker">
-                    Organization Scope
-                  </p>
-                  <h2>{orgName}</h2>
-                </div>
-                <div className="board-dashboard-panel-icon">
-                  <Layers3 size={24} />
-                </div>
-              </div>
-
-              <div className="board-dashboard-org-stack">
-                <div className="board-dashboard-participation">
-                  <p>
-                    Participation Index
-                  </p>
-                  <strong>
-                    {stats.voters > 0 && stats.votes > 0
-                      ? `${Math.round((stats.voters / stats.votes) * 100)}`
-                      : "0"}
-                    <span>%</span>
-                  </strong>
-                </div>
-
-                <div className="board-dashboard-org-note">
-                  Counts reflect records currently tied to this assigned organization.
-                </div>
-
-                <div className="board-dashboard-ledger">
-                  {[
-                    ["Total ballots recorded", stats.votes],
-                    ["Unique student voters", stats.voters],
-                    ["Configured candidates", stats.candidates],
-                  ].map(([label, value]) => (
-                    <div
-                      key={label}
-                      className="board-dashboard-ledger-row"
-                    >
-                      <span>{label}</span>
-                      <strong>{value}</strong>
-                    </div>
-                  ))}
-                </div>
+          <section className="board-dashboard-pulse" aria-label="Operational pulse">
+            <div className="board-dashboard-section-head">
+              <div>
+                <p className="board-dashboard-section-kicker">At a glance</p>
+                <h2>Operational pulse</h2>
+                <p className="board-dashboard-scope-note">
+                  Across {orgName} election records
+                </p>
               </div>
             </div>
-
-            <div className="soft-card board-dashboard-snapshot">
-              <div className="board-dashboard-panel-head">
-                <div>
-                  <p className="board-dashboard-section-kicker">
-                    Board Readiness
-                  </p>
-                  <h3>Operational Snapshot</h3>
+            <dl className="board-dashboard-metrics">
+              {cards.map((card) => (
+                <div key={card.title} className="board-dashboard-metric">
+                  <dt className="board-dashboard-metric-label">{card.title}</dt>
+                  <dd className="board-dashboard-metric-value">{card.value}</dd>
                 </div>
-                <span className="status-pill">Ready</span>
-              </div>
-
-              <div className="board-dashboard-snapshot-list">
-                {[
-                  ["Configured elections", `${stats.elections} total`],
-                  ["Open election windows", `${stats.activeElections} active`],
-                  ["Position setup", `${stats.positions} positions available`],
-                ].map(([label, value]) => (
-                  <div key={label} className="info-row">
-                    <span className="text-sm font-semibold text-gray-600">{label}</span>
-                    <span className="text-sm font-bold text-[#1d262f]">{value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="section-grid board-dashboard-graph-grid grid-cols-1 xl:grid-cols-2">
-            <div className="graph-card board-dashboard-graph-card">
-              <div className="board-dashboard-panel-head">
-                <div>
-                  <p className="board-dashboard-section-kicker">
-                    Election Progress
-                  </p>
-                  <h3>Current operation</h3>
-                </div>
-                <span className="status-pill">Live</span>
-              </div>
-
-              <div className="board-dashboard-graph-stack">
-                {[
-                  ["Election readiness", electionReadiness, `${stats.activeElections}/${stats.elections || 0}`, "chart-fill"],
-                  ["Participation index", participationIndex, `${stats.voters}/${stats.votes || 0}`, "chart-fill-blue"],
-                  ["Candidate density", candidateDensity, `${stats.candidates}/${stats.positions || 0}`, "chart-fill-gold"],
-                ].map(([label, value, note, tone]) => (
-                  <div key={label} className="graph-row">
-                    <div className="mb-3 flex items-center justify-between gap-4">
-                      <div>
-                        <p className="text-sm font-bold text-[#102220]">{label}</p>
-                        <p className="mt-1 text-xs uppercase tracking-[0.14em] text-[#6a817b]">
-                          {note}
-                        </p>
-                      </div>
-                      <span className="text-lg font-black text-[#102220]">{value}%</span>
-                    </div>
-
-                    <div className="chart-track">
-                      <div className={tone} style={{ width: `${value}%` }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="graph-card board-dashboard-graph-card">
-              <div className="board-dashboard-panel-head">
-                <div>
-                  <p className="board-dashboard-section-kicker">
-                    Resource Mix
-                  </p>
-                  <h3>Management records</h3>
-                </div>
-                <span className="status-pill">Summary</span>
-              </div>
-
-              <div className="board-dashboard-graph-stack">
-                {[
-                  ["Positions configured", stats.positions, 100, "chart-fill-dark"],
-                  ["Candidates added", stats.candidates, candidateDensity, "chart-fill"],
-                  ["Unique voters", stats.voters, participationIndex, "chart-fill-blue"],
-                ].map(([label, value, percent, tone]) => (
-                  <div key={label} className="graph-row">
-                    <div className="mb-3 flex items-center justify-between">
-                      <p className="text-sm font-bold text-[#102220]">{label}</p>
-                      <p className="text-sm font-bold text-[#234742]">{value}</p>
-                    </div>
-                    <div className="chart-track">
-                      <div className={tone} style={{ width: `${percent}%` }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+              ))}
+            </dl>
+          </section>
 
           <div className="section-grid board-dashboard-list-grid grid-cols-1">
             <div className="table-shell board-dashboard-list-panel">
-              <div className="board-dashboard-list-head border-b border-[rgba(104,86,72,0.1)] px-6 py-5">
-                <p className="board-dashboard-section-kicker">
-                  Recent Elections
-                </p>
-                <h3>
-                  Latest elections for {orgName}
-                </h3>
+              <div className="board-dashboard-list-head board-dashboard-elections-head border-b border-[rgba(104,86,72,0.1)] px-6 py-5">
+                <div>
+                  <p className="board-dashboard-section-kicker">
+                    Recent Elections
+                  </p>
+                  <h3>
+                    Latest elections for {orgName}
+                  </h3>
+                  <p className="board-dashboard-list-meta">
+                    {recentElections.length}{" "}
+                    {recentElections.length === 1
+                      ? "election"
+                      : "elections"}
+                  </p>
+                </div>
               </div>
 
               {recentElections.length === 0 ? (
@@ -404,25 +342,22 @@ function BoardDashboard() {
                 </p>
               ) : (
                 recentElections.map((election) => (
-                  <div
-                    key={election.id}
-                    className="flex items-center justify-between border-b border-[rgba(104,86,72,0.08)] px-6 py-4 last:border-b-0"
-                  >
-                    <div className="min-w-0">
-                      <p className="font-bold">{election.title}</p>
-                      <p className="mt-1 inline-flex items-center gap-2 text-xs text-gray-500">
-                        <CalendarRange size={14} />
-                        {election.start_date
-                          ? formatLocalDateTime(election.start_date)
-                          : "No start date"}
-                        {" - "}
-                        {election.end_date
-                          ? formatLocalDateTime(election.end_date)
-                          : "No end date"}
-                      </p>
-                    </div>
-
-                    <span className="status-pill">{election.status}</span>
+                  <div key={election.id} className="board-dashboard-election-row">
+                    <p className="board-dashboard-election-name">
+                      {election.title}
+                    </p>
+                    <p className="board-dashboard-election-when">
+                      {formatElectionSchedule(
+                        election.start_date,
+                        election.end_date,
+                      )}
+                    </p>
+                    <span
+                      className="board-dashboard-election-status"
+                      data-phase={getElectionPhase(election, serverNow || undefined)}
+                    >
+                      {electionPhaseLabel(election, serverNow || undefined)}
+                    </span>
                   </div>
                 ))
               )}
@@ -431,44 +366,66 @@ function BoardDashboard() {
 
           <div className="section-grid board-dashboard-list-grid grid-cols-1">
             <div className="table-shell board-dashboard-list-panel">
-              <div className="board-dashboard-list-head border-b border-[rgba(104,86,72,0.1)] px-6 py-5">
-                <p className="board-dashboard-section-kicker">
-                  Recent Activity
-                </p>
-                <h3>
-                  Latest actions for {orgName}
-                </h3>
+              <div className="board-dashboard-list-head board-dashboard-activity-head border-b border-[rgba(104,86,72,0.1)] px-6 py-5">
+                <div>
+                  <p className="board-dashboard-section-kicker">
+                    Recent Activity
+                  </p>
+                  <h3>
+                    Latest activity for {orgName}
+                  </h3>
+                  <p className="board-dashboard-list-meta board-dashboard-activity-note">
+                    The latest organization-scoped records
+                  </p>
+                </div>
+                <Link className="board-dashboard-audit-link" to="/board/audit-trail">
+                  View full Audit Trail <span aria-hidden="true">{"\u2192"}</span>
+                </Link>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="app-table">
-                  <thead>
-                    <tr>
-                      <th>Event</th>
-                      <th>Organization</th>
-                      <th>Status</th>
-                      <th>Time</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recentActivities.length === 0 ? (
-                      <tr>
-                        <td colSpan="4" className="px-6 py-10 text-center empty-copy">
-                          No recent activity yet.
-                        </td>
-                      </tr>
-                    ) : (
-                      recentActivities.map((activity) => (
-                        <tr key={activity.id}>
-                          <td className="font-bold text-slate-800">{activity.event}</td>
-                          <td className="text-slate-500 font-medium">{activity.organization}</td>
-                          <td><span className="status-pill">{activity.status}</span></td>
-                          <td className="text-slate-400 font-medium">{activity.time}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+              <div className="board-dashboard-activity-register">
+                {activityLoading ? (
+                  <div className="board-dashboard-activity-skeleton" role="status" aria-label="Loading recent activity">
+                    {[0, 1, 2].map((row) => (
+                      <div className="board-dashboard-activity-row-skeleton" key={row} aria-hidden="true">
+                        <span className="board-dashboard-skeleton-bar is-medium" />
+                        <span className="board-dashboard-skeleton-bar is-long" />
+                      </div>
+                    ))}
+                  </div>
+                ) : activityError ? (
+                  <div className="board-dashboard-activity-message" role="alert">
+                    <p>{activityError}</p>
+                    <button type="button" className="board-dashboard-activity-retry" onClick={() => loadRecentActivity()}>
+                      Try again
+                    </button>
+                  </div>
+                ) : recentActivities.length === 0 ? (
+                  <p className="board-dashboard-activity-empty empty-copy">
+                    No recent activity yet.
+                  </p>
+                ) : (
+                  recentActivities.map((activity) => {
+                    const target = boardAuditTargetLabel(activity);
+                    const timeLabel = formatDashboardActivityTime(activity.created_at || activity.timestamp);
+                    return (
+                      <article key={activity.id} className="board-dashboard-activity-row">
+                        <div className="board-dashboard-activity-main">
+                          <strong className="board-dashboard-activity-actor">{boardAuditActorLabel(activity)}</strong>
+                          <p className="board-dashboard-activity-event">
+                            {boardAuditActionLabel(activity.event_type || activity.action)}
+                            {target !== "Record" ? <>{"\u00b7"} {target}</> : ""}
+                          </p>
+                        </div>
+                        <div className="board-dashboard-activity-meta">
+                          <span>{boardAuditCategoryLabel(activity.event_category || activity.category)}</span>
+                          <time dateTime={activity.created_at || activity.timestamp || undefined}>{timeLabel}</time>
+                          {activity.is_legacy ? <span className="board-dashboard-activity-legacy">Legacy entry</span> : null}
+                        </div>
+                      </article>
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>

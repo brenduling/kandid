@@ -1,0 +1,68 @@
+{
+  "policies": [
+    {
+      "cmd": "DELETE",
+      "name": "eligibility_rules_admin_delete",
+      "check": null,
+      "roles": [
+        "authenticated"
+      ],
+      "using": "(EXISTS ( SELECT 1\n   FROM (elections e\n     JOIN admin_users a ON (((a.auth_user_id = auth.uid()) AND ((a.status)::text = 'active'::text))))\n  WHERE ((e.id = eligibility_rules.election_id) AND (((a.role)::text = 'super_admin'::text) OR (((a.role)::text = 'electoral_board'::text) AND (a.organization_id = e.organization_id))))))"
+    },
+    {
+      "cmd": "SELECT",
+      "name": "eligibility_rules_signed_in_read",
+      "check": null,
+      "roles": [
+        "authenticated"
+      ],
+      "using": "(auth.uid() IS NOT NULL)"
+    },
+    {
+      "cmd": "INSERT",
+      "name": "eligibility_rules_admin_insert",
+      "check": "(EXISTS ( SELECT 1\n   FROM (elections e\n     JOIN admin_users a ON (((a.auth_user_id = auth.uid()) AND ((a.status)::text = 'active'::text))))\n  WHERE ((e.id = eligibility_rules.election_id) AND (((a.role)::text = 'super_admin'::text) OR (((a.role)::text = 'electoral_board'::text) AND (a.organization_id = e.organization_id))))))",
+      "roles": [
+        "authenticated"
+      ],
+      "using": null
+    },
+    {
+      "cmd": "UPDATE",
+      "name": "eligibility_rules_admin_update",
+      "check": "(EXISTS ( SELECT 1\n   FROM (elections e\n     JOIN admin_users a ON (((a.auth_user_id = auth.uid()) AND ((a.status)::text = 'active'::text))))\n  WHERE ((e.id = eligibility_rules.election_id) AND (((a.role)::text = 'super_admin'::text) OR (((a.role)::text = 'electoral_board'::text) AND (a.organization_id = e.organization_id))))))",
+      "roles": [
+        "authenticated"
+      ],
+      "using": "(EXISTS ( SELECT 1\n   FROM (elections e\n     JOIN admin_users a ON (((a.auth_user_id = auth.uid()) AND ((a.status)::text = 'active'::text))))\n  WHERE ((e.id = eligibility_rules.election_id) AND (((a.role)::text = 'super_admin'::text) OR (((a.role)::text = 'electoral_board'::text) AND (a.organization_id = e.organization_id))))))"
+    }
+  ],
+  "triggers": [
+    "CREATE TRIGGER audit_eligibility_rules_mutations AFTER INSERT OR DELETE OR UPDATE ON public.eligibility_rules FOR EACH ROW EXECUTE FUNCTION kandid_audit_admin_row_change()",
+    "CREATE TRIGGER guard_removed_election_mutation BEFORE INSERT OR DELETE OR UPDATE ON public.eligibility_rules FOR EACH ROW EXECUTE FUNCTION private.kandid_guard_removed_election_child_mutation()"
+  ],
+  "functions": [
+    {
+      "name": "kandid_is_locked_electorate_member",
+      "schema": "public",
+      "definition": "CREATE OR REPLACE FUNCTION public.kandid_is_locked_electorate_member(p_election_id integer, p_student_id integer)\n RETURNS boolean\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'pg_catalog'\nAS $function$\nbegin\n  if auth.role() is distinct from 'service_role' then\n    raise exception using errcode = '42501', message = 'Trusted server access required.';\n  end if;\n  return exists (\n    select 1\n    from public.elections e\n    join private.election_eligible_voters v on v.election_id = e.id\n    where e.id = p_election_id\n      and e.electorate_policy_version = 1\n      and e.electorate_frozen_at is not null\n      and v.student_id = p_student_id\n  );\nend;\n$function$\n"
+    },
+    {
+      "name": "resolve_student_organization_participation",
+      "schema": "public",
+      "definition": "CREATE OR REPLACE FUNCTION public.resolve_student_organization_participation(target_student_id integer, target_organization_id integer, target_academic_term_id integer)\n RETURNS TABLE(allowed boolean, status text, source text, reason text)\n LANGUAGE plpgsql\n STABLE\n SET search_path TO 'pg_catalog'\nAS $function$\ndeclare\n  organization_scope text;\n  organization_type_value text;\n  enrollment_status_value text;\n  participation_status text;\n  participation_source text;\nbegin\n  if target_student_id is null or target_student_id <= 0\n    or target_organization_id is null or target_organization_id <= 0\n    or target_academic_term_id is null or target_academic_term_id <= 0 then\n    return query select false, null::text, null::text, 'invalid_request'::text;\n    return;\n  end if;\n\n  select o.membership_scope, o.organization_type into organization_scope, organization_type_value\n  from public.organizations o where o.id = target_organization_id;\n  if not found then\n    return query select false, null::text, null::text, 'organization_not_found'::text;\n    return;\n  end if;\n  if organization_scope is null\n     or organization_scope not in ('program', 'institution', 'manual') then\n    return query select false, null::text, null::text, 'unsupported_membership_scope'::text;\n    return;\n  end if;\n  if organization_type_value is null\n     or organization_type_value not in ('departmental', 'non_departmental')\n     or (organization_scope = 'program' and organization_type_value <> 'departmental')\n     or (organization_scope = 'manual' and organization_type_value <> 'non_departmental') then\n    return query select false, null::text, null::text, 'unsupported_organization_type'::text;\n    return;\n  end if;\n\n  select ste.enrollment_status into enrollment_status_value\n  from public.student_term_enrollments ste\n  where ste.student_id = target_student_id\n    and ste.academic_term_id = target_academic_term_id;\n  if not found or enrollment_status_value <> 'enrolled' then\n    return query select false, null::text, null::text, 'not_enrolled_for_term'::text;\n    return;\n  end if;\n\n  select sot.status, sot.source into participation_status, participation_source\n  from public.student_organization_terms sot\n  where sot.student_id = target_student_id\n    and sot.organization_id = target_organization_id\n    and sot.academic_term_id = target_academic_term_id;\n  if not found then\n    return query select false, null::text, null::text, 'term_participation_missing'::text;\n    return;\n  end if;\n  if participation_status = 'removed' then\n    return query select false, participation_status, participation_source, 'term_participation_removed'::text;\n    return;\n  end if;\n  return query select true, participation_status, participation_source, 'term_participation_active'::text;\nend;\n$function$\n"
+    },
+    {
+      "name": "kandid_guard_removed_election_child_mutation",
+      "schema": "private",
+      "definition": "CREATE OR REPLACE FUNCTION private.kandid_guard_removed_election_child_mutation()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog'\nAS $function$\ndeclare\n  row_data jsonb;\n  previous_data jsonb;\n  target_election_id bigint;\n  target_position_id bigint;\n  target_candidate_id bigint;\n  target_publication_id uuid;\n  removed timestamptz;\n  rows_to_check jsonb[];\n  item jsonb;\nbegin\n  if tg_op = 'INSERT' then\n    rows_to_check := array[to_jsonb(new)];\n  elsif tg_op = 'DELETE' then\n    rows_to_check := array[to_jsonb(old)];\n  else\n    rows_to_check := array[to_jsonb(old), to_jsonb(new)];\n  end if;\n\n  foreach row_data in array rows_to_check loop\n    target_election_id := nullif(row_data ->> 'election_id', '')::bigint;\n    if tg_table_name = 'candidates' then\n      target_position_id := nullif(row_data ->> 'position_id', '')::bigint;\n      select p.election_id into target_election_id\n      from public.positions p where p.id = target_position_id;\n    elsif tg_table_name = 'candidate_media' then\n      target_candidate_id := nullif(row_data ->> 'candidate_id', '')::bigint;\n      select p.election_id into target_election_id\n      from public.candidates c join public.positions p on p.id = c.position_id\n      where c.id = target_candidate_id;\n    elsif tg_table_name = 'election_officer_publication_entries' then\n      target_publication_id := nullif(row_data ->> 'publication_id', '')::uuid;\n      select p.election_id into target_election_id\n      from public.election_officer_publications p where p.id = target_publication_id;\n    end if;\n\n    if target_election_id is not null then\n      removed := null;\n      select e.removed_at into removed\n      from public.elections e where e.id = target_election_id\n      for key share;\n      if removed is not null then\n        raise exception using errcode = '42501', message = 'This election has been removed; related records are read-only.';\n      end if;\n    end if;\n  end loop;\n\n  if tg_op = 'DELETE' then return old; end if;\n  return new;\nend;\n$function$\n"
+    },
+    {
+      "name": "kandid_get_student_ballot_candidates",
+      "schema": "public",
+      "definition": "CREATE OR REPLACE FUNCTION public.kandid_get_student_ballot_candidates(p_election_id integer)\n RETURNS jsonb\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'pg_catalog'\nAS $function$\ndeclare\n  caller_uid uuid := auth.uid();\n  student_count integer;\n  student_id_value integer;\n  active_term_count integer;\n  term_id_value integer;\n  election_row record;\n  participation_allowed boolean := false;\n  manila_now timestamp without time zone;\n  candidate_data jsonb;\nbegin\n  if caller_uid is null or p_election_id is null or p_election_id <= 0 then\n    raise exception using errcode='28000', message='Eligible Student authentication is required.';\n  end if;\n  select pg_catalog.count(*)::integer,pg_catalog.min(s.id)\n    into student_count,student_id_value\n    from public.students s where s.auth_user_id=caller_uid;\n  if student_count<>1 or not exists (\n    select 1 from public.students s where s.id=student_id_value\n      and s.auth_user_id=caller_uid and s.status='active'\n  ) then\n    raise exception using errcode='42501', message='Ballot choices are unavailable.';\n  end if;\n\n  select e.id,e.organization_id,e.academic_term_id,e.electorate_policy_version,\n         e.electorate_frozen_at,e.start_date,e.end_date,e.status::text as election_status\n    into election_row\n  from public.elections e\n  where e.id=p_election_id and e.status='active' and e.removed_at is null;\n  if not found then\n    raise exception using errcode='42501', message='Ballot choices are unavailable.';\n  end if;\n\n  if election_row.start_date is null or election_row.end_date is null then\n    return '[]'::jsonb;\n  end if;\n  manila_now := pg_catalog.timezone('Asia/Manila',pg_catalog.statement_timestamp());\n  if manila_now < election_row.start_date or manila_now >= election_row.end_date then\n    return '[]'::jsonb;\n  end if;\n\n  select pg_catalog.count(*)::integer,pg_catalog.min(t.id)\n    into active_term_count,term_id_value\n  from public.academic_terms t where t.status='active';\n  if active_term_count<>1 then\n    raise exception using errcode='42501', message='Ballot choices are unavailable.';\n  end if;\n  if election_row.academic_term_id is not null\n     and election_row.academic_term_id is distinct from term_id_value then\n    raise exception using errcode='42501', message='Ballot choices are unavailable.';\n  end if;\n\n  if election_row.electorate_policy_version=1 then\n    if election_row.electorate_frozen_at is null\n       or election_row.academic_term_id is null\n       or term_id_value is distinct from election_row.academic_term_id\n       or not exists (\n         select 1 from public.student_term_enrollments ste\n         where ste.student_id=student_id_value\n           and ste.academic_term_id=term_id_value\n           and ste.enrollment_status='enrolled'\n       )\n       or not exists (\n         select 1 from private.election_eligible_voters ev\n         where ev.election_id=p_election_id and ev.student_id=student_id_value\n       ) then\n      raise exception using errcode='42501', message='Ballot choices are unavailable.';\n    end if;\n  elsif election_row.electorate_policy_version<>0 then\n    raise exception using errcode='42501', message='Ballot choices are unavailable.';\n  end if;\n\n  select coalesce(participation.allowed,false) into participation_allowed\n  from public.resolve_student_organization_participation(\n    student_id_value,election_row.organization_id,term_id_value\n  ) participation;\n  if not coalesce(participation_allowed,false) then\n    raise exception using errcode='42501', message='Ballot choices are unavailable.';\n  end if;\n\n  select coalesce(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(\n    'id',c.id,\n    'position_id',c.position_id,\n    'photo',c.photo,\n    'students',pg_catalog.jsonb_build_object('first_name',s.first_name,'last_name',s.last_name,'photo_url',s.photo_url),\n    'partylists',case when pl.id is null then null\n      else pg_catalog.jsonb_build_object('name',pl.name,'logo_url',pl.logo_url) end\n  ) order by p.display_order,p.id,c.id),'[]'::jsonb)\n  into candidate_data\n  from public.positions p\n  join public.candidates c on c.position_id=p.id\n  join public.students s on s.id=c.student_id\n  left join public.partylists pl on pl.id=c.partylist_id\n    and pl.organization_id=election_row.organization_id\n    and (pl.election_id is null or pl.election_id=p_election_id)\n  where p.election_id=p_election_id and p.status='active';\n  return candidate_data;\nend;\n$function$\n"
+    }
+  ],
+  "project_ref": "fszgdxqxonqqcrzsnkca",
+  "reviewed_at": "2026-10-20T03:00:30.925669+08:00"
+}

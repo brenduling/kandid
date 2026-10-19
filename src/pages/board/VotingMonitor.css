@@ -1,0 +1,718 @@
+.kandid-app-theme .board-voting-monitor {
+  --board-voting-ink: var(--kandid-app-ink, #101114);
+  --board-voting-ink-soft: var(--kandid-app-ink-3, #3a3d45);
+  --board-voting-muted: var(--kandid-app-muted, #5b5e66);
+  --board-voting-rule: var(--kandid-app-border, #e5e0d6);
+  --board-voting-rule-strong: var(--kandid-app-border-strong, #d2ccc0);
+  --board-voting-orange: var(--kandid-app-orange, #f4512c);
+  --board-voting-paper: var(--kandid-app-paper, #fff);
+  --board-voting-paper-soft: var(--kandid-app-paper-soft, #f8f6f1);
+
+  gap: clamp(1.15rem, 1.9vw, 1.7rem);
+}
+
+.kandid-app-theme .board-voting-monitor *,
+.kandid-app-theme .board-voting-monitor *::before,
+.kandid-app-theme .board-voting-monitor *::after {
+  box-sizing: border-box;
+}
+
+.kandid-app-theme .board-voting-masthead {
+  display: grid;
+  min-width: 0;
+  gap: 0.5rem;
+  border: 0 !important;
+  border-bottom: 2px solid var(--board-voting-ink) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 0 clamp(1rem, 1.7vw, 1.5rem) !important;
+  box-shadow: none !important;
+}
+
+.kandid-app-theme .board-voting-masthead-context {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.kandid-app-theme .board-voting-eyebrow {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--board-voting-orange);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.kandid-app-theme .board-voting-masthead-rule {
+  flex: 1 1 auto;
+  min-width: 1.5rem;
+  height: 1px;
+  background: var(--board-voting-rule);
+}
+
+.kandid-app-theme .board-voting-baseline {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem 1.5rem;
+}
+
+.kandid-app-theme .board-voting-title {
+  max-width: 48rem;
+}
+
+.kandid-app-theme .board-voting-standfirst {
+  max-width: 44rem;
+  margin: 0;
+  color: var(--board-voting-ink-soft);
+  font-size: 0.94rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.kandid-app-theme .board-voting-refresh {
+  display: inline-flex;
+  min-height: 2.4rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border: 1px solid var(--board-voting-rule-strong);
+  border-radius: 0;
+  background: transparent;
+  padding: 0 0.85rem;
+  color: var(--board-voting-ink-soft);
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.kandid-app-theme .board-voting-refresh:hover:not(:disabled) {
+  border-color: var(--board-voting-ink);
+  color: var(--board-voting-ink);
+}
+
+.kandid-app-theme .board-voting-refresh:focus-visible,
+.kandid-app-theme .board-voting-filter select:focus-visible {
+  outline: 2px solid var(--board-voting-orange);
+  outline-offset: 2px;
+}
+
+.kandid-app-theme .board-voting-refresh:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.kandid-app-theme .board-voting-refresh svg.is-spinning {
+  animation: board-voting-spin 850ms linear infinite;
+}
+
+@keyframes board-voting-spin {
+  to { transform: rotate(360deg); }
+}
+
+.kandid-app-theme .board-voting-context {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 34rem) minmax(15rem, 22rem);
+  align-items: end;
+  justify-content: start;
+  gap: 0.8rem clamp(1.25rem, 3vw, 3.25rem);
+  border-top: 2px solid var(--board-voting-ink);
+  padding-top: 0.7rem;
+}
+
+.kandid-app-theme .board-voting-section-label {
+  margin: 0;
+  color: var(--board-voting-orange);
+  font-size: 0.64rem;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-voting-section-heading h2,
+.kandid-app-theme .board-voting-activity-heading h2 {
+  margin: 0.25rem 0 0 !important;
+  overflow-wrap: anywhere;
+  color: var(--board-voting-ink) !important;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(1.3rem, 1.8vw, 1.7rem) !important;
+  font-weight: 650 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.12 !important;
+}
+
+.kandid-app-theme .board-voting-filter {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  gap: 0.3rem;
+  color: var(--board-voting-muted);
+  font-size: 0.62rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-voting-filter-label-mobile { display: none; }
+
+.kandid-app-theme .board-voting-filter select {
+  width: 100%;
+  min-height: 2.5rem;
+  border: 1px solid var(--board-voting-rule-strong);
+  border-radius: 0 !important;
+  background: var(--board-voting-paper);
+  padding: 0 0.7rem;
+  color: var(--board-voting-ink);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.kandid-app-theme .board-voting-summary {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(10rem, 0.85fr) minmax(10rem, 0.75fr) minmax(0, 2.5fr);
+  border-top: 1px solid var(--board-voting-rule-strong);
+  border-bottom: 1px solid var(--board-voting-rule-strong);
+}
+
+.kandid-app-theme .board-voting-metric {
+  display: grid;
+  min-width: 0;
+  gap: 0.35rem;
+  padding: 0.65rem 0.9rem;
+}
+
+.kandid-app-theme .board-voting-metric-primary,
+.kandid-app-theme .board-voting-metric-context {
+  border-right: 1px solid var(--board-voting-rule);
+}
+
+.kandid-app-theme .board-voting-metric-primary { padding-left: 0; }
+.kandid-app-theme .board-voting-anchor-metrics {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-left: 1px solid var(--board-voting-rule-strong);
+}
+
+.kandid-app-theme .board-voting-anchor-metrics .board-voting-metric {
+  border-right: 1px solid var(--board-voting-rule);
+}
+
+.kandid-app-theme .board-voting-anchor-metrics .board-voting-metric:first-child { padding-left: 1rem; }
+.kandid-app-theme .board-voting-anchor-metrics .board-voting-metric:last-child {
+  border-right: 0;
+  padding-right: 0;
+}
+
+.kandid-app-theme .board-voting-metric > span {
+  color: var(--board-voting-muted);
+  font-size: 0.61rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-voting-metric strong {
+  color: var(--board-voting-ink);
+  font-size: clamp(1.3rem, 2vw, 1.65rem);
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.kandid-app-theme .board-voting-metric.is-anchored strong { color: #356b45; }
+.kandid-app-theme .board-voting-metric.is-processing strong { color: #8b5b16; }
+.kandid-app-theme .board-voting-metric.is-attention strong { color: #a83224; }
+
+.kandid-app-theme .board-voting-activity {
+  min-width: 0;
+  border-top: 2px solid var(--board-voting-ink);
+}
+
+.kandid-app-theme .board-voting-activity-heading {
+  display: flex;
+  min-width: 0;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--board-voting-rule-strong);
+  padding: 0.7rem 0 0.65rem;
+}
+
+.kandid-app-theme .board-voting-record-count {
+  flex: 0 0 auto;
+  color: var(--board-voting-muted);
+  font-size: 0.64rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-voting-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.kandid-app-theme .board-voting-record {
+  display: grid;
+  grid-template-columns: 2rem minmax(12rem, 1.35fr) minmax(11rem, 1.1fr) minmax(12rem, 1fr) minmax(8.5rem, auto);
+  align-items: center;
+  gap: 0.75rem 1rem;
+  border-bottom: 1px solid var(--board-voting-rule);
+  padding: 0.7rem 0;
+}
+
+.kandid-app-theme .board-voting-index {
+  align-self: start;
+  padding-top: 0.15rem;
+  color: var(--board-voting-muted);
+  font-size: 0.66rem;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+}
+
+.kandid-app-theme .board-voting-voter,
+.kandid-app-theme .board-voting-record-details,
+.kandid-app-theme .board-voting-election,
+.kandid-app-theme .board-voting-submitted,
+.kandid-app-theme .board-voting-anchor {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+}
+
+.kandid-app-theme .board-voting-record-details { display: contents; }
+
+.kandid-app-theme .board-voting-details-separator { display: none; }
+
+.kandid-app-theme .board-voting-voter strong,
+.kandid-app-theme .board-voting-submitted time {
+  overflow-wrap: anywhere;
+  color: var(--board-voting-ink);
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.kandid-app-theme .board-voting-voter strong {
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 0.98rem;
+  font-weight: 650;
+}
+
+.kandid-app-theme .board-voting-election strong {
+  overflow-wrap: anywhere;
+  color: var(--board-voting-ink);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.kandid-app-theme .board-voting-voter > span {
+  color: var(--board-voting-muted);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+}
+
+.kandid-app-theme .board-voting-field-label {
+  color: var(--board-voting-muted);
+  font-size: 0.57rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-voting-submitted time {
+  font-variant-numeric: tabular-nums;
+}
+
+.kandid-app-theme .board-voting-anchor {
+  justify-items: start;
+}
+
+.kandid-app-theme .board-voting-anchor-value {
+  display: inline-flex;
+  min-height: 1.4rem;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--board-voting-ink-soft);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.kandid-app-theme .board-voting-anchor-marker {
+  width: 0.48rem;
+  height: 0.48rem;
+  flex: 0 0 auto;
+  border: 1px solid currentColor;
+  background: transparent;
+}
+
+.kandid-app-theme .board-voting-anchor.is-processing .board-voting-anchor-value { color: #8b5b16; }
+.kandid-app-theme .board-voting-anchor.is-processing .board-voting-anchor-marker { background: #d9a64a; }
+.kandid-app-theme .board-voting-anchor.is-anchored .board-voting-anchor-value { color: #356b45; }
+.kandid-app-theme .board-voting-anchor.is-anchored .board-voting-anchor-marker { background: #4c895b; }
+.kandid-app-theme .board-voting-anchor.is-attention .board-voting-anchor-value { color: #a83224; }
+.kandid-app-theme .board-voting-anchor.is-attention .board-voting-anchor-marker { background: #bd4a3b; }
+
+.kandid-app-theme .board-voting-state {
+  margin: 0;
+  border-bottom: 1px solid var(--board-voting-rule);
+  padding: 1rem 0;
+  color: var(--board-voting-muted);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.kandid-app-theme .board-voting-state.is-error { color: #a83224; }
+
+.kandid-app-theme .board-voting-load-more {
+  display: inline-flex;
+  min-height: 2.35rem;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.75rem;
+  border: 1px solid var(--board-voting-rule-strong);
+  border-radius: 0;
+  background: transparent;
+  padding: 0 0.85rem;
+  color: var(--board-voting-ink-soft);
+  font: inherit;
+  font-size: 0.67rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.kandid-app-theme .board-voting-load-more:hover:not(:disabled) {
+  border-color: var(--board-voting-ink);
+  color: var(--board-voting-ink);
+}
+
+.kandid-app-theme .board-voting-load-more:focus-visible {
+  outline: 2px solid var(--board-voting-orange);
+  outline-offset: 2px;
+}
+
+.kandid-app-theme .board-voting-load-more:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+@media (max-width: 980px) {
+  .kandid-app-theme .board-voting-record {
+    grid-template-columns: 1.7rem minmax(10rem, 1.3fr) minmax(10rem, 1fr) minmax(10rem, 1fr) minmax(7.5rem, auto);
+    gap: 0.65rem 0.7rem;
+  }
+
+  .kandid-app-theme .board-voting-metric { padding-inline: 0.6rem; }
+}
+
+@media (max-width: 760px) {
+  .kandid-app-theme .board-voting-monitor { gap: 1.05rem; }
+
+  .kandid-app-theme .board-voting-baseline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.55rem;
+  }
+
+  .kandid-app-theme .board-voting-title {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .kandid-app-theme .board-voting-refresh {
+    min-height: 2rem;
+    flex: 0 0 auto;
+    gap: 0.3rem;
+    border: 0;
+    border-bottom: 1px solid var(--board-voting-rule-strong);
+    padding: 0 0.15rem;
+    font-size: 0.59rem;
+    letter-spacing: 0.07em;
+  }
+
+  .kandid-app-theme .board-voting-context {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 0.3rem;
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  .kandid-app-theme .board-voting-section-heading { display: none; }
+  .kandid-app-theme .board-voting-filter { width: 100%; gap: 0.35rem; }
+  .kandid-app-theme .board-voting-filter-label-desktop { display: none; }
+  .kandid-app-theme .board-voting-filter-label-mobile { display: block; }
+  .kandid-app-theme .board-voting-filter select { min-height: 2.35rem; }
+
+  .kandid-app-theme .board-voting-summary {
+    grid-template-columns: max-content max-content;
+    justify-content: start;
+    gap: 0.45rem 0.55rem;
+    border: 0;
+  }
+
+  .kandid-app-theme .board-voting-metric-primary,
+  .kandid-app-theme .board-voting-metric-context {
+    display: flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    border: 0;
+    padding: 0;
+  }
+
+  .kandid-app-theme .board-voting-metric-primary strong,
+  .kandid-app-theme .board-voting-metric-context strong {
+    order: -1;
+    font-size: 1.25rem;
+  }
+
+  .kandid-app-theme .board-voting-metric-primary > span,
+  .kandid-app-theme .board-voting-metric-context > span {
+    color: var(--board-voting-ink-soft);
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .kandid-app-theme .board-voting-metric-context::before {
+    content: "·";
+    margin-right: 0.1rem;
+    color: var(--board-voting-muted);
+  }
+
+  .kandid-app-theme .board-voting-anchor-metrics {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.3rem 0.55rem;
+    border-top: 1px solid var(--board-voting-rule);
+    border-left: 0;
+    padding-top: 0.45rem;
+  }
+
+  .kandid-app-theme .board-voting-anchor-metrics .board-voting-metric,
+  .kandid-app-theme .board-voting-anchor-metrics .board-voting-metric:first-child,
+  .kandid-app-theme .board-voting-anchor-metrics .board-voting-metric:last-child {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.2rem;
+    border: 0;
+    padding: 0;
+  }
+
+  .kandid-app-theme .board-voting-anchor-metrics .board-voting-metric:not(:last-child)::after {
+    content: "·";
+    margin-left: 0.35rem;
+    color: var(--board-voting-muted);
+  }
+
+  .kandid-app-theme .board-voting-anchor-metrics .board-voting-metric > span {
+    color: var(--board-voting-muted);
+    font-size: 0.67rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .kandid-app-theme .board-voting-anchor-metrics .board-voting-metric strong {
+    order: -1;
+    font-size: 0.78rem;
+  }
+
+  .kandid-app-theme .board-voting-activity { border-top-width: 1px; }
+
+  .kandid-app-theme .board-voting-activity-heading {
+    align-items: baseline;
+    gap: 0.5rem;
+    border-bottom: 0;
+    padding: 0.55rem 0 0.3rem;
+  }
+
+  .kandid-app-theme .board-voting-record-count {
+    font-size: 0.54rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: none;
+  }
+
+  .kandid-app-theme .board-voting-record {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 0.32rem;
+    padding: 0.7rem 0;
+  }
+
+  .kandid-app-theme .board-voting-index { display: none; }
+
+  .kandid-app-theme .board-voting-voter {
+    display: flex;
+    grid-column: 1;
+    align-items: baseline;
+    gap: 0.55rem;
+  }
+
+  .kandid-app-theme .board-voting-voter strong {
+    font-size: 1rem;
+  }
+
+  .kandid-app-theme .board-voting-record-details {
+    display: flex;
+    grid-column: 1;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.2rem 0.4rem;
+  }
+
+  .kandid-app-theme .board-voting-record-details .board-voting-election,
+  .kandid-app-theme .board-voting-record-details .board-voting-submitted {
+    display: contents;
+  }
+
+  .kandid-app-theme .board-voting-record-details .board-voting-field-label,
+  .kandid-app-theme .board-voting-anchor-label { display: none; }
+
+  .kandid-app-theme .board-voting-details-separator {
+    display: inline;
+    color: var(--board-voting-muted);
+    font-size: 0.75rem;
+  }
+
+  .kandid-app-theme .board-voting-election strong {
+    font-size: 0.75rem;
+    font-weight: 750;
+  }
+
+  .kandid-app-theme .board-voting-submitted time {
+    color: var(--board-voting-muted);
+    font-size: 0.72rem;
+  }
+
+  .kandid-app-theme .board-voting-anchor {
+    grid-column: 1;
+    justify-items: start;
+    padding-top: 0.05rem;
+  }
+
+  .kandid-app-theme .board-voting-anchor-value {
+    min-height: 1.1rem;
+    font-size: 0.7rem;
+  }
+
+}
+
+@media (max-width: 430px) {
+  .kandid-app-theme .board-voting-monitor { gap: 1.1rem; }
+  .kandid-app-theme .board-voting-title { font-size: 2.1rem !important; }
+  .kandid-app-theme .board-voting-standfirst { font-size: 0.86rem; }
+  .kandid-app-theme .board-voting-metric strong { font-size: 1.3rem; }
+  .kandid-app-theme .board-voting-anchor-value { font-size: 0.66rem; }
+  .kandid-app-theme .board-voting-voter strong,
+  .kandid-app-theme .board-voting-election strong,
+  .kandid-app-theme .board-voting-submitted time { font-size: 0.78rem; }
+}
+
+.kandid-app-theme .board-voting-summary-skeleton {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  width: 100%;
+  border-block: 1px solid var(--kandid-app-border-strong);
+}
+
+.kandid-app-theme .board-voting-summary-skeleton span {
+  min-height: 4.5rem;
+  border-left: 1px solid var(--kandid-app-border);
+  background: #e9e4da;
+  animation: board-voting-skeleton 1.5s ease-in-out infinite alternate;
+}
+
+.kandid-app-theme .board-voting-summary-skeleton span:first-child { border-left: 0; }
+
+.kandid-app-theme .board-voting-summary-unavailable {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--kandid-app-muted);
+  font-size: 0.78rem;
+}
+
+.kandid-app-theme .board-voting-skeleton {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.kandid-app-theme .board-voting-skeleton-row {
+  display: grid;
+  grid-template-columns: 2rem minmax(10rem, 0.8fr) minmax(12rem, 1.3fr) 7rem;
+  align-items: center;
+  gap: 1rem;
+  border-bottom: 1px solid var(--kandid-app-border);
+  padding: 1rem 0;
+}
+
+.kandid-app-theme .board-voting-skeleton-bar {
+  display: block;
+  height: 0.65rem;
+  background: #e9e4da;
+  animation: board-voting-skeleton 1.5s ease-in-out infinite alternate;
+}
+
+.kandid-app-theme .board-voting-skeleton-bar.is-index { width: 1.2rem; }
+.kandid-app-theme .board-voting-skeleton-bar.is-name { width: min(13rem, 92%); }
+.kandid-app-theme .board-voting-skeleton-bar.is-details { width: min(19rem, 92%); }
+.kandid-app-theme .board-voting-skeleton-bar.is-status { width: 5.5rem; }
+
+@keyframes board-voting-skeleton {
+  to { opacity: 0.55; }
+}
+
+@media (max-width: 640px) {
+  .kandid-app-theme .board-voting-summary-skeleton { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kandid-app-theme .board-voting-summary-skeleton span:nth-child(odd) { border-left: 0; }
+  .kandid-app-theme .board-voting-summary-skeleton span:nth-child(n + 3) { border-top: 1px solid var(--kandid-app-border); }
+  .kandid-app-theme .board-voting-skeleton-row {
+    grid-template-columns: 1.5rem minmax(0, 1fr);
+    gap: 0.5rem 0.8rem;
+  }
+  .kandid-app-theme .board-voting-skeleton-bar.is-details,
+  .kandid-app-theme .board-voting-skeleton-bar.is-status { grid-column: 2; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kandid-app-theme .board-voting-summary-skeleton span,
+  .kandid-app-theme .board-voting-skeleton-bar {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+}

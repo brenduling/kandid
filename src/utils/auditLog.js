@@ -1,6 +1,5 @@
 import { supabase } from "../lib/supabaseClient";
 import { getStoredUser } from "./auth";
-import { fetchAuthoritativeNow } from "./elections";
 import { formatRelativeTime, parseUtcTimestamp } from "./time";
 
 const ACTION_LABELS = {
@@ -85,10 +84,10 @@ export function normalizeAuditRecord(record = {}) {
   const createdAt = normalizeAuditTimestamp(record.created_at || record.timestamp);
   return {
     id: record.id,
-    action: record.action || "activity",
-    event: humanizeAction(record.action),
-    actor: record.actor_name || record.user_id || "System",
-    actorRole: record.actor_role || "System",
+    action: record.action || record.event_type || "activity",
+    event: humanizeAction(record.action || record.event_type),
+    actor: record.actor_name || "Legacy administrator",
+    actorRole: record.actor_role || "Unknown",
     entityType: record.entity_type || "",
     entityId: record.entity_id || "",
     entityLabel: record.entity_label || "",
@@ -100,7 +99,11 @@ export function normalizeAuditRecord(record = {}) {
     status: inferAuditStatus(record.action, record.status),
     createdAt,
     time: relativeTime(createdAt),
-    metadata: record.metadata || {},
+    metadata: record.safe_details || {},
+    changedFields: Array.isArray(record.changed_fields) ? record.changed_fields : [],
+    category: record.category || "system",
+    electionId: record.election_id || null,
+    isLegacy: Boolean(record.is_legacy),
   };
 }
 
@@ -115,75 +118,71 @@ export async function logAuditEvent({
   metadata = {},
   user = getStoredUser(),
 } = {}) {
-  if (!action) return { error: null };
-
-  const safeMetadata = { ...metadata };
-  delete safeMetadata.password;
-  delete safeMetadata.token;
-  delete safeMetadata.access_token;
-  delete safeMetadata.refresh_token;
-  delete safeMetadata.ballot;
-  delete safeMetadata.selections;
-  delete safeMetadata.selectedCandidates;
-
-  const serverNow = await fetchAuthoritativeNow();
-  const authoritativeTimestamp = serverNow.toISOString();
-
-  const legacyPayload = {
-    user_id: user?.id || null,
-    action: humanizeAction(action),
-    timestamp: authoritativeTimestamp,
-  };
-
-  const { error } = await supabase.from("audit_logs").insert([legacyPayload]);
-  if (!error) {
-    window.dispatchEvent(new CustomEvent("kandid-audit-updated"));
-    return { error: null };
-  }
-
-  console.warn("Audit event was not recorded:", error);
-  return { error };
+  // Compatibility shim for old call sites during local migration rollout.
+  // Browser code is never an audit writer; DB triggers and authenticated
+  // Edge/server boundaries now record the actual operation.
+  void action;
+  void entityType;
+  void entityId;
+  void entityLabel;
+  void organizationId;
+  void organizationName;
+  void status;
+  void metadata;
+  void user;
+  window.dispatchEvent(new CustomEvent("kandid-audit-updated"));
+  return { error: null, skipped: true };
 }
 
 export async function fetchAuditLogs({
   limit = 5,
-  from = 0,
-  to,
+  cursor = null,
   organizationId,
   search,
   action,
   entityType,
   status,
+  category,
+  electionId,
+  date,
 } = {}) {
-  const end = to ?? from + limit - 1;
-  let query = supabase
-    .from("audit_logs")
-    .select("id, user_id, action, timestamp")
-    .order("timestamp", { ascending: false })
-    .range(from, end);
+  const storedUser = getStoredUser();
+  const isBoard = storedUser?.role === "electoral_board";
+  const isSuperAdmin = storedUser?.role === "super_admin";
+  if (!isBoard && !isSuperAdmin) {
+    return { data: [], error: new Error("Audit history is unavailable for this account."), hasMore: false, nextCursor: null };
+  }
 
-  if (action) query = query.ilike("action", `%${action}%`);
+  const args = {
+    p_before_created_at: cursor?.created_at || null,
+    p_before_id: cursor?.id || null,
+    p_page_size: limit,
+    p_category: category || null,
+    p_event_type: action || null,
+    p_election_id: electionId || null,
+    p_search: search || null,
+  };
+  const { data, error } = isBoard
+    ? await supabase.rpc("kandid_list_board_audit_events", args)
+    : await supabase.rpc("kandid_list_super_admin_audit_events", {
+      ...args,
+      p_organization_id: organizationId || null,
+      p_entity_type: entityType || null,
+      p_status: status || null,
+      p_created_on: date || null,
+    });
+  if (error) return { data: [], error, hasMore: false, nextCursor: null };
 
-  const { data, error } = await query;
-
-  const normalizedSearch = String(search || "").trim().toLowerCase();
-  const filtered = (data || []).filter((record) => {
-    const normalized = normalizeAuditRecord(record);
-    const matchesSearch =
-      !normalizedSearch ||
-      [normalized.event, normalized.actor, normalized.action]
-        .join(" ")
-        .toLowerCase()
-        .includes(normalizedSearch);
-    const matchesEntityType = !entityType || normalized.entityType === entityType;
-    const matchesStatus = !status || normalized.status === status;
-    const matchesOrganization =
-      !organizationId || Number(normalized.organizationId) === Number(organizationId);
-    return matchesSearch && matchesEntityType && matchesStatus && matchesOrganization;
-  });
-
+  let events = (data?.events || []).map(normalizeAuditRecord);
+  // Compatibility filters for the existing Super Admin surface. These are
+  // presentation filters only; authorization and tenant scope are enforced by
+  // the database RPC before rows reach the browser.
+  if (entityType) events = events.filter((event) => event.entityType === entityType);
+  if (status) events = events.filter((event) => event.status === status);
   return {
-    data: filtered.map(normalizeAuditRecord),
-    error,
+    data: events,
+    error: null,
+    hasMore: Boolean(data?.has_more),
+    nextCursor: data?.next_cursor || null,
   };
 }

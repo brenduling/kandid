@@ -1,0 +1,2673 @@
+/* --- Board Elections list -------------------------------------------------
+   A compact operational election register.
+
+   Presentation only. Election queries, organization scoping, the phase and
+   status logic, schedule formatting and every action and route are unchanged.
+   The register reads as a printed roster rather than an image gallery: the
+   election title leads, the cover is a small supporting thumbnail, and the
+   phase is carried by a square marker and tracked text instead of a pill.
+
+   This file loads after src/index.css, so page rules here win ties against the
+   older .board-elections-* declarations without editing that accumulated file. */
+
+.kandid-app-theme .board-elections-desktop {
+  display: grid;
+  min-width: 0;
+  gap: clamp(1.15rem, 1.9vw, 1.7rem);
+
+  /* ELECTION | CAMPAIGN | VOTING | PHASE | ACTIONS. Campaign and voting are
+     separate columns so each schedule is read on its own instead of stacked.
+
+     This is the single shared template for the register header and every row, so
+     the two cannot drift. It must contain no content-dependent track: an `auto`
+     or max-content track is resolved independently by each grid container, so
+     the header sized ACTIONS to the word "Actions" while a row sized it to the
+     button group, and every fr track before it came out a different width in the
+     two rows of the register. All five tracks are fr with a zero minimum, so both
+     containers resolve identical widths from the same available space. */
+  --board-elections-gap: clamp(0.9rem, 1.5vw, 1.4rem);
+  --board-elections-columns: minmax(0, 1.45fr) minmax(0, 0.8fr) minmax(0, 0.8fr) minmax(6.5rem, 0.55fr) minmax(0, 0.95fr);
+}
+
+/* --- masthead: the established Board page header ---------------------------
+   The former .board-elections-opening container, its peach "Election Setup"
+   capsule and its repeating gradient graphic are not used any more, so none of
+   their legacy rules apply to this header. */
+
+.kandid-app-theme .board-elections-masthead {
+  display: grid;
+  min-width: 0;
+  gap: 0.5rem;
+  border: 0 !important;
+  border-bottom: 2px solid var(--kandid-app-ink) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 0 clamp(1rem, 1.7vw, 1.5rem) !important;
+  box-shadow: none !important;
+}
+
+.kandid-app-theme .board-elections-context {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.kandid-app-theme .board-elections-eyebrow {
+  flex: 0 0 auto;
+  max-width: 100%;
+  overflow: hidden;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  color: var(--kandid-app-orange) !important;
+  font-size: 0.68rem !important;
+  font-weight: 850 !important;
+  letter-spacing: 0.14em !important;
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.kandid-app-theme .board-elections-context-rule {
+  flex: 1 1 auto;
+  min-width: 1.5rem;
+  height: 1px;
+  background: var(--kandid-app-border);
+}
+
+/* The title itself inherits the shared Board page-title rule
+   (.kandid-app-theme.board-theme .page-title), so "Elections" is set in the
+   same Source Serif 4, weight 700, sentence-case scale as "Election
+   operations" and "Students". Only the measure is declared here. */
+.kandid-app-theme .board-elections-title {
+  max-width: 48rem;
+}
+
+.kandid-app-theme .board-elections-baseline {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem 1.5rem;
+}
+
+.kandid-app-theme .board-elections-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.kandid-app-theme .board-elections-header-actions > button {
+  position: static;
+  max-width: 100%;
+  white-space: normal;
+}
+
+.kandid-app-theme .board-elections-standfirst {
+  max-width: 44rem;
+  margin: 0;
+  color: var(--kandid-app-ink-3);
+  font-size: 0.94rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+/* Create Election: the one orange action on the page. */
+.kandid-app-theme .board-elections-create {
+  display: inline-flex;
+  min-height: 2.45rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: 1px solid var(--kandid-app-orange) !important;
+  border-radius: 0 !important;
+  padding: 0 1.05rem !important;
+  background: var(--kandid-app-orange) !important;
+  color: #ffffff !important;
+  font-family: inherit;
+  font-size: 0.71rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.kandid-app-theme .board-elections-create:hover {
+  border-color: #d93f1d !important;
+  background: #d93f1d !important;
+}
+
+.kandid-app-theme .board-elections-create:focus-visible {
+  outline: 2px solid var(--kandid-app-orange);
+  outline-offset: 2px;
+}
+
+/* --- summary rail ------------------------------------------------------------
+   Full-width editorial metrics use one equal column per visible lifecycle phase,
+   plus the always-present filtered total. The phase counts share the same
+   getElectionPhase result as each register row.
+
+   Each metric is one equal column divided by a hairline rule and carries no box
+   of its own. The single 2px top rule and 1px bottom rule are shared by the
+   whole strip, which keeps the metrics reading as one ruled line instead of
+   separate cards. Values sit above their labels, and the total is set
+   larger and in ink so the hierarchy is number first. */
+
+/* index.css:8920 still declares a two-column
+   `minmax(14rem, 0.8fr) minmax(0, 1.4fr)` template on this element for the old
+   summary. Without an explicit override the single <dl> below lands in column
+   one and roughly a third of the rail is left as dead space, so the template is
+   restated here as a single full-width column. Equal metric columns are set on
+   .board-elections-snapshot from the number of visible lifecycle phases. */
+.kandid-app-theme .board-elections-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  border: 0 !important;
+  border-top: 2px solid var(--kandid-app-ink) !important;
+  border-bottom: 1px solid var(--kandid-app-border) !important;
+  background: transparent;
+}
+
+.kandid-app-theme .board-elections-snapshot {
+  display: grid;
+  grid-template-columns: repeat(var(--board-elections-summary-columns, 4), minmax(0, 1fr));
+  min-width: 0;
+  margin: 0;
+}
+
+/* One metric column: no border box, only the divider on its leading edge. */
+.kandid-app-theme .board-elections-snapshot-total,
+.kandid-app-theme .board-elections-snapshot-state {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 0.28rem;
+  border-left: 1px solid var(--kandid-app-border);
+  padding: 0.8rem clamp(0.75rem, 1.6vw, 1.5rem);
+}
+
+/* The first column sits on the page's left edge, with no leading divider. */
+.kandid-app-theme .board-elections-snapshot > :first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+
+.kandid-app-theme .board-elections-snapshot-total dd {
+  margin: 0;
+  color: var(--kandid-app-ink);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(1.5rem, 1.9vw, 1.85rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.kandid-app-theme .board-elections-snapshot-state dd {
+  margin: 0;
+  color: var(--kandid-app-ink-3);
+  font-size: clamp(1.25rem, 1.55vw, 1.5rem);
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.kandid-app-theme .board-elections-snapshot-total dd[data-unavailable="true"] {
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.kandid-app-theme .board-elections-snapshot-total dt,
+.kandid-app-theme .board-elections-snapshot-state dt {
+  color: var(--kandid-app-muted);
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.13em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+/* Phase accents follow the existing row phase treatment. */
+.kandid-app-theme .board-elections-snapshot-state[data-phase="voting"] dd {
+  color: var(--kandid-app-orange);
+}
+
+.kandid-app-theme .board-elections-snapshot-state[data-phase="campaign"] dd {
+  color: #047857;
+}
+
+.kandid-app-theme .board-elections-snapshot-state[data-phase="closed"] dd,
+.kandid-app-theme .board-elections-snapshot-state[data-phase="archived"] dd,
+.kandid-app-theme .board-elections-snapshot-state[data-phase="draft"] dd {
+  color: var(--kandid-app-muted);
+}
+
+/* --- register --------------------------------------------------------------- */
+
+.kandid-app-theme .board-elections-register {
+  display: grid;
+  min-width: 0;
+  gap: 0;
+  border: 0 !important;
+  border-bottom: 1px solid var(--kandid-app-border);
+  padding-bottom: 0.35rem;
+}
+
+.kandid-app-theme .board-elections-register-head {
+  display: flex;
+  min-width: 0;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 0 0.8rem;
+}
+
+.kandid-app-theme .board-elections-section-kicker {
+  margin: 0;
+  color: var(--kandid-app-orange) !important;
+  font-size: 0.66rem !important;
+  font-weight: 850 !important;
+  letter-spacing: 0.14em !important;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-elections-register-head h2 {
+  margin: 0.25rem 0 0 !important;
+  color: var(--kandid-app-ink) !important;
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+  font-size: clamp(1.35rem, 1.9vw, 1.95rem) !important;
+  font-weight: 850 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.08;
+}
+
+.kandid-app-theme .board-elections-register-count {
+  color: var(--kandid-app-muted);
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  line-height: 1.25;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.kandid-app-theme .board-elections-register-count strong {
+  color: var(--kandid-app-ink);
+  font-weight: 850;
+}
+
+/* Column relationship, expressed as a hairline head only. */
+.kandid-app-theme .board-elections-register-columns {
+  display: grid;
+  grid-template-columns: var(--board-elections-columns);
+  gap: var(--board-elections-gap);
+  align-items: end;
+  border-bottom: 2px solid var(--kandid-app-ink);
+  padding: 0.15rem 0 0.55rem;
+}
+
+/* Each heading is set to the same edge as the content in its own track:
+   left for identity, campaign, voting and phase; the actions heading is
+   right-aligned by the rule below. */
+.kandid-app-theme .board-elections-register-columns span {
+  color: var(--kandid-app-muted);
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  line-height: 1.2;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+/* The action group below is justify-content: flex-end, so this heading takes the
+   same right edge of the same track. */
+.kandid-app-theme .board-elections-head-actions {
+  text-align: right;
+}
+
+.kandid-app-theme .board-elections-list {
+  display: grid;
+  min-width: 0;
+}
+
+.kandid-app-theme .board-election-record {
+  display: grid;
+  grid-template-columns: var(--board-elections-columns);
+  gap: var(--board-elections-gap);
+  align-items: start;
+  min-width: 0;
+  border-bottom: 1px solid var(--kandid-app-border);
+  background: var(--kandid-app-paper);
+  padding: 0.85rem 0;
+  transition: background-color 140ms ease;
+}
+
+/* These grouping wrappers are layout-neutral on the desktop register. Mobile
+   turns them into the identity and schedule subgrids without changing data. */
+.kandid-app-theme .board-election-mobile-head,
+.kandid-app-theme .board-election-mobile-utility-row,
+.kandid-app-theme .board-election-schedules {
+  display: contents;
+}
+
+.kandid-app-theme .board-election-schedule-disclosure {
+  display: none;
+}
+
+.kandid-app-theme .board-election-record:hover {
+  background: rgba(255, 244, 237, 0.5);
+}
+
+.kandid-app-theme .board-election-record:last-child {
+  border-bottom: 0;
+}
+
+/* --- identity: index, supporting cover, title ------------------------------- */
+
+.kandid-app-theme .board-election-identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.kandid-app-theme .board-election-index {
+  flex: 0 0 1.9rem;
+  min-width: 1.9rem;
+  color: var(--kandid-app-muted);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  text-align: right;
+}
+
+/* A small supporting thumbnail, not the record's primary identifier. A fixed
+   square keeps the row height stable while the image loads, and an empty cell
+   (no cover, or one that failed to load) is simply ruled space. */
+.kandid-app-theme .board-election-cover {
+  display: block;
+  flex: 0 0 auto;
+  width: 3.25rem;
+  height: 3.25rem;
+  overflow: hidden;
+  border: 1px solid var(--kandid-app-border);
+  border-radius: 0;
+  background: var(--kandid-app-paper-soft);
+}
+
+.kandid-app-theme .board-election-cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.kandid-app-theme .board-election-cover.is-empty {
+  border-style: dashed;
+  border-color: var(--kandid-app-border);
+  background: transparent;
+}
+
+.kandid-app-theme .board-election-identity-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.15rem;
+}
+
+.kandid-app-theme .board-election-identity-copy h3 {
+  margin: 0 !important;
+  overflow-wrap: anywhere;
+  color: var(--kandid-app-ink) !important;
+  font-size: 0.98rem !important;
+  font-weight: 850 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.25;
+}
+
+.kandid-app-theme .board-election-config-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  color: var(--kandid-app-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.kandid-app-theme .board-election-config-divider {
+  width: 0.25rem;
+  height: 0.25rem;
+  flex: 0 0 auto;
+  background: var(--kandid-app-border-strong);
+}
+
+/* --- schedule windows -------------------------------------------------------
+   Campaign and voting are separate register columns, so each window is its own
+   definition list: a date line and a time line, with no box around either. The
+   in-row dt is hidden here because the CAMPAIGN / VOTING column headings already
+   name these columns; the mobile block restores it once the headings are gone. */
+
+.kandid-app-theme .board-election-window {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 0.12rem;
+  margin: 0;
+}
+
+.kandid-app-theme .board-election-window dt {
+  display: none;
+  margin: 0;
+  color: var(--kandid-app-muted);
+  font-size: 0.63rem;
+  font-weight: 850;
+  letter-spacing: 0.13em;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-election-window dd {
+  display: grid;
+  min-width: 0;
+  gap: 0.08rem;
+  margin: 0;
+}
+
+.kandid-app-theme .board-election-when {
+  display: grid;
+  min-width: 0;
+  gap: 0.08rem;
+}
+
+.kandid-app-theme .board-election-when-date {
+  overflow-wrap: anywhere;
+  color: var(--kandid-app-ink);
+  font-size: 0.83rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.005em;
+  line-height: 1.3;
+}
+
+.kandid-app-theme .board-election-when-time {
+  overflow-wrap: anywhere;
+  color: var(--kandid-app-ink-3);
+  font-size: 0.79rem;
+  font-weight: 620;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+}
+
+/* --- phase --------------------------------------------------------------------
+   The value shown is the phase getElectionPhase() actually returned, with
+   underscores replaced by spaces for reading. No phase or status is invented,
+   merged or renamed, and the raw value stays on the title attribute. */
+
+.kandid-app-theme .board-election-standing {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+}
+
+.kandid-app-theme .board-election-phase {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--kandid-app-ink-3);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-election-phase::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 0.45rem;
+  height: 0.45rem;
+  background: currentColor;
+}
+
+/* Only the two live phases earn colour; everything else stays typographic. */
+.kandid-app-theme .board-election-record[data-phase="voting"] .board-election-phase {
+  color: var(--kandid-app-orange);
+}
+
+.kandid-app-theme .board-election-record[data-phase="campaign"] .board-election-phase {
+  color: #047857;
+}
+
+.kandid-app-theme .board-election-record[data-phase="closed"] .board-election-phase,
+.kandid-app-theme .board-election-record[data-phase="archived"] .board-election-phase,
+.kandid-app-theme .board-election-record[data-phase="draft"] .board-election-phase {
+  color: var(--kandid-app-muted);
+}
+
+/* --- actions --------------------------------------------------------------------
+   All three existing actions stay on the row. Nothing is moved into an overflow
+   menu: Manage Setup remains the obvious primary action and both row actions
+   keep their original aria-labels. */
+
+.kandid-app-theme .board-election-record-actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.kandid-app-theme .board-election-action {
+  display: inline-flex;
+  min-height: 2.35rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--kandid-app-border-strong) !important;
+  border-radius: 0 !important;
+  padding: 0 0.7rem;
+  background: var(--kandid-app-paper);
+  color: var(--kandid-app-ink) !important;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+/* MANAGE is a secondary editorial text action, not a button.
+
+   It was a solid black button, and one of those repeated down every row made the
+   Actions column outweigh the election name and compete with the page's
+   Create Election CTA. It is now tracked uppercase text with a short rule under
+   it, which keeps the action discoverable and clickable while letting the title
+   and the orange Create Election button lead.
+
+   The 1px border is kept but made transparent rather than removed, so the
+   button's box is exactly the size it was. That is what keeps MANAGE, the Edit
+   icon and the Delete icon on one baseline as a single compact group. The rule
+   is a pseudo-element so the hover state can change its colour and weight
+   without resizing the control. */
+.kandid-app-theme .board-election-action.is-manage {
+  position: relative;
+  gap: 0.3rem;
+  border-color: transparent !important;
+  background: transparent !important;
+  padding: 0 0.25rem;
+  color: var(--kandid-app-ink) !important;
+}
+
+.kandid-app-theme .board-election-action.is-manage::after {
+  content: "";
+  position: absolute;
+  right: 0.25rem;
+  bottom: 0.5rem;
+  left: 0.25rem;
+  height: 1px;
+  background: var(--kandid-app-border-strong);
+  transform-origin: left center;
+  transition: background-color 140ms ease, transform 140ms ease;
+}
+
+.kandid-app-theme .board-election-action.is-manage:hover {
+  color: var(--kandid-app-ink) !important;
+}
+
+.kandid-app-theme .board-election-action.is-manage:hover::after,
+.kandid-app-theme .board-election-action.is-manage:focus-visible::after {
+  background: var(--kandid-app-orange);
+  transform: scaleY(2);
+}
+
+.kandid-app-theme .board-election-action.is-manage .board-election-action-arrow {
+  transition: transform 140ms ease;
+}
+
+.kandid-app-theme .board-election-action.is-manage:hover .board-election-action-arrow {
+  transform: translateX(2px);
+}
+
+
+.kandid-app-theme .board-election-action.is-quiet,
+.kandid-app-theme .board-election-action.is-danger {
+  width: 2.35rem;
+  padding: 0;
+}
+
+.kandid-app-theme .board-election-action.is-quiet:hover {
+  border-color: var(--kandid-app-ink) !important;
+  background: var(--kandid-app-paper-soft);
+}
+
+.kandid-app-theme .board-election-action.is-danger {
+  color: #9f1239 !important;
+}
+
+.kandid-app-theme .board-election-action.is-danger:hover {
+  border-color: #9f1239 !important;
+  background: #9f1239;
+  color: #ffffff !important;
+}
+
+.kandid-app-theme .board-election-action:focus-visible {
+  outline: 2px solid var(--kandid-app-orange);
+  outline-offset: 2px;
+}
+
+/* --- loading, error and empty states --------------------------------------------- */
+
+.kandid-app-theme .board-elections-state {
+  display: grid;
+  min-width: 0;
+  gap: 0.45rem;
+  border: 0 !important;
+  border-top: 2px solid var(--kandid-app-ink) !important;
+  border-bottom: 1px solid var(--kandid-app-border) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: clamp(1.1rem, 2vw, 1.75rem) 0 !important;
+  box-shadow: none !important;
+}
+
+.kandid-app-theme .board-elections-state-kicker {
+  margin: 0;
+  color: var(--kandid-app-orange);
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-elections-state h3 {
+  margin: 0 !important;
+  color: var(--kandid-app-ink) !important;
+  font-size: 1.05rem !important;
+  font-weight: 850 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.3;
+}
+
+.kandid-app-theme .board-elections-state.is-error h3 {
+  color: #9f1239 !important;
+}
+
+.kandid-app-theme .board-elections-state-copy {
+  max-width: 40rem;
+  margin: 0;
+  color: var(--kandid-app-muted);
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.kandid-app-theme .board-elections-state-action {
+  display: inline-flex;
+  width: max-content;
+  min-height: 2.35rem;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.35rem;
+  border: 1px solid var(--kandid-app-ink) !important;
+  border-radius: 0 !important;
+  padding: 0 1.05rem;
+  background: transparent !important;
+  color: var(--kandid-app-ink) !important;
+  font-family: inherit;
+  font-size: 0.71rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.kandid-app-theme .board-elections-state-action:hover {
+  background: var(--kandid-app-ink) !important;
+  color: var(--kandid-app-paper) !important;
+}
+
+.kandid-app-theme .board-elections-state-action:focus-visible {
+  outline: 2px solid var(--kandid-app-orange);
+  outline-offset: 2px;
+}
+
+.kandid-app-theme .board-elections-skeleton {
+  display: grid;
+  min-width: 0;
+  border-top: 1px solid var(--kandid-app-border-strong);
+}
+
+.kandid-app-theme .board-elections-skeleton-row {
+  display: grid;
+  grid-template-columns: 4rem minmax(0, 1.2fr) minmax(0, 1fr) 6rem;
+  align-items: center;
+  gap: 1.1rem;
+  min-height: 5.2rem;
+  border-bottom: 1px solid var(--kandid-app-border);
+}
+
+.kandid-app-theme .board-elections-skeleton-row span {
+  display: block;
+  height: 0.65rem;
+  background: #e9e4da;
+  animation: board-elections-skeleton 1.5s ease-in-out infinite alternate;
+}
+
+.kandid-app-theme .board-elections-skeleton-row .is-cover { width: 3.5rem; height: 3.5rem; }
+.kandid-app-theme .board-elections-skeleton-row .is-title { width: min(15rem, 92%); height: 0.95rem; }
+.kandid-app-theme .board-elections-skeleton-row .is-schedule { width: min(18rem, 92%); }
+.kandid-app-theme .board-elections-skeleton-row .is-phase { width: 4.5rem; }
+
+@keyframes board-elections-skeleton { to { opacity: 0.55; } }
+
+@media (max-width: 640px) {
+  .kandid-app-theme .board-elections-skeleton-row {
+    grid-template-columns: 2.6rem minmax(0, 1fr) auto;
+    min-height: 4.4rem;
+    gap: 0.5rem 0.8rem;
+    padding-block: 0.6rem;
+  }
+  .kandid-app-theme .board-elections-skeleton-row .is-cover { grid-row: 1 / span 2; width: 2.4rem; height: 2.8rem; }
+  .kandid-app-theme .board-elections-skeleton-row .is-title { grid-column: 2; grid-row: 1; }
+  .kandid-app-theme .board-elections-skeleton-row .is-schedule { grid-column: 2 / 4; grid-row: 2; }
+  .kandid-app-theme .board-elections-skeleton-row .is-phase { grid-column: 3; grid-row: 1; width: 3.5rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kandid-app-theme .board-elections-skeleton-row span {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+}
+
+/* --- tablet ---------------------------------------------------------------------- */
+
+@media (max-width: 1180px) {
+  .kandid-app-theme .board-elections-desktop {
+    /* Same five fr tracks, tightened. Kept content-independent for the same
+     reason as the desktop template above. */
+  --board-elections-columns: minmax(0, 1.3fr) minmax(0, 0.72fr) minmax(0, 0.72fr) minmax(6rem, 0.5fr) minmax(0, 0.85fr);
+  }
+
+  .kandid-app-theme .board-election-record-actions {
+    flex-wrap: wrap;
+  }
+}
+
+/* --- mobile --------------------------------------------------------------------
+   An election index rather than stacked image cards. The cover stays in the row
+   at this width, at a reduced size, because it is what lets a Board member
+   recognise an election while scanning; it is the same stored cover the desktop
+   record renders, shown once. Name, phase, schedule and actions all remain. */
+
+@media (max-width: 760px) {
+  .kandid-app-theme .board-elections-desktop {
+    --board-elections-gap: 0.75rem;
+  }
+
+  .kandid-app-theme .board-elections-baseline {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    justify-content: stretch;
+    gap: 0.9rem;
+  }
+
+  .kandid-app-theme .board-elections-create {
+    width: 100%;
+  }
+
+  .kandid-app-theme .board-elections-header-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+  }
+
+  .kandid-app-theme .board-elections-header-actions > button {
+    width: 100%;
+    min-height: 2.45rem;
+    margin: 0;
+  }
+
+  /* Keep the rail readable on mobile while distributing the displayed metrics
+     evenly across each row. Two phases plus the total can use three columns. */
+  .kandid-app-theme .board-elections-snapshot {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .kandid-app-theme .board-elections-snapshot[data-metric-count="3"] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .kandid-app-theme .board-elections-snapshot[data-metric-count="5"] > :last-child,
+  .kandid-app-theme .board-elections-snapshot[data-metric-count="7"] > :last-child,
+  .kandid-app-theme .board-elections-snapshot[data-metric-count="9"] > :last-child {
+    grid-column: 1 / -1;
+  }
+
+  .kandid-app-theme .board-elections-snapshot-total,
+  .kandid-app-theme .board-elections-snapshot-state {
+    gap: 0.22rem;
+    border-left: 1px solid var(--kandid-app-border);
+    padding: 0.7rem 0.9rem;
+  }
+
+  /* Column one of each row keeps the page's left edge. */
+  .kandid-app-theme .board-elections-snapshot-total,
+  .kandid-app-theme .board-elections-snapshot-state:nth-child(odd) {
+    border-left: 0;
+    padding-left: 0;
+  }
+
+  .kandid-app-theme .board-elections-snapshot-state:nth-child(n + 3) {
+    border-top: 1px solid var(--kandid-app-border);
+  }
+
+  .kandid-app-theme .board-elections-snapshot[data-metric-count="3"] > :nth-child(n + 3) {
+    border-top: 0;
+  }
+
+  .kandid-app-theme .board-elections-snapshot-total dd {
+    font-size: 1.45rem;
+  }
+
+  .kandid-app-theme .board-elections-snapshot-state dd {
+    font-size: 1.2rem;
+  }
+
+  .kandid-app-theme .board-elections-register-columns {
+    display: none;
+  }
+
+  .kandid-app-theme .board-elections-register-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  /* The record becomes compact mobile regions: identity and phase first,
+     followed by one utility row with an on-demand schedule disclosure and the
+     record actions.
+
+       identity + poster + name + metadata   |  phase
+       Schedule   ˅       Manage ->   Edit   Delete
+
+     The single track holds one region per row, and each region spans it, so the
+     schedule is never squeezed into the leftover width beside the phase. The
+     identity and utility wrappers use display: contents outside this media query, so
+     desktop keeps the same five register tracks. */
+  .kandid-app-theme .board-election-record {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 0.42rem;
+    padding: 0.55rem 0 0.65rem;
+  }
+
+  .kandid-app-theme .board-election-mobile-head {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 7rem);
+    column-gap: 0.75rem;
+    align-items: start;
+  }
+
+  /* Identity and phase share the top row, with a reserved phase track so a
+     long status never crowds the election name. */
+  .kandid-app-theme .board-election-identity {
+    grid-column: 1;
+    gap: 0.55rem;
+  }
+
+  /* The poster comes back, because it is what lets a Board member recognise an
+     election while scanning rather than reading every title. It is the same
+     element and the same stored cover_url the desktop record renders, and it
+     still appears exactly once per record.
+
+     Sized down from the desktop 3.25rem square to 2.5rem, which is inside the
+     40-48px target and stays close to the height of the name and metadata stack
+     beside it, so the row does not grow to accommodate it. Square and
+     zero-radius come from the base rule, and object-fit: cover is already set on
+     the image. When there is no cover the same base rule applies the existing
+     dashed empty cell, so the name, metadata and thumbnail stay aligned and no
+     stand-in artwork is introduced. */
+  .kandid-app-theme .board-election-cover {
+    display: block;
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .kandid-app-theme .board-election-index {
+    flex-basis: 1.5rem;
+    min-width: 1.5rem;
+    font-size: 0.85rem;
+  }
+
+  /* The name is the strongest information in the row. */
+  .kandid-app-theme .board-election-identity-copy h3 {
+    font-size: 1.02rem !important;
+    line-height: 1.2;
+  }
+
+  .kandid-app-theme .board-election-config-line {
+    font-size: 0.7rem;
+  }
+
+  /* Row 1, column 2: the phase, on the same top region as the identity and
+     aligned to the row's right edge. */
+  .kandid-app-theme .board-election-standing {
+    grid-column: 2;
+    justify-items: end;
+  }
+
+  .kandid-app-theme .board-election-phase {
+    font-size: 0.63rem;
+  }
+
+  .kandid-app-theme .board-election-schedules.is-desktop-schedule {
+    display: none;
+  }
+
+  .kandid-app-theme .board-election-schedule-disclosure {
+    display: block;
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  .kandid-app-theme .board-election-schedule-disclosure > summary {
+    display: flex;
+    width: 100%;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: flex-start;
+    border-top: 1px solid var(--kandid-app-border);
+    margin-block: 0;
+    padding: 0.2rem 0;
+    background: transparent;
+    color: var(--kandid-app-ink);
+    cursor: pointer;
+    font-size: 0.72rem;
+    font-weight: 750;
+    list-style: none;
+    text-align: left;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .kandid-app-theme .board-election-schedule-disclosure > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .kandid-app-theme .board-election-schedule-disclosure > summary::after {
+    width: 0.45rem;
+    height: 0.45rem;
+    flex: 0 0 auto;
+    margin-left: auto;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    content: "";
+    transform: rotate(45deg) translateY(-0.1rem);
+    transition: transform 140ms ease;
+  }
+
+  .kandid-app-theme .board-election-schedule-disclosure[open] > summary::after {
+    transform: rotate(225deg) translate(-0.1rem, -0.1rem);
+  }
+
+  .kandid-app-theme .board-election-schedule-disclosure > summary:focus-visible {
+    outline: 2px solid var(--kandid-app-orange);
+    outline-offset: 2px;
+  }
+
+  .kandid-app-theme .board-election-schedule-disclosure > summary:hover {
+    color: var(--kandid-app-orange);
+  }
+
+  /* The disclosure summary owns the separator; its content stays compact and
+     preserves the existing Campaign/Voting date and time treatment. */
+  .kandid-app-theme .board-election-schedules {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+    padding: 0.1rem 0 0.25rem;
+  }
+
+  /* This author display rule would otherwise override the browser's default
+     closed-details hiding rule. Remove the schedule subtree from layout until
+     the disclosure is open; expanded schedules retain the grid above. */
+  .kandid-app-theme .board-election-schedule-disclosure:not([open]) > .board-election-schedules {
+    display: none;
+  }
+
+  .kandid-app-theme .board-election-window {
+    display: grid;
+    min-width: 0;
+    align-content: start;
+    gap: 0.22rem;
+    margin: 0;
+  }
+
+  .kandid-app-theme .board-election-window dt {
+    display: block;
+    color: var(--kandid-app-muted);
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+
+  .kandid-app-theme .board-election-window dd,
+  .kandid-app-theme .board-election-when {
+    display: grid;
+    min-width: 0;
+    gap: 0.12rem;
+  }
+
+  .kandid-app-theme .board-election-when-date {
+    font-size: 0.82rem;
+    line-height: 1.25;
+  }
+
+  .kandid-app-theme .board-election-when-time {
+    font-size: 0.74rem;
+  }
+
+  /* An unset window has no time, so the label stands alone. Its date is only the
+     formatter's absent marker and is dropped rather than read as a dash. */
+  .kandid-app-theme .board-election-window[data-absent="yes"] .board-election-when-date {
+    display: none;
+  }
+
+  /* One compact action bar follows the schedule block. The text action stays at
+     the left; the two unboxed icon targets share the far-right edge. */
+  .kandid-app-theme .board-election-record-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    gap: 0.25rem;
+  }
+
+  /* Keep comfortable 44px hit areas while removing the icon-button boxes. */
+  .kandid-app-theme .board-election-action.is-manage {
+    flex: 0 0 auto;
+    min-height: 2.75rem;
+    margin-right: auto;
+    margin-block: -0.2rem;
+  }
+
+  .kandid-app-theme .board-election-action.is-quiet,
+  .kandid-app-theme .board-election-action.is-danger {
+    flex: 0 0 2.75rem;
+    width: 2.75rem;
+    height: 2.75rem;
+    min-height: 2.75rem;
+    border-color: transparent !important;
+    margin-block: -0.2rem;
+    padding: 0;
+    background: transparent !important;
+  }
+
+  .kandid-app-theme .board-election-action.is-quiet:hover,
+  .kandid-app-theme .board-election-action.is-quiet:active {
+    border-color: transparent !important;
+    background: rgba(16, 17, 20, 0.045) !important;
+    color: var(--kandid-app-ink) !important;
+  }
+
+  .kandid-app-theme .board-election-action.is-danger:hover,
+  .kandid-app-theme .board-election-action.is-danger:active {
+    border-color: transparent !important;
+    background: rgba(159, 18, 57, 0.07) !important;
+    color: #9f1239 !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .kandid-app-theme .board-elections-masthead {
+    padding-bottom: 0.9rem !important;
+  }
+
+  .kandid-app-theme .board-elections-title {
+    font-size: 2.1rem !important;
+  }
+
+  .kandid-app-theme .board-elections-standfirst {
+    font-size: 0.86rem;
+  }
+
+  /* Keep narrow records compact while maintaining a small gap between the
+     44px disclosure target and the expanded hit areas for the actions. */
+  .kandid-app-theme .board-election-record {
+    row-gap: 0.4rem;
+    padding-block: 0.5rem 0.6rem;
+  }
+
+  .kandid-app-theme .board-election-mobile-head {
+    column-gap: 0.65rem;
+  }
+
+  .kandid-app-theme .board-election-schedules {
+    column-gap: 0.5rem;
+  }
+
+}
+
+/* At phone widths the disclosure and actions share one utility row. The
+   details element still owns the full-width schedule content, so opening it
+   grows beneath the row while the action group remains aligned beside summary. */
+@media (max-width: 600px) {
+  .kandid-app-theme .board-election-mobile-utility-row {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr) 2.75rem 2.75rem;
+    column-gap: 0.12rem;
+    align-items: start;
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  .kandid-app-theme .board-election-schedule-disclosure {
+    display: block;
+    grid-column: 1;
+    grid-row: 1;
+    width: auto;
+    min-width: 0;
+  }
+
+  .kandid-app-theme .board-election-schedule-disclosure[open] {
+    grid-column: 1 / -1;
+  }
+
+  .kandid-app-theme .board-election-schedule-disclosure > summary {
+    width: max-content;
+    min-height: 2.75rem;
+    gap: 0.55rem;
+  }
+
+  .kandid-app-theme .board-election-record-actions {
+    display: contents;
+  }
+
+  .kandid-app-theme .board-election-action.is-manage {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: center;
+    min-height: 2.75rem;
+    margin: 0;
+  }
+
+  .kandid-app-theme .board-election-action.is-quiet {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .kandid-app-theme .board-election-action.is-danger {
+    grid-column: 4;
+    grid-row: 1;
+  }
+
+  .kandid-app-theme .board-election-action.is-quiet,
+  .kandid-app-theme .board-election-action.is-danger {
+    flex: 0 0 2.75rem;
+    width: 2.75rem;
+    height: 2.75rem;
+    min-height: 2.75rem;
+    margin: 0;
+  }
+}
+
+@media (max-width: 360px) {
+  .kandid-app-theme .board-election-mobile-utility-row {
+    grid-template-columns: max-content minmax(0, 1fr) 2.75rem 2.75rem;
+    column-gap: 0.05rem;
+  }
+
+  .kandid-app-theme .board-election-action.is-manage {
+    gap: 0.2rem;
+    padding-inline: 0.12rem;
+    font-size: 0.68rem;
+    letter-spacing: 0.07em;
+  }
+
+  .kandid-app-theme .board-election-action.is-quiet,
+  .kandid-app-theme .board-election-action.is-danger {
+    flex-basis: 2.75rem;
+    width: 2.75rem;
+  }
+}
+
+/* --- Board election sheets: Create, Edit, Manage Setup --------------------
+   The Create/Edit sheet and the Manage Setup workspace.
+
+   Presentation only. These two sheets read the same election record, tokens and
+   form state the register already holds, and every action calls an existing
+   handler or navigation. No query, payload, validation rule, permission or
+   route was added or changed to produce them.
+
+   WHY THESE SELECTORS ARE PORTAL-SAFE AND WHY !important APPEARS HERE
+   PopupOverlay portals both sheets directly under .modal-overlay on
+   document.body, so no .kandid-app-theme ancestor exists and the large
+   .kandid-app-theme .popup-sheet block in src/index.css does not match them.
+   What does still match are bare .popup-sheet rules that carry !important:
+
+     .popup-sheet { border-radius: var(--kandid-radius-xl) !important; }
+     .popup-sheet { box-shadow: var(--kandid-shadow-lg) !important; }
+     @media (max-width: 1023px) {
+       .popup-sheet { width: 100% !important; max-width: none !important;
+                      border-radius: 1.4rem 1.4rem 1rem 1rem !important;
+                      padding: 1rem !important; }
+     }
+
+   Those are the only declarations overridden with !important in this section,
+   and each is narrowly scoped to .modal-overlay .board-election-sheet. A media
+   query adds no specificity, so the single base declaration below outranks all
+   of them. Inputs are deliberately NOT given !important: every input radius
+   !important rule in src/index.css is gated behind .kandid-app-theme or
+   .kandid-auth-screen, so plain scoped rules are enough for them.
+
+   The language follows the approved Add Student sheet: bond-paper ground, a
+   three-pixel ink rule at the top, a hairline-ruled numbered progress rail, an
+   orange kicker at 0.66rem, Source Serif 4 for headings, and square geometry
+   throughout. No gradients, no pills, no soft cards, no floating shadows. */
+
+/* --- sheet shell ---------------------------------------------------------- */
+
+.modal-overlay .board-election-sheet {
+  --board-election-hairline: var(--kandid-app-border, #e5e0d6);
+  --board-election-hairline-strong: var(--kandid-app-border-strong, #d2ccc0);
+  --board-election-ink: var(--kandid-app-ink, #101114);
+  --board-election-muted: var(--kandid-app-muted, #5b5e66);
+  --board-election-orange: var(--kandid-app-orange, #f4512c);
+
+  width: min(100%, 50rem) !important;
+  max-width: min(50rem, calc(100vw - 2rem)) !important;
+  max-height: calc(100dvh - 2rem) !important;
+  margin: auto 0 !important;
+  padding: 0 !important;
+  border: 1px solid var(--board-election-hairline-strong) !important;
+  border-radius: 0 !important;
+  background: var(--kandid-app-canvas, #f8f6f1) !important;
+  box-shadow: 0 14px 32px rgba(22, 20, 17, 0.18) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  color: var(--board-election-ink) !important;
+}
+
+/* The shared orange gradient cap is decorative. The election sheets carry a
+   solid ink rule and an orange kicker instead, so the cap is removed rather
+   than recoloured. */
+.modal-overlay .board-election-sheet::before {
+  display: none !important;
+}
+
+.modal-overlay .board-election-sheet.is-workspace {
+  max-width: min(48rem, calc(100vw - 2rem)) !important;
+}
+
+.modal-overlay .board-election-sheet .popup-header {
+  align-items: flex-start;
+  margin: 0 !important;
+  border-top: 3px solid var(--board-election-ink);
+  border-bottom: 1px solid var(--board-election-hairline-strong);
+  border-radius: 0 !important;
+  padding: 1.15rem 1.5rem 1rem;
+}
+
+.modal-overlay .board-election-sheet .popup-header-copy {
+  display: grid;
+  gap: 0.3rem;
+  max-width: 46rem;
+}
+
+.modal-overlay .board-election-sheet .popup-header h2 {
+  margin: 0;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(1.6rem, 2.6vw, 2.2rem);
+  font-weight: 650;
+  line-height: 1.08;
+}
+
+.modal-overlay .board-election-sheet .popup-header .surface-copy {
+  max-width: 42rem;
+  margin: 0;
+  color: var(--board-election-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.modal-overlay .board-election-sheet .popup-close {
+  flex: 0 0 auto;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0.3rem;
+  color: var(--board-election-ink) !important;
+  box-shadow: none !important;
+}
+
+.modal-overlay .board-election-sheet-kicker {
+  margin: 0;
+  color: var(--board-election-orange);
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* --- 01..04 progress rail -------------------------------------------------
+   Numbered, hairline-ruled and non-sticky-reading: every group is reachable at
+   once, so the operator can jump back to an earlier group from Review. Orange
+   marks the current and the completed groups. */
+
+.board-election-setup-progress {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  border-bottom: 1px solid var(--board-election-hairline-strong);
+  background: var(--kandid-app-canvas, #f8f6f1);
+}
+
+.board-election-setup-progress ol {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.board-election-setup-progress li {
+  min-width: 0;
+  border-top: 1px solid var(--board-election-hairline-strong);
+  padding: 0.5rem 0.7rem 0.35rem 0;
+}
+
+.board-election-setup-progress li + li {
+  padding-left: 0.7rem;
+}
+
+.board-election-setup-progress li.is-current,
+.board-election-setup-progress li.is-complete {
+  border-top-color: var(--board-election-orange);
+}
+
+.board-election-setup-progress button {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: baseline;
+  gap: 0.35rem;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0;
+  text-align: left;
+  box-shadow: none !important;
+  cursor: pointer;
+}
+
+.board-election-setup-progress button:focus-visible {
+  outline: 2px solid var(--board-election-orange);
+  outline-offset: 3px;
+}
+
+.board-election-setup-progress span {
+  flex: 0 0 auto;
+  color: var(--board-election-orange);
+  font-size: 0.62rem;
+  font-weight: 850;
+}
+
+.board-election-setup-progress strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--board-election-muted);
+  font-size: 0.62rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.board-election-setup-progress li.is-current strong {
+  color: var(--board-election-ink);
+}
+
+/* --- sheet body and group headings ---------------------------------------- */
+
+.board-election-setup-body,
+.board-election-workspace-body {
+  display: grid;
+  gap: 1.35rem;
+  padding: 1.35rem 1.5rem 0;
+}
+
+.board-election-setup-section {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.board-election-setup-heading {
+  display: flex;
+  min-width: 0;
+  align-items: start;
+  gap: 0.85rem;
+  border-bottom: 1px solid var(--board-election-hairline-strong);
+  padding-bottom: 0.8rem;
+}
+
+.board-election-setup-heading > .board-election-sheet-kicker {
+  flex: 0 0 auto;
+  padding-top: 0.28rem;
+}
+
+.board-election-setup-heading > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.25rem;
+}
+
+.board-election-setup-heading h3,
+.board-election-workspace-heading h3,
+.board-election-identity-copy h3,
+.board-election-danger h3 {
+  margin: 0;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(1.15rem, 1.9vw, 1.45rem);
+  font-weight: 650;
+  line-height: 1.12;
+}
+
+.board-election-setup-heading p,
+.board-election-workspace-heading p {
+  margin: 0;
+}
+
+.board-election-setup-heading > div > p {
+  max-width: 40rem;
+  color: var(--board-election-muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.board-election-setup-group {
+  display: grid;
+  min-width: 0;
+  gap: 0.7rem;
+  border-top: 1px solid var(--board-election-hairline);
+  padding-top: 0.9rem;
+}
+
+.board-election-setup-group:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.board-election-setup-kicker {
+  margin: 0;
+  color: var(--board-election-muted);
+  font-size: 0.62rem;
+  font-weight: 850;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.board-election-setup-group-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: var(--board-election-orange);
+}
+
+.board-election-setup-note {
+  max-width: 40rem;
+  margin: 0;
+  color: var(--board-election-muted);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+/* --- fields ---------------------------------------------------------------
+   Two columns, hairline borders, square corners. The label carries the field
+   name; "Optional" is set as a quiet inline word rather than a pill. */
+
+.board-election-setup-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem 1.1rem;
+  min-width: 0;
+}
+
+.board-election-setup-field {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 0.3rem;
+}
+
+.board-election-setup-field.is-wide {
+  grid-column: 1 / -1;
+}
+
+.board-election-setup-field > label {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 0.4rem;
+  color: var(--board-election-ink);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.board-election-setup-field > label > span {
+  color: var(--board-election-muted);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.board-election-setup-field > small {
+  color: var(--board-election-muted);
+  font-size: 0.66rem;
+  line-height: 1.4;
+}
+
+.modal-overlay .board-election-setup-field input,
+.modal-overlay .board-election-setup-field select {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.5rem;
+  border: 1px solid var(--board-election-hairline-strong);
+  border-radius: 0;
+  background: #fff;
+  padding: 0.5rem 0.6rem;
+  color: var(--board-election-ink);
+  font: inherit;
+  font-size: 0.85rem;
+  box-shadow: none;
+}
+
+.modal-overlay .board-election-setup-field input:focus,
+.modal-overlay .board-election-setup-field select:focus {
+  border-color: var(--board-election-orange);
+  outline: 2px solid var(--board-election-orange);
+  outline-offset: -1px;
+}
+
+.modal-overlay .board-election-setup-field input:disabled,
+.modal-overlay .board-election-setup-field select:disabled {
+  background: #f1efe9;
+  color: var(--board-election-muted);
+  cursor: not-allowed;
+}
+
+/* --- 01 cover block ------------------------------------------------------- */
+
+.board-election-setup-cover {
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0, 1fr);
+  gap: 1.1rem;
+  align-items: start;
+}
+
+.modal-overlay .board-election-setup-cover .election-cover {
+  width: 8.5rem !important;
+  height: 11rem !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.board-election-setup-cover-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.75rem;
+}
+
+.board-election-setup-cover-actions,
+.board-election-setup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.board-election-setup-upload,
+.board-election-setup-quiet,
+.board-election-setup-back,
+.board-election-setup-next,
+.board-election-area-action,
+.board-election-danger-button {
+  display: inline-flex;
+  min-height: 2.35rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 0;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.modal-overlay .board-election-setup-upload,
+.modal-overlay .board-election-setup-quiet,
+.modal-overlay .board-election-setup-back,
+.modal-overlay .board-election-area-action {
+  border: 1px solid var(--board-election-hairline-strong);
+  background: #fff;
+  color: var(--board-election-ink);
+}
+
+.modal-overlay .board-election-setup-upload {
+  cursor: pointer;
+}
+
+.board-election-setup-upload input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.modal-overlay .board-election-setup-quiet,
+.modal-overlay .board-election-setup-back {
+  border-color: var(--board-election-hairline);
+  background: transparent;
+  color: var(--board-election-muted);
+  text-transform: none;
+  font-weight: 700;
+}
+
+.modal-overlay .board-election-setup-next {
+  border: 1px solid var(--board-election-orange);
+  background: var(--board-election-orange);
+  color: #fff;
+}
+
+.modal-overlay .board-election-setup-next:hover:not(:disabled) {
+  background: var(--kandid-primary-strong, #c83b12);
+  border-color: var(--kandid-primary-strong, #c83b12);
+}
+
+.modal-overlay .board-election-setup-quiet:hover:not(:disabled),
+.modal-overlay .board-election-setup-back:hover:not(:disabled),
+.modal-overlay .board-election-setup-upload:hover,
+.modal-overlay .board-election-area-action:hover {
+  border-color: var(--board-election-ink);
+  color: var(--board-election-ink);
+}
+
+.modal-overlay .board-election-setup-quiet:disabled,
+.modal-overlay .board-election-setup-back:disabled,
+.modal-overlay .board-election-setup-next:disabled,
+.modal-overlay .board-election-setup-upload:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* --- 03 access tokens ----------------------------------------------------- */
+
+.board-election-setup-empty {
+  margin: 0;
+  border-top: 1px solid var(--board-election-hairline);
+  border-bottom: 1px solid var(--board-election-hairline);
+  padding: 0.9rem 0;
+  color: var(--board-election-muted);
+  font-size: 0.78rem;
+}
+
+.board-election-token-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.board-election-token-list > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: start;
+  border-top: 1px solid var(--board-election-hairline);
+  padding: 0.9rem 0;
+}
+
+.board-election-token-list > li:last-child {
+  border-bottom: 1px solid var(--board-election-hairline);
+}
+
+.board-election-token-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+}
+
+.board-election-token-value {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--board-election-ink);
+  font-size: 0.86rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.board-election-token-expiry {
+  margin: 0;
+  color: var(--board-election-muted);
+  font-size: 0.68rem;
+}
+
+.board-election-token-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.modal-overlay .board-election-token-actions img {
+  width: 5.25rem;
+  height: 5.25rem;
+  border: 1px solid var(--board-election-hairline-strong);
+  border-radius: 0;
+  background: #fff;
+  padding: 0.35rem;
+}
+
+/* --- 04 review brief ------------------------------------------------------
+   A hairline-ruled reading grid. Borders are drawn on the top and left of the
+   container and the right and bottom of every cell, so the rules stay continuous
+   however the grid wraps at 3, 2 or 1 column. */
+
+.board-election-brief {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-left: -1px;
+  border-top: 1px solid var(--board-election-hairline-strong);
+  border-left: 1px solid var(--board-election-hairline-strong);
+}
+
+.board-election-brief > section {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 0.3rem;
+  border-right: 1px solid var(--board-election-hairline-strong);
+  border-bottom: 1px solid var(--board-election-hairline-strong);
+  padding: 0.9rem 1rem;
+}
+
+.board-election-brief > section > span {
+  color: var(--board-election-orange);
+  font-size: 0.61rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.board-election-brief > section > strong {
+  overflow-wrap: anywhere;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.05rem;
+  font-weight: 650;
+  line-height: 1.15;
+}
+
+.board-election-brief > section > p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--board-election-muted);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+/* --- setup footer ---------------------------------------------------------
+   Sticky inside the sheet's own scroll container so Continue and Save stay
+   reachable on a long Review section without a floating action bar. */
+
+.board-election-setup-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  justify-content: space-between;
+  margin: 0 -1.5rem;
+  border-top: 1px solid var(--board-election-hairline-strong);
+  background: var(--kandid-app-canvas, #f8f6f1);
+  padding: 0.85rem 1.5rem 1.1rem;
+}
+
+/* --- workspace: identity ------------------------------------------------- */
+
+.board-election-identity-panel {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  border-bottom: 1px solid var(--board-election-hairline-strong);
+  padding-bottom: 1.1rem;
+}
+
+.modal-overlay .board-election-identity-cover .election-cover {
+  width: 4.5rem !important;
+  height: 5.75rem !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.board-election-identity-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+}
+
+.board-election-identity-org {
+  margin: 0;
+  color: var(--board-election-muted);
+  font-size: 0.74rem;
+}
+
+/* --- workspace: reading rail ---------------------------------------------
+   Label left, value right, one hairline per row. Reads as a register entry
+   rather than a set of tiles. */
+
+.board-election-workspace-context {
+  display: grid;
+  margin: 0;
+  border-top: 1px solid var(--board-election-hairline);
+}
+
+.board-election-workspace-context > div {
+  display: grid;
+  grid-template-columns: minmax(6.5rem, 9rem) minmax(0, 1fr);
+  gap: 0.5rem 1rem;
+  align-items: baseline;
+  border-bottom: 1px solid var(--board-election-hairline);
+  padding: 0.6rem 0;
+}
+
+.board-election-workspace-context dt {
+  color: var(--board-election-muted);
+  font-size: 0.62rem;
+  font-weight: 850;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.board-election-workspace-context dd {
+  display: grid;
+  min-width: 0;
+  gap: 0.1rem;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.board-election-workspace-context dd span {
+  color: var(--board-election-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+/* --- workspace: management area register ---------------------------------
+   A numbered list of the areas that already exist for this Board account. Each
+   row is index, description, action. No readiness score, no progress meter and
+   no completion percentage anywhere: none of those can be derived truthfully
+   from the data this page already loads. */
+
+.board-election-workspace-register {
+  display: grid;
+  min-width: 0;
+  gap: 0.7rem;
+}
+
+.board-election-workspace-heading {
+  display: grid;
+  gap: 0.2rem;
+  border-bottom: 1px solid var(--board-election-hairline-strong);
+  padding-bottom: 0.7rem;
+}
+
+.board-election-workspace-register ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.board-election-workspace-register > ol > li {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr) auto;
+  gap: 0.85rem;
+  align-items: center;
+  border-bottom: 1px solid var(--board-election-hairline);
+  padding: 0.75rem 0;
+}
+
+.board-election-workspace-register > ol > li:first-child {
+  border-top: 1px solid var(--board-election-hairline);
+}
+
+.board-election-area-index {
+  color: var(--board-election-orange);
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+}
+
+.board-election-area-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.12rem;
+}
+
+.board-election-area-copy > strong {
+  font-size: 0.88rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.board-election-area-copy > p {
+  margin: 0;
+  color: var(--board-election-muted);
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+.board-election-area-copy > small {
+  color: var(--board-election-muted);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.modal-overlay .board-election-area-action {
+  flex: 0 0 auto;
+  min-height: 2.1rem;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.66rem;
+}
+
+/* --- workspace: danger zone ----------------------------------------------
+   Identifies the election, names only what the existing delete flow actually
+   checks, and hands off to the unchanged handleDelete. No second confirmation
+   and no re-entry field is introduced here. */
+
+.board-election-danger {
+  display: grid;
+  gap: 0.6rem;
+  border: 1px solid #e2b8b2;
+  border-top: 3px solid var(--kandid-danger, #dc2626);
+  border-radius: 0;
+  background: var(--kandid-status-danger-bg, #fff1f3);
+  padding: 1.1rem 1.25rem 1.25rem;
+}
+
+.board-election-danger-label {
+  margin: 0;
+  color: var(--kandid-status-danger-text, #b42318);
+  font-size: 0.62rem;
+  font-weight: 850;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.board-election-danger h3 {
+  color: var(--kandid-status-danger-text, #b42318);
+}
+
+.board-election-danger-copy {
+  max-width: 42rem;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #5c2b26;
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.board-election-danger-copy strong {
+  font-weight: 800;
+}
+
+.board-election-danger-copy.is-quiet {
+  color: #7a4a45;
+  font-size: 0.72rem;
+}
+
+.board-election-danger-check {
+  display: grid;
+  gap: 0.3rem;
+  border-top: 1px solid #e6cbc7;
+  border-bottom: 1px solid #e6cbc7;
+  padding: 0.7rem 0;
+}
+
+.board-election-danger-check > p {
+  margin: 0;
+  color: #7a4a45;
+  font-size: 0.6rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.board-election-danger-check ul {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.board-election-danger-check li {
+  color: #5c2b26;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.board-election-danger-check li + li::before {
+  content: "\00b7";
+  margin: 0 0.45rem;
+  color: #a97068;
+}
+
+.board-election-danger-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.modal-overlay .board-election-danger-button {
+  border: 1px solid var(--kandid-danger, #dc2626);
+  background: var(--kandid-danger, #dc2626);
+  color: #fff;
+}
+
+.modal-overlay .board-election-danger-button:hover {
+  border-color: #a3150f;
+  background: #a3150f;
+}
+
+/* --- responsive -----------------------------------------------------------
+   The 390px case: fields, the review brief and the management register each
+   collapse to one column, the progress rail becomes a 2x2 grid, the sheet's
+   horizontal padding drops, and every row action goes full width so it stays a
+   comfortable tap target. */
+
+@media (max-width: 900px) {
+  .modal-overlay .board-election-brief {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1023px) {
+  .modal-overlay .board-election-sheet {
+    width: min(100%, calc(100vw - 1rem)) !important;
+    max-width: calc(100vw - 1rem) !important;
+    max-height: calc(100dvh - 1rem) !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  .modal-overlay .board-election-sheet.is-workspace {
+    max-width: calc(100vw - 1rem) !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .modal-overlay .board-election-sheet .popup-header {
+    padding: 0.9rem 1.1rem 0.85rem;
+  }
+
+  .board-election-setup-body,
+  .board-election-workspace-body {
+    padding: 1.1rem 1.1rem 0;
+  }
+
+  .board-election-setup-progress ol {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .board-election-setup-progress li:nth-child(odd) {
+    padding-left: 0.8rem;
+  }
+
+  .board-election-setup-progress li:nth-child(even) {
+    padding-left: 0.8rem;
+  }
+
+  .board-election-setup-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .board-election-setup-cover {
+    grid-template-columns: 5.5rem minmax(0, 1fr);
+  }
+
+  .modal-overlay .board-election-setup-cover .election-cover {
+    width: 5.5rem !important;
+    height: 7.25rem !important;
+  }
+
+  .board-election-setup-footer {
+    margin: 0 -1.1rem;
+    padding: 0.75rem 1.1rem 1rem;
+  }
+
+  .board-election-workspace-register > ol > li {
+    grid-template-columns: 1.9rem minmax(0, 1fr);
+  }
+
+  .modal-overlay .board-election-area-action {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .board-election-token-list > li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .board-election-token-actions {
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 560px) {
+  .modal-overlay .board-election-brief {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .board-election-identity-panel {
+    grid-template-columns: 3.5rem minmax(0, 1fr);
+  }
+
+  .modal-overlay .board-election-identity-cover .election-cover {
+    width: 3.5rem !important;
+    height: 4.5rem !important;
+  }
+
+  .board-election-identity-panel > .board-election-setup-quiet {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .board-election-workspace-context > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.15rem;
+  }
+
+  .board-election-setup-cover {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .modal-overlay .board-election-setup-cover .election-cover {
+    width: 4.5rem !important;
+    height: 5.75rem !important;
+  }
+
+  .board-election-setup-footer > div {
+    flex: 1 1 auto;
+  }
+
+  .modal-overlay .board-election-setup-footer .board-election-setup-back,
+  .modal-overlay .board-election-setup-footer .board-election-setup-next {
+    width: 100%;
+  }
+
+  .board-election-danger {
+    padding: 1rem 1rem 1.1rem;
+  }
+
+  .modal-overlay .board-election-danger-button {
+    width: 100%;
+  }
+}
+
+/* --- Danger Zone: the delete review sheet ---------------------------------
+   The states the guard can produce, presented in the same sharp editorial
+   system as Create/Edit and Manage Setup: bond-paper ground, a three-pixel ink
+   rule, an orange kicker, hairline-ruled counts, square controls and no warning
+   icon box.
+
+   Two states are visually distinct on purpose.
+
+   "blocked" is a review of what already exists, so it is ruled like a register
+   and carries no destructive control at all. "confirm" is the only state that
+   can remove anything, so it is the only one that ever renders a Delete button,
+   and it states the recheck that still stands between the click and the
+   removal. The two share the shell and the header so the reader is not told a
+   new thing has happened halfway down the sheet. */
+
+.modal-overlay .board-election-sheet.is-danger {
+  max-width: min(42rem, calc(100vw - 2rem)) !important;
+}
+
+.modal-overlay .board-election-sheet.is-danger .popup-header {
+  border-top-color: var(--kandid-danger, #dc2626);
+}
+
+.modal-overlay .board-election-danger-sheet-body {
+  display: grid;
+  gap: 1.1rem;
+  padding: 1.25rem 1.5rem 1.35rem;
+}
+
+.modal-overlay .board-election-danger-sheet-body .surface-title {
+  margin: 0;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(1.5rem, 2.5vw, 2.05rem);
+  font-weight: 650;
+  line-height: 1.08;
+}
+
+/* The election is the subject of the review, so it is named at full size under
+   the heading, with the organization as the quieter second line. */
+.board-election-sheet-subject {
+  display: grid;
+  gap: 0.12rem;
+  margin: 0.5rem 0 0;
+  overflow-wrap: anywhere;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.2rem;
+  font-weight: 650;
+  line-height: 1.15;
+}
+
+.board-election-sheet-subject > span {
+  color: var(--board-election-muted);
+  font-family: var(--kandid-font-sans, "Inter", system-ui, sans-serif);
+  font-size: 0.64rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.board-election-danger-lead {
+  max-width: 38rem;
+  margin: 0;
+  color: #5c2b26;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.board-election-danger-lead strong {
+  font-weight: 800;
+}
+
+.board-election-danger-recommendation {
+  max-width: 38rem;
+  margin: 0;
+  border-left: 3px solid var(--kandid-danger, #dc2626);
+  padding: 0.15rem 0 0.15rem 0.85rem;
+  color: var(--kandid-status-danger-text, #b42318);
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.board-election-danger-wait {
+  margin: 0;
+  color: var(--board-election-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+/* --- related-record counts ------------------------------------------------
+   A ruled register, one row per relation the guard actually counted, so the
+   numbers are scannable instead of being read out of a sentence. Only the
+   dependencies the guard returned are rendered; nothing is added here. */
+
+.board-election-blocked {
+  display: grid;
+  gap: 0.55rem;
+  border: 1px solid #e2b8b2;
+  border-top: 2px solid var(--kandid-danger, #dc2626);
+  border-radius: 0;
+  background: #fff;
+  padding: 0.9rem 1rem 1rem;
+}
+
+.board-election-blocked-label {
+  margin: 0;
+  color: #7a4a45;
+  font-size: 0.6rem;
+  font-weight: 850;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.board-election-blocked-counts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.board-election-blocked-counts li {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 0.1rem;
+  border-left: 1px solid var(--board-election-hairline, #e5e0d6);
+  padding: 0.15rem 0.85rem;
+}
+
+.board-election-blocked-counts li:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+
+.board-election-blocked-counts strong {
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.85rem;
+  font-weight: 650;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.board-election-blocked-counts span {
+  color: var(--board-election-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.board-election-safeguards {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.board-election-safeguards li {
+  position: relative;
+  padding-left: 1rem;
+  color: var(--board-election-muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+/* Square marker rather than a bullet glyph. */
+.board-election-safeguards li::before {
+  content: "";
+  position: absolute;
+  top: 0.55em;
+  left: 0;
+  width: 0.35rem;
+  height: 0.35rem;
+  border: 1px solid var(--board-election-orange);
+  background: transparent;
+}
+
+.board-election-danger-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin: 0;
+  border-top: 1px solid var(--board-election-hairline-strong);
+  background: var(--kandid-app-canvas, #f8f6f1);
+  padding: 0.85rem 1.5rem 1.1rem;
+}
+
+.modal-overlay .board-election-danger-quiet,
+.modal-overlay .board-election-danger-primary,
+.modal-overlay .board-election-danger-button {
+  display: inline-flex;
+  min-height: 2.4rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 0;
+  padding: 0.5rem 1rem;
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.modal-overlay .board-election-danger-quiet {
+  border: 1px solid var(--board-election-hairline-strong);
+  background: transparent;
+  color: var(--board-election-muted);
+}
+
+.modal-overlay .board-election-danger-primary {
+  border: 1px solid var(--board-election-ink);
+  background: var(--board-election-ink);
+  color: #fff;
+}
+
+.modal-overlay .board-election-danger-button {
+  border: 1px solid var(--kandid-danger, #dc2626);
+  background: var(--kandid-danger, #dc2626);
+  color: #fff;
+}
+
+.modal-overlay .board-election-danger-quiet:hover:not(:disabled) {
+  border-color: var(--board-election-ink);
+  color: var(--board-election-ink);
+}
+
+.modal-overlay .board-election-danger-button:hover:not(:disabled) {
+  border-color: #a3150f;
+  background: #a3150f;
+}
+
+.modal-overlay .board-election-danger-quiet:disabled,
+.modal-overlay .board-election-danger-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.board-election-electorate {
+  margin-top: 2rem;
+  padding-top: 1.35rem;
+  border-top: 1px solid rgba(15, 15, 15, 0.2);
+}
+
+.board-election-electorate-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 1.25rem 0 0;
+  border-top: 1px solid rgba(15, 15, 15, 0.12);
+  border-bottom: 1px solid rgba(15, 15, 15, 0.12);
+}
+
+.board-election-electorate-facts > div {
+  min-width: 0;
+  padding: 0.8rem 0.9rem 0.8rem 0;
+}
+
+.board-election-electorate-facts > div + div {
+  padding-left: 0.9rem;
+  border-left: 1px solid rgba(15, 15, 15, 0.12);
+}
+
+.board-election-electorate-facts dt {
+  color: #69645e;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.board-election-electorate-facts dd {
+  margin: 0.4rem 0 0;
+  color: #171614;
+  font-size: 0.95rem;
+  font-weight: 650;
+}
+
+.board-election-electorate-note,
+.board-election-electorate-block,
+.board-election-electorate-error {
+  margin: 0.85rem 0 0;
+  color: #625e59;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.board-election-electorate-block { color: #8a4a12; }
+.board-election-electorate-error { color: #a3150f; }
+
+.board-election-electorate-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.board-election-electorate-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+}
+
+.board-election-dependency-detail {
+  margin-top: 1rem;
+  border-top: 1px solid rgba(15, 15, 15, 0.12);
+  padding-top: 0.9rem;
+}
+
+.board-election-dependency-detail h3 {
+  margin: 0;
+  color: #171614;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.board-election-dependency-detail > p {
+  margin: 0.35rem 0 0.65rem;
+  color: #625e59;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.board-election-dependency-detail ul {
+  display: grid;
+  gap: 0;
+  max-height: min(42vh, 24rem);
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.board-election-dependency-detail li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.9rem;
+  border-bottom: 1px solid rgba(15, 15, 15, 0.08);
+  padding: 0.65rem 0;
+}
+
+.board-election-dependency-detail li > span {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.board-election-dependency-detail li strong {
+  color: #24211e;
+  font-size: 0.84rem;
+}
+
+.board-election-dependency-detail li small {
+  color: #625e59;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.board-election-dependency-detail li > b {
+  min-width: 1.75rem;
+  color: #171614;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.board-election-removal-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin: 1rem 0;
+  border-left: 3px solid #a3150f;
+  padding: 0.75rem;
+  background: #fff3f1;
+  color: #76211d;
+}
+
+.board-election-removal-warning p { margin: 0; line-height: 1.45; }
+.board-election-password-label { display: block; margin: 1rem 0 0.4rem; font-weight: 700; }
+.board-election-sheet input[name="current-password"] { width: 100%; min-height: 2.8rem; border: 1px solid #77716b; padding: 0.65rem; }
+.board-election-removal-error { margin: 0.55rem 0 0; color: #a3150f; font-size: 0.86rem; }
+
+@media (max-width: 1023px) {
+  .modal-overlay .board-election-sheet.is-danger {
+    max-width: calc(100vw - 1rem) !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .board-election-electorate-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .board-election-electorate-facts > div:nth-child(3) { padding-left: 0; border-left: 0; }
+  .board-election-electorate-facts > div:nth-child(n + 3) { border-top: 1px solid rgba(15, 15, 15, 0.12); }
+  .board-election-electorate-actions { flex-direction: column-reverse; }
+  .board-election-electorate-actions button { width: 100%; }
+
+  .modal-overlay .board-election-danger-sheet-body {
+    padding: 1.1rem 1.1rem 1.2rem;
+  }
+
+  .board-election-danger-footer {
+    margin: 0;
+    padding: 0.75rem 1.1rem 1rem;
+  }
+
+  /* Two columns of counts at 390px: the number and its label still read as a
+     pair, and the hairline between them still does the separating. */
+  .board-election-blocked-counts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 0.75rem;
+  }
+
+  .board-election-blocked-counts li:nth-child(odd) {
+    border-left: 0;
+    padding-left: 0;
+  }
+
+  .board-election-blocked-counts li:nth-child(even) {
+    padding-left: 0.85rem;
+  }
+
+  .modal-overlay .board-election-danger-footer > button {
+    flex: 1 1 100%;
+  }
+}

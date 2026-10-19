@@ -19,6 +19,7 @@ function ProtectedRoute({ children, role }) {
     loading: isStudentRole,
     user: null,
   });
+  const [studentRetry, setStudentRetry] = useState(0);
   const user = getStoredUser();
   const isAdminRole = role === "super_admin" || role === "electoral_board";
   const shouldVerifyAdminWithSupabase = isAdminRole && isSupabaseAdminAuthMode();
@@ -54,13 +55,14 @@ function ProtectedRoute({ children, role }) {
     let active = true;
 
     async function verifyStudentRoute() {
-      const result = await requireStudentSession();
+      const result = await requireStudentSession().catch(() => ({ data: null, error: { code: "STUDENT_PROFILE_UNAVAILABLE" } }));
 
       if (!active) return;
 
       setStudentCheck({
         loading: false,
         user: result.data || null,
+        error: result.error,
       });
     }
 
@@ -69,7 +71,7 @@ function ProtectedRoute({ children, role }) {
     return () => {
       active = false;
     };
-  }, [isStudentRole]);
+  }, [isStudentRole, studentRetry]);
 
   if (shouldVerifyAdminWithSupabase) {
     if (adminCheck.loading) {
@@ -89,6 +91,15 @@ function ProtectedRoute({ children, role }) {
     }
 
     if (!studentCheck.user) {
+      if (studentCheck.error?.code === "STUDENT_PROFILE_UNAVAILABLE") {
+        return <div role="alert" className="student-setup-feedback is-error">
+          <p>Your Student profile is temporarily unavailable. Your session has not been signed out.</p>
+          <button type="button" onClick={() => {
+            setStudentCheck({ loading: true, user: null });
+            setStudentRetry((current) => current + 1);
+          }}>Try again</button>
+        </div>;
+      }
       return <Navigate to={getLoginRouteForRole(role)} replace />;
     }
 

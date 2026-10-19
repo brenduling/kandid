@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import "./RemainingPages.css";
 import { CalendarDays, CheckCircle2, Plus, RefreshCw, Save } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
+import SuperAdminPageHeader from "../../components/SuperAdminPageHeader";
 import { usePrompt } from "../../context/PromptContext";
 import { logAuditEvent } from "../../utils/auditLog";
 import {
@@ -258,14 +259,7 @@ function SystemSettings() {
 
   return (
     <div className="sa-remaining-page sa-system-settings">
-      <div className="page-head">
-        <div>
-          <p className="sa-remaining-breadcrumb"><span>Kandid</span><span>/</span><span>Super Admin</span></p>
-          <div className="page-kicker">Platform Configuration</div>
-          <h1 className="page-title">System Settings</h1>
-          <p className="page-subtitle">Configure system-wide behavior and defaults.</p>
-        </div>
-      </div>
+      <SuperAdminPageHeader section="System structure" title="System Settings" description="Manage academic terms and system-wide defaults used across Kandid." />
 
       <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,480px)]">
       <div className="glass-panel max-w-xl rounded-[28px] p-6 shadow-sm space-y-6">

@@ -1,0 +1,914 @@
+/* Board > Partylists — election-group directory.
+
+   The page previously presented each partylist as a database record: a bordered
+   tile, an orange pill for the election, a UsersRound icon next to a raw count,
+   and two permanently exposed square Edit/Delete controls. It worked, but it read
+   as a CRUD editor rather than as an election document.
+
+   This stylesheet reuses the same system the approved Officer record and the other
+   Board pages already established, so this page joins the portal instead of
+   inventing a look of its own:
+
+     - the Elections masthead, mirrored rule for rule: the orange
+       "Electoral Board / [organization]" eyebrow with its hairline, the page
+       title carrying the one orange action on its baseline, the standfirst, and
+       the single 2px ink rule closing the header;
+     - the register rhythm of hairline-separated rows with a tracked label row
+       opening the section — never a card grid;
+     - a serif partylist name as the strongest information in its row, with the
+       election demoted to quiet context above it and the candidate count demoted
+       to metadata below it;
+     - the overflow action menu already used by the Officer record for secondary
+       and destructive actions;
+     - the shared Board palette, aliases of --kandid-app-*, and zero radius.
+
+   Scope note: every selector below is qualified with .board-partylists and, where
+   a generic .page-head / .page-title rule would otherwise bleed in, the weight is
+   matched narrowly. No shared stylesheet is edited, so the finished Officers UI
+   and every other Board page are unaffected. The old .partylist-card rules in
+   BoardRemainingPages.css are left in place untouched; this page simply no longer
+   renders those classes. */
+
+.kandid-app-theme .board-partylists {
+  --board-partylist-hairline: var(--kandid-app-border, #e5e0d6);
+  --board-partylist-hairline-strong: var(--kandid-app-border-strong, #d2ccc0);
+  --board-partylist-ink: var(--kandid-app-ink, #101114);
+  --board-partylist-ink-soft: var(--kandid-app-ink-3, #3a3d45);
+  --board-partylist-muted: var(--kandid-app-muted, #5b5e66);
+  --board-partylist-orange: var(--kandid-app-orange, #f4512c);
+  --board-partylist-paper: var(--kandid-app-paper, #ffffff);
+  --board-partylist-paper-soft: var(--kandid-app-paper-soft, #f8f6f1);
+  --board-partylist-danger: #9f1239;
+  --board-partylist-danger-strong: #a83224;
+
+  /* The document rhythm, matched to .board-elections-desktop so the space
+     between this page's masthead and its first register line is the same space
+     Elections puts between its masthead and its summary rail. The shared
+     .board-remaining-page gap is a single class, so it is overridden here rather
+     than changed for the five pages that also use it. */
+  gap: clamp(1.15rem, 1.9vw, 1.7rem);
+}
+
+/* --- masthead ----------------------------------------------------------------
+   This is the Elections masthead, rule for rule: .board-elections-masthead,
+   -context, -eyebrow, -context-rule, -baseline, -title, -create and -standfirst
+   in Elections.css. Every value below is lifted from that file, and each token is
+   an alias of the same shared --kandid-app-* property, so switching between
+   Board -> Elections and Board -> Partylists reads as one page family.
+
+   The Elections rules are not shared as a class here on purpose. That stylesheet
+   is a whole page's stylesheet - its register, summary rail, snapshot and phase
+   states - and importing it would pull all of that onto this page and couple two
+   unrelated Board pages. Mirroring the block, the way Officers.css and
+   Candidates.css already mirror it, keeps each page self-contained and leaves
+   Elections untouched.
+
+   The former "Kandid / Electoral Board" breadcrumb and "Organization Groups"
+   kicker are gone: the orange "Electoral Board / [organization]" eyebrow already
+   carries the Board context, and it carries the live organization name, which the
+   old static breadcrumb and the old generic "under your organization" standfirst
+   did not. */
+
+.kandid-app-theme .board-partylists .board-partylists-masthead {
+  display: grid;
+  min-width: 0;
+  gap: 0.5rem;
+  border: 0 !important;
+  border-bottom: 2px solid var(--kandid-app-ink) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 0 clamp(1rem, 1.7vw, 1.5rem) !important;
+  box-shadow: none !important;
+}
+
+.kandid-app-theme .board-partylists .board-partylists-context {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.kandid-app-theme .board-partylists .board-partylists-eyebrow {
+  flex: 0 0 auto;
+  max-width: 100%;
+  overflow: hidden;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  color: var(--kandid-app-orange) !important;
+  font-size: 0.68rem !important;
+  font-weight: 850 !important;
+  letter-spacing: 0.14em !important;
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* The hairline that runs off the eyebrow and out to the edge. */
+.kandid-app-theme .board-partylists .board-partylists-context-rule {
+  flex: 1 1 auto;
+  min-width: 1.5rem;
+  height: 1px;
+  background: var(--kandid-app-border);
+}
+
+/* "Partylists" inherits the shared Board page-title rule
+   (.kandid-app-theme.board-theme .page-title in index.css) exactly as
+   "Elections" does, so both are set in the same Source Serif 4, weight 700,
+   sentence-case scale. Only the measure is declared here. The two
+   .board-remaining-page .page-title declarations are neutralised because they
+   would otherwise set a larger, tighter scale than the shared one. */
+.kandid-app-theme .board-partylists .board-partylists-title {
+  max-width: 48rem;
+  margin: 0 !important;
+  color: var(--kandid-app-ink) !important;
+  font-family: "Source Serif 4", Georgia, serif !important;
+  font-size: clamp(2.35rem, 3.6vw, 3.2rem) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+  line-height: 1 !important;
+}
+
+.kandid-app-theme .board-partylists .board-partylists-baseline {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem 1.5rem;
+}
+
+/* A plain paragraph, not .page-subtitle, because the shared Board standfirst is
+   one and .board-remaining-page .page-subtitle would otherwise override its size
+   and spacing. */
+.kandid-app-theme .board-partylists .board-partylists-standfirst {
+  max-width: 44rem;
+  margin: 0;
+  color: var(--kandid-app-ink-3);
+  font-size: 0.94rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+/* Add Partylist: the one orange action on the page, matching Create Election. */
+.kandid-app-theme .board-partylists .board-partylists-create {
+  display: inline-flex;
+  min-height: 2.45rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: 1px solid var(--kandid-app-orange) !important;
+  border-radius: 0 !important;
+  padding: 0 1.05rem !important;
+  background: var(--kandid-app-orange) !important;
+  color: #ffffff !important;
+  font-family: inherit;
+  font-size: 0.71rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.kandid-app-theme .board-partylists .board-partylists-create:hover {
+  border-color: #d93f1d !important;
+  background: #d93f1d !important;
+}
+
+.kandid-app-theme .board-partylists .board-partylists-create:focus-visible {
+  outline: 2px solid var(--kandid-app-orange);
+  outline-offset: 2px;
+}
+
+/* --- directory ---------------------------------------------------------------
+   One ruled list, and nothing above it. There is no section label row: the masthead
+   already names the page, so a second "PARTYLISTS" heading only repeated it, and the
+   index numbering already carries the size of the directory, so the count is not
+   stated a second time either.
+
+   Rows are separated by hairlines and by whitespace, and the only strong rules on
+   the page are the masthead's and the one that opens the directory, so the page reads
+   as one document rather than as a stack of objects. */
+
+.kandid-app-theme .board-partylist-directory {
+  min-width: 0;
+  margin: 0;
+  border-top: 1px solid var(--board-partylist-hairline-strong);
+  padding: 0;
+  list-style: none;
+}
+
+/* No. | partylist | actions.
+
+   Three tracks, so the partylist text column is identical on every row and the
+   action track is only as wide as the actions it holds. Management therefore
+   cannot compete with the partylist, and the directory's left edge stays a single
+   alignment all the way down.
+
+   The desktop actions and the mobile overflow trigger share the third track. Only
+   one of the two is ever displayed, and a display:none grid item takes no track of
+   its own, so the row is three tracks at every width rather than four. */
+.kandid-app-theme .board-partylist-row {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 2.2rem minmax(0, 1fr) auto;
+  gap: 0.4rem 1.1rem;
+  align-items: start;
+  border-bottom: 1px solid var(--board-partylist-hairline);
+  padding: 1.05rem 0;
+  transition: background-color 140ms ease;
+}
+
+.kandid-app-theme .board-partylist-row:last-child {
+  border-bottom: 0;
+}
+
+.kandid-app-theme .board-partylist-row:hover {
+  background: rgb(244 81 44 / 0.022);
+}
+
+/* The index follows the sorted display order and is decorative: the ordered list
+   already carries the sequence for assistive technology, so announcing it again
+   would be noise. */
+.kandid-app-theme .board-partylist-index {
+  padding-top: 0.15rem;
+  color: var(--board-partylist-muted);
+  font-size: 0.68rem;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.1em;
+  line-height: 1.3;
+}
+
+/* Mark beside the partylist's text, at every width. The mark keeps a real fixed
+   width so every name in the directory starts on the same vertical line — that
+   shared alignment is what makes the list scan as a directory rather than as a
+   set of separate boxes. */
+.kandid-app-theme .board-partylist-identity {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 3.4rem minmax(0, 1fr);
+  gap: 0.4rem 1.1rem;
+  align-items: start;
+}
+
+.kandid-app-theme .board-partylist-context {
+  min-width: 0;
+}
+
+/* The mark is a square, not a rounded avatar: it is a partylist's identity plate
+   rather than a person's portrait. A logo is contained rather than cropped so a
+   wordmark or seal is not cut off, and the initials fallback is the partylist's
+   own initials rather than a generic placeholder tile. */
+.kandid-app-theme .board-partylist-mark {
+  display: grid;
+  width: 3.4rem;
+  height: 3.4rem;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--board-partylist-hairline-strong);
+  background: var(--board-partylist-paper-soft);
+}
+
+.kandid-app-theme .board-partylist-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.kandid-app-theme .board-partylist-mark span {
+  color: var(--board-partylist-ink-soft);
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+}
+
+.kandid-app-theme .board-partylist-body {
+  min-width: 0;
+}
+
+/* The strongest information on the page after the page title itself, and now the
+   strongest thing in the row by a clear margin: a partylist is the identity, so
+   nothing is printed above it. Long names wrap rather than truncate or push the
+   row wide. */
+.kandid-app-theme .board-partylist-name {
+  margin: 0 !important;
+  overflow-wrap: anywhere;
+  color: var(--board-partylist-ink) !important;
+  font-family: "Source Serif 4", Georgia, serif !important;
+  font-size: clamp(1.22rem, 1.9vw, 1.6rem) !important;
+  font-weight: 650 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.1 !important;
+}
+
+/* The tagline is the partylist's own words, so it is set as running text in the
+   softer ink and held to a readable measure instead of filling the row. A
+   partylist with no description simply has no line here — the row reads name
+   then count, which is the truth about that partylist. */
+.kandid-app-theme .board-partylist-tagline {
+  max-width: 58ch;
+  margin: 0.45rem 0 0;
+  overflow-wrap: anywhere;
+  color: var(--board-partylist-ink-soft);
+  font-size: 0.9rem;
+  font-weight: 550;
+  line-height: 1.5;
+}
+
+/* Membership as a quiet fact, not as a metric. The icon and the boxed treatment
+   are gone; the number is tabular so the counts line up down the directory. */
+.kandid-app-theme .board-partylist-members {
+  margin: 0.55rem 0 0;
+  color: var(--board-partylist-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+}
+
+/* --- actions -----------------------------------------------------------------
+   The same two actions, presented for the space available.
+
+   Desktop has room to show them, so it shows them: EDIT and DELETE as tracked text
+   at the far right of the row, aligned to the top of the partylist name. Not square
+   icon buttons — the row already has a square mark in it, and a second square
+   control at the same weight would compete with the partylist.
+
+   Presentation only. These call the page's existing openEdit and handleDelete, so
+   the delete confirmation, the dependency analysis and the audit trail are exactly
+   the ones the overflow menu has always used. */
+
+.kandid-app-theme .board-partylist-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.1rem;
+}
+
+.kandid-app-theme .board-partylist-action {
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.3rem 0.45rem;
+  color: var(--board-partylist-ink-soft);
+  font: inherit;
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+
+.kandid-app-theme .board-partylist-action:hover,
+.kandid-app-theme .board-partylist-action:focus-visible {
+  border-bottom-color: var(--board-partylist-ink);
+  color: var(--board-partylist-ink);
+}
+
+/* Delete is destructive, so it stays quiet at rest — the same muted ink as Edit,
+   signalled only on approach rather than wearing a red label on every row. */
+.kandid-app-theme .board-partylist-action.is-danger:hover,
+.kandid-app-theme .board-partylist-action.is-danger:focus-visible {
+  border-bottom-color: var(--board-partylist-danger);
+  color: var(--board-partylist-danger-strong);
+}
+
+/* --- action menu -------------------------------------------------------------
+   Mobile only. Hidden on desktop, where the same two actions are already on show. */
+
+.kandid-app-theme .board-partylist-menu {
+  position: relative;
+  display: none;
+  justify-self: end;
+}
+
+.kandid-app-theme .board-partylist-menu-trigger {
+  display: grid;
+  width: 2.4rem;
+  height: 2.4rem;
+  place-items: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--board-partylist-muted);
+  cursor: pointer;
+}
+
+.kandid-app-theme .board-partylist-menu-trigger:hover,
+.kandid-app-theme .board-partylist-menu-trigger:focus-visible {
+  color: var(--board-partylist-ink);
+  outline: 2px solid var(--board-partylist-orange);
+  outline-offset: 2px;
+}
+
+.kandid-app-theme .board-partylist-menu-list {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 4px);
+  right: 0;
+  display: grid;
+  min-width: 9.5rem;
+  border: 1px solid var(--board-partylist-hairline-strong);
+  background: var(--board-partylist-paper);
+  box-shadow: 0 8px 18px rgb(22 20 17 / 12%);
+}
+
+.kandid-app-theme .board-partylist-menu-item {
+  border: 0;
+  border-bottom: 1px solid var(--board-partylist-hairline);
+  border-radius: 0;
+  background: transparent;
+  padding: 0.7rem 0.8rem;
+  color: var(--board-partylist-ink);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.kandid-app-theme .board-partylist-menu-item:last-child {
+  border-bottom: 0;
+}
+
+.kandid-app-theme .board-partylist-menu-item:hover,
+.kandid-app-theme .board-partylist-menu-item:focus-visible {
+  background: var(--board-partylist-paper-soft);
+}
+
+.kandid-app-theme .board-partylist-menu-item.is-danger {
+  color: var(--board-partylist-danger);
+}
+
+.kandid-app-theme .board-partylist-menu-item.is-danger:hover,
+.kandid-app-theme .board-partylist-menu-item.is-danger:focus-visible {
+  color: var(--board-partylist-danger-strong);
+}
+
+/* --- empty state -------------------------------------------------------------
+   Intentional rather than apologetic: a label, one sentence of guidance, and the
+   action that resolves it. No box, no illustration, no border. */
+
+.kandid-app-theme .board-partylist-empty {
+  display: grid;
+  max-width: 34rem;
+  gap: 0.6rem;
+  border-bottom: 1px solid var(--board-partylist-hairline);
+  padding: 0.2rem 0 1.4rem;
+}
+
+.kandid-app-theme .board-partylist-empty-kicker {
+  margin: 0;
+  color: var(--board-partylist-orange);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-partylist-empty h2 {
+  margin: 0 !important;
+  overflow-wrap: anywhere;
+  color: var(--board-partylist-ink) !important;
+  font-family: "Source Serif 4", Georgia, serif !important;
+  font-size: clamp(1.15rem, 1.7vw, 1.4rem) !important;
+  font-weight: 650 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.25 !important;
+}
+
+.kandid-app-theme .board-partylist-empty-action {
+  justify-self: start;
+  margin-top: 0.35rem;
+}
+
+/* --- add / edit form ---------------------------------------------------------
+   The dialog is the Board "Add Student" sheet, reused rather than imitated.
+   Partylists.jsx imports ../superadmin/Students.css for the same reason
+   OfficerFormDialog.jsx does, and the markup uses the identical primitives:
+
+     popup-sheet popup-sheet-wide sa-students-modal is-registration
+     popup-header / popup-header-copy / surface-title / surface-copy / popup-close
+     popup-content sa-registration-workspace
+     sa-registration-progress / sa-registration-focus / sa-registration-field
+     sa-registration-review / sa-registration-actions
+     secondary-btn / primary-btn
+
+   So the sheet, its black top rule, header spacing, progress rail, question
+   headings, uppercase field labels, field treatment, dividers, footer layout and
+   button geometry are all the shared Add Student primitives and are not restated
+   here. Only what Add Student does not have is declared below: the sheet's own
+   token block, the name field's editorial rule, the logo control, and a two-column
+   review. Every selector is scoped to .board-partylist-registration or to an id on
+   this form, so Add Student, Officers and the other pages cannot be affected. */
+
+.modal-overlay .board-partylist-registration {
+  --kandid-app-ink: #101114;
+  --kandid-app-muted: #5b5e66;
+  --kandid-app-ink-3: #514d46;
+  --kandid-app-orange: #f4512c;
+  --kandid-app-border: #e5e0d6;
+  --kandid-app-border-strong: #cfc9bf;
+  --kandid-app-danger: #a13228;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* The name field is the form's one required answer, so it gets the same editorial
+   bottom rule Add Student's Student ID input gets. Scoped to this form's own id
+   rather than to a shared class, so the Add Student rule is left alone. */
+.modal-overlay .sa-students-modal.is-registration #partylist-name {
+  border-bottom: 2px solid var(--kandid-app-ink, #171717);
+  background: #fff !important;
+}
+
+.modal-overlay .sa-students-modal.is-registration #partylist-name:focus {
+  border-bottom-color: var(--kandid-app-orange, #ef4e23);
+}
+
+.board-partylist-registration .board-partylist-name-field {
+  width: min(100%, 34rem);
+}
+
+/* A description is one or two sentences, not an essay. Three rows keeps it
+   comparable to a single-line answer without making it a wall. */
+.board-partylist-registration .board-partylist-description {
+  min-height: 5.25rem !important;
+  resize: vertical;
+}
+
+/* Logo control.
+
+   The browser's own "Choose File / No file chosen" is hidden behind a real
+   button, which is the treatment CSV Import already established for file
+   selection: a square tracked label with a visually hidden but keyboard-reachable
+   input inside it. Nothing about the file is written differently - the chosen file
+   is still read to a data URL into logo_url exactly as before. */
+
+.board-partylist-logo-button {
+  position: relative;
+  display: inline-flex;
+  min-height: 2.45rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  align-self: flex-start;
+  border: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+  border-radius: 0;
+  padding: 0 1.05rem;
+  background: transparent;
+  color: var(--kandid-app-ink, #101114);
+  font-family: inherit;
+  font-size: 0.71rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.board-partylist-logo-button:hover {
+  border-color: var(--kandid-app-ink, #101114);
+  background: var(--kandid-app-ink, #101114);
+  color: #fff;
+}
+
+.board-partylist-logo-button:focus-within {
+  outline: 2px solid var(--kandid-app-orange, #f4512c);
+  outline-offset: 2px;
+}
+
+/* Visually hidden, still reachable by keyboard. */
+.board-partylist-logo-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* After selection: a compact plate. The preview is the same square identity mark
+   used in the directory and in the review step, so the mark does not change size
+   or shape between choosing an image and confirming it. */
+
+.board-partylist-registration .board-partylist-logo-selected {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  border-top: 1px solid var(--kandid-app-border, #e5e0d6);
+  border-bottom: 1px solid var(--kandid-app-border, #e5e0d6);
+  padding: 0.7rem 0;
+}
+
+/* This plate only ever renders with a stored logo, so the child is always the
+   image branch. The initials fallback lives inside .board-partylist-review-mark
+   in the review step and is styled there. */
+.board-partylist-logo-preview {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+  border-radius: 0;
+  background: rgba(0, 0, 0, 0.03);
+  object-fit: contain;
+}
+
+.board-partylist-logo-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.4rem;
+}
+
+.board-partylist-logo-copy strong {
+  overflow-wrap: anywhere;
+  color: var(--kandid-app-ink, #101114);
+  font-size: 0.8rem;
+  font-weight: 750;
+  line-height: 1.3;
+}
+
+.board-partylist-logo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.board-partylist-logo-actions .board-partylist-logo-button {
+  min-height: 2.05rem;
+  padding: 0 0.7rem;
+  font-size: 0.62rem;
+}
+
+.board-partylist-logo-remove {
+  min-height: 2.05rem;
+  border: 1px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  padding: 0 0.7rem;
+  color: var(--kandid-app-muted, #5b5e66);
+  font-family: inherit;
+  font-size: 0.62rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+
+.board-partylist-logo-remove:hover {
+  border-bottom-color: var(--kandid-app-danger, #a13228);
+  color: var(--kandid-app-danger, #a13228);
+}
+
+.board-partylist-logo-remove:focus-visible {
+  outline: 2px solid var(--kandid-app-orange, #f4512c);
+  outline-offset: 2px;
+}
+
+/* Review: a partylist and its organization, so two columns rather than the three
+   Add Student uses. Only two sections exist here, so the shared three-track grid
+   would leave an empty column.
+
+   Deliberately declared as a min-width, not a bare override. The shared
+   stylesheet collapses .sa-registration-review to one column and moves the
+   section divider from the left edge to the top at 767px; a bare two-column rule
+   is more specific than that media rule, so it would survive onto mobile and
+   keep two columns where the shared system intends one. Inside a min-width query
+   the rule simply does not exist at those widths, and the shared collapse - and
+   its divider change - apply unchanged. */
+
+@media (min-width: 768px) {
+  .board-partylist-registration .board-partylist-review {
+    grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  }
+}
+
+.board-partylist-review-identity {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 0.7rem;
+}
+
+.board-partylist-review-identity > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.3rem;
+}
+
+/* The identity mark inside a review section is a span, so the shared
+   .sa-registration-review span rule - which is what makes a section's
+   "PARTYLIST" / "ORGANIZATION" kicker orange, small and uppercase - would
+   otherwise style the initials as if they were a kicker. This is two classes
+   against the shared class-plus-element, so it wins on specificity rather than
+   on !important or source order. */
+.sa-registration-review .board-partylist-review-mark {
+  display: grid;
+  width: 2.6rem;
+  height: 2.6rem;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+  border-radius: 0;
+  background: rgba(0, 0, 0, 0.03);
+  object-fit: contain;
+  color: var(--kandid-app-muted, #5b5e66);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+/* --- responsive --------------------------------------------------------------
+   The directory is one column at every width; it never becomes a card grid and
+   never scrolls sideways. On mobile the row keeps the same three tracks, but the
+   inline EDIT/DELETE pair gives way to the overflow menu — horizontal space is the
+   only reason for the difference, and the actions themselves are identical. On
+   tablet the mark and index hold their rails while the partylist body takes the
+   remainder. */
+
+@media (max-width: 760px) {
+  /* The Elections header's own responsive behaviour, not a separate Partylist
+     one: the baseline becomes a grid so the action drops to its own full-width
+     line under the title, and the document rhythm tightens to match. */
+  .kandid-app-theme .board-partylists {
+    gap: 0.75rem;
+  }
+
+  .kandid-app-theme .board-partylists .board-partylists-baseline {
+    display: grid;
+    justify-content: stretch;
+    gap: 0.9rem;
+  }
+
+  .kandid-app-theme .board-partylists .board-partylists-create {
+    width: 100%;
+  }
+
+  /* The index stays a left rail, the trigger stays on the outer edge, and the
+     mark shrinks beside the text. The row never becomes a card and never scrolls
+     sideways: the name, the tagline and the count all wrap inside the one
+     content track. */
+  .kandid-app-theme .board-partylist-row {
+    grid-template-columns: 1.75rem minmax(0, 1fr) 2.4rem;
+    gap: 0.35rem 0.7rem;
+    padding: 0.95rem 0;
+  }
+
+  /* The overflow menu takes over from the inline pair here. */
+  .kandid-app-theme .board-partylist-actions {
+    display: none;
+  }
+
+  .kandid-app-theme .board-partylist-menu {
+    display: block;
+  }
+
+  .kandid-app-theme .board-partylist-identity {
+    grid-template-columns: 2.5rem minmax(0, 1fr);
+    gap: 0.35rem 0.7rem;
+  }
+
+  .kandid-app-theme .board-partylist-mark {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .kandid-app-theme .board-partylist-mark span {
+    font-size: 0.7rem;
+  }
+
+  /* Aligned to the partylist name's line, which is where the eye looks for a row's
+     own management control. */
+  .kandid-app-theme .board-partylist-menu {
+    margin-top: 0;
+  }
+}
+
+@media (max-width: 430px) {
+  /* The Elections masthead's narrow-end values, so the two headers stay in step
+     at the bottom of the range as well as at the top. */
+  .kandid-app-theme .board-partylists .board-partylists-masthead {
+    padding-bottom: 0.9rem !important;
+  }
+
+  .kandid-app-theme .board-partylists .board-partylists-title {
+    font-size: 2.1rem !important;
+  }
+
+  .kandid-app-theme .board-partylists .board-partylists-standfirst {
+    font-size: 0.86rem;
+  }
+
+  .kandid-app-theme .board-partylist-row {
+    grid-template-columns: 1.6rem minmax(0, 1fr) 2.4rem;
+    gap: 0.3rem 0.5rem;
+  }
+
+  .kandid-app-theme .board-partylist-identity {
+    grid-template-columns: 2.25rem minmax(0, 1fr);
+    gap: 0.3rem 0.55rem;
+  }
+
+  .kandid-app-theme .board-partylist-mark {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .kandid-app-theme .board-partylist-tagline {
+    font-size: 0.86rem;
+  }
+}
+
+.kandid-app-theme .board-partylist-load-error {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-top: 1px solid #9e3429;
+  border-bottom: 1px solid var(--kandid-app-border);
+  padding: 0.75rem 0;
+  color: #71433d;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.kandid-app-theme .board-partylist-load-error p { margin: 0; overflow-wrap: anywhere; }
+.kandid-app-theme .board-partylist-refreshing {
+  margin: 0;
+  border-bottom: 1px solid var(--kandid-app-border);
+  padding: 0.4rem 0;
+  color: var(--kandid-app-muted);
+  font-size: 0.7rem;
+}
+.kandid-app-theme .board-partylist-load-error button {
+  flex: 0 0 auto;
+  border-bottom: 1px solid currentColor;
+  color: var(--kandid-app-ink);
+  font-size: 0.67rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-partylist-load-error button:disabled { opacity: 0.55; cursor: progress; }
+
+.kandid-app-theme .board-partylist-skeleton {
+  display: grid;
+  border-top: 1px solid var(--kandid-app-border-strong);
+}
+
+.kandid-app-theme .board-partylist-skeleton-row {
+  display: grid;
+  grid-template-columns: 2.6rem minmax(0, 1fr) 5rem;
+  align-items: center;
+  gap: 1rem;
+  min-height: 5.6rem;
+  border-bottom: 1px solid var(--kandid-app-border);
+}
+
+.kandid-app-theme .board-partylist-skeleton-row span {
+  display: block;
+  width: min(17rem, 90%);
+  height: 0.7rem;
+  background: #e9e4da;
+  animation: board-partylist-breathe 1.5s ease-in-out infinite alternate;
+}
+
+.kandid-app-theme .board-partylist-skeleton-row span:first-child { width: 2.3rem; height: 2.6rem; }
+.kandid-app-theme .board-partylist-skeleton-row span:last-child { width: 4rem; height: 2rem; }
+
+@keyframes board-partylist-breathe { to { opacity: 0.55; } }
+
+@media (max-width: 640px) {
+  .kandid-app-theme .board-partylist-load-error { align-items: flex-start; flex-direction: column; }
+  .kandid-app-theme .board-partylist-skeleton-row { grid-template-columns: 2.3rem minmax(0, 1fr) 2.6rem; min-height: 4.8rem; gap: 0.7rem; }
+  .kandid-app-theme .board-partylist-skeleton-row span:last-child { width: 2.3rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kandid-app-theme .board-partylist-skeleton-row span { animation-duration: 0.01ms; animation-iteration-count: 1; }
+}

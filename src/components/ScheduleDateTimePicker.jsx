@@ -1,8 +1,9 @@
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 const SCHEDULE_PICKER_OPEN_EVENT = "kandid:schedule-picker-open";
 
+// eslint-disable-next-line react-refresh/only-export-components -- shared with the existing election schedule forms.
 export function currentDateTimeInputValue() {
   const now = new Date();
   const offsetMs = now.getTimezoneOffset() * 60 * 1000;
@@ -70,10 +71,21 @@ function ScheduleDateTimePicker({
   value,
   onChange,
   required = false,
+  disabled = false,
   min = "",
   max = "",
+  validationId,
+  afterField = "",
+  afterLabel = "",
+  afterMessage = "",
+  afterInclusive = false,
+  beforeField = "",
+  beforeLabel = "",
+  beforeMessage = "",
+  beforeInclusive = false,
 }) {
   const pickerId = useId();
+  const triggerRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [visibleMonth, setVisibleMonth] = useState(() => monthStartFrom(value || min));
   const selectedDate = datePart(value);
@@ -91,22 +103,23 @@ function ScheduleDateTimePicker({
   function commit(dateValue, timeValue = selectedTime) {
     if (!dateValue) return;
     onChange(clampDateTimeValue(`${dateValue}T${timeValue}`, min, max));
+    requestAnimationFrame(() => {
+      triggerRef.current?.dispatchEvent(new Event("change", { bubbles: true }));
+    });
   }
 
   function toggleOpen() {
-    setOpen((current) => {
-      const nextOpen = !current;
+    const nextOpen = !open;
 
-      if (nextOpen) {
-        document.dispatchEvent(
-          new CustomEvent(SCHEDULE_PICKER_OPEN_EVENT, {
-            detail: { pickerId },
-          }),
-        );
-      }
+    if (nextOpen) {
+      document.dispatchEvent(
+        new CustomEvent(SCHEDULE_PICKER_OPEN_EVENT, {
+          detail: { pickerId },
+        }),
+      );
+    }
 
-      return nextOpen;
-    });
+    setOpen(nextOpen);
   }
 
   useEffect(() => {
@@ -132,13 +145,31 @@ function ScheduleDateTimePicker({
         }
       }}
     >
-      <label className="field-label">{label}</label>
+      <label className="field-label" htmlFor={validationId || `schedule-${pickerId}`}>{label}</label>
       <button
+        ref={triggerRef}
+        id={validationId || `schedule-${pickerId}`}
         type="button"
         className="field-shell flex min-h-[3.25rem] w-full items-center justify-between gap-3 text-left"
         aria-haspopup="dialog"
         aria-expanded={open}
+        aria-label={`${label} date and time`}
+        aria-required={required || undefined}
+        data-validation-field="true"
+        data-validation-label={label}
+        data-validation-required={required ? "true" : "false"}
+        data-validation-value={value || ""}
+        data-after-field={afterField || undefined}
+        data-after-label={afterLabel || undefined}
+        data-after-message={afterMessage || undefined}
+        data-after-inclusive={afterInclusive ? "true" : undefined}
+        data-before-field={beforeField || undefined}
+        data-before-label={beforeLabel || undefined}
+        data-before-message={beforeMessage || undefined}
+        data-before-inclusive={beforeInclusive ? "true" : undefined}
         onClick={toggleOpen}
+        disabled={disabled}
+        aria-disabled={disabled}
       >
         <span className={value ? "truncate" : "truncate text-gray-400"}>
           {formatDateTime(value)}
@@ -146,7 +177,7 @@ function ScheduleDateTimePicker({
         <CalendarDays size={18} className="shrink-0 text-[#f4511e]" />
       </button>
 
-      {open ? (
+      {open && !disabled ? (
         <div className="absolute left-0 right-0 z-50 mt-2 rounded-2xl border border-[rgba(24,54,49,0.1)] bg-white p-4 shadow-2xl">
           <div className="flex items-center justify-between">
             <button
@@ -211,6 +242,10 @@ function ScheduleDateTimePicker({
             <input
               type="time"
               required={required}
+              aria-label={`${label} time`}
+              data-validation-label={`${label} time`}
+              data-validation-message={`${label} must use a time within the allowed schedule window.`}
+              disabled={disabled}
               value={selectedTime}
               min={minTime || undefined}
               max={maxTime || undefined}

@@ -11,21 +11,22 @@ import {
 import { supabase } from "../../lib/supabaseClient";
 import { formatLocalDateTime, getElectionPhase } from "../../utils/elections";
 import {
-  distanceBetweenMeters,
-  doesTokenMatchStudent,
   getVotingAccessModeLabel,
-  isTokenExpired,
 } from "../../utils/votingAccess";
+import { callVoteAccess, verifyStudentElectionAccessCode } from "../../utils/voteAccess";
 import { hasStudentVotedInElection, submitBallot } from "../../utils/voting";
 import { getStudentElectionOrganizationIds } from "../../utils/organizationAccess";
 import { usePrompt } from "../../context/PromptContext";
 import KandidImage from "../../components/KandidImage";
 import { fetchOrderedPositions } from "../../utils/positionOrder";
+import { getCurrentStudentProfile } from "../../utils/auth";
+import { studentElectionFailure } from "../../utils/studentElectionAccess";
+import { useElectionClock } from "../../utils/useElectionClock";
 
 function StudentVotePage() {
   const { electionId } = useParams();
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem("user"));
+  const userId = JSON.parse(localStorage.getItem("user"))?.id;
   const prompt = usePrompt();
 
   const [election, setElection] = useState(null);
@@ -37,11 +38,15 @@ function StudentVotePage() {
   const [submitting, setSubmitting] = useState(false);
   const [accessCode, setAccessCode] = useState("");
   const [accessGranted, setAccessGranted] = useState(false);
+  const [verifiedLocation, setVerifiedLocation] = useState(null);
   const [accessMessage, setAccessMessage] = useState("");
   const [candidateError, setCandidateError] = useState("");
   const [verifyingAccess, setVerifyingAccess] = useState(false);
   const [alreadyVoted, setAlreadyVoted] = useState(false);
   const [accessDenied, setAccessDenied] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
+  const now = useElectionClock();
 
   useEffect(() => {
     let active = true;
@@ -50,11 +55,12 @@ function StudentVotePage() {
       setLoading(true);
       setAccessDenied(false);
       setCandidateError("");
+      setLoadError("");
 
       const [
-        { data: electionData },
-        { data: studentData },
-        { data: positionData },
+        { data: electionData, error: electionError },
+        { data: studentData, error: studentError },
+        { data: positionData, error: positionError },
         voteCheck,
       ] =
         await Promise.all([
@@ -70,28 +76,25 @@ function StudentVotePage() {
               end_date,
               status,
               voting_access_mode,
-              geo_lat,
-              geo_lng,
-              geo_radius_meters,
               location_label,
               organizations(name)
             `)
             .eq("id", electionId)
             .single(),
-          supabase
-            .from("students")
-            .select("id, student_number, first_name, last_name, program, precinct_code, batch_code")
-            .eq("id", user.id)
-            .single(),
+          getCurrentStudentProfile(),
           fetchOrderedPositions(supabase, electionId),
-          hasStudentVotedInElection(user.id, electionId),
+          hasStudentVotedInElection(userId, electionId),
         ]);
 
       if (!active) return;
+      if (electionError || studentError || positionError || voteCheck?.error) {
+        throw electionError || studentError || positionError || voteCheck.error;
+      }
 
       const eligibleOrganizationIds = await getStudentElectionOrganizationIds(
-        studentData || user,
+        studentData || { id: userId },
       );
+      if (!active) return;
 
       if (!eligibleOrganizationIds.includes(electionData?.organization_id)) {
         setElection(null);
@@ -109,22 +112,10 @@ function StudentVotePage() {
 
       if (positionData?.length) {
         setPositions(positionData);
-        const positionIds = positionData.map((position) => position.id);
-        const { data: candData, error: candidateLoadError } = await supabase
-          .from("candidates")
-          .select(`
-            id,
-            position_id,
-            student_id,
-            partylist_id,
-            photo,
-            credentials,
-            bio,
-            platform,
-            students(first_name, last_name, photo_url),
-            partylists(name, logo_url)
-          `)
-          .in("position_id", positionIds);
+        const { data: candData, error: candidateLoadError } = await supabase.rpc(
+          "kandid_get_student_ballot_candidates",
+          { p_election_id: Number(electionId) },
+        );
 
         if (candidateLoadError) {
           console.error("Failed to load ballot candidates:", candidateLoadError);
@@ -150,12 +141,17 @@ function StudentVotePage() {
       setLoading(false);
     }
 
-    loadBallot();
+    loadBallot().catch(error => {
+      if (active) {
+        setLoadError(studentElectionFailure(error).message);
+        setLoading(false);
+      }
+    });
 
     return () => {
       active = false;
     };
-  }, [electionId, user.id]);
+  }, [electionId, userId, reloadKey]);
 
   function handleSelect(position, candidateId) {
     const maxVotes = Math.max(Number(position.max_votes || 1), 1);
@@ -223,12 +219,10 @@ function StudentVotePage() {
     setVerifyingAccess(true);
     setAccessMessage("");
 
-    const { data, error } = await supabase
-      .from("election_access_tokens")
-      .select("id, election_id, token, is_active, scope_type, scope_value, expires_at")
-      .eq("election_id", Number(electionId))
-      .eq("token", normalizedCode)
-      .maybeSingle();
+    const { data, error } = await verifyStudentElectionAccessCode({
+      electionId,
+      token: normalizedCode,
+    });
 
     if (error) {
       setAccessMessage(error.message || "Failed to validate access code.");
@@ -236,22 +230,18 @@ function StudentVotePage() {
       return;
     }
 
-    if (!data || !data.is_active) {
+    if (!data?.granted) {
+      if (data?.reason === "expired") {
+        setAccessMessage("This access code has already expired.");
+        setVerifyingAccess(false);
+        return;
+      }
+      if (data?.reason === "scope_mismatch") {
+        setAccessMessage("This QR access code is not assigned to your precinct or batch.");
+        setVerifyingAccess(false);
+        return;
+      }
       setAccessMessage("This access code is invalid or inactive.");
-      setVerifyingAccess(false);
-      return;
-    }
-
-    if (isTokenExpired(data)) {
-      setAccessMessage("This access code has already expired.");
-      setVerifyingAccess(false);
-      return;
-    }
-
-    if (!doesTokenMatchStudent(data, studentProfile)) {
-      setAccessMessage(
-        "This QR access code is not assigned to your precinct or batch.",
-      );
       setVerifyingAccess(false);
       return;
     }
@@ -267,39 +257,32 @@ function StudentVotePage() {
       return;
     }
 
-    if (
-      election.geo_lat == null ||
-      election.geo_lng == null ||
-      election.geo_radius_meters == null
-    ) {
-      setAccessMessage("This election does not have a valid location range yet.");
-      return;
-    }
-
     setVerifyingAccess(true);
     setAccessMessage("Checking your location...");
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const distance = distanceBetweenMeters(
-          Number(position.coords.latitude),
-          Number(position.coords.longitude),
-          Number(election.geo_lat),
-          Number(election.geo_lng),
-        );
-
-        if (distance <= Number(election.geo_radius_meters)) {
-          setAccessGranted(true);
-          setAccessMessage(
-            `Access granted. You are within ${Math.round(distance)} meters of the voting area.`,
-          );
-        } else {
-          setAccessMessage(
-            `You are outside the allowed voting range. Current distance: ${Math.round(distance)} meters.`,
-          );
-        }
-
-        setVerifyingAccess(false);
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      const coordinates = {
+        latitude: Number(position.coords.latitude),
+        longitude: Number(position.coords.longitude),
+      };
+      const { data, error } = await callVoteAccess("student_verify_geofence", {
+        election_id: Number(electionId),
+        coordinates,
+      });
+      if (error) {
+        setAccessGranted(false);
+        setVerifiedLocation(null);
+        setAccessMessage("Location could not be verified. Please try again.");
+      } else if (data?.granted) {
+        setAccessGranted(true);
+        setVerifiedLocation(coordinates);
+        setAccessMessage("Location verified for this election.");
+      } else {
+        setAccessGranted(false);
+        setVerifiedLocation(null);
+        setAccessMessage("You are outside the approved voting area or are not eligible for this election.");
+      }
+      setVerifyingAccess(false);
       },
       (error) => {
         setAccessMessage(
@@ -369,6 +352,8 @@ function StudentVotePage() {
     const { error, alreadyVoted: voteLocked } = await submitBallot({
       electionId,
       selectedVotes,
+      accessCode,
+      location: verifiedLocation,
     });
 
     if (error) {
@@ -395,6 +380,15 @@ function StudentVotePage() {
     return <div className="glass-panel rounded-[28px] p-8 text-gray-500">Loading ballot...</div>;
   }
 
+  if (loadError) return (
+    <div className="soft-card" role="alert">
+      <h1>Unable to load ballot</h1>
+      <p>{loadError}</p>
+      <button type="button" className="student-outline-btn" onClick={() => setReloadKey(value => value + 1)}>Retry</button>
+      <button type="button" className="student-outline-btn" onClick={() => navigate("/student/elections")}>Back to Elections</button>
+    </div>
+  );
+
   if (accessDenied) {
     return (
       <div className="empty-state font-bold text-red-600">
@@ -407,7 +401,7 @@ function StudentVotePage() {
     return <div className="empty-state font-bold text-red-600">Election not found.</div>;
   }
 
-  const phase = getElectionPhase(election);
+  const phase = getElectionPhase(election, now);
 
   if (phase !== "voting") {
     return (
@@ -526,7 +520,7 @@ function StudentVotePage() {
                     {election.location_label
                       ? `Allowed area: ${election.location_label}.`
                       : "This election only allows voting inside the approved area."}{" "}
-                    Maximum range: {election.geo_radius_meters || 0} meters.
+                    Your location is checked securely by the voting service.
                   </p>
                 </div>
               </div>

@@ -1,10 +1,9 @@
+import { corsHeaders, handleCorsPreflight, rejectDisallowedOrigin, serveWithKandidCors } from "../_shared/kandidProductionSecurity.mjs";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { hasDuplicateCandidateSelection } from "../_shared/ballotSelection.js";
+import { hasCurrentTermEnrollment } from "../_shared/currentTermEnrollment.js";
+import { isWithinGeofence, parseCoordinates } from "../_shared/geofence.js";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -173,10 +172,12 @@ function scheduleBallotAnchorNudge(
   console.warn("Ballot anchor background nudge scheduled without EdgeRuntime.waitUntil support.", context);
 }
 
-Deno.serve(async (request) => {
-  if (request.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+serveWithKandidCors(async (request) => {
+  const preflightResponse = handleCorsPreflight(request);
+  if (preflightResponse) return preflightResponse;
+
+  const originRejection = rejectDisallowedOrigin(request);
+  if (originRejection) return originRejection;
 
   if (request.method !== "POST") {
     return jsonResponse({ error: "Method not allowed." }, 405);
@@ -230,13 +231,17 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: "Ballot selections are required." }, 400);
   }
 
+  if (hasDuplicateCandidateSelection(normalizedVotes)) {
+    return jsonResponse({ error: "A candidate can only be selected once for a position." }, 400);
+  }
+
   const adminClient = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false },
   });
 
   const { data: student, error: studentError } = await adminClient
     .from("students")
-    .select("id, auth_user_id, student_number, first_name, last_name, status")
+    .select("id, auth_user_id, student_number, first_name, last_name, status, precinct_code, batch_code")
     .eq("auth_user_id", authUser.id)
     .maybeSingle();
 
@@ -250,7 +255,7 @@ Deno.serve(async (request) => {
 
   const { data: election, error: electionError } = await adminClient
     .from("elections")
-    .select("id, organization_id, status, campaign_start, campaign_end, start_date, end_date")
+    .select("id, organization_id, academic_term_id, electorate_policy_version, electorate_frozen_at, status, campaign_start, campaign_end, start_date, end_date, voting_access_mode, geo_lat, geo_lng, geo_radius_meters")
     .eq("id", electionId)
     .single();
 
@@ -275,34 +280,149 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: "Voting is not open for this election right now." }, 409);
   }
 
-  const { data: activeTerm, error: termError } = await adminClient
-    .from("academic_terms")
-    .select("id")
-    .eq("status", "active")
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (termError || !activeTerm?.id) {
-    return jsonResponse({ error: "Active academic term could not be verified." }, 409);
+  const votingAccessMode = cleanText(election.voting_access_mode, 40) || "anywhere";
+  if (votingAccessMode === "location_range") {
+    const coordinates = parseCoordinates(body.location);
+    if (!coordinates || !isWithinGeofence(
+      coordinates, election.geo_lat, election.geo_lng, election.geo_radius_meters,
+    )) {
+      return jsonResponse({ error: "Voting access could not be verified for this location." }, 403);
+    }
+  } else if (["onsite_qr", "precinct_qr", "batch_qr"].includes(votingAccessMode)) {
+    const token = cleanText(body.access_code, 64).toUpperCase();
+    if (!token) return jsonResponse({ error: "A valid voting access code is required." }, 403);
+    const { data: accessToken, error: tokenError } = await adminClient.from("election_access_tokens")
+      .select("is_active, scope_type, scope_value, expires_at")
+      .eq("election_id", electionId).eq("token", token).maybeSingle();
+    if (tokenError) return jsonResponse({ error: "Voting access could not be verified." }, 503);
+    if (!accessToken?.is_active || (accessToken.expires_at && new Date(accessToken.expires_at).getTime() < Date.now())) {
+      return jsonResponse({ error: "A valid voting access code is required." }, 403);
+    }
+    const normalizeScope = (value: unknown) => String(value || "").trim().toUpperCase();
+    const scopeAllowed = accessToken.scope_type === "general"
+      || (accessToken.scope_type === "precinct" && normalizeScope(accessToken.scope_value) !== ""
+        && normalizeScope(accessToken.scope_value) === normalizeScope(student.precinct_code))
+      || (accessToken.scope_type === "batch" && normalizeScope(accessToken.scope_value) !== ""
+        && normalizeScope(accessToken.scope_value) === normalizeScope(student.batch_code));
+    if (!scopeAllowed) return jsonResponse({ error: "A valid voting access code is required." }, 403);
+  } else if (votingAccessMode !== "anywhere") {
+    return jsonResponse({ error: "Voting access could not be verified." }, 409);
   }
 
-  const { data: participationRows, error: participationError } = await adminClient.rpc(
-    "resolve_student_organization_participation",
-    {
-      target_student_id: Number(student.id),
-      target_organization_id: Number(election.organization_id),
-      target_academic_term_id: Number(activeTerm.id),
-    },
-  );
+  if (Number(election.electorate_policy_version) === 1) {
+    if (!election.electorate_frozen_at || !election.academic_term_id) {
+      return jsonResponse({
+        error: "Voting is unavailable because this election's electorate has not been locked.",
+        electorate_unlocked: true,
+      }, 409);
+    }
 
-  const participation = Array.isArray(participationRows)
-    ? participationRows[0]
-    : participationRows;
+    const { data: activeTerms, error: activeTermError } = await adminClient
+      .from("academic_terms")
+      .select("id")
+      .eq("status", "active")
+      .limit(2);
 
-  if (participationError || participation?.allowed !== true) {
-    return jsonResponse({ error: "This student is not eligible for this election." }, 403);
+    if (activeTermError) {
+      console.error("Current academic term could not be verified:", activeTermError.message);
+      return jsonResponse({ error: "Current enrollment could not be verified." }, 503);
+    }
+
+    if (activeTerms?.length !== 1 || Number(activeTerms[0]?.id) !== Number(election.academic_term_id)) {
+      return jsonResponse({ error: "This student is not enrolled for the current academic term." }, 403);
+    }
+
+    const activeTermId = Number(activeTerms[0].id);
+    const { data: enrollmentRows, error: enrollmentError } = await adminClient
+      .from("student_term_enrollments")
+      .select("student_id, academic_term_id, enrollment_status")
+      .eq("student_id", Number(student.id))
+      .eq("academic_term_id", activeTermId)
+      .eq("enrollment_status", "enrolled")
+      .limit(1);
+
+    if (enrollmentError) {
+      console.error("Current Student enrollment could not be verified:", enrollmentError.message);
+      return jsonResponse({ error: "Current enrollment could not be verified." }, 503);
+    }
+
+    if (!hasCurrentTermEnrollment({
+      studentId: Number(student.id),
+      activeTermId,
+      electionTermId: Number(election.academic_term_id),
+      enrollmentRows,
+    })) {
+      return jsonResponse({ error: "This student is not enrolled for the current academic term." }, 403);
+    }
+
+    // A frozen electorate is an admission snapshot, but current-term
+    // organization participation can be revoked after a program change.
+    // Require both the frozen roster and the live term-scoped membership.
+    const { data: participationRows, error: participationError } = await adminClient.rpc(
+      "resolve_student_organization_participation",
+      {
+        target_student_id: Number(student.id),
+        target_organization_id: Number(election.organization_id),
+        target_academic_term_id: activeTermId,
+      },
+    );
+    const participation = Array.isArray(participationRows)
+      ? participationRows[0]
+      : participationRows;
+    if (participationError || participation?.allowed !== true) {
+      return jsonResponse({ error: "This student is not eligible for this election." }, 403);
+    }
+
+    const { data: isElectorateMember, error: electorateError } = await adminClient.rpc(
+      "kandid_is_locked_electorate_member",
+      {
+        p_election_id: electionId,
+        p_student_id: Number(student.id),
+      },
+    );
+
+    if (electorateError) {
+      console.error("Locked electorate membership could not be verified:", electorateError.message);
+      return jsonResponse({ error: "This student is not eligible for this election." }, 403);
+    }
+    if (isElectorateMember !== true) {
+      return jsonResponse({ error: "This student is not eligible for this election." }, 403);
+    }
+  } else if (Number(election.electorate_policy_version) === 0) {
+    // Explicit legacy compatibility only. New frozen-policy elections never
+    // fall back to this live resolver after the lock boundary.
+    const { data: activeTerm, error: termError } = await adminClient
+      .from("academic_terms")
+      .select("id")
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (termError || !activeTerm?.id) {
+      return jsonResponse({ error: "Active academic term could not be verified." }, 409);
+    }
+
+    const { data: participationRows, error: participationError } = await adminClient.rpc(
+      "resolve_student_organization_participation",
+      {
+        target_student_id: Number(student.id),
+        target_organization_id: Number(election.organization_id),
+        target_academic_term_id: Number(activeTerm.id),
+      },
+    );
+
+    const participation = Array.isArray(participationRows)
+      ? participationRows[0]
+      : participationRows;
+
+    if (participationError || participation?.allowed !== true) {
+      return jsonResponse({ error: "This student is not eligible for this election." }, 403);
+    }
+  } else {
+    console.error("Election electorate policy is missing or unsupported.", { electionId });
+    return jsonResponse({ error: "Election eligibility could not be verified." }, 409);
   }
 
   const { data: positions, error: positionError } = await adminClient

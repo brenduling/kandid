@@ -1,14 +1,35 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./BoardRemainingPages.css";
 import Papa from "papaparse";
-import { AlertTriangle, CheckCircle, FileUp, ShieldCheck, Upload, XCircle } from "lucide-react";
-import { logAuditEvent } from "../../utils/auditLog";
-import { formatAcademicTerm } from "../../utils/academicTerms";
+import { AlertTriangle, FileUp, ShieldCheck, Upload } from "lucide-react";
+import { formatAcademicTerm, getCurrentAcademicTerm } from "../../utils/academicTerms";
 import { usePrompt } from "../../context/PromptContext";
 import {
   confirmBoardCsvImport,
   previewBoardCsvImport,
 } from "../../utils/boardManualEnrollment";
+
+/* The importer's actual column contract. validateRows() and the on-screen
+   format reference both read these, so the guidance a Board member reads can
+   never drift from what the importer actually enforces. The lists, their order
+   and their effect on validation are unchanged. */
+const CSV_REQUIRED_COLUMNS = [
+  "student_number",
+  "first_name",
+  "last_name",
+  "program",
+  "year_level",
+];
+const CSV_OPTIONAL_COLUMNS = ["email"];
+
+/* Upload -> Validate -> Review -> Import. Each step is marked from existing
+   component state only; no new lifecycle is introduced. */
+const WORKFLOW_STEPS = [
+  { key: "upload", index: "01", label: "Upload" },
+  { key: "validate", index: "02", label: "Validate" },
+  { key: "review", index: "03", label: "Review" },
+  { key: "import", index: "04", label: "Import" },
+];
 
 const REVIEW_TABS = [
   { key: "all", label: "All" },
@@ -18,25 +39,66 @@ const REVIEW_TABS = [
   { key: "issues", label: "Needs Review" },
 ];
 
-const STATUS_STYLES = {
-  ready: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  imported: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  already_member: "bg-slate-50 text-slate-700 border-slate-200",
-  previously_removed: "bg-rose-50 text-rose-700 border-rose-200",
-  identity_conflict: "bg-amber-50 text-amber-700 border-amber-200",
-  program_mismatch: "bg-amber-50 text-amber-700 border-amber-200",
-  program_change_requires_super_admin: "bg-amber-50 text-amber-700 border-amber-200",
-  not_enrolled_current_term: "bg-amber-50 text-amber-700 border-amber-200",
-  new_student_not_in_masterlist: "bg-amber-50 text-amber-700 border-amber-200",
-  duplicate_csv: "bg-rose-50 text-rose-700 border-rose-200",
-  invalid: "bg-rose-50 text-rose-700 border-rose-200",
-  not_imported: "bg-rose-50 text-rose-700 border-rose-200",
+/* Editorial register, not rounded pills. Each server status maps to one of the
+   three register voices so a row reads the same everywhere in the table. */
+const STATUS_VOICE = {
+  ready: "ready",
+  imported: "ready",
+  already_member: "settled",
+  previously_removed: "settled",
+  identity_conflict: "attention",
+  program_mismatch: "attention",
+  configuration_error: "blocked",
+  term_not_active: "attention",
+  not_enrolled_current_term: "attention",
+  duplicate_csv: "blocked",
+  invalid: "blocked",
+  not_imported: "blocked",
+};
+
+const STATUS_TONE = {
+  ready: "#047857",
+  settled: "#514d46",
+  attention: "#a1550a",
+  blocked: "#9f1239",
 };
 
 function titleizeStatus(status) {
   return String(status || "needs_review")
     .replaceAll("_", " ")
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function csvImportErrorMessage(error, action) {
+  if (error?.code === "registration_not_enabled") return "Board student registration is not enabled on this deployment.";
+  if (error?.code === "board_forbidden" || error?.code === "session_invalid" || error?.status === 401) {
+    return "Your Electoral Board session could not be verified. Sign in again and retry.";
+  }
+  if (error?.code === "unsupported_action" || /endpoint does not allow the requested action/i.test(error?.message || "")) {
+    return "CSV import is not supported by the currently deployed Board service. No rows were imported.";
+  }
+  if (error?.code === "enrollment_evidence_review_required") {
+    return "Confirm that you reviewed the official department masterlist before importing.";
+  }
+  if (error?.code === "audit_record_failed") {
+    return error.message || "Some rows were processed, but the import audit could not be saved. Review the row results before retrying.";
+  }
+  if (error?.status === 403) return "Your Board account is not authorized to import students for this organization.";
+  if (error?.status === 400 || error?.status === 413) return error.message || "The CSV request did not pass server validation.";
+  return error?.message || `${action === "preview" ? "CSV preview" : "CSV import"} failed. No success was reported; retry after checking the connection.`;
+}
+
+function previewStatusLabel(status, organizationType) {
+  if (organizationType !== "non_departmental") return titleizeStatus(status);
+  const labels = {
+    ready: "Eligible",
+    already_member: "Already active",
+    not_enrolled_current_term: "Not currently enrolled",
+    term_not_active: "Term / configuration issue",
+    configuration_error: "Organization setup needs attention",
+    program_mismatch: "Program outside Board coverage",
+  };
+  return labels[status] || titleizeStatus(status);
 }
 
 function BoardCSVImport() {
@@ -47,10 +109,31 @@ function BoardCSVImport() {
   const [previewResult, setPreviewResult] = useState(null);
   const [previewing, setPreviewing] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [masterlistEvidenceReviewed, setMasterlistEvidenceReviewed] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
+  const [fileName, setFileName] = useState("");
+  const [parseErrors, setParseErrors] = useState([]);
+  const [activeTerm, setActiveTerm] = useState(null);
+  const fileInputRef = useRef(null);
 
   const user = JSON.parse(localStorage.getItem("user"));
   const orgName = user?.organizations?.name;
+
+  /* The destination term is shown before a file exists, so the Board always
+     knows where a list would land. This is the same read-only helper the
+     Student Registry already uses; it reads the active term only and adds no
+     new table access or authority. */
+  useEffect(() => {
+    let active = true;
+    getCurrentAcademicTerm({ force: true }).then(({ data }) => {
+      if (active) setActiveTerm(data || null);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const termLabel = formatAcademicTerm(previewResult?.academic_term || activeTerm);
 
   function handleFileUpload(e) {
     const file = e.target.files[0];
@@ -61,11 +144,29 @@ function BoardCSVImport() {
       skipEmptyLines: true,
       complete: (result) => {
         setRows(result.data);
+        setFileName(file.name || "");
         setPreviewResult(null);
         setActiveTab("all");
+        /* Papa already returns row-level problems on the result it hands back;
+           surfacing them adds no parsing. */
+        setParseErrors(result.errors || []);
         validateRows(result.data);
       },
     });
+  }
+
+  /* Re-selecting the same filename does not fire a change event, so the upload
+     stage is reachable again by clearing the input first. This is what makes
+     "correct the CSV and upload it again" actually possible. */
+  function handleChooseAnother() {
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    setRows([]);
+    setValidRows([]);
+    setInvalidRows([]);
+    setPreviewResult(null);
+    setParseErrors([]);
+    setFileName("");
+    setActiveTab("all");
   }
 
   function validateRows(data) {
@@ -73,15 +174,7 @@ function BoardCSVImport() {
     const invalid = [];
 
     data.forEach((row, index) => {
-      const requiredFields = [
-        "student_number",
-        "first_name",
-        "last_name",
-        "program",
-        "year_level",
-      ];
-
-      const missing = requiredFields.filter((field) => !row[field]);
+      const missing = CSV_REQUIRED_COLUMNS.filter((field) => !row[field]);
       const email = row.email?.trim() || "";
 
       if (missing.length > 0) {
@@ -116,12 +209,13 @@ function BoardCSVImport() {
   async function previewStudents() {
     if (validRows.length === 0) return;
 
+    setMasterlistEvidenceReviewed(false);
     setPreviewing(true);
     const { data, error } = await previewBoardCsvImport(validRows);
     setPreviewing(false);
 
     if (error || !data) {
-      prompt.error(error?.message || "Board CSV preview failed.");
+      prompt.error(csvImportErrorMessage(error, "preview"));
       return;
     }
 
@@ -151,42 +245,26 @@ function BoardCSVImport() {
     if (!ok) return;
 
     setConfirming(true);
-    const { data, error } = await confirmBoardCsvImport(validRows);
+    const { data, error } = await confirmBoardCsvImport(validRows, { evidenceReviewed: masterlistEvidenceReviewed });
     setConfirming(false);
 
-    if (error || !data) {
-      prompt.error(error?.message || "Board CSV import failed.");
+    if (!data) {
+      prompt.error(csvImportErrorMessage(error, "import"));
       return;
     }
 
     setPreviewResult(data);
     const summary = data.summary || {};
-    prompt.success(
-      `${summary.imported || 0} students imported. ${summary.skipped || 0} rows were skipped.`,
-      "Import Complete",
-    );
+    if (error) {
+      prompt.error(csvImportErrorMessage(error, "import"));
+      return;
+    }
+    if (Number(summary.skipped || 0) > 0) {
+      prompt.error(`${summary.imported || 0} rows imported; ${summary.skipped || 0} rows were skipped or need review. Check the row results before retrying.`);
+    } else {
+      prompt.success(`${summary.imported || 0} students imported.`, "Import Complete");
+    }
 
-    await logAuditEvent({
-      action: "student_batch_imported",
-      entityType: "student",
-      entityLabel: "Board CSV Import",
-      organizationId: data.board_organization_id || user?.organization_id,
-      organizationName,
-      status: "completed",
-      metadata: {
-        imported_count: summary.imported || 0,
-        committed_count: summary.committed || 0,
-        skipped_count: summary.skipped || 0,
-        already_member_count: summary.already_member || 0,
-        previously_removed_count: summary.previously_removed || 0,
-        identity_conflict_count: summary.identity_conflict || 0,
-        program_mismatch_count: summary.program_mismatch || 0,
-        program_change_count: summary.program_change_requires_super_admin || 0,
-        not_enrolled_current_term_count: summary.not_enrolled_current_term || 0,
-        new_student_not_in_masterlist_count: summary.new_student_not_in_masterlist || 0,
-        invalid_count: (summary.invalid || 0) + invalidRows.length,
-      },
-    });
   }
 
   const filteredServerRows = useMemo(() => {
@@ -206,224 +284,313 @@ function BoardCSVImport() {
   const importedCount = previewSummary.imported || 0;
   const readyCount = previewSummary.ready || 0;
   const issueCount = previewSummary.issues || 0;
+  const hasFile = rows.length > 0;
+
+  /* The step rail is read off existing state, never stored. A file that has not
+     been previewed yet is still being validated locally; a preview with an
+     import count is a finished import. */
+  const activeStep = !hasFile ? "upload" : importedCount > 0 ? "import" : "review";
+  const activeStepIndex = WORKFLOW_STEPS.findIndex((step) => step.key === activeStep);
+  const parseIssueCount = parseErrors.length;
 
   return (
     <div className="board-remaining-page board-csv-import">
-      <div className="page-head">
-        <div>
-          <p className="board-remaining-breadcrumb"><span>Kandid</span><span>/</span><span>Electoral Board</span></p>
-          <div className="page-kicker">Student Records</div>
-          <h1 className="page-title">Board CSV import</h1>
-          <p className="page-subtitle">
-            Upload and review current-term organization participation before importing.
-          </p>
+      <header className="board-csv-head">
+        <div className="board-csv-head-context">
+          <span className="board-csv-eyebrow">Student Records / CSV Import</span>
+          <span className="board-csv-context-rule" aria-hidden="true" />
         </div>
-      </div>
+        <h1 className="page-title board-csv-title">Import students</h1>
+        <p className="board-csv-subtitle">
+          Upload a student list, review every record, then import into{" "}
+          <strong>{previewResult?.organization_name || orgName || "your organization"}</strong> for{" "}
+          <strong>{termLabel}</strong>. Records that need review or no action are never
+          changed.
+        </p>
+      </header>
 
-      <div className="mt-8 grid gap-4 md:grid-cols-3">
-        <div className="metric-card">
-          <div className="flex items-start justify-between gap-3">
-            <p className="field-label">Total Rows</p>
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[rgba(255,90,31,0.1)] text-[#ff5a1f]">
-              <Upload size={18} />
-            </span>
+      <ol className="board-csv-steps" aria-label="Import progress">
+        {WORKFLOW_STEPS.map((step, index) => {
+          const state =
+            index < activeStepIndex ? "done" : index === activeStepIndex ? "current" : "upcoming";
+          return (
+            <li key={step.key} className={`board-csv-step is-${state}`}>
+              <span className="board-csv-step-index">{step.index}</span>
+              <span className="board-csv-step-label">{step.label}</span>
+            </li>
+          );
+        })}
+      </ol>
+
+      <section className="board-csv-upload" aria-label="Upload a student list">
+        <div className="board-csv-upload-picker">
+          <FileUp size={26} aria-hidden="true" className="board-csv-upload-icon" />
+          <div>
+            <h2 className="board-csv-section-title">
+              {hasFile ? "Replace the current file" : "Choose a CSV file"}
+            </h2>
+            <p className="board-csv-section-copy">
+              One student per row. The first row must name each column.
+            </p>
           </div>
-          <h2 className="mt-6 text-4xl font-black leading-none">{rows.length}</h2>
+          <label className="board-csv-file-button">
+            <Upload size={15} aria-hidden="true" />
+            Select CSV file
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              onChange={handleFileUpload}
+              className="board-csv-file-input"
+            />
+          </label>
+          {hasFile && (
+            <button type="button" className="board-csv-file-clear" onClick={handleChooseAnother}>
+              Clear and start over
+            </button>
+          )}
         </div>
 
-        <div className="metric-card">
-          <div className="flex items-start justify-between gap-3">
-            <p className="field-label">Valid Rows</p>
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
-              <CheckCircle size={18} />
-            </span>
+        <div className="board-csv-format">
+          <h3 className="board-csv-section-kicker">Required columns</h3>
+          <ul className="board-csv-column-list">
+            {CSV_REQUIRED_COLUMNS.map((column) => (
+              <li key={column} className="board-csv-column is-required">
+                {column}
+              </li>
+            ))}
+          </ul>
+          <h3 className="board-csv-section-kicker">Optional columns</h3>
+          <ul className="board-csv-column-list">
+            {CSV_OPTIONAL_COLUMNS.map((column) => (
+              <li key={column} className="board-csv-column is-optional">
+                {column}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      {hasFile && (
+        <section className="board-csv-summary" aria-label="Parsed file summary">
+          <div className="board-csv-summary-file">
+            <p className="board-csv-section-kicker">Current file</p>
+            <p className="board-csv-summary-name">{fileName}</p>
+            <p className="board-csv-section-copy">
+              {rows.length} data {rows.length === 1 ? "row" : "rows"} read.
+            </p>
           </div>
-          <h2 className="mt-6 text-4xl font-black leading-none">{validRows.length}</h2>
-        </div>
-
-        <div className="metric-card">
-          <div className="flex items-start justify-between gap-3">
-            <p className="field-label">Invalid Rows</p>
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-rose-100 text-rose-700">
-              <XCircle size={18} />
-            </span>
-          </div>
-          <h2 className="mt-6 text-4xl font-black leading-none">{invalidRows.length}</h2>
-        </div>
-      </div>
-
-      <div className="upload-shell mt-8 rounded-[28px] border-2 border-dashed border-[rgba(255,115,22,0.16)] p-8">
-        <label className="flex cursor-pointer flex-col items-center justify-center text-center">
-          <FileUp size={42} className="text-[#ff5a1f]" />
-          <h3 className="surface-heading mt-4 text-xl font-black">Upload CSV File</h3>
-          <p className="surface-subcopy mt-1 text-sm">
-            Required columns: student_number, first_name, last_name, program,
-            year_level. Email is optional.
-          </p>
-
-          <input
-            type="file"
-            accept=".csv"
-            onChange={handleFileUpload}
-            className="hidden"
-          />
-        </label>
-      </div>
-
-      {rows.length > 0 && (
-        <div className="mt-8 grid gap-6 xl:grid-cols-2">
-          <div className="soft-card overflow-hidden p-0">
-            <div className="flex items-center gap-2 border-b border-[rgba(255,115,22,0.12)] px-5 py-5">
-              <CheckCircle className="text-green-600" size={20} />
-              <h3 className="surface-heading font-black">Locally Valid Records</h3>
+          <dl className="board-csv-summary-figures">
+            <div className="board-csv-summary-figure">
+                <dt>{previewResult ? "Eligible" : "Valid rows"}</dt>
+              <dd>{validRows.length}</dd>
             </div>
-
-            <div className="max-h-80 overflow-y-auto">
-              {validRows.map((row, index) => (
-                <div
-                  key={index}
-                  className="border-b border-[rgba(255,115,22,0.08)] px-5 py-3 text-sm last:border-b-0"
-                >
-                  <p className="surface-heading font-bold">
-                    {row.student_number} - {row.first_name} {row.last_name}
-                  </p>
-                  <p className="surface-subcopy">
-                    {row.program} | Year {row.year_level}
-                  </p>
+            <div className="board-csv-summary-figure is-attention">
+              <dt>Failed local check</dt>
+              <dd>{invalidRows.length}</dd>
+            </div>
+            {previewResult && (
+              <>
+                <div className="board-csv-summary-figure">
+                  <dt>{importedCount > 0 ? "Imported" : "Ready"}</dt>
+                  <dd>{importedCount > 0 ? importedCount : readyCount}</dd>
                 </div>
+                <div className="board-csv-summary-figure">
+                  <dt>New identities</dt>
+                  <dd>{previewSummary.new_students || 0}</dd>
+                </div>
+                <div className="board-csv-summary-figure">
+                  <dt>Existing eligible</dt>
+                  <dd>{previewSummary.existing_students || 0}</dd>
+                </div>
+                <div className="board-csv-summary-figure">
+                  <dt>Already registered</dt>
+                  <dd>{previewSummary.already_member || 0}</dd>
+                </div>
+                <div className="board-csv-summary-figure is-attention">
+                  <dt>Needs review</dt>
+                  <dd>{issueCount}</dd>
+                </div>
+              </>
+            )}
+          </dl>
+        </section>
+      )}
+
+      {parseIssueCount > 0 && (
+        <section className="board-csv-notice" aria-label="Parser issues">
+          <AlertTriangle size={17} aria-hidden="true" className="board-csv-notice-icon" />
+          <div>
+            <h2 className="board-csv-section-title">
+              {parseIssueCount} {parseIssueCount === 1 ? "row needs" : "rows need"} attention
+            </h2>
+            <p className="board-csv-section-copy">
+              The file was read with the columns it provides. Rows with missing required
+              columns are not sent for import. Check these lines in your file and upload it
+              again.
+            </p>
+            <ul className="board-csv-notice-list">
+              {parseErrors.slice(0, 6).map((error, index) => (
+                <li key={`${error.code || "parse"}-${error.row ?? index}`}>
+                  {typeof error.row === "number" ? `Line ${error.row + 2}: ` : ""}
+                  {error.message}
+                </li>
               ))}
-            </div>
+            </ul>
+            {parseErrors.length > 6 && (
+              <p className="board-csv-section-copy">
+                {parseErrors.length - 6} more {parseErrors.length - 6 === 1 ? "line" : "lines"}{" "}
+                reported.
+              </p>
+            )}
           </div>
+        </section>
+      )}
 
-          <div className="soft-card overflow-hidden p-0">
-            <div className="flex items-center gap-2 border-b border-[rgba(255,115,22,0.12)] px-5 py-5">
-              <XCircle className="text-red-600" size={20} />
-              <h3 className="surface-heading font-black">Local Invalid Records</h3>
-            </div>
-
-            <div className="max-h-80 overflow-y-auto">
-              {invalidRows.length === 0 ? (
-                <p className="empty-copy p-5">No invalid records found.</p>
-              ) : (
-                invalidRows.map((row, index) => (
-                  <div
-                    key={index}
-                    className="border-b border-[rgba(255,115,22,0.08)] px-5 py-3 text-sm last:border-b-0"
-                  >
-                    <p className="surface-heading font-bold">CSV Row {row.row}</p>
-                    <p className="text-red-600">{row.reason}</p>
-                  </div>
-                ))
-              )}
-            </div>
+      {invalidRows.length > 0 && (
+        <section className="board-csv-register" aria-label="Rows that failed the local check">
+          <header className="board-csv-register-head">
+            <p className="board-csv-section-kicker">Local check</p>
+            <h2 className="board-csv-section-title">
+              {invalidRows.length} {invalidRows.length === 1 ? "row" : "rows"} not sent for import
+            </h2>
+            <p className="board-csv-section-copy">
+              Line numbers match the file, counting the header as line 1. These rows are
+              skipped; they never reach the Board import.
+            </p>
+          </header>
+          <div className="board-csv-register-body">
+            {invalidRows.map((row) => (
+              <div key={row.row} className="board-csv-register-row">
+                <span className="board-csv-register-line">Line {row.row}</span>
+                <span className="board-csv-register-reason">{row.reason}</span>
+              </div>
+            ))}
           </div>
-        </div>
+        </section>
       )}
 
       {previewResult && (
-        <div className="mt-8 soft-card">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p className="field-label">Board Import Review</p>
-              <h3 className="surface-heading mt-1 text-xl font-black">
-                {importedCount > 0 ? `${importedCount} imported` : `${readyCount} ready to import`}
-              </h3>
-              <p className="surface-subcopy mt-1 text-sm">
-                {previewResult.organization_name || orgName || "Your organization"} - {formatAcademicTerm(previewResult.academic_term)}
+        <section className="board-csv-register" aria-label="Board import review">
+          <header className="board-csv-register-head">
+            <p className="board-csv-section-kicker">
+              {importedCount > 0 ? "Import result" : "Board review"}
+            </p>
+            <h2 className="board-csv-section-title">
+              {importedCount > 0
+                ? `${importedCount} imported`
+                : `${readyCount} ready to import`}
+            </h2>
+            <p className="board-csv-section-copy">
+              {previewResult.organization_name || orgName || "Your organization"} ·{" "}
+              {formatAcademicTerm(previewResult.academic_term)}
+            </p>
+            <p className="board-csv-section-copy">
+              {previewSummary.new_students || 0} new identities · {previewSummary.existing_students || 0} existing students eligible · {previewSummary.already_member || 0} already registered
+            </p>
+            {previewResult.organization_type === "non_departmental" ? (
+              <p className="board-csv-section-copy">
+                Program is academic information here; eligibility is checked from current enrollment.
               </p>
-            </div>
-            <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-5">
-              {[
-                ["Ready", readyCount],
-                ["Imported", importedCount],
-                ["Already Members", previewSummary.already_member || 0],
-                ["Removed", previewSummary.previously_removed || 0],
-                ["Needs Review", issueCount],
-              ].map(([label, value]) => (
-                <div key={label} className="rounded-2xl bg-white/70 px-4 py-3">
-                  <p className="surface-subcopy text-xs font-bold">{label}</p>
-                  <p className="surface-heading text-lg font-black">{value}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+            ) : null}
+          </header>
 
-          <div className="mt-5 flex flex-wrap gap-2">
+          <div className="board-csv-tabs" role="tablist" aria-label="Filter reviewed records">
             {REVIEW_TABS.map((tab) => (
               <button
                 key={tab.key}
                 type="button"
+                role="tab"
+                aria-selected={activeTab === tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`rounded-2xl border px-4 py-2 text-sm font-black transition ${
-                  activeTab === tab.key
-                    ? "border-[#ff5a1f] bg-[#ff5a1f] text-white"
-                    : "border-[rgba(15,23,42,0.12)] bg-white/70 text-slate-700 hover:border-[#ff5a1f]"
-                }`}
+                className={`board-csv-tab${activeTab === tab.key ? " is-active" : ""}`}
               >
                 {tab.label}
               </button>
             ))}
           </div>
 
-          <div className="mt-5 overflow-hidden rounded-2xl border border-[rgba(255,115,22,0.12)]">
-            <div className="border-b border-[rgba(255,115,22,0.12)] px-4 py-3">
-              <p className="field-label">Server Review Rows</p>
-            </div>
-            <div className="max-h-96 overflow-y-auto">
-              {filteredServerRows.length === 0 ? (
-                <p className="empty-copy p-5">No rows in this category.</p>
-              ) : (
-                filteredServerRows.map((row) => (
-                  <div
+          <div className="board-csv-register-body">
+            {filteredServerRows.length === 0 ? (
+              <p className="board-csv-empty">No records in this category.</p>
+            ) : (
+              filteredServerRows.map((row) => {
+                const voice = STATUS_VOICE[row.status] || "blocked";
+                return (
+                  <article
                     key={`${row.row_number}-${row.student_number}-${row.status}`}
-                    className="border-b border-[rgba(255,115,22,0.08)] px-4 py-4 text-sm last:border-b-0"
+                    className="board-csv-review-row"
                   >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="surface-heading font-black">
-                          Row {row.row_number} - {row.student_number || "No Student ID"}
-                        </p>
-                        <p className="surface-subcopy">
-                          {row.first_name} {row.last_name} | {row.program || "No program"} | Year {row.year_level || "-"}
-                        </p>
-                      </div>
-                      <span className={`rounded-full border px-3 py-1 text-xs font-black ${STATUS_STYLES[row.status] || STATUS_STYLES.invalid}`}>
-                        {titleizeStatus(row.status)}
-                      </span>
+                    <div className="board-csv-review-id">
+                      <span className="board-csv-register-line">Line {row.row_number}</span>
+                      <p className="board-csv-review-name">
+                        {row.first_name} {row.last_name}
+                      </p>
+                      <p className="board-csv-section-copy">
+                        {row.student_number || "No Student ID"} · {row.program || "No program"} · Year{" "}
+                        {row.year_level || "-"}
+                      </p>
                     </div>
-                    <p className="surface-subcopy mt-3">{row.message}</p>
-                    {(row.official_program || row.official) && (
-                      <div className="mt-3 rounded-2xl bg-slate-50 px-4 py-3 text-xs text-slate-600">
-                        {row.official_program && <p>Official program: {row.official_program}</p>}
-                        {row.official && (
-                          <p>
-                            Official identity: {row.official.first_name} {row.official.last_name}, {row.official.program || "No program"}, Year {row.official.year_level || "-"}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
+                    <div className="board-csv-review-outcome">
+                      <span
+                        className="board-csv-outcome"
+                        style={{ color: STATUS_TONE[voice] }}
+                      >
+                        <span
+                          className="board-csv-outcome-marker"
+                          style={{ background: STATUS_TONE[voice] }}
+                          aria-hidden="true"
+                        />
+                        {previewStatusLabel(row.status, previewResult.organization_type)}
+                      </span>
+                      {row.message && <p className="board-csv-review-message">{row.message}</p>}
+                      {(row.official_program || row.official) && (
+                        <div className="board-csv-review-official">
+                          {row.official_program && (
+                            <p>Official program: {row.official_program}</p>
+                          )}
+                          {row.official && (
+                            <p>
+                              Official identity: {row.official.first_name}{" "}
+                              {row.official.last_name}, {row.official.program || "No program"},
+                              Year {row.official.year_level || "-"}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </article>
+                );
+              })
+            )}
           </div>
 
           {readyCount === 0 && importedCount === 0 && (
-            <div className="mt-5 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              <AlertTriangle size={18} className="mt-0.5 flex-shrink-0" />
-              <p>No rows are currently eligible for Board import. Rows requiring Super Admin review or restore action were left unchanged.</p>
+            <div className="board-csv-notice is-warning" role="status">
+              <AlertTriangle size={17} aria-hidden="true" className="board-csv-notice-icon" />
+              <p>
+                No rows are currently eligible for Board import. Rows with identity conflicts,
+                unsupported program coverage, or explicit removal history were left unchanged.
+              </p>
             </div>
           )}
-        </div>
+          {readyCount > 0 && importedCount === 0 && (
+            <label className="board-csv-evidence-confirm">
+              <input type="checkbox" checked={masterlistEvidenceReviewed}
+                onChange={(event) => setMasterlistEvidenceReviewed(event.target.checked)} />
+              I confirm this is the official department masterlist and reviewed it as evidence of enrollment for {formatAcademicTerm(previewResult.academic_term)}.
+            </label>
+          )}
+        </section>
       )}
 
       {validRows.length > 0 && (
-        <div className="mt-8 flex flex-wrap justify-end gap-3">
+        <div className="board-csv-actions">
           <button
             type="button"
             onClick={previewStudents}
             disabled={previewing || confirming}
-            className="secondary-btn disabled:opacity-60"
+            className="board-csv-button is-secondary"
           >
             {previewing ? "Reviewing..." : `Preview ${validRows.length} Records`}
           </button>
@@ -431,10 +598,10 @@ function BoardCSVImport() {
             <button
               type="button"
               onClick={confirmImport}
-              disabled={confirming || readyCount === 0}
-              className="primary-btn disabled:opacity-60"
+              disabled={confirming || readyCount === 0 || !masterlistEvidenceReviewed}
+              className="board-csv-button is-primary"
             >
-              <ShieldCheck size={18} />
+              <ShieldCheck size={17} aria-hidden="true" />
               {confirming ? "Importing..." : `Import ${readyCount} Ready Students`}
             </button>
           )}

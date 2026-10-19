@@ -8,6 +8,7 @@ import {
   StudentSkeletonLine,
 } from "../../components/student/StudentSkeleton";
 import { supabase } from "../../lib/supabaseClient";
+import { getStudentVotedElectionIds } from "../../utils/voteAccess";
 import {
   canStudentViewResults,
   compareElectionScheduleValues,
@@ -19,6 +20,10 @@ import {
 } from "../../utils/elections";
 import { getStudentElectionOrganizationIds } from "../../utils/organizationAccess";
 import { isMissingResultReleaseColumn } from "../../utils/results";
+import { getCampaignWindowPhase } from "../../utils/electionLifecycle";
+import { useElectionClock } from "../../utils/useElectionClock";
+import StudentBallotAction from "../../components/student/StudentBallotAction";
+import { studentElectionFailure } from "../../utils/studentElectionAccess";
 
 function friendlyPhase(phase) {
   if (phase === "campaign_upcoming") return "Campaign Upcoming";
@@ -30,8 +35,17 @@ function friendlyPhase(phase) {
   return "Upcoming";
 }
 
-function phasePresentation(election, voted) {
-  const phase = getElectionPhase(election);
+function campaignWindowLabel(phase) {
+  if (phase === "upcoming") return "Upcoming";
+  if (phase === "ongoing") return "Ongoing";
+  if (phase === "ended") return "Ended";
+  if (phase === "archived") return "Archived";
+  if (phase === "not_scheduled") return "Not scheduled";
+  return "Not available";
+}
+
+function phasePresentation(election, voted, now) {
+  const phase = getElectionPhase(election, now);
   const resultsAvailable = canStudentViewResults(election);
 
   if (phase === "campaign_upcoming") {
@@ -46,17 +60,17 @@ function phasePresentation(election, voted) {
 
   if (phase === "campaign") {
     return {
-      label: "Campaign period",
+      label: "Campaign Ongoing",
       tone: "campaign",
       summary: "The campaign period is open. Review the election before voting begins.",
-      nextLabel: "Campaign closes",
-      nextValue: formatLocalDateTime(election.campaign_end),
+      nextLabel: "Voting opens",
+      nextValue: formatLocalDateTime(election.start_date),
     };
   }
 
   if (phase === "waiting") {
     return {
-      label: "Voting next",
+      label: "Waiting for Voting",
       tone: "waiting",
       summary: "Campaigning has ended. Your ballot will open at the scheduled voting time.",
       nextLabel: "Voting opens",
@@ -154,31 +168,11 @@ function electionColumns(includeReleaseColumn, includeCoverColumn = true) {
   return includeCoverColumn ? columns : columns.replace(/\n\s*cover_url,\n/, "\n");
 }
 
-async function fetchVoteStatus(
-  studentId,
-  includeReleaseColumn = true,
-  includeCoverColumn = true,
-) {
-  const { data, error } = await supabase
-    .from("votes")
-    .select(`
-      election_id,
-      elections (
-        ${electionColumns(includeReleaseColumn, includeCoverColumn)}
-      )
-    `)
-    .eq("student_id", studentId);
+async function fetchVoteStatus() {
+  const { data, error } = await getStudentVotedElectionIds();
 
   return {
-    data: (data || []).map((voteRow) => ({
-      ...voteRow,
-      elections: voteRow.elections
-        ? {
-            ...voteRow.elections,
-            results_released_at: voteRow.elections.results_released_at || null,
-          }
-        : null,
-    })),
+    data: (data || []).map((election_id) => ({ election_id: Number(election_id) })),
     error,
   };
 }
@@ -188,8 +182,12 @@ function StudentElections() {
   const [votes, setVotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [voteStatusError, setVoteStatusError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
-  const user = JSON.parse(localStorage.getItem("user"));
+  const now = useElectionClock();
+  const [user] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("user")) || {}; } catch { return {}; }
+  });
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const searchQuery = (searchParams.get("q") || "").trim().toLowerCase();
@@ -200,35 +198,17 @@ function StudentElections() {
     async function loadElections() {
       setLoading(true);
       setLoadError("");
+      setVoteStatusError("");
 
       const organizationIds = await getStudentElectionOrganizationIds(user);
       let includeReleaseColumn = true;
       let includeCoverColumn = true;
-      let voteResponse = await fetchVoteStatus(
-        user.id,
-        includeReleaseColumn,
-        includeCoverColumn,
-      );
-
-      if (isMissingResultReleaseColumn(voteResponse.error)) {
-        includeReleaseColumn = false;
-        voteResponse = await fetchVoteStatus(user.id, includeReleaseColumn, includeCoverColumn);
-      }
-
-      if (isMissingElectionCoverColumn(voteResponse.error)) {
-        includeCoverColumn = false;
-        voteResponse = await fetchVoteStatus(user.id, includeReleaseColumn, includeCoverColumn);
-      }
+      const voteResponse = await fetchVoteStatus().catch(error => ({ data: [], error }));
 
       if (voteResponse.error) {
-        console.error("Failed to load student voting status:", voteResponse.error);
         if (active) {
-          setLoadError(voteResponse.error.message || "Unable to load your voting status.");
-          setElections([]);
-          setVotes([]);
-          setLoading(false);
+          setVoteStatusError("Voting history is unavailable. Current organization elections remain listed; ballot access is checked separately.");
         }
-        return;
       }
 
       const voteData = voteResponse.data || [];
@@ -343,19 +323,24 @@ function StudentElections() {
       setLoading(false);
     }
 
-    loadElections();
+    loadElections().catch(error => {
+      if (active) {
+        setLoadError(studentElectionFailure(error).message);
+        setLoading(false);
+      }
+    });
 
     return () => {
       active = false;
     };
-  }, [user.id, reloadKey]);
+  }, [user, reloadKey]);
 
   function hasVoted(electionId) {
     return votes.some((voteRow) => voteRow.election_id === electionId);
   }
 
   function actionFor(election) {
-    const phase = getElectionPhase(election);
+    const phase = getElectionPhase(election, now);
 
     if (phase === "campaign") {
       return (
@@ -371,16 +356,7 @@ function StudentElections() {
     }
 
     if (phase === "voting" && !hasVoted(election.id)) {
-      return (
-        <button
-          type="button"
-          onClick={() => navigate(`/student/vote/${election.id}`)}
-          className="student-election-action student-participation-action"
-        >
-          Vote Now
-          <ArrowRight size={15} />
-        </button>
-      );
+      return <StudentBallotAction electionId={election.id} />;
     }
 
     if (phase === "voting") {
@@ -435,7 +411,7 @@ function StudentElections() {
         election.title,
         election.organizations?.name,
         election.status,
-        friendlyPhase(getElectionPhase(election)),
+        friendlyPhase(getElectionPhase(election, now)),
       ]
         .filter(Boolean)
         .join(" ")
@@ -443,7 +419,7 @@ function StudentElections() {
 
       return values.includes(searchQuery);
     });
-  }, [elections, searchQuery]);
+  }, [elections, searchQuery, now]);
 
   return (
     <div className="student-elections-desktop">
@@ -456,6 +432,13 @@ function StudentElections() {
           </p>
         </div>
       </header>
+
+      {voteStatusError ? (
+        <div className="student-empty-card" role="alert">
+          {voteStatusError}
+          <button type="button" className="student-outline-btn" onClick={() => setReloadKey(value => value + 1)}>Retry voting history</button>
+        </div>
+      ) : null}
 
       {loading ? (
         <StudentSkeletonGroup label="Loading elections">
@@ -498,7 +481,7 @@ function StudentElections() {
         <div className="student-empty-card student-elections-state">
           {searchQuery
             ? "No elections match your search."
-            : "No elections available for your account."}
+            : voteStatusError ? "No current organization elections found. Historical elections could not be checked." : "No elections available for your account."}
         </div>
       ) : (
         <section className="student-elections-list" aria-label="Available elections">
@@ -516,10 +499,7 @@ function StudentElections() {
           <div className="student-participation-list">
             {filteredElections.map((election, index) => {
               const voted = hasVoted(election.id);
-              const presentation = phasePresentation(election, voted);
-              const showActions = ["campaign", "voting", "results"].includes(
-                presentation.tone
-              );
+              const presentation = phasePresentation(election, voted, now);
 
               return (
                 <article key={election.id} className="student-participation-card">
@@ -572,6 +552,12 @@ function StudentElections() {
                         <dd>{formatScheduleRange(election.campaign_start, election.campaign_end)}</dd>
                       </div>
                       <div>
+                        <dt>Campaign phase</dt>
+                        <dd aria-label={`Campaign phase: ${campaignWindowLabel(getCampaignWindowPhase(election, now))}`}>
+                          {campaignWindowLabel(getCampaignWindowPhase(election, now))}
+                        </dd>
+                      </div>
+                      <div>
                         <dt>Voting</dt>
                         <dd>{formatScheduleRange(election.start_date, election.end_date)}</dd>
                       </div>
@@ -581,11 +567,10 @@ function StudentElections() {
                       </div>
                     </dl>
 
-                    {showActions ? (
-                      <div className="student-participation-next">
-                        {actionFor(election)}
-                      </div>
-                    ) : null}
+                    <div className="student-participation-next">
+                      <p>{presentation.nextLabel}: {presentation.nextValue}</p>
+                      {actionFor(election)}
+                    </div>
                   </div>
                 </article>
               );

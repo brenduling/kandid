@@ -206,6 +206,7 @@ function StudentLayout() {
           <div className="student-topbar-actions kandid-header-actions hidden lg:flex">
             <NotificationCenter
               user={user}
+              placement="desktop"
             />
 
             <button

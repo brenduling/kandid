@@ -259,16 +259,6 @@
   box-shadow: none !important;
 }
 
-.board-csv-import .upload-shell {
-  margin-top: 0 !important;
-  border: 1px solid var(--board-work-rule-strong) !important;
-  border-width: 2px 0 1px !important;
-  background: transparent !important;
-  padding: clamp(1.5rem, 3vw, 2.5rem) !important;
-  box-shadow: none !important;
-}
-
-.board-csv-import .soft-card,
 .board-results .soft-card,
 .board-results .glass-panel-dark {
   overflow: visible;
@@ -282,8 +272,8 @@
   box-shadow: none !important;
 }
 
-.board-csv-import .soft-card::before,
-.board-results .soft-card::before { content: none !important; }
+.board-results .soft-card::before,
+.board-results .glass-panel-dark { content: none !important; }
 .board-results .glass-panel-dark * { color: inherit; }
 
 .board-reports > .grid:last-child {
@@ -373,4 +363,729 @@
   .board-remaining-page .grid { grid-template-columns: minmax(0, 1fr) !important; }
   .board-remaining-page .primary-btn,
   .board-remaining-page .secondary-btn { max-width: 100%; white-space: normal; }
+}
+
+/* --- Board CSV import ----------------------------------------------------
+   Upload -> Validate -> Review -> Import, as an editorial register.
+
+   The page title itself is inherited from the shared Board rule
+   (.kandid-app-theme.board-theme .page-title), so only the surrounding
+   structure is defined here. Everything below is scoped to
+   .board-csv-import, and no class name is reused from another Board page. */
+
+.board-csv-import {
+  gap: clamp(1.25rem, 2vw, 1.75rem);
+}
+
+.board-csv-import .board-csv-head {
+  display: grid;
+  min-width: 0;
+  gap: 0.55rem;
+  border-bottom: 2px solid var(--board-work-ink);
+  padding: 0 0 clamp(1rem, 1.7vw, 1.5rem);
+}
+
+.board-csv-import .board-csv-head-context {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.board-csv-import .board-csv-eyebrow {
+  flex: 0 0 auto;
+  color: var(--board-work-orange);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.board-csv-import .board-csv-context-rule {
+  flex: 1 1 auto;
+  min-width: 1.5rem;
+  height: 1px;
+  background: var(--board-work-rule);
+}
+
+.board-csv-import .board-csv-title {
+  max-width: 48rem;
+}
+
+.board-csv-import .board-csv-subtitle {
+  max-width: 46rem;
+  margin: 0;
+  color: var(--board-work-muted);
+  font-size: 0.94rem;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+.board-csv-import .board-csv-subtitle strong {
+  color: var(--board-work-ink-3);
+  font-weight: 800;
+}
+
+/* --- Workflow step rail --------------------------------------------------- */
+
+.board-csv-import .board-csv-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--board-work-rule-strong);
+  list-style: none;
+}
+
+.board-csv-import .board-csv-step {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 0.5rem;
+  border-bottom: 2px solid transparent;
+  padding: 0 0.9rem 0.6rem 0;
+  color: var(--board-work-muted);
+}
+
+.board-csv-import .board-csv-step-index {
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+}
+
+.board-csv-import .board-csv-step-label {
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.board-csv-import .board-csv-step.is-done {
+  color: var(--board-work-ink-3);
+}
+
+.board-csv-import .board-csv-step.is-current {
+  border-bottom-color: var(--board-work-orange);
+  color: var(--board-work-orange);
+}
+
+.board-csv-import .board-csv-step.is-upcoming {
+  color: var(--board-work-rule-strong);
+}
+
+/* --- Section primitives --------------------------------------------------- */
+
+.board-csv-import .board-csv-section-kicker {
+  margin: 0;
+  color: var(--board-work-orange);
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.board-csv-import .board-csv-section-title {
+  margin: 0.3rem 0 0;
+  color: var(--board-work-ink);
+  font-size: 1.05rem;
+  font-weight: 850;
+  letter-spacing: 0.01em;
+  line-height: 1.25;
+}
+
+.board-csv-import .board-csv-section-copy {
+  max-width: 44rem;
+  margin: 0.4rem 0 0;
+  color: var(--board-work-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+/* --- Upload --------------------------------------------------------------- */
+
+.board-csv-import .board-csv-upload {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 0;
+  border: 1px solid var(--board-work-rule-strong);
+  border-top: 2px solid var(--board-work-ink);
+  background: var(--board-work-paper);
+}
+
+.board-csv-import .board-csv-upload-picker {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  justify-items: start;
+  gap: 0.85rem;
+  padding: clamp(1.35rem, 2.6vw, 2.25rem);
+}
+
+.board-csv-import .board-csv-upload-icon {
+  color: var(--board-work-orange);
+}
+
+.board-csv-import .board-csv-file-button {
+  position: relative;
+  display: inline-flex;
+  min-height: 2.45rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border: 1px solid var(--board-work-ink);
+  border-radius: 0;
+  padding: 0 1.15rem;
+  background: transparent;
+  color: var(--board-work-ink);
+  font-family: inherit;
+  font-size: 0.71rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.board-csv-import .board-csv-file-button:hover {
+  background: var(--board-work-ink);
+  color: var(--board-work-paper);
+}
+
+.board-csv-import .board-csv-file-button:focus-within {
+  outline: 2px solid var(--board-work-orange);
+  outline-offset: 2px;
+}
+
+/* Visually hidden, still reachable by keyboard, so the picker is operable
+   without a pointer. */
+.board-csv-import .board-csv-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.board-csv-import .board-csv-file-clear {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--board-work-muted);
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.board-csv-import .board-csv-file-clear:hover {
+  color: var(--board-work-ink);
+}
+
+.board-csv-import .board-csv-file-clear:focus-visible {
+  outline: 2px solid var(--board-work-orange);
+  outline-offset: 2px;
+}
+
+.board-csv-import .board-csv-format {
+  min-width: 0;
+  border-left: 1px solid var(--board-work-rule);
+  padding: clamp(1.35rem, 2.6vw, 2.25rem);
+  background: var(--board-work-paper-soft);
+}
+
+.board-csv-import .board-csv-column-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.5rem;
+  margin: 0.7rem 0 1.1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.board-csv-import .board-csv-column {
+  border: 1px solid var(--board-work-rule-strong);
+  border-radius: 0;
+  padding: 0.24rem 0.5rem;
+  background: var(--board-work-paper);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.board-csv-import .board-csv-column.is-required {
+  border-left: 2px solid var(--board-work-ink);
+}
+
+.board-csv-import .board-csv-column.is-optional {
+  border-left: 2px solid var(--board-work-rule-strong);
+  color: var(--board-work-muted);
+}
+
+/* --- Parsed file summary --------------------------------------------------- */
+
+.board-csv-import .board-csv-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1.25rem 2rem;
+  align-items: start;
+  border-top: 2px solid var(--board-work-ink);
+  border-bottom: 1px solid var(--board-work-rule-strong);
+  padding: clamp(0.9rem, 1.6vw, 1.35rem) 0;
+}
+
+.board-csv-import .board-csv-summary-file {
+  min-width: 0;
+}
+
+.board-csv-import .board-csv-summary-name {
+  margin: 0.35rem 0 0;
+  color: var(--board-work-ink);
+  font-size: 1rem;
+  font-weight: 850;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.board-csv-import .board-csv-summary-figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 clamp(1.1rem, 2.4vw, 2.2rem);
+  margin: 0;
+}
+
+.board-csv-import .board-csv-summary-figure {
+  min-width: 0;
+  border-left: 1px solid var(--board-work-rule);
+  padding-left: clamp(0.7rem, 1.3vw, 1.1rem);
+}
+
+.board-csv-import .board-csv-summary-figure dt {
+  color: var(--board-work-muted);
+  font-size: 0.63rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.board-csv-import .board-csv-summary-figure dd {
+  margin: 0.3rem 0 0;
+  color: var(--board-work-ink);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.board-csv-import .board-csv-summary-figure.is-attention dd {
+  color: #a1550a;
+}
+
+/* --- Notices --------------------------------------------------------------- */
+
+.board-csv-import .board-csv-notice {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 0.7rem;
+  border: 1px solid var(--board-work-rule-strong);
+  border-left: 3px solid #a1550a;
+  border-radius: 0;
+  padding: 0.9rem 1.05rem;
+  background: #fffbf3;
+  color: #7c3d06;
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+.board-csv-import .board-csv-notice p {
+  margin: 0;
+}
+
+.board-csv-import .board-csv-notice-icon {
+  flex: 0 0 auto;
+  margin-top: 0.1rem;
+  color: #a1550a;
+}
+
+.board-csv-import .board-csv-section-copy + .board-csv-notice-list {
+  margin: 0.7rem 0 0;
+  padding-left: 1.1rem;
+  color: #7c3d06;
+  font-size: 0.79rem;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+.board-csv-import .board-csv-notice-list li {
+  overflow-wrap: anywhere;
+}
+
+/* --- Operational registers -------------------------------------------------- */
+
+.board-csv-import .board-csv-register {
+  display: grid;
+  min-width: 0;
+  gap: 0.9rem;
+  border-top: 2px solid var(--board-work-ink);
+  border-bottom: 1px solid var(--board-work-rule-strong);
+  padding: clamp(1rem, 1.8vw, 1.5rem) 0;
+}
+
+.board-csv-import .board-csv-register-head {
+  min-width: 0;
+}
+
+.board-csv-import .board-csv-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  border-bottom: 1px solid var(--board-work-rule);
+}
+
+.board-csv-import .board-csv-tab {
+  min-height: 2.35rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 0 0.95rem;
+  background: none;
+  color: var(--board-work-muted);
+  font-family: inherit;
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+
+.board-csv-import .board-csv-tab:hover {
+  color: var(--board-work-ink);
+}
+
+.board-csv-import .board-csv-tab.is-active {
+  border-bottom-color: var(--board-work-orange);
+  color: var(--board-work-ink);
+}
+
+.board-csv-import .board-csv-tab:focus-visible {
+  outline: 2px solid var(--board-work-orange);
+  outline-offset: -2px;
+}
+
+.board-csv-import .board-csv-register-body {
+  display: grid;
+  min-width: 0;
+}
+
+.board-csv-import .board-csv-empty {
+  margin: 0;
+  padding: 1.1rem 0;
+  color: var(--board-work-muted);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.board-csv-import .board-csv-register-row {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+  gap: 0.35rem 1rem;
+  align-items: baseline;
+  border-bottom: 1px solid var(--board-work-rule);
+  padding: 0.6rem 0;
+  font-size: 0.84rem;
+}
+
+.board-csv-import .board-csv-register-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.board-csv-import .board-csv-register-line {
+  color: var(--board-work-muted);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.board-csv-import .board-csv-register-reason {
+  min-width: 0;
+  color: #9f1239;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.board-csv-import .board-csv-review-row {
+  display: grid;
+  grid-template-columns: minmax(0, 15rem) minmax(0, 1fr);
+  gap: 0.4rem 1.5rem;
+  align-items: start;
+  border-bottom: 1px solid var(--board-work-rule);
+  padding: 0.85rem 0;
+}
+
+.board-csv-import .board-csv-review-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.board-csv-import .board-csv-review-id,
+.board-csv-import .board-csv-review-outcome {
+  min-width: 0;
+}
+
+.board-csv-import .board-csv-review-name {
+  margin: 0.3rem 0 0;
+  color: var(--board-work-ink);
+  font-size: 0.9rem;
+  font-weight: 850;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.board-csv-import .board-csv-outcome {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.board-csv-import .board-csv-outcome-marker {
+  width: 0.45rem;
+  height: 0.45rem;
+  flex: 0 0 auto;
+}
+
+.board-csv-import .board-csv-review-message {
+  margin: 0.35rem 0 0;
+  color: var(--board-work-ink-3);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.board-csv-import .board-csv-review-official {
+  margin-top: 0.5rem;
+  border-left: 2px solid var(--board-work-rule-strong);
+  padding-left: 0.7rem;
+  color: var(--board-work-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.board-csv-import .board-csv-review-official p {
+  margin: 0;
+}
+
+.board-csv-import .board-csv-evidence-confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin-top: 1rem;
+  color: var(--board-work-ink);
+  font-size: 0.82rem;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.board-csv-import .board-csv-evidence-confirm input[type="checkbox"] {
+  width: 1rem;
+  min-width: 1rem;
+  min-height: 1rem;
+  margin: 0.15rem 0 0;
+  accent-color: var(--board-work-orange);
+}
+
+/* --- Import actions ---------------------------------------------------------- */
+
+.board-csv-import .board-csv-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  justify-content: flex-end;
+  border-top: 2px solid var(--board-work-ink);
+  padding-top: 1.05rem;
+}
+
+.board-csv-import .board-csv-button {
+  display: inline-flex;
+  min-height: 2.6rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid var(--board-work-ink);
+  border-radius: 0;
+  padding: 0 1.35rem;
+  background: transparent;
+  color: var(--board-work-ink);
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.board-csv-import .board-csv-button.is-primary {
+  border-color: var(--board-work-orange);
+  background: var(--board-work-orange);
+  color: #ffffff;
+}
+
+.board-csv-import .board-csv-button.is-primary:hover {
+  border-color: #d93f1d;
+  background: #d93f1d;
+}
+
+.board-csv-import .board-csv-button.is-secondary:hover {
+  background: var(--board-work-ink);
+  color: var(--board-work-paper);
+}
+
+.board-csv-import .board-csv-button:focus-visible {
+  outline: 2px solid var(--board-work-orange);
+  outline-offset: 2px;
+}
+
+.board-csv-import .board-csv-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* --- Tablet ------------------------------------------------------------------ */
+
+@media (max-width: 1023px) {
+  .board-csv-import .board-csv-upload {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .board-csv-import .board-csv-format {
+    border-top: 1px solid var(--board-work-rule);
+    border-left: 0;
+  }
+
+  .board-csv-import .board-csv-review-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.55rem;
+  }
+}
+
+/* --- Mobile -------------------------------------------------------------------
+   First operational task. The summary figures become a full-width 2-up block
+   and the review register stacks, with no horizontal overflow at 390px. */
+
+@media (max-width: 767px) {
+  .board-csv-import {
+    gap: 1.1rem;
+  }
+
+  .board-csv-import .board-csv-head {
+    padding-bottom: 0.9rem;
+  }
+
+  .board-csv-import .board-csv-subtitle {
+    font-size: 0.86rem;
+  }
+
+  .board-csv-import .board-csv-step {
+    display: grid;
+    align-content: start;
+    gap: 0.3rem;
+    padding-right: 0.5rem;
+  }
+
+  .board-csv-import .board-csv-step-index {
+    font-size: 0.95rem;
+  }
+
+  .board-csv-import .board-csv-step-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+  }
+
+  .board-csv-import .board-csv-summary {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+  }
+
+  .board-csv-import .board-csv-summary-figures {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.85rem 0;
+  }
+
+  .board-csv-import .board-csv-summary-figure {
+    border-left: 0;
+    border-top: 1px solid var(--board-work-rule);
+    padding: 0.6rem 0 0;
+  }
+
+  .board-csv-import .board-csv-summary-figure dd {
+    font-size: 1.4rem;
+  }
+
+  .board-csv-import .board-csv-register-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.15rem;
+  }
+
+  .board-csv-import .board-csv-tab {
+    flex: 1 1 auto;
+    padding: 0 0.5rem;
+    text-align: center;
+  }
+
+  .board-csv-import .board-csv-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .board-csv-import .board-csv-button {
+    width: 100%;
+    white-space: normal;
+    text-align: center;
+  }
+}
+
+@media (max-width: 430px) {
+  .board-csv-import .board-csv-file-button {
+    width: 100%;
+  }
+
+  .board-csv-import .board-csv-column {
+    font-size: 0.68rem;
+  }
 }

@@ -1,157 +1,92 @@
 import { supabase } from "../lib/supabaseClient";
+import { callVoteAccess } from "./voteAccess";
 import { isMissingPositionOrderError } from "./positionOrder";
+import { getStoredUser } from "./auth";
+import { loadAdminCandidates } from "./adminCandidates";
 
 function uniqueIds(values = []) {
-  return [
-    ...new Set(
-      values
-        .map((value) => Number(value))
-        .filter((value) => Number.isFinite(value) && value > 0),
-    ),
-  ];
+  return [...new Set(values.map(Number).filter((value) => Number.isFinite(value) && value > 0))];
 }
 
 function byId(rows = []) {
   return new Map((rows || []).map((row) => [Number(row.id), row]));
 }
 
-async function fetchRowsByIds(table, ids, select) {
-  const safeIds = uniqueIds(ids);
-  if (safeIds.length === 0) return { data: [], error: null };
-
-  return supabase.from(table).select(select).in("id", safeIds);
-}
-
 export async function fetchElectionResultDataset(elections = []) {
   const electionRows = (Array.isArray(elections) ? elections : [elections]).filter(Boolean);
   const electionIds = uniqueIds(electionRows.map((election) => election.id));
+  if (electionIds.length !== 1) return { votes: [], candidates: [], error: null };
 
-  if (electionIds.length === 0) {
-    return { votes: [], candidates: [], error: null };
-  }
-
-  const electionById = new Map(
-    electionRows.map((election) => [Number(election.id), election]),
-  );
-
-  let [voteResult, positionResult] = await Promise.all([
-    supabase
-      .from("votes")
-      .select("id, student_id, election_id, position_id, candidate_id, is_abstain, vote_hash")
-      .in("election_id", electionIds),
-    supabase
-      .from("positions")
+  const election = electionRows[0];
+  const [voteResult, positionResult] = await Promise.all([
+    callVoteAccess("election_results", { election_id: electionIds[0] }),
+    supabase.from("positions")
       .select("id, name, election_id, max_votes, display_order")
-      .in("election_id", electionIds)
+      .eq("election_id", electionIds[0])
       .order("display_order", { ascending: true })
       .order("id", { ascending: true }),
   ]);
 
+  let resolvedPositions = positionResult;
   if (isMissingPositionOrderError(positionResult.error)) {
-    positionResult = await supabase
-      .from("positions")
+    resolvedPositions = await supabase.from("positions")
       .select("id, name, election_id, max_votes")
-      .in("election_id", electionIds)
+      .eq("election_id", electionIds[0])
       .order("id", { ascending: true });
   }
+  if (voteResult.error) return { votes: [], candidates: [], error: voteResult.error };
+  if (resolvedPositions.error) return { votes: [], candidates: [], error: resolvedPositions.error };
 
-  if (voteResult.error) {
-    return { votes: [], candidates: [], error: voteResult.error };
-  }
-
-  if (positionResult.error) {
-    return { votes: [], candidates: [], error: positionResult.error };
-  }
-
-  const positions = (positionResult.data || []).map((position, index) => ({
+  const positions = (resolvedPositions.data || []).map((position, index) => ({
     ...position,
     display_order: position.display_order || index + 1,
   }));
   const positionById = byId(positions);
-  const positionIds = positions.map((position) => position.id);
-
-  const candidateResult =
-    positionIds.length === 0
-      ? { data: [], error: null }
-      : await supabase
-          .from("candidates")
-          .select("id, photo, position_id, student_id, partylist_id")
-          .in("position_id", positionIds);
-
-  if (candidateResult.error) {
-    return { votes: [], candidates: [], error: candidateResult.error };
-  }
+  const role = getStoredUser()?.role;
+  const candidateResult = !positions.length
+    ? { data: [], error: null }
+    : role === "student"
+      ? await supabase.rpc("kandid_get_student_result_candidates", { p_election_id: electionIds[0] })
+      : ["super_admin", "electoral_board"].includes(role)
+        ? await loadAdminCandidates({ electionIds })
+        : { data: null, error: new Error("Authorized candidate results are unavailable.") };
+  if (candidateResult.error) return { votes: [], candidates: [], error: candidateResult.error };
 
   const candidateRows = candidateResult.data || [];
-  const voteRows = voteResult.data || [];
-  const voterStudentIds = voteRows.map((vote) => vote.student_id);
-  const candidateStudentIds = candidateRows.map((candidate) => candidate.student_id);
-  const partylistIds = candidateRows.map((candidate) => candidate.partylist_id);
-
-  const [studentResult, partylistResult] =
-    await Promise.all([
-      fetchRowsByIds(
-        "students",
-        [...voterStudentIds, ...candidateStudentIds],
-        "id, first_name, last_name, student_number, photo_url, program, year_level",
-      ),
-      fetchRowsByIds("partylists", partylistIds, "id, name"),
-    ]);
-
-  const metadataError =
-    studentResult.error ||
-    partylistResult.error;
-
-  if (metadataError) {
-    return { votes: [], candidates: [], error: metadataError };
-  }
-
-  const studentById = byId(studentResult.data);
-  const partylistById = byId(partylistResult.data);
-
   const candidates = candidateRows.map((candidate) => {
     const position = positionById.get(Number(candidate.position_id));
-
     return {
       ...candidate,
-      students: studentById.get(Number(candidate.student_id)) || null,
-      partylists: partylistById.get(Number(candidate.partylist_id)) || null,
-      positions: position
-        ? {
-            id: position.id,
-            name: position.name,
-            election_id: position.election_id,
-            display_order: position.display_order,
-          }
-        : null,
+      students: candidate.students || null,
+      partylists: candidate.partylists || null,
+      positions: position ? {
+        id: position.id,
+        name: position.name,
+        election_id: position.election_id,
+        display_order: position.display_order,
+      } : null,
     };
   });
-
   const candidateById = byId(candidates);
+  const voteRows = voteResult.data?.votes || [];
   const votes = voteRows.map((vote) => {
-    const election = electionById.get(Number(vote.election_id));
+    if (vote._aggregate_summary) return vote;
     const position = positionById.get(Number(vote.position_id));
     const candidate = candidateById.get(Number(vote.candidate_id));
-
     return {
       ...vote,
-      students: studentById.get(Number(vote.student_id)) || null,
       candidates: candidate || null,
-      positions: position
-        ? {
-            id: position.id,
-            name: position.name,
-            display_order: position.display_order,
-          }
-        : null,
-      elections: election
-        ? {
-            id: election.id,
-            title: election.title,
-            organization_id: election.organization_id,
-            organizations: election.organizations || null,
-          }
-        : null,
+      positions: position ? {
+        id: position.id,
+        name: position.name,
+        display_order: position.display_order,
+      } : null,
+      elections: {
+        id: election.id,
+        title: election.title,
+        organization_id: election.organization_id,
+        organizations: election.organizations || null,
+      },
     };
   });
 
@@ -160,10 +95,10 @@ export async function fetchElectionResultDataset(elections = []) {
     candidates,
     error: null,
     metrics: {
-      voteCount: voteRows.length,
-      candidateCount: candidateRows.length,
+      voteCount: voteRows.find((row) => row._aggregate_summary)?.totalVoteEntries || 0,
+      candidateCount: candidates.length,
       positionCount: positions.length,
-      uniqueStudentCount: uniqueIds(voterStudentIds).length,
+      uniqueStudentCount: voteRows.find((row) => row._aggregate_summary)?.totalUniqueVoters || 0,
     },
   };
 }

@@ -1,0 +1,542 @@
+[
+  {
+    "path": "candidate/supabase/migrations/20261018130000_password_protected_election_soft_removal.sql",
+    "sha256": "BA4EC685ABAA5E08E110BD101D97038088880E82835E6BE131572FEB391B9839"
+  },
+  {
+    "path": "candidate/supabase/functions/manage-election-removal/index.ts",
+    "sha256": "FA2EAAF99B68CE602A27E6EF523AE7AFC3CDE1A34E598F4C1C1DDD7313DC9E22"
+  },
+  {
+    "path": "candidate/supabase/functions/_shared/kandidProductionSecurity.mjs",
+    "sha256": "340EBEB85E42E5274D4AE48CA7548E6170957652CB8E1C1161188740ECB5CDEB"
+  },
+  {
+    "path": "candidate/supabase/config.toml",
+    "sha256": "72F10B16CB150AE054079B1EDE68171B5B1037D83AAB7498D35169391189BCE0"
+  },
+  {
+    "path": "PREFLIGHT.sql",
+    "sha256": "ED1D09583FD745CAE18FAD01DB4110C2EEFCD32997882D5ADD4325B9CC1DE28D"
+  },
+  {
+    "path": "POSTFLIGHT.sql",
+    "sha256": "223694FCE6A0D12EBA8E5D33AF330D4641C5F32D74C0D29FD3320D095C0D641E"
+  },
+  {
+    "path": "LEDGER_POSTFLIGHT.sql",
+    "sha256": "6C9FE43C6147CD85758AB4E57EA60325B40C994480B145F765C3BF5FA8B22B50"
+  },
+  {
+    "path": "ROLLBACK.sql",
+    "sha256": "918CD08E99ADA776D830FEFE2C28C26D2A8423487571AF2F48766AE07E04D44D"
+  },
+  {
+    "path": "REVIEW.md",
+    "sha256": "FF949708055F8F6F4BC2D2C61A4BD0476B5C42D32BBED2A44742FDAB84D6C8AC"
+  },
+  {
+    "path": "MANUAL_ACCEPTANCE.md",
+    "sha256": "3551DF1134311B2AF660F387CA91CC9543D06E6B0F06A3DB7F9705CDE2A1E7CF"
+  },
+  {
+    "path": "SUPERSEDED_ARTIFACTS.json",
+    "sha256": "DD8ABB7440CE5A956C5B0F83B70CC43DBF101B90151659BC9D4C3F1544A5C45C"
+  },
+  {
+    "path": "tsconfig.json",
+    "sha256": "BE54C75C21F03B04C94C27430F57F52C47BC73737584BC04CBC9EA2BBB2F5A78"
+  },
+  {
+    "path": "typecheck-globals.d.ts",
+    "sha256": "8B95E7BD18758205FE6887F34F27CB1034570F78E74881BD0CA77467E4B81314"
+  },
+  {
+    "path": "eslint.validation.config.mjs",
+    "sha256": "16073538B240484A9AA9B0CD098EA215C19690F0CF3ABF6B503D931277AFBC6F"
+  },
+  {
+    "path": "../../supabase/migrations/20261018130000_password_protected_election_soft_removal.sql",
+    "sha256": "BA4EC685ABAA5E08E110BD101D97038088880E82835E6BE131572FEB391B9839"
+  },
+  {
+    "path": "../../supabase/functions/manage-election-removal/index.ts",
+    "sha256": "FA2EAAF99B68CE602A27E6EF523AE7AFC3CDE1A34E598F4C1C1DDD7313DC9E22"
+  },
+  {
+    "path": "../../supabase/functions/_shared/kandidProductionSecurity.mjs",
+    "sha256": "340EBEB85E42E5274D4AE48CA7548E6170957652CB8E1C1161188740ECB5CDEB"
+  },
+  {
+    "path": "../../supabase/config.toml",
+    "sha256": "53C507E57B408175611BCEC790284195C524584F2334CBB561767A12FADE2415"
+  },
+  {
+    "path": "../../src/pages/board/Elections.jsx",
+    "sha256": "D67056D8B974585FFF649E4990E2F887D3DEA3BEFCF7CF7E231CC27EDF27BF4F"
+  },
+  {
+    "path": "../../src/pages/board/BoardElectionDeleteSheet.jsx",
+    "sha256": "897ED638D47FBDF98367E6F7B7CEDEEA93B0A868E2AA93B4420683918655C74E"
+  },
+  {
+    "path": "../../src/pages/board/Elections.css",
+    "sha256": "5FCB8BC1BA7368AC19F5FDB9353B8F680D5510237ED7F6E68D4000D4EE74F369"
+  },
+  {
+    "path": "../../src/pages/superadmin/Elections.jsx",
+    "sha256": "01D19FB156869C240780C774777627EE9343297BDC7914E01C03F0F5DDCCA440"
+  },
+  {
+    "path": "../../src/utils/electionDeleteReview.js",
+    "sha256": "0FD8E5D0E2B44B8BB87236A0BE407ED360FCF6AE98B18FEBB511A2C7332D7BB9"
+  },
+  {
+    "path": "../../src/utils/electionRemoval.js",
+    "sha256": "4E43BD65E8B7BF0302ECBB1F3AB51BCD2D28F8AD19A7161A05DCD8A4C206B77C"
+  },
+  {
+    "path": "../../src/utils/electionRemovalFeatureGate.js",
+    "sha256": "EC17721077972DDC7B7B9824FE50A3DAEFE3462C4A0464A4E8F58A50D3CB0F69"
+  },
+  {
+    "path": "../../src/utils/developmentProductionWriteGuard.js",
+    "sha256": "2DF77EF911BED7E0583C16CB6940F3994EDC87D9F3D44B9D793E53175808A15E"
+  },
+  {
+    "path": "../../src/utils/electionManagement.js",
+    "sha256": "62EC7F90DC5FDB7FD5F4D203995DA0E3FD1238F2365383813CD4A98B1D62EAE8"
+  },
+  {
+    "path": "../../src/lib/supabaseClient.js",
+    "sha256": "4DBD1D10A272D614F9686416866BF91BA73AD5ECCC2A90C1FDD9286095E8C427"
+  },
+  {
+    "path": "../../tests/electionDeleteReview.test.mjs",
+    "sha256": "0FE0F8C0AB7574CD0ABB867A504862BD9A9B06795F7DFBD103AF734A5027C6A6"
+  },
+  {
+    "path": "../../tests/electionDeleteReviewContract.test.mjs",
+    "sha256": "85019F4BF83A588922842F594E54F2626CD7FD7BFAE6FAED9F05A6003103972F"
+  },
+  {
+    "path": "../../tests/electionDependencyEdgeSecurity.test.mjs",
+    "sha256": "93426D1DB3CDC2D2C4DB06B6A40B4DD9425334EFD11E64D1A18555A1118B2EFA"
+  },
+  {
+    "path": "../../tests/electionRemovalEdgeRuntime.test.mjs",
+    "sha256": "87CBF0703EC4908E8C1825D9BD34AEC801F762BB515B344EDE1879E977B3F434"
+  },
+  {
+    "path": "../../tests/electionDeletePackage.test.mjs",
+    "sha256": "B8E4BAD466345D5B531095AE5CEB3137DFAA8036CE7B0184B9F3D5D2236039D6"
+  },
+  {
+    "path": "../../tests/electionSoftRemovalPackage.test.mjs",
+    "sha256": "0C9FC035E79AF92B5A899C86FFF639F0A058FCFD97C670061A55D551EDC44410"
+  },
+  {
+    "path": "../../scripts/kandid-election-soft-removal-sql-validation.mjs",
+    "sha256": "E875EDA0FA943B00194A65B80F14682BB7B22EA062BCDF857C1C3EBEF251D594"
+  },
+  {
+    "path": "../../scripts/kandid-election-soft-removal-browser-probe.mjs",
+    "sha256": "359638DE418337929428F0E519B47E3DC4224C9AFBC168D59BB0917D4542126A"
+  },
+  {
+    "path": "../../scripts/kandid-election-soft-removal-browser-acceptance.mjs",
+    "sha256": "EE7CEB2F2D669383BFE2B1DC11729A6983D0B8B14FC26FE98D8D2F75C177E8C5"
+  },
+  {
+    "path": "../../scripts/vite-board-acceptance.config.mjs",
+    "sha256": "1B9A159547E2CE2ED7EEAC2188ADCB3C9F4DCF82B63458C524B7C0077BA1BFE2"
+  },
+  {
+    "path": "../../scripts/supabase-env-policy.js",
+    "sha256": "B46B3851E1C5D84EEBE6F1172612CFE03EC41F47DC1B2F57E9236747080F9BB6"
+  },
+  {
+    "path": "../../supabase/runtime-validation/election-soft-removal-release-baseline.sql",
+    "sha256": "E386BBAA1E6EA804C0D45F942758212A8B406D80F10E82CAC5753EED64567E62"
+  },
+  {
+    "path": "../../supabase/runtime-validation/election-soft-removal-release-records.sql",
+    "sha256": "01E0820ABE8EAD1E2429B6A30D9F7268313E3F085EA3E3DFF8DA8CF9E85A8F83"
+  },
+  {
+    "path": "evidence/sql-results.json",
+    "sha256": "DF76779DB086FAEA86FCDD4C6FE68F32AA1B02D9C918177C21D7D68C09C6A26D"
+  },
+  {
+    "path": "evidence/gate-off-runtime.json",
+    "sha256": "ED7F0C55D7B07DD065912B716A52E09FCCE835106C43DAF093670566254FD2B0"
+  },
+  {
+    "path": "evidence/browser-failure.json",
+    "sha256": "5AC9BAEA135DA35386F557FD10DC322D8FBDF681E10AA2575647D94975ACA91E"
+  },
+  {
+    "path": "evidence/browser-availability.json",
+    "sha256": "670120D9EDDE337915B65A35ADFD104EF98B33C755DBA6C7BFCD9FF81CC3E8AC"
+  },
+  {
+    "path": "../../src/utils/electionManagementCompatibility.js",
+    "sha256": "52EFE310F4CDC08E925487ABEADE104C4CCE71DA90C35C496E1D7F5976233E49"
+  },
+  {
+    "path": "../../tests/electionManagementCompatibility.test.mjs",
+    "sha256": "92A1E6C8042A0DF55BFBFCAB7CA2248E4E02151A5B3059736BBFD5E217730E78"
+  },
+  {
+    "path": "../../scripts/kandid-election-compatibility-browser.mjs",
+    "sha256": "7B594074BF65D02994642D9366E2D2CA869F7ABFF8C09A7CE7F7E8F2A1EAB3EF"
+  },
+  {
+    "path": "../../src/pages/superadmin/Elections.css",
+    "sha256": "EEC626D2F41B0D82AA7BDA7D648BFF105D7C010516EFB2CCF19C8F5DB5026C2E"
+  },
+  {
+    "path": "../election-schema-compatibility/REVIEW.md",
+    "sha256": "58824DA10C780260827AAADCBC23999AA68A13F0E20E43A35B3C20C7920B4390"
+  },
+  {
+    "path": "../election-schema-compatibility/evidence/browser-results.json",
+    "sha256": "054B6ECDCF82ED769C3E026347DD7EB078EC68F6DAAD1CDDD006C2DABD6A1D83"
+  },
+  {
+    "path": "../../src/utils/electionEditContract.js",
+    "sha256": "2B3069B556A9288203B5EBD0037B1B660D06241E11CCE7A5635975265797DCB4"
+  },
+  {
+    "path": "../../src/pages/board/BoardElectionSetup.jsx",
+    "sha256": "639DC3BFE8094299BC6B38E2F22FA5FF4D606BCF3F3151B51482766001F0F871"
+  },
+  {
+    "path": "../../src/components/OrganizationSelect.jsx",
+    "sha256": "F4B938E5E80265CB561B26FF27151766E14F4A73CEB24F7581C7F43CAFBDA5F0"
+  },
+  {
+    "path": "../../tests/electionEditContract.test.mjs",
+    "sha256": "327FA64E3D4B3999403AF0E9B5947A7EA76E08389B4A15A491BBF5E62AF1E809"
+  },
+  {
+    "path": "EDIT_AND_REMOVAL_ACCEPTANCE.md",
+    "sha256": "B7849748A0C4430CE2F94E701CC67D174B15384D6F4B92EE0A458E27DC70FA3F"
+  },
+  {
+    "path": "evidence/browser-removal-results.json",
+    "sha256": "3DEE279C680D67E0A9B517BC076C665D8FD54ECD077A3993AD6F594F56ACE632"
+  },
+  {
+    "path": "evidence/browser-create-results.json",
+    "sha256": "5242213226D9399AC4CF061DD575E9F2B96CE1A42417557815F0D80A15A2F4BF"
+  },
+  {
+    "path": "evidence/browser-results.json",
+    "sha256": "52F840B55B6C208F5F62AF98CB5EF89B1AA8F4779FDF616C4FE761503E04E208"
+  },
+  {
+    "path": "evidence/browser-legacy-results.json",
+    "sha256": "3366220376CE3F30A6D5C49FE0106C11FCD00B85F44E2C215C7E1FFAA719551C"
+  },
+  {
+    "path": "evidence/browser-tablet-results.json",
+    "sha256": "43DC748E12AEB9C8B3095E165903C69E8EBCD13DCE9A2E85608E7832571172F1"
+  },
+  {
+    "path": "evidence/ACCEPTANCE_SUMMARY.json",
+    "sha256": "E40BE9BA93F49FFADB652C985E36199ED3B6D8240D8D42DB7545F01779F7698A"
+  },
+  {
+    "path": "UUID_COMPATIBILITY_REVIEW.md",
+    "sha256": "D7BBEE6CD5871800E5EEB23731A12826FAF7342241D474A4EDA87E0673F3CE9D"
+  },
+  {
+    "path": "PRODUCTION_STAGE1_BLOCKER.md",
+    "sha256": "6FC2EA9BE4DDB3C386FD4D709AFB81603773497CA708615765CF39E61A2CD3EB"
+  },
+  {
+    "path": "../../tests/electionRemovalIdentifierTypes.test.mjs",
+    "sha256": "8E9D2498E9C58E58B890B0241A3B85816F3C318908C6E6903727E42E146A0B0E"
+  },
+  {
+    "path": "evidence/uuid-compatibility/build.log",
+    "sha256": "8478763BD2FD8A9BDA7724989BD0253953B50B7876D6DBEB27B3C674F814C2E2"
+  },
+  {
+    "path": "evidence/uuid-compatibility/identifier-type-audit.json",
+    "sha256": "C23D2D5A59158A8C0DF55B59314ED24F7DED3DFE5AA7EAEE4151402D790A4CE6"
+  },
+  {
+    "path": "evidence/uuid-compatibility/ledger-postflight-before-recording.json",
+    "sha256": "9A9D017B59497E615BC73A79E8847CD62A5AD19E9ACC276393ADA1074F57D020"
+  },
+  {
+    "path": "evidence/uuid-compatibility/ledger-postflight-rejects-unexpected-version.json",
+    "sha256": "A697FADFF172785D37226943EFEBAEB7A4B2675936695E26617C95E7C6D60821"
+  },
+  {
+    "path": "evidence/uuid-compatibility/ledger-postflight-repeat.json",
+    "sha256": "F23B29EEB2984ABD1339F50B793D8021EE905C4E5A22812F4A34E3765F149DE3"
+  },
+  {
+    "path": "evidence/uuid-compatibility/ledger-postflight.json",
+    "sha256": "AEE0C1F11C0D158B415F7872D01F0E15A0A0B173642B25A999207AC950ADA23C"
+  },
+  {
+    "path": "evidence/uuid-compatibility/lint.log",
+    "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+  },
+  {
+    "path": "evidence/uuid-compatibility/local-identity.json",
+    "sha256": "DA5ED8AC43EC8B94858A33C3795EBB69EF8C0C82F760490221FF0C0C08695FE7"
+  },
+  {
+    "path": "evidence/uuid-compatibility/migration-install.json",
+    "sha256": "C9C58CAEE6ECC4E0CBD9016FB68420E1A344FE94CAA27ADEDB07A2F856189BD6"
+  },
+  {
+    "path": "evidence/uuid-compatibility/migration-rejects-publication-type-drift.json",
+    "sha256": "52AB6096188538057EE501B26A09BF89F48558F3571AAA15564856C1A1AC50D3"
+  },
+  {
+    "path": "evidence/uuid-compatibility/migration-rejects-repeat.json",
+    "sha256": "A3395A0101EFBAFCFCE6993D912AB07F966D9FB84A246972F39EFC670410C96C"
+  },
+  {
+    "path": "evidence/uuid-compatibility/old-bigint-guard-reproduces-uuid-insert-failure.json",
+    "sha256": "6163825BDBAC2304200D872989C365088030FE05693E5A3C8633359CFE433A33"
+  },
+  {
+    "path": "evidence/uuid-compatibility/postflight-rejects-former-bigint-guard.json",
+    "sha256": "DE416D8908EA2125E5AA250FDB77D79E5000A2A4F415724DEF8EA4F31CF4E439"
+  },
+  {
+    "path": "evidence/uuid-compatibility/postflight-rejects-function-drift.json",
+    "sha256": "AB9B8BDBCED72E9252DF0093645ED2D074D59085E84F162FC8CA37597CB70091"
+  },
+  {
+    "path": "evidence/uuid-compatibility/postflight-rejects-grant-drift.json",
+    "sha256": "F47738C4360E30814162650878D8F5510DAEF6DA3DE11F27339B5523BF456EDD"
+  },
+  {
+    "path": "evidence/uuid-compatibility/postflight-rejects-missing-migration.json",
+    "sha256": "77B7857BA5D99E94916C6BB245A4C7EDE2B9009CCE2B1DB006DA176E0EC50630"
+  },
+  {
+    "path": "evidence/uuid-compatibility/postflight-rejects-publication-type-drift.json",
+    "sha256": "0F26D1A6FE31E8EB5B15A963F67A65F95E4215D03AC6DEAB7CE62F7FB79C4805"
+  },
+  {
+    "path": "evidence/uuid-compatibility/postflight-rejects-trigger-drift.json",
+    "sha256": "3E01D8AAF8A775320921524664189BD64F919BC01072AF24C3BA62C79ACC3770"
+  },
+  {
+    "path": "evidence/uuid-compatibility/preflight-after-rollback.json",
+    "sha256": "544A8F8CEA49A0131C2CFA69E42DC7D352C32D50AEF4DBA22BF7D91D158177BF"
+  },
+  {
+    "path": "evidence/uuid-compatibility/preflight-rejects-installed-schema.json",
+    "sha256": "0A6B7AF0A2CAEFFAB355ABFE7BD8C7856D08B221B2635E1C5A318EA7717D048E"
+  },
+  {
+    "path": "evidence/uuid-compatibility/preflight-rejects-ledger-drift.json",
+    "sha256": "CEFF6F29D6CAE66CBB2DAB62FB2F64BACFD4EC228A4C6653C2FD50607C5E85F3"
+  },
+  {
+    "path": "evidence/uuid-compatibility/preflight-rejects-missing-test-context.json",
+    "sha256": "E240CBAA95BD1A3E2CD30A1E35C3888098C8F44C22017E1692B42D61AB16EB86"
+  },
+  {
+    "path": "evidence/uuid-compatibility/preflight-rejects-publication-type-drift.json",
+    "sha256": "70E6C8A524D3E9F1B43294EA02EF0EF8B400E4FECE20A786627F0B09F1EC25D1"
+  },
+  {
+    "path": "evidence/uuid-compatibility/preflight-rejects-trigger-drift.json",
+    "sha256": "6C2CB117DE3FCDCC8F8B076660ED0A3799B0EE9D3EF82A8508482A3BCA1F8048"
+  },
+  {
+    "path": "evidence/uuid-compatibility/preflight.json",
+    "sha256": "71D041A10588273AE6508BCEB6779851762B520378423FD2E28540BE59B975E7"
+  },
+  {
+    "path": "evidence/uuid-compatibility/preservation-after-install.json",
+    "sha256": "D9D6F069B87E3C285FB541B68CA197A7208F9BE74C5626E465FDF7D75826E463"
+  },
+  {
+    "path": "evidence/uuid-compatibility/preservation-after-rollback.json",
+    "sha256": "26A6670F63C9ADC62B6F4ED5D30A8E71431C1216889792DCE54A1716AE821E43"
+  },
+  {
+    "path": "evidence/uuid-compatibility/preservation-after-uuid-operations.json",
+    "sha256": "C6B8251A7363C36952A7F129F622E9C3E2C26A595115FF1C4A2B45D8D160845C"
+  },
+  {
+    "path": "evidence/uuid-compatibility/preservation-before.json",
+    "sha256": "6FAE6BDA6FF7C8FEB3C661BE1BC2A18A64B54C2C677F9FC04817C5498F10D3C0"
+  },
+  {
+    "path": "evidence/uuid-compatibility/production-compatible-schema-dependency.json",
+    "sha256": "952621BD42F2B5A035FAAECE326571BA5FDC8280A0FD5EE1C421169DFBA63EF8"
+  },
+  {
+    "path": "evidence/uuid-compatibility/regression.log",
+    "sha256": "FBFB886DFC0A06176BE807905B93E71CE174D263E4D3EDCF7B8D8F073EB4E82D"
+  },
+  {
+    "path": "evidence/uuid-compatibility/rollback-rejects-removed-election.json",
+    "sha256": "44BF749B24C80CF723E47F3B77602CA170FE23013B0E3CF539D59CF848B09C5E"
+  },
+  {
+    "path": "evidence/uuid-compatibility/rollback-rejects-repeat.json",
+    "sha256": "66D4271EA58BAE4CF81C746247058E86073FD3E4239A62B451A566662A688737"
+  },
+  {
+    "path": "evidence/uuid-compatibility/rollback-rejects-restoration-history.json",
+    "sha256": "4482FB9AE0658A3FD3781A2FE79582202172AD0C7D4DB89C21D9180D29B3F898"
+  },
+  {
+    "path": "evidence/uuid-compatibility/rollback-rejects-unrecorded-install.json",
+    "sha256": "C806A6361DD4F901A88BF6620F8143397E17C610AE7635C71ED94445DE040F4A"
+  },
+  {
+    "path": "evidence/uuid-compatibility/rollback.json",
+    "sha256": "F273C55FB115F0D1B96AB6AF006631B5CBADAB3BB6999FF96EEB0C16D6B2CE31"
+  },
+  {
+    "path": "evidence/uuid-compatibility/sql-results.json",
+    "sha256": "B797D752F99715682782C6898096FA10EF88185254DEDC46D30409FA38982F3F"
+  },
+  {
+    "path": "evidence/uuid-compatibility/sql-run.log",
+    "sha256": "DE0B399F127D2A95241760B471FEC1A0265675B179AB0691DED36105B2EA07FA"
+  },
+  {
+    "path": "evidence/uuid-compatibility/structural-postflight-repeat.json",
+    "sha256": "415A109A1E5F26C71DDEF66FDB400012B8C5884278F809AB2EBECF01093C7463"
+  },
+  {
+    "path": "evidence/uuid-compatibility/structural-postflight.json",
+    "sha256": "481BAF07EB007EE64EE8A1EC56D99A8475C0883EAC1188D54E8B8DC31F5618B8"
+  },
+  {
+    "path": "evidence/uuid-compatibility/synthetic-historical-records.json",
+    "sha256": "C3127A49451C9ECC6488746FA75D759CE67B30677ECED3BAE4E2385AD6E1D748"
+  },
+  {
+    "path": "evidence/uuid-compatibility/synthetic-ledger-baseline.json",
+    "sha256": "9B3F760F02E6629925256CF454ECD45085CF35237174C1622FCFE331534A32EF"
+  },
+  {
+    "path": "evidence/uuid-compatibility/synthetic-target-only-recording.json",
+    "sha256": "29417640D302055C17866320FB854A3F114EA1D8F350A698D239EAE63F79E120"
+  },
+  {
+    "path": "evidence/uuid-compatibility/synthetic-target-only-revert.json",
+    "sha256": "36EB2AFFD3B1D030C9142AC843F63A36A98090C167A448F429CF5DB7DC1BD686"
+  },
+  {
+    "path": "evidence/uuid-compatibility/typecheck.log",
+    "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+  },
+  {
+    "path": "evidence/uuid-compatibility/uuid-election_officer_publications-nonremoved-delete-immutable.json",
+    "sha256": "41730971A8ABC76A807876C1B6F2F0D50E44F7E13A0821FFE330C409F476AB8B"
+  },
+  {
+    "path": "evidence/uuid-compatibility/uuid-election_officer_publications-nonremoved-update-immutable.json",
+    "sha256": "3C393C7143183EEA4F81529168A16D3579EA8DFDF280C16024AA24CC50A9B269"
+  },
+  {
+    "path": "evidence/uuid-compatibility/uuid-election_officer_publications-removed-delete-immutable.json",
+    "sha256": "366F5BA7C37A1D9948CB6B10A45F4AAE4125974BC72A7B87C240A1AAF560AB93"
+  },
+  {
+    "path": "evidence/uuid-compatibility/uuid-election_officer_publications-removed-update-immutable.json",
+    "sha256": "5401846E660535C360FB3754D10F77ABAFE6CAAE0F811CC80DE061EC01D5BC23"
+  },
+  {
+    "path": "evidence/uuid-compatibility/uuid-election_officer_publication_entries-nonremoved-delete-immutable.json",
+    "sha256": "8337AB17C01F145207D55C913917BC42CFBCAF825D85DF7749B7560E9EB0C4F0"
+  },
+  {
+    "path": "evidence/uuid-compatibility/uuid-election_officer_publication_entries-nonremoved-update-immutable.json",
+    "sha256": "E6682272FF812A952D3AB98BAE8D45083BC3FDC511BE163E049E6EE397446F4D"
+  },
+  {
+    "path": "evidence/uuid-compatibility/uuid-election_officer_publication_entries-removed-delete-immutable.json",
+    "sha256": "D9930CF7F209F741DB4DDCD03E506B06C05D0D88884E52C27569E5E85FF4F7C9"
+  },
+  {
+    "path": "evidence/uuid-compatibility/uuid-election_officer_publication_entries-removed-update-immutable.json",
+    "sha256": "31860FAB77A3601954B25315CB52CA55EC62899968613DC21A4A485CC3F2839E"
+  },
+  {
+    "path": "evidence/uuid-compatibility/uuid-entry-direct-authenticated-insert-denied.json",
+    "sha256": "313CAABCC0DBB7892E31B35200B81BBD89B00AB373CA2B8A390679877D78D0CC"
+  },
+  {
+    "path": "evidence/uuid-compatibility/uuid-entry-duplicate-id-denied.json",
+    "sha256": "197FA5B2F43177000C7BB6B909E1CE330117D798E8759DB353C8E16E1F05AD4C"
+  },
+  {
+    "path": "evidence/uuid-compatibility/uuid-entry-duplicate-order-denied.json",
+    "sha256": "59E6E9E6A4B17D9CCA62DB458DFABAC23DFC2B08940258AB59F302CD1EFC3A64"
+  },
+  {
+    "path": "evidence/uuid-compatibility/uuid-entry-duplicate-source-officer-denied.json",
+    "sha256": "4053C8E2E72DA81B33B505B069EAC1F533D9982A9DFDA09FC5F33DE577C6B167"
+  },
+  {
+    "path": "evidence/uuid-compatibility/uuid-entry-insert-after-restore.json",
+    "sha256": "4A5CA96706178A416067E57851D8696BB36335425360BFBBB5B4205E230DC2CC"
+  },
+  {
+    "path": "evidence/uuid-compatibility/uuid-entry-insert-nonremoved-election.json",
+    "sha256": "88604D5DDE3E5BE8EE81682A3BD078FBE1B82EBB202F63751F33752F4D1DA4A0"
+  },
+  {
+    "path": "evidence/uuid-compatibility/uuid-entry-insert-removed-election-denied.json",
+    "sha256": "85202C5CB92ED83DF303073F1E2F164759724CA6E3194D51A3E35A3297A6DBA2"
+  },
+  {
+    "path": "evidence/uuid-compatibility/uuid-publication-and-entry-insert-unrelated-election.json",
+    "sha256": "D446B34A3399A3211E19E734C406A75635225BEFE8953FB92D4992632382948A"
+  },
+  {
+    "path": "evidence/uuid-compatibility/uuid-publication-on-removed-election-denied.json",
+    "sha256": "47C2F323D0F78245D59CCB8083C89B69A045D78557D384409C9A197E33D42FD1"
+  },
+  {
+    "path": "../../src/utils/electionCreateContract.js",
+    "sha256": "E5D4AAF3916F4BDD8A10B3A223068BB0150F224381E0CFF782E344C72236D817"
+  },
+  {
+    "path": "../../tests/electionCreateContract.test.mjs",
+    "sha256": "02B771F99F028B454B8C68AFBDD892C7DA109909E9208C164E1F25A8A2670B6D"
+  },
+  {
+    "path": "../election-create-activation/REVIEW.md",
+    "sha256": "E0AF91DAE8B97295EAD7B2DE0E95A7AE6369E15A5FCA1C2BF65C4654727CAD1B"
+  },
+  {
+    "path": "../election-create-activation/APPROVED_STAGE1_SHA256SUMS.json",
+    "sha256": "A4191F22D5D20DB55B4B26B2AD9BE30F0C651F219B0E8F951D0CF35B05D37631"
+  },
+  {
+    "path": "../election-create-activation/evidence/ACCEPTANCE_SUMMARY.json",
+    "sha256": "1FD9DB7F9153F70D1847AC4C749B868804DFBD792495AABCE8A3CAFD02E46538"
+  },
+  {
+    "path": "../election-stage1-production/RESULTS.json",
+    "sha256": "1172252A75565F424C87F86EC87038EA2655B0982FF4E0CBF02508ABFA70C9E0"
+  },
+  {
+    "path": "../election-stage1-production/REVIEW.md",
+    "sha256": "C8920856DA5313AD60F2C5F0C8B4438512D870B792C497670B990D739B55EF2F"
+  },
+  {
+    "path": "../election-stage1-production/READ_ONLY_RECHECK.json",
+    "sha256": "EC42996F9934DDD2FE5E07C1EA39B13D9E04F4A48A559FA18B98E863AEC5DE76"
+  }
+]

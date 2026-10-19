@@ -1,0 +1,2105 @@
+/* Board > Officers — leadership register.
+
+   This page joins the redesigned Board portal, so it reuses the system the
+   approved Elections, Positions and Candidates pages already established rather
+   than keeping an Officers-only look:
+
+     - the Elections/Positions masthead: orange context eyebrow, a hairline that
+       runs off it, the page title on the baseline, the page action on the right
+       of that baseline, then the standfirst;
+     - the Positions register: a 2px ink rule opening each section, a ruled
+       column header, then ruled rows, all sharing one grid template;
+     - the Candidates action vocabulary: tracked text with a short rule under it,
+       square corners, and Kandid red reserved for the destructive control;
+     - the shared Board palette and zero-radius geometry.
+
+   Every token below is an alias of a shared --kandid-app-* custom property, the
+   same indirection the other Board pages use, so nothing here can drift from the
+   rest of the portal. */
+
+.kandid-app-theme .board-officers-desktop {
+  --board-officers-hairline: var(--kandid-app-border, #e5e0d6);
+  --board-officers-hairline-strong: var(--kandid-app-border-strong, #d2ccc0);
+  --board-officers-ink: var(--kandid-app-ink, #101114);
+  --board-officers-ink-soft: var(--kandid-app-ink-3, #3a3d45);
+  --board-officers-muted: var(--kandid-app-muted, #5b5e66);
+  --board-officers-orange: var(--kandid-app-orange, #f4512c);
+  --board-officers-paper: var(--kandid-app-paper, #ffffff);
+  --board-officers-danger: #9f1239;
+  --board-officers-danger-strong: #a83224;
+
+  /* Major sections are separated by space, not by rules. This is the whole
+     rhythm of the page: 30px at the narrowest, 44px at the widest, so Current
+     Leadership, New Officers and Past Leadership read as three separate
+     documents rather than one continuous ruled table. */
+  display: grid;
+  min-width: 0;
+  gap: clamp(1.9rem, 2.9vw, 2.75rem);
+}
+
+/* --- masthead ----------------------------------------------------------------
+   The one strong editorial rule in the page. It opens the document under the
+   title and nothing else on the page is allowed to match it: every section below
+   is separated by whitespace, the register's column header and every row are
+   hairlines, and the incoming slate has no rule of its own. Keeping exactly one
+   2px rule is what turns "many separators" into newsprint.
+
+   The padding below it is generous on purpose, so the gap under the standfirst
+   does the separating instead of a second line. The `!important` weights are
+   needed because index.css still carries generic .page-head / .page-kicker rules
+   that this page no longer renders, and because those must not bleed back in. */
+
+.kandid-app-theme .board-officers-masthead {
+  display: grid;
+  min-width: 0;
+  gap: 0.4rem;
+  border: 0;
+  border-bottom: 2px solid var(--board-officers-ink);
+  border-radius: 0;
+  background: transparent;
+  padding: 0 0 clamp(1.7rem, 2.6vw, 2.25rem);
+  box-shadow: none;
+}
+
+.kandid-app-theme .board-officers-context {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* The eyebrow replaces the old pill. The generic .page-kicker token sets a
+   background, a border and uppercase tracking with !important, so the fill and
+   the border are cleared at the same weight. */
+.kandid-app-theme .board-officers-eyebrow {
+  flex: 0 0 auto;
+  max-width: 100%;
+  overflow: hidden;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  color: var(--board-officers-orange) !important;
+  font-size: 0.68rem !important;
+  font-weight: 850 !important;
+  letter-spacing: 0.14em !important;
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.kandid-app-theme .board-officers-context-rule {
+  flex: 1 1 auto;
+  min-width: 1.5rem;
+  height: 1px;
+  background: var(--board-officers-hairline);
+}
+
+.kandid-app-theme .board-officers-baseline {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem 1.5rem;
+}
+
+/* "Officer record" inherits the shared Board page-title rule
+   (.kandid-app-theme.board-theme .page-title), so it stays in the same
+   Source Serif 4 family as "Elections" and "Ballot positions".
+
+   Its size is reduced one step from the shared scale, which
+   clamp(2.35rem, 3.6vw, 3.2rem), because at 51px it outweighed the content it
+   introduces: the page read as a title with some rows underneath rather than a
+   register with a title. The `!important` is required — the shared rule sets
+   font-size at that weight (index.css:9877) — and is confined to this one
+   property, so no other Board page's title is affected. Level 1 stays the
+   strongest heading on the page, and the section headings below it remain a
+   clear step down. */
+.kandid-app-theme .board-officers-title {
+  max-width: 48rem;
+  font-size: clamp(1.95rem, 2.7vw, 2.5rem) !important;
+}
+
+.kandid-app-theme .board-officers-standfirst {
+  max-width: 44rem;
+  margin: 0;
+  color: var(--board-officers-ink-soft);
+  font-size: 0.94rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+/* Add Officer: the one orange action on the page, matching .board-elections-create
+   and .board-positions-create value for value. index.css declared
+   `border-radius: var(--kandid-radius-sm) !important` on the old
+   .board-officers-create rule, so the square corners are restated at the same
+   weight to defeat it. */
+.kandid-app-theme .board-officers-create {
+  display: inline-flex;
+  min-height: 2.45rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: 1px solid var(--board-officers-orange) !important;
+  border-radius: 0 !important;
+  padding: 0 1.05rem !important;
+  background: var(--board-officers-orange) !important;
+  color: #ffffff !important;
+  font-family: inherit;
+  font-size: 0.71rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.kandid-app-theme .board-officers-create:hover {
+  border-color: #d93f1d !important;
+  background: #d93f1d !important;
+}
+
+.kandid-app-theme .board-officers-create:focus-visible {
+  outline: 2px solid var(--board-officers-orange);
+  outline-offset: 2px;
+}
+
+/* --- leadership register ----------------------------------------------------
+   One column template drives the section head, the column header and every row,
+   so a label can never end up over the wrong field. The register draws its own
+   rules; there is no card, no fill and no shadow behind a row. */
+
+.kandid-app-theme .board-officers-register {
+  /* No. | Office | Officer | Term | Actions.
+
+     The action track used to be a fixed 7.5rem, which was narrower than the
+     Edit + Delete pair inside it; because .board-officer-actions wraps, the two
+     controls stacked and every row grew to the height of four lines. Actions now
+     carries enough measure for both controls on one line, and the office,
+     officer and term tracks share the remainder at roughly 23 / 37 / 26, which
+     is the balance the page was designed around. */
+  --board-officers-register-columns: 2.4rem minmax(8.5rem, 0.95fr) minmax(11rem, 1.5fr) minmax(10rem, 1.05fr) minmax(8rem, 0.6fr);
+
+  display: grid;
+  min-width: 0;
+}
+
+/* No rule above a section. The masthead already draws the page's single strong
+   rule, and a 2px rule here sat directly under it, so the two read as one heavy
+   band. From here on, sections are separated by the parent's whitespace, the
+   column header is closed by a hairline, and the rows by hairlines. The top
+   padding is small because the gap above the section is doing that work. */
+.kandid-app-theme .board-officers-register-head {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.5rem 1.25rem;
+  padding: 0.1rem 0 0.85rem;
+}
+
+.kandid-app-theme .board-officers-register-copy {
+  min-width: 0;
+}
+
+.kandid-app-theme .board-officers-register-tools {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.7rem 1rem;
+}
+
+.kandid-app-theme .board-officers-create-secondary {
+  min-height: 2.25rem;
+  border-color: var(--board-officers-hairline-strong) !important;
+  background: transparent !important;
+  color: var(--board-officers-ink) !important;
+  padding-inline: 0.75rem !important;
+}
+
+.kandid-app-theme .board-officers-create-secondary:hover,
+.kandid-app-theme .board-officers-create-secondary:focus-visible {
+  border-color: var(--board-officers-orange) !important;
+  background: transparent !important;
+  color: var(--board-officers-orange) !important;
+}
+
+/* Section labels are Level 4: a tracked orange eyebrow. Never uppercase body
+   copy — only the label itself, so the sentence below it stays readable. */
+.kandid-app-theme .board-officers-section-kicker {
+  margin: 0;
+  color: var(--board-officers-orange) !important;
+  font-size: 0.68rem !important;
+  font-weight: 850 !important;
+  letter-spacing: 0.12em !important;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+/* Level 2: a major section, clearly below the page title. The same serif scale
+   the Positions register heads use, so the two pages read as one system. */
+.kandid-app-theme .board-officers-register-head h2 {
+  margin: 0.25rem 0 0 !important;
+  overflow-wrap: anywhere;
+  color: var(--board-officers-ink) !important;
+  font-family: "Source Serif 4", Georgia, serif !important;
+  font-size: clamp(1.18rem, 1.55vw, 1.5rem) !important;
+  font-weight: 650 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.12 !important;
+}
+
+/* The count is metadata, not a headline. It was a 1.55rem orange serif numeral,
+   which put "06" at nearly the weight of the section heading directly above it.
+   It is now set at text scale in the softer ink, so the register's size is
+   available on a glance and is not the second most prominent thing in the
+   section head. The tabular numeral keeps the columns aligned. */
+.kandid-app-theme .board-officers-register-count {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: baseline;
+  gap: 0.35rem;
+  color: var(--board-officers-muted);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  line-height: 1.25;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.kandid-app-theme .board-officers-register-count strong {
+  color: var(--board-officers-ink-soft);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.05rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+/* --- previous leadership -----------------------------------------------------
+   A past term is history, not a disabled record. It is separated by tone and by
+   space rather than by treatment: the same whitespace that separates every other
+   section, the softer ink instead of full ink, a muted label, and a hairline
+   column header. The 2px rule this section used to carry is gone along with the
+   others. Nothing is faded out, struck through or given a warning colour, and
+   the rows keep the same controls as the current register. */
+
+.kandid-app-theme .board-officers-register.is-history .board-officers-section-kicker,
+.kandid-app-theme .board-officers-register.is-history .board-officers-register-count strong {
+  color: var(--board-officers-muted) !important;
+}
+
+.kandid-app-theme .board-officers-register.is-history .board-officers-register-head h2,
+.kandid-app-theme .board-officers-register.is-history .board-officer-office,
+.kandid-app-theme .board-officers-register.is-history .board-officer-name {
+  color: var(--board-officers-ink-soft) !important;
+}
+
+.kandid-app-theme .board-officers-register.is-history .board-officer-avatar {
+  color: var(--board-officers-muted);
+}
+
+/* --- column header and rows -------------------------------------------------- */
+
+/* The column header is a label row, not a divider. It is closed by a hairline
+   in the strong hairline tone: enough to say "these are the fields below", not
+   enough to read as a second heavy band under the section head. */
+.kandid-app-theme .board-officers-register-columns {
+  display: grid;
+  grid-template-columns: var(--board-officers-register-columns);
+  gap: 0.95rem;
+  align-items: end;
+  border-bottom: 1px solid var(--board-officers-hairline-strong);
+  padding: 0 0 0.5rem;
+  color: var(--board-officers-muted);
+  font-size: 0.62rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-officers-register.is-history .board-officers-register-columns {
+  border-bottom-color: var(--board-officers-hairline-strong);
+}
+
+.kandid-app-theme .board-officers-register-columns span:last-child {
+  text-align: right;
+}
+
+.kandid-app-theme .board-officer-list {
+  display: grid;
+  min-width: 0;
+}
+
+/* Row rhythm: ~10px of padding above and below, and a hairline between rows. The
+   height of a row is set by the avatar and the two-line identity rather than by
+   padding, so density is controlled where it actually shows. With the action pair
+   held on one line, a row resolves to roughly 58–64px. */
+.kandid-app-theme .board-officer-entry {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: var(--board-officers-register-columns);
+  gap: 0.95rem;
+  align-items: center;
+  border-bottom: 1px solid var(--board-officers-hairline);
+  padding: 0.68rem 0;
+  transition: background-color 140ms ease;
+}
+
+.kandid-app-theme .board-officer-entry:hover {
+  background: var(--kandid-app-paper-soft, #f8f6f1);
+}
+
+.kandid-app-theme .board-officers-register.is-history .board-officer-entry {
+  border-bottom-color: var(--board-officers-hairline);
+}
+
+.kandid-app-theme .board-officer-entry-index {
+  min-width: 0;
+  color: var(--board-officers-muted);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+
+/* The office is the structural fact of the row, so it is the strongest thing in
+   it and the first thing read. Inter, not the serif: the office is operational
+   data, and the serif is reserved for the page and section titles. It sits a
+   step above the person without becoming a headline in its own right. */
+.kandid-app-theme .board-officer-office {
+  min-width: 0;
+  margin: 0 !important;
+  overflow-wrap: anywhere;
+  color: var(--board-officers-ink) !important;
+  font-size: 0.95rem !important;
+  font-weight: 850 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.25 !important;
+}
+
+.kandid-app-theme .board-officer-person {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+/* A sharp, compact frame at 35.2px, inside the 32–36px band. It was 38.4px,
+   and because the row's height is the taller of the avatar and the two-line
+   identity, that difference is the height of every row. Photos already exist in
+   the data and are retained; the initials fallback matches the Candidates
+   monogram exactly, so an officer without a portrait is not set apart by a
+   different kind of badge. */
+.kandid-app-theme .board-officer-avatar {
+  display: grid;
+  width: 2.2rem;
+  height: 2.2rem;
+  flex: 0 0 2.2rem;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--board-officers-hairline);
+  border-radius: 0;
+  background: var(--kandid-app-paper-soft, #f8f6f1);
+  color: var(--board-officers-orange);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.kandid-app-theme .board-officer-avatar img,
+.kandid-app-theme .board-officer-avatar span {
+  border-radius: 0;
+}
+
+.kandid-app-theme .board-officer-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.kandid-app-theme .board-officer-identity {
+  display: grid;
+  min-width: 0;
+  gap: 0.12rem;
+}
+
+/* The person stays as identifiable as the office, one step below it. */
+.kandid-app-theme .board-officer-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--board-officers-ink) !important;
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.25;
+}
+
+.kandid-app-theme .board-officer-reference {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--board-officers-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+/* The term is context for the row, not a field that competes with the person's
+   name, so it is set on one baseline as small muted text with no fill, no border
+   and no radius — a label, not a badge or chip. The label and the service period
+   were two stacked lines; they are now one line separated by a middot, which is
+   the only change here. The strings themselves are untouched: the academic term
+   still comes from formatOfficerTermLabel and the service window from
+   formatOfficerServicePeriod, exactly as before. */
+.kandid-app-theme .board-officer-term {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.4rem;
+}
+
+.kandid-app-theme .board-officer-term-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--board-officers-muted);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+/* The middot is written as a codepoint escape so the file's encoding cannot
+   change what renders. */
+.kandid-app-theme .board-officer-term-period::before {
+  content: "\00b7";
+  margin-right: 0.4rem;
+  color: var(--board-officers-hairline-strong);
+}
+
+.kandid-app-theme .board-officer-term-period {
+  min-width: 0;
+  color: var(--board-officers-muted);
+  font-size: 0.7rem;
+  font-weight: 620;
+  line-height: 1.35;
+}
+
+/* --- row actions -------------------------------------------------------------
+   Six rows meant six sets of two tracked caps, and at the weight they carried
+   here the actions were the loudest repeated thing on the page — the eye landed
+   on twelve labels before it landed on a single officer.
+
+   The Board action vocabulary is kept, because it is the same one Positions and
+   Candidates use and a row should still read as a row: tracked sans text with a
+   short rule under it, square corners. Only the weight is reduced. The rule
+   drops from the strong hairline to the plain one, the caps come down a step, and
+   the text sits in muted ink rather than the softer body ink, so Edit and Delete
+   are available on every row without six of them asking to be read. */
+
+.kandid-app-theme .board-officer-actions {
+  display: flex;
+  min-width: 0;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.7rem;
+}
+
+.kandid-app-theme .board-officer-action {
+  display: inline-flex;
+  min-height: 2rem;
+  align-items: center;
+  gap: 0.3rem;
+  border: 0;
+  border-bottom: 1px solid var(--board-officers-hairline);
+  border-radius: 0;
+  background: transparent;
+  padding: 0.3rem 0;
+  color: var(--board-officers-muted);
+  font-family: inherit;
+  font-size: 0.6rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+/* Hover and keyboard focus both raise the control to full ink and give it the
+   one accent colour it is allowed, so the state is reachable without a pointer
+   and stays consistent for keyboard users. */
+.kandid-app-theme .board-officer-action:hover,
+.kandid-app-theme .board-officer-action:focus-visible {
+  border-bottom-color: var(--board-officers-orange);
+  color: var(--board-officers-ink);
+}
+
+.kandid-app-theme .board-officer-action:focus-visible {
+  outline: 2px solid var(--board-officers-orange);
+  outline-offset: 2px;
+}
+
+/* Delete is destructive but not urgent, so it is muted like Edit at rest. Kandid
+   red appears on hover and on focus only, which means red on this page now marks
+   a control the user is actively pointing at or has tabbed to, rather than
+   stamping itself across the whole register. */
+.kandid-app-theme .board-officer-action.is-danger {
+  color: var(--board-officers-muted);
+}
+
+.kandid-app-theme .board-officer-action.is-danger:hover,
+.kandid-app-theme .board-officer-action.is-danger:focus-visible {
+  border-bottom-color: var(--board-officers-danger-strong);
+  color: var(--board-officers-danger);
+}
+
+/* --- row overflow menu (mobile) -----------------------------------------------
+   The Edit/Delete pair stays inline on desktop. On mobile the same two actions
+   are reached through this single overflow control, so a six-offic roster shows
+   six action triggers instead of twelve permanent buttons. The panel is built in
+   JSX and runs the same handlers; this is presentation only. It is hidden at
+   every width where the inline pair is already shown, and shown only on mobile. */
+.kandid-app-theme .board-officer-menu {
+  position: relative;
+  display: none;
+}
+
+.kandid-app-theme .board-officer-menu-trigger {
+  display: grid;
+  width: 2.4rem;
+  height: 2.4rem;
+  place-items: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--board-officers-muted);
+  cursor: pointer;
+}
+
+.kandid-app-theme .board-officer-menu-trigger:hover,
+.kandid-app-theme .board-officer-menu-trigger:focus-visible {
+  color: var(--board-officers-ink);
+  outline: 2px solid var(--board-officers-orange);
+  outline-offset: 2px;
+}
+
+.kandid-app-theme .board-officer-menu-list {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 4px);
+  right: 0;
+  display: grid;
+  min-width: 9.5rem;
+  border: 1px solid var(--board-officers-hairline-strong);
+  background: var(--board-officers-paper, #ffffff);
+  box-shadow: 0 8px 18px rgb(22 20 17 / 12%);
+}
+
+.kandid-app-theme .board-officer-menu-item {
+  border: 0;
+  border-bottom: 1px solid var(--board-officers-hairline);
+  border-radius: 0;
+  background: transparent;
+  padding: 0.7rem 0.8rem;
+  color: var(--board-officers-ink);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.kandid-app-theme .board-officer-menu-item:last-child {
+  border-bottom: 0;
+}
+
+.kandid-app-theme .board-officer-menu-item:hover,
+.kandid-app-theme .board-officer-menu-item:focus-visible {
+  background: var(--kandid-app-paper-soft, #f8f6f1);
+}
+
+.kandid-app-theme .board-officer-menu-item.is-danger {
+  color: var(--board-officers-danger);
+}
+
+.kandid-app-theme .board-officer-menu-item.is-danger:hover,
+.kandid-app-theme .board-officer-menu-item.is-danger:focus-visible {
+  color: var(--board-officers-danger-strong);
+}
+
+/* --- empty states ------------------------------------------------------------
+   Absence of data is not a success state, so there is no tick and no accent
+   treatment. The band states the absence and nothing more: the action it used to
+   carry now lives only in the masthead, so the band is a little shorter than a
+   register section and its gap is the same 0.5rem the section copy uses. */
+
+.kandid-app-theme .board-officers-state {
+  display: grid;
+  min-width: 0;
+  justify-items: start;
+  gap: 0.4rem;
+  border: 1px solid var(--board-officers-hairline);
+  border-width: 2px 0 1px;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.95rem 0 1rem;
+  box-shadow: none;
+}
+
+.kandid-app-theme .board-officers-state-kicker {
+  margin: 0;
+  color: var(--board-officers-orange) !important;
+  font-size: 0.68rem !important;
+  font-weight: 850 !important;
+  letter-spacing: 0.12em !important;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-officers-state-title {
+  margin: 0 !important;
+  color: var(--board-officers-ink) !important;
+  font-family: "Source Serif 4", Georgia, serif !important;
+  font-size: clamp(1.18rem, 1.55vw, 1.5rem) !important;
+  font-weight: 650 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.15 !important;
+}
+
+.kandid-app-theme .board-officers-state-copy {
+  max-width: 40rem;
+  margin: 0;
+  color: var(--board-officers-ink-soft);
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+/* The band's own action was removed. The masthead carries the only Add Officer
+   control, so there is no rule for one here, and the band's vertical padding is
+   the pair of rules above sized for three lines of text rather than for a
+   heading, a line and a button. */
+
+/* A section with no records keeps its own heading and count, so a Board member
+   can still see that current leadership exists and is unstaffed, and the
+   historical register below is still shown in full. */
+.kandid-app-theme .board-officers-register-empty {
+  margin: 0;
+  border-bottom: 1px solid var(--board-officers-hairline);
+  padding: 0.85rem 0 0.95rem;
+  color: var(--board-officers-muted);
+  font-size: 0.85rem;
+  font-weight: 620;
+  line-height: 1.5;
+}
+
+/* --- responsive --------------------------------------------------------------
+   The register is one column at every width; it never becomes a set of cards and
+   never scrolls sideways. On tablet the row collapses to three tracks — the index
+   stays a rail on the left, the office, the person and the term stack in the
+   middle, and the actions sit on the right — so the office is never squeezed and
+   the actions take only the width they actually use. On mobile the column header
+   is dropped, because there is no room for labels and the row already reads in
+   order. Nothing here becomes a card. */
+
+@media (max-width: 1180px) {
+  .kandid-app-theme .board-officers-register {
+    --board-officers-register-columns: 2.4rem minmax(0, 1fr) 8.5rem;
+  }
+
+  .kandid-app-theme .board-officers-register-columns {
+    display: none;
+  }
+
+  .kandid-app-theme .board-officer-entry {
+    grid-template-areas:
+      "index office actions"
+      "index person actions"
+      "index term actions";
+    gap: 0.3rem 1rem;
+    align-items: center;
+    padding: 0.68rem 0;
+  }
+
+  .kandid-app-theme .board-officer-entry-index {
+    grid-area: index;
+    align-self: start;
+  }
+
+  .kandid-app-theme .board-officer-office {
+    grid-area: office;
+  }
+
+  .kandid-app-theme .board-officer-person {
+    grid-area: person;
+  }
+
+  .kandid-app-theme .board-officer-term {
+    grid-area: term;
+  }
+
+  .kandid-app-theme .board-officer-actions {
+    grid-area: actions;
+    align-content: center;
+  }
+}
+
+@media (max-width: 760px) {
+  /* Section rhythm is tightened rather than abandoned, and a little bottom
+     padding is added so the last officer and its overflow control clear the fixed
+     mobile navigation. */
+  .kandid-app-theme .board-officers-desktop {
+    gap: 1.5rem;
+    padding-bottom: 1.5rem;
+  }
+
+  /* --- page header ------------------------------------------------------------
+     The eyebrow stays. The title and the action now share one line instead of the
+     action dropping to a full-width orange bar, and the standfirst keeps the one
+     editorial rule under the header. Less stacked chrome before the first row. */
+  .kandid-app-theme .board-officers-masthead {
+    gap: 0.3rem;
+    padding: 0 0 1rem;
+  }
+
+  .kandid-app-theme .board-officers-baseline {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem 0.9rem;
+  }
+
+  .kandid-app-theme .board-officers-title {
+    font-size: clamp(1.7rem, 6.2vw, 2.05rem) !important;
+  }
+
+  .kandid-app-theme .board-officers-standfirst {
+    font-size: 0.86rem;
+    line-height: 1.45;
+  }
+
+  /* Both create actions compact to a small "+ Add" on mobile; the button keeps
+     its full accessible name and its handler. */
+  .kandid-app-theme .board-officers-baseline .board-officers-create,
+  .kandid-app-theme .board-officers-create-secondary {
+    width: auto;
+    min-height: 2.2rem;
+    padding: 0 0.7rem !important;
+    font-size: 0.66rem;
+  }
+
+  .kandid-app-theme .board-officers-create-detail {
+    display: none;
+  }
+
+  /* --- register head ----------------------------------------------------------
+     Label and count on the first line, description and action on the second. The
+     count drops the word "officers" on mobile because the numeral already carries
+     it. display:contents lets the existing DOM place into this 2x2 without
+     altering the desktop composition. */
+  .kandid-app-theme .board-officers-register-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 0.2rem 0.9rem;
+    padding: 0.15rem 0 0.7rem;
+  }
+
+  .kandid-app-theme .board-officers-register-copy,
+  .kandid-app-theme .board-officers-register-tools {
+    display: contents;
+  }
+
+  .kandid-app-theme .board-officers-register-head .board-officers-section-kicker {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .kandid-app-theme .board-officers-register-head .board-officers-register-count {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  .kandid-app-theme .board-officers-register-count-word {
+    display: none;
+  }
+
+/* The one shared leadership year for a section, shown only on mobile.
+
+   On desktop this is hidden: the Term column already states the year on every
+   row, so a header copy of it would be a second, competing statement of the same
+   fact. It is small muted sans-serif, never a pill, fill or badge, because it is
+   context about the roster rather than a control. */
+.kandid-app-theme .board-officers-register-shared-term {
+  display: none;
+}
+
+.kandid-app-theme .board-officers-register-head h2 {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: start;
+    font-size: 1.05rem !important;
+  }
+
+  .kandid-app-theme .board-officers-register-head .board-officers-create {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: end;
+    justify-self: end;
+  }
+
+  /* When the section states one shared leadership year, the head breathes out
+     into four lines instead of cramming one horizontal line: label, description,
+     then the year as quiet context opposite the count, with the action on its own
+     line under it. */
+  .kandid-app-theme .board-officers-register-head.has-shared-term {
+    row-gap: 0.3rem;
+  }
+
+  .kandid-app-theme .board-officers-register-head.has-shared-term .board-officers-register-shared-term {
+    grid-column: 1;
+    grid-row: 3;
+    display: block;
+    margin: 0;
+    color: var(--board-officers-muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    line-height: 1.3;
+  }
+
+  .kandid-app-theme .board-officers-register-head.has-shared-term .board-officers-register-count {
+    grid-column: 2;
+    grid-row: 3;
+    align-self: center;
+  }
+
+  .kandid-app-theme .board-officers-register-head.has-shared-term .board-officers-create {
+    grid-column: 2;
+    grid-row: 4;
+    align-self: end;
+  }
+
+  /* --- officer row ------------------------------------------------------------
+     A mobile directory entry, not a stacked table: the office on its own line,
+     then the identity with its small avatar, then the term as quiet context, and a
+     single overflow control on the right instead of a permanent Edit + Delete
+     pair. Still ruled, square and whitespace-separated. */
+  .kandid-app-theme .board-officer-entry {
+    grid-template-columns: 1.5rem minmax(0, 1fr) auto;
+    grid-template-areas:
+      "index office menu"
+      "index person menu"
+      "index term menu";
+    gap: 0.15rem 0.6rem;
+    align-items: start;
+    padding: 0.7rem 0;
+  }
+
+  .kandid-app-theme .board-officer-entry-index {
+    grid-area: index;
+    align-self: start;
+    padding-top: 0.12rem;
+    font-size: 0.82rem;
+  }
+
+  .kandid-app-theme .board-officer-office {
+    grid-area: office;
+  }
+
+  .kandid-app-theme .board-officer-person {
+    grid-area: person;
+    padding-top: 0.15rem;
+  }
+
+  .kandid-app-theme .board-officer-term {
+    grid-area: term;
+    padding-top: 0.1rem;
+  }
+
+  /* The section already states this one shared year, so repeating it under every
+     officer is noise. Collapsed on mobile only; on desktop the Term column still
+     shows it on every row. A row without a shared year keeps its own term here,
+     which is the truthful fallback for mixed or unknown leadership years. */
+  .kandid-app-theme .board-officer-term.is-shared-term {
+    display: none;
+  }
+
+  /* Term is context: quieter and not shouted in caps on mobile. */
+  .kandid-app-theme .board-officer-term-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: none;
+  }
+
+  .kandid-app-theme .board-officer-term-period {
+    font-size: 0.7rem;
+    font-weight: 600;
+  }
+
+  /* Student number is secondary: no caps, softer weight. */
+  .kandid-app-theme .board-officer-reference {
+    font-size: 0.72rem;
+    font-weight: 650;
+    letter-spacing: 0.02em;
+    text-transform: none;
+  }
+
+  /* The permanent pair is replaced by the overflow control; the incoming slate
+     keeps its own actions, which sit in their own column. */
+  .kandid-app-theme .board-officer-row-actions {
+    display: none;
+  }
+
+  .kandid-app-theme .board-officer-menu {
+    grid-area: menu;
+    align-self: start;
+    display: block;
+  }
+}
+
+/* The New Officers slate is a working surface, not the primary content, so it no
+   longer opens with a 2px rule of its own. That rule sat directly under the last
+   current-officer row and made the two leadership states look like one table. It
+   is now held apart by the same 30-44px of whitespace that separates every other
+   section, and by its own quieter heading below. Rows follow the same hairline
+   system as Current and Past Leadership; there are still no nested cards. */
+.kandid-app-theme .board-officers-incoming {
+  --board-officers-hairline: var(--kandid-app-border, #e5e0d6);
+  --board-officers-ink: var(--kandid-app-ink, #101114);
+  --board-officers-muted: var(--kandid-app-muted, #5b5e66);
+  --board-officers-orange: var(--kandid-app-orange, #f4512c);
+  display: grid;
+  min-width: 0;
+}
+
+.kandid-app-theme .board-officers-incoming-head {
+  display: flex;
+  min-width: 0;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem 2rem;
+  border-bottom: 1px solid var(--board-officers-hairline);
+  padding: 0.8rem 0 0.9rem;
+}
+
+.kandid-app-theme .board-officers-incoming-head > div:first-child {
+  min-width: 0;
+}
+
+/* One step below the Current Leadership heading and set in the softer ink, so
+   the next-leadership slate reads as preparation rather than as a second headline
+   competing with the page title. It is still a serif heading, still Level 2, and
+   still the same family as every other section on the page. */
+.kandid-app-theme .board-officers-incoming-head h2 {
+  margin: 0.3rem 0 0 !important;
+  color: var(--board-officers-ink-soft, #3a3d45) !important;
+  font-family: "Source Serif 4", Georgia, serif !important;
+  font-size: clamp(1.05rem, 1.3vw, 1.22rem) !important;
+  font-weight: 650 !important;
+  line-height: 1.15 !important;
+  overflow-wrap: anywhere;
+}
+
+.kandid-app-theme .board-officers-incoming-head p:not(.board-officers-section-kicker) {
+  margin: 0.4rem 0 0;
+  max-width: 44rem;
+  color: var(--board-officers-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.kandid-app-theme .board-officers-incoming-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.8rem 1.1rem;
+}
+
+.kandid-app-theme .board-officers-add-appointed,
+.kandid-app-theme .board-officers-release {
+  display: inline-flex;
+  min-height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border-radius: 0;
+  padding: 0.4rem 0.8rem;
+  font: inherit;
+  font-size: 0.67rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+/* Add to New Officers is a secondary action: a real outlined control, so it reads
+   as a button without matching the release. It was a bare underlined text action,
+   which is the same treatment as the row actions and made the section's
+   housekeeping look like part of the data. */
+.kandid-app-theme .board-officers-add-appointed {
+  border: 1px solid var(--board-officers-hairline-strong);
+  background: transparent;
+  color: var(--board-officers-ink);
+}
+
+.kandid-app-theme .board-officers-add-appointed:hover,
+.kandid-app-theme .board-officers-add-appointed:focus-visible {
+  border-color: var(--board-officers-orange);
+  color: var(--board-officers-orange);
+}
+
+/* Release is the one consequential action in this section, so it keeps the solid
+   orange fill. The disabled state is unchanged in behaviour — the button still
+   renders and is still disabled exactly when there is nothing to release — but it
+   now reads as inert rather than as a filled orange block: an empty outline in
+   muted ink, with the not-allowed cursor it already had. Red is never used here
+   because release is not destructive. */
+.kandid-app-theme .board-officers-release {
+  border: 1px solid var(--board-officers-orange);
+  background: var(--board-officers-orange);
+  color: #fff;
+}
+
+.kandid-app-theme .board-officers-release:hover:not(:disabled) {
+  border-color: #d93f1d;
+  background: #d93f1d;
+}
+
+.kandid-app-theme .board-officers-release:disabled {
+  border-color: var(--board-officers-hairline-strong);
+  background: transparent;
+  color: var(--board-officers-muted);
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
+.kandid-app-theme .board-officers-add-appointed:focus-visible,
+.kandid-app-theme .board-officers-release:focus-visible {
+  outline: 2px solid var(--board-officers-orange);
+  outline-offset: 2px;
+}
+
+.kandid-app-theme .board-officers-incoming-group,
+.kandid-app-theme .board-officers-incoming-unresolved {
+  min-width: 0;
+  border-bottom: 1px solid var(--board-officers-hairline);
+  padding: 0.75rem 0 0;
+}
+
+.kandid-app-theme .board-officers-incoming-group h3,
+.kandid-app-theme .board-officers-incoming-unresolved h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0 0 0.25rem;
+  color: var(--board-officers-muted);
+  font-size: 0.64rem;
+  font-weight: 850;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-officers-incoming-group h3 span {
+  color: var(--board-officers-orange);
+  font-variant-numeric: tabular-nums;
+}
+
+.kandid-app-theme .board-officers-incoming-row {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 2.4rem minmax(9rem, 1fr) minmax(11rem, 1.2fr) auto;
+  align-items: center;
+  gap: 0.6rem 1rem;
+  border-top: 1px solid var(--board-officers-hairline);
+  padding: 0.62rem 0;
+}
+
+.kandid-app-theme .board-officers-incoming-index {
+  color: var(--board-officers-muted);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.kandid-app-theme .board-officers-incoming-office,
+.kandid-app-theme .board-officers-incoming-person {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+}
+
+.kandid-app-theme .board-officers-incoming-office strong {
+  color: var(--board-officers-ink);
+  font-size: 0.84rem;
+  overflow-wrap: anywhere;
+}
+
+.kandid-app-theme .board-officers-incoming-person strong {
+  color: var(--board-officers-ink);
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+}
+
+.kandid-app-theme .board-officers-incoming-office small,
+.kandid-app-theme .board-officers-incoming-person span {
+  color: var(--board-officers-muted);
+  font-size: 0.69rem;
+}
+
+.kandid-app-theme .board-officers-incoming-type {
+  color: var(--board-officers-orange);
+  font-size: 0.62rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+}
+
+.kandid-app-theme .board-officers-incoming-unresolved > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.4rem 1rem;
+  border-top: 1px solid var(--board-officers-hairline);
+  padding: 0.65rem 0;
+  color: var(--board-officers-muted);
+  font-size: 0.77rem;
+}
+
+.kandid-app-theme .board-officers-incoming-unresolved strong {
+  color: var(--board-officers-ink-soft, #3a3d45);
+}
+
+.board-officer-mode-tabs {
+  display: flex;
+  gap: 1.5rem;
+  border-bottom: 1px solid #d8d1c5;
+  margin-top: 1rem;
+}
+
+.board-officer-mode-tabs button {
+  min-height: 2.7rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.35rem 0;
+  color: #64666d;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.board-officer-mode-tabs button.is-active {
+  border-bottom-color: #ef4b2b;
+  color: #15171b;
+}
+
+.board-officer-mode-tabs button:disabled {
+  color: #878780;
+  cursor: not-allowed;
+}
+
+.board-officer-mode-tabs button:focus-visible,
+.board-officer-stage-option button:focus-visible {
+  outline: 2px solid #ef4b2b;
+  outline-offset: 2px;
+}
+
+.board-officer-staging-section {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 1rem;
+}
+
+.board-officer-stage-option {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-top: 1px solid #e3ddd2;
+  padding: 0.75rem 0.15rem;
+}
+
+.board-officer-stage-option > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+}
+
+.board-officer-stage-option strong {
+  color: #15171b;
+  font-size: 0.84rem;
+  overflow-wrap: anywhere;
+}
+
+.board-officer-stage-option span {
+  color: #65676e;
+  font-size: 0.76rem;
+  overflow-wrap: anywhere;
+}
+
+.board-officer-stage-option button {
+  flex: 0 0 auto;
+  min-height: 2.35rem;
+  border: 0;
+  border-bottom: 1px solid #d8d1c5;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.35rem 0.25rem;
+  color: #15171b;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.board-officer-stage-option button:hover:not(:disabled) {
+  border-bottom-color: #ef4b2b;
+  color: #ef4b2b;
+}
+
+.board-officer-stage-option button:disabled {
+  color: #77746e;
+  cursor: not-allowed;
+}
+
+.board-officer-stage-option.is-unavailable {
+  background: #f7f5f0;
+}
+
+.board-officer-unresolved-list {
+  display: grid;
+  gap: 0.4rem;
+  border-top: 1px solid #d8d1c5;
+  padding: 0.8rem 0.15rem 0;
+  color: #65676e;
+  font-size: 0.75rem;
+}
+
+.board-officer-unresolved-list strong {
+  color: #3a3d45;
+  font-size: 0.66rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.board-officer-appointment-picker {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.board-officer-appointment-options {
+  max-height: 16rem;
+  overflow-y: auto;
+  border-top: 1px solid #d8d1c5;
+}
+
+.board-officer-appointment-option {
+  display: flex;
+  width: 100%;
+  min-height: 3.3rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 0;
+  border-bottom: 1px solid #e3ddd2;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.55rem 0.4rem;
+  color: #15171b;
+  text-align: left;
+  cursor: pointer;
+}
+
+.board-officer-appointment-option > span:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 0.15rem;
+}
+
+.board-officer-appointment-option strong {
+  font-size: 0.83rem;
+  overflow-wrap: anywhere;
+}
+
+.board-officer-appointment-option small,
+.board-officer-appointment-reason {
+  color: #65676e;
+  font-size: 0.7rem;
+}
+
+.board-officer-appointment-option:hover:not(:disabled),
+.board-officer-appointment-option.is-selected {
+  background: #f3f0e9;
+}
+
+.board-officer-appointment-option:disabled {
+  color: #65676e;
+  cursor: not-allowed;
+}
+
+.board-officer-appointment-option.is-unavailable .board-officer-appointment-reason {
+  color: #77746e;
+  font-size: 0.64rem;
+  font-weight: 750;
+  text-align: right;
+}
+
+@media (max-width: 760px) {
+  .kandid-app-theme .board-officers-incoming-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .kandid-app-theme .board-officers-incoming-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .kandid-app-theme .board-officers-add-appointed,
+  .kandid-app-theme .board-officers-release {
+    flex: 1 1 auto;
+  }
+
+  .kandid-app-theme .board-officers-incoming-row {
+    grid-template-columns: 2rem minmax(0, 1fr) auto;
+    gap: 0.4rem 0.7rem;
+  }
+
+  .kandid-app-theme .board-officers-incoming-office {
+    grid-column: 2;
+  }
+
+  .kandid-app-theme .board-officers-incoming-person {
+    grid-column: 2;
+  }
+
+  .kandid-app-theme .board-officers-incoming-row > :last-child {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+  }
+
+  .board-officer-appointment-option {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .board-officer-appointment-option.is-unavailable .board-officer-appointment-reason {
+    text-align: left;
+  }
+
+  .board-officer-stage-option {
+    align-items: flex-start;
+  }
+}
+
+/* --- Add/Edit leadership record dialog ------------------------------------
+   PopupOverlay portals this dialog directly under body, so these selectors are
+   intentionally scoped to the dialog instead of requiring .kandid-app-theme.
+   The sheet, header, fields and footer mirror the Board "Add Student" sheet
+   (.sa-students-modal.is-registration in superadmin/Students.css) so a Board
+   member who already knows Add Student recognises Add Officer on sight. The
+   tokens below are copied from that pattern, not reinvented. */
+.board-officer-modal {
+  width: min(46rem, calc(100vw - 2rem));
+  max-width: 46rem;
+  max-height: min(48rem, calc(100dvh - 2rem));
+  overflow-y: auto;
+  border: 1px solid #d8d1c5;
+  border-top: 3px solid #15171b;
+  border-radius: 0 !important;
+  background: #f8f6f1;
+  padding: clamp(1rem, 2.6vw, 1.6rem);
+  color: #15171b;
+  box-shadow: 0 14px 32px rgb(22 20 17 / 18%);
+}
+
+.board-officer-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid #cfc9bf;
+  padding-bottom: 1rem;
+}
+
+.board-officer-modal-eyebrow,
+.board-officer-section-label {
+  margin: 0;
+  color: #ef4b2b;
+  font-size: 0.67rem;
+  font-weight: 850;
+  letter-spacing: 0.13em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+/* Same scale as the Add Student sheet title. */
+.board-officer-modal-title {
+  margin: 0.35rem 0 0;
+  color: #15171b;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(1.85rem, 3.4vw, 2.5rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.board-officer-modal-intro {
+  max-width: 32rem;
+  margin: 0.5rem 0 0;
+  color: #69645c;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.board-officer-destination-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 1.25rem;
+  margin-top: 0.35rem;
+}
+
+.board-officer-destination-options button {
+  display: grid;
+  min-height: 4.75rem;
+  align-content: center;
+  gap: 0.35rem;
+  border: 0;
+  border-bottom: 1px solid #d8d1c5;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.8rem 0.25rem;
+  color: #15171b;
+  text-align: left;
+  cursor: pointer;
+}
+
+.board-officer-destination-options button strong {
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.2rem;
+}
+
+.board-officer-destination-options button span {
+  color: #555962;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.board-officer-destination-options button:hover,
+.board-officer-destination-options button:focus-visible {
+  border-bottom-color: #ef4b2b;
+  color: #c83c20;
+  outline: 0;
+}
+
+.board-officer-destination-options button:focus-visible {
+  box-shadow: inset 0 -2px #ef4b2b;
+}
+
+.board-officer-term-confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  border-top: 1px solid #e3ddd2;
+  padding: 0.75rem 0;
+  color: #555962;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.board-officer-term-confirm input {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  margin: 0.1rem 0 0;
+  accent-color: #ef4b2b;
+}
+
+.board-officer-modal-close {
+  display: grid;
+  width: 2.6rem;
+  height: 2.6rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-bottom: 1px solid #cfc9bf;
+  border-radius: 0;
+  background: transparent;
+  color: #555962;
+  cursor: pointer;
+}
+
+.board-officer-modal-close:hover,
+.board-officer-modal-close:focus-visible {
+  border-color: #ef4b2b;
+  background: rgba(239, 78, 35, 0.08);
+  color: #ef4b2b;
+  outline: 0;
+}
+
+.board-officer-source-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-bottom: 1px solid #d8d1c5;
+}
+
+.board-officer-source-switch button {
+  min-height: 2.9rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.55rem 0.7rem;
+  color: #686b72;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-align: left;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.board-officer-source-switch button.is-active {
+  border-bottom-color: #ef4b2b;
+  color: #15171b;
+}
+
+.board-officer-source-switch button:hover,
+.board-officer-source-switch button:focus-visible,
+.board-officer-switch-action:focus-visible,
+.board-officer-cancel:focus-visible,
+.board-officer-submit:focus-visible {
+  outline: 2px solid #ef4b2b;
+  outline-offset: 2px;
+}
+
+.board-officer-winner-state {
+  display: grid;
+  justify-items: start;
+  gap: 0.55rem;
+  padding: 1.25rem 0 0.3rem;
+}
+
+.board-officer-winner-state h3 {
+  margin: 0;
+  color: #15171b;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.3rem;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.board-officer-winner-state > p:not(.board-officer-section-label),
+.board-officer-mode-intro > p:not(.board-officer-section-label) {
+  max-width: 34rem;
+  margin: 0;
+  color: #555962;
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.board-officer-switch-action {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: 0.5rem;
+  border: 0;
+  border-bottom: 1px solid #ef4b2b;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.3rem 0;
+  color: #c83c20;
+  font: inherit;
+  font-size: 0.71rem;
+  font-weight: 850;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.board-officer-winner-state .board-officer-cancel {
+  justify-self: end;
+}
+
+.board-officer-winner-list {
+  width: 100%;
+  margin: 0.25rem 0 0.5rem;
+  border-top: 1px solid #d8d1c5;
+}
+
+.board-officer-winner-list > p {
+  margin: 0;
+  padding: 0.7rem 0;
+  color: #555962;
+  font-size: 0.78rem;
+}
+
+.board-officer-winner-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-top: 1px solid #e3ddd2;
+  padding: 0.75rem 0;
+}
+
+.board-officer-winner-row > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.board-officer-winner-row strong {
+  color: #15171b;
+  font-size: 0.86rem;
+}
+
+.board-officer-winner-row span {
+  color: #62666f;
+  font-size: 0.77rem;
+}
+
+.board-officer-winner-outcome {
+  flex: 0 0 auto;
+  color: #777a80 !important;
+  font-size: 0.64rem !important;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.board-officer-mode-intro {
+  display: grid;
+  gap: 0.4rem;
+  border-bottom: 1px solid #e3ddd2;
+  padding: 1rem 0 0.9rem;
+}
+
+.board-officer-form {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.board-officer-form-section {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem 0;
+}
+
+.board-officer-modal .student-search-picker,
+.board-officer-modal .board-officer-field {
+  display: grid;
+  min-width: 0;
+  gap: 0.4rem;
+  margin: 0;
+}
+
+.board-officer-modal .student-search-picker > .field-label,
+.board-officer-field > span {
+  color: #514d46;
+  font-size: 0.65rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.board-officer-field small {
+  margin-left: 0.25rem;
+  color: #777a80;
+  font-size: 0.63rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.board-officer-modal .student-search-picker-input,
+.board-officer-modal .board-officer-field input,
+.board-officer-modal .board-officer-field select {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: 2.9rem;
+  align-items: center;
+  border: 1px solid #cfc9bf;
+  border-radius: 0 !important;
+  background: rgba(255, 255, 255, 0.55);
+  padding: 0.68rem 0.75rem;
+  font-size: 0.86rem;
+  color: #15171b;
+  box-shadow: none;
+}
+
+.board-officer-modal .student-search-picker-input:focus-within,
+.board-officer-modal .board-officer-field input:focus-visible,
+.board-officer-modal .board-officer-field select:focus-visible {
+  border-color: #ef4b2b;
+  outline: 1px solid #ef4b2b;
+  outline-offset: 0;
+}
+
+.board-officer-modal .student-search-picker-input input {
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  background: transparent;
+  color: #15171b;
+  box-shadow: none;
+}
+
+.board-officer-modal .student-search-picker-list {
+  max-height: 11rem;
+  overflow-y: auto;
+  border: 1px solid #e3ddd2;
+  border-top: 0;
+  border-radius: 0;
+  background: #fffefa;
+}
+
+.board-officer-modal .student-search-picker-option,
+.board-officer-modal .student-search-picker-selected {
+  border-radius: 0;
+}
+
+.board-officer-modal .student-search-picker-option:focus-visible,
+.board-officer-modal .student-search-picker-change:focus-visible {
+  outline: 2px solid #ef4b2b;
+  outline-offset: -2px;
+}
+
+.board-officer-modal .student-search-picker-selected {
+  border: 1px solid #e3ddd2;
+  background: #f4f1e9;
+  padding: 0.6rem;
+}
+
+.board-officer-service-section {
+  display: grid;
+  gap: 0.8rem;
+  border-top: 1px solid #d8d1c5;
+  padding: 0.9rem 0 1rem;
+}
+
+.board-officer-service-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.board-officer-current-term-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  margin: -0.25rem 0 0.2rem;
+  color: #666a72;
+  font-size: 0.82rem;
+}
+
+.board-officer-current-term-context strong {
+  color: #20232a;
+}
+
+.board-officer-current-control {
+  display: flex;
+  min-height: 3.4rem;
+  align-items: flex-start;
+  gap: 0.7rem;
+  border-top: 1px solid #e3ddd2;
+  padding-top: 0.75rem;
+  cursor: pointer;
+}
+
+.board-officer-current-control input {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  margin: 0.15rem 0 0;
+  accent-color: #ef4b2b;
+}
+
+.board-officer-current-control span {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.board-officer-current-control strong {
+  color: #25272d;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.board-officer-current-control small {
+  color: #686b72;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.board-officer-photo-details {
+  border-top: 1px solid #d8d1c5;
+  padding: 0.8rem 0;
+}
+
+.board-officer-photo-details summary {
+  display: flex;
+  min-height: 2rem;
+  align-items: center;
+  gap: 0.5rem;
+  color: #25272d;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.board-officer-photo-details summary span {
+  color: #777a80;
+  font-size: 0.7rem;
+  font-weight: 550;
+}
+
+.board-officer-photo-details .board-officer-field {
+  margin-top: 0.7rem;
+}
+
+.board-officer-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.8rem;
+  border-top: 1px solid #e1ddd5;
+  padding-top: 1rem;
+}
+
+.board-officer-cancel,
+.board-officer-submit {
+  display: inline-flex;
+  min-height: 2.7rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0 !important;
+  padding: 0.55rem 1rem;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.board-officer-cancel {
+  border: 0;
+  border-bottom: 1px solid #cfc9bf;
+  background: transparent;
+  color: #555962;
+  padding-right: 0.2rem;
+  padding-left: 0.2rem;
+}
+
+.board-officer-submit {
+  min-width: 9.5rem;
+  border: 1px solid #ef4b2b;
+  background: #ef4b2b;
+  color: #fff;
+}
+
+.board-officer-submit:hover {
+  border-color: #d93f1d;
+  background: #d93f1d;
+}
+
+.board-officer-submit:disabled,
+.board-officer-submit:disabled:hover {
+  cursor: not-allowed;
+  border-color: #d6d0c5;
+  background: #e8e4dc;
+  color: #74716a;
+}
+
+.board-officer-conflict {
+  display: block;
+  margin: 0.45rem 0 0;
+  color: #9f321e;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.board-officer-stage-option .board-officer-conflict {
+  max-width: 38rem;
+}
+
+.board-officer-cancel:hover {
+  border-color: #15171b;
+  color: #15171b;
+}
+
+@media (max-width: 600px) {
+  .board-officer-destination-options {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .board-officer-modal {
+    width: calc(100vw - 1rem);
+    max-height: calc(100dvh - 1rem);
+    padding: 1rem;
+  }
+
+  .board-officer-service-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .board-officer-modal-actions {
+    position: sticky;
+    bottom: -1rem;
+    margin: 0 -1rem -1rem;
+    background: #f8f6f1;
+    padding: 0.75rem 1rem 1rem;
+  }
+
+  .board-officer-modal-actions > button {
+    flex: 1 1 0;
+  }
+}
+
+/* --- Add/Edit Officer wizard ------------------------------------------------
+   The wizard reuses the Board "Add Student" sheet verbatim
+   (popup-sheet popup-sheet-wide sa-students-modal is-registration +
+   sa-registration-* imported from superadmin/Students.css). Only the sheet
+   variables and the destination / officer-type choice control are declared
+   here; everything else is the shared Add Student primitive. */
+.modal-overlay .board-officer-registration {
+  --kandid-app-ink: #101114;
+  --kandid-app-muted: #5b5e66;
+  --kandid-app-ink-3: #514d46;
+  --kandid-app-orange: #f4512c;
+  --kandid-app-border: #e5e0d6;
+  --kandid-app-border-strong: #cfc9bf;
+  --kandid-app-danger: #a13228;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.board-officer-choice {
+  display: grid;
+  min-width: 0;
+  align-content: center;
+  gap: 0.3rem;
+  border: 1px solid #cfc9bf;
+  border-left: 3px solid transparent;
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.55);
+  padding: 0.9rem;
+  color: #101114;
+  text-align: left;
+  cursor: pointer;
+}
+
+.board-officer-choice strong {
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.board-officer-choice span {
+  color: #5b5e66;
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.board-officer-choice:hover:not(:disabled),
+.board-officer-choice.is-selected {
+  border-color: #101114;
+  border-left-color: #f4512c;
+  background: #fff;
+}
+
+.board-officer-choice:focus-visible {
+  border-color: #101114;
+  border-left-color: #f4512c;
+  outline: 2px solid #f4512c;
+  outline-offset: 3px;
+}
+
+.board-officer-choice:disabled {
+  color: #776f66;
+  cursor: not-allowed;
+}
+
+.kandid-app-theme .board-officers-register-load-error {
+  margin: 0;
+  border-block: 1px solid #9e3429;
+  padding: 0.7rem 0;
+  color: #71433d;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.kandid-app-theme .board-officers-register-skeleton {
+  display: grid;
+  border-top: 1px solid var(--kandid-app-border-strong);
+}
+
+.kandid-app-theme .board-officers-register-skeleton-row {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 0.7fr) minmax(0, 1fr) 8rem;
+  align-items: center;
+  gap: 1rem;
+  min-height: 4.4rem;
+  border-bottom: 1px solid var(--kandid-app-border);
+}
+
+.kandid-app-theme .board-officers-register-skeleton-row span {
+  display: block;
+  height: 0.65rem;
+  background: #e9e4da;
+  animation: board-officers-breathe 1.5s ease-in-out infinite alternate;
+}
+
+.kandid-app-theme .board-officers-register-skeleton-row span:first-child { width: 1.2rem; }
+.kandid-app-theme .board-officers-register-skeleton-row span:nth-child(2) { width: min(12rem, 90%); height: 0.85rem; }
+.kandid-app-theme .board-officers-register-skeleton-row span:nth-child(3) { width: min(14rem, 90%); }
+.kandid-app-theme .board-officers-register-skeleton-row span:last-child { width: 6rem; }
+
+@keyframes board-officers-breathe { to { opacity: 0.55; } }
+
+@media (max-width: 640px) {
+  .kandid-app-theme .board-officers-register-skeleton-row {
+    grid-template-columns: 1.5rem minmax(0, 1fr);
+    gap: 0.5rem 0.8rem;
+    padding-block: 0.65rem;
+  }
+  .kandid-app-theme .board-officers-register-skeleton-row span:nth-child(2) { grid-column: 2; }
+  .kandid-app-theme .board-officers-register-skeleton-row span:nth-child(3) { grid-column: 2; width: min(12rem, 90%); }
+  .kandid-app-theme .board-officers-register-skeleton-row span:last-child { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kandid-app-theme .board-officers-register-skeleton-row span { animation-duration: 0.01ms; animation-iteration-count: 1; }
+}

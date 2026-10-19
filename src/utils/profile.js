@@ -3,57 +3,12 @@ import {
   getCurrentAdminProfile,
   getCurrentStudentProfile,
   getStoredUser,
-  isSupabaseAdminAuthMode,
   setStoredUser,
 } from "./auth";
 import { updateCurrentAdminProfile } from "./adminUsers";
-import { getStudentExplicitOrganizations } from "./organizationAccess";
+import { getStudentCurrentMemberships } from "./organizationAccess";
 
-function getProfileSelect(role) {
-  if (role === "student") {
-    return `
-      id,
-      auth_user_id,
-      student_number,
-      first_name,
-      last_name,
-      email,
-      photo_url,
-      program,
-      year_level,
-      precinct_code,
-      batch_code,
-      is_shs,
-      status,
-      created_at,
-      student_organizations (
-        organization_id,
-        organizations (
-          id,
-          name,
-          logo_url
-        )
-      )
-    `;
-  }
-
-  return `
-    id,
-    auth_user_id,
-    email,
-    full_name,
-    role,
-    status,
-    organization_id,
-    photo_url,
-    created_at,
-    organizations (
-      id,
-      name,
-      logo_url
-    )
-  `;
-}
+const STUDENT_PROFILE_FUNCTION = "student-profile";
 
 export function getProfileRoute(role) {
   if (role === "super_admin") return "/super-admin/profile";
@@ -68,10 +23,7 @@ export async function fetchCurrentUserProfile() {
     return { data: null, error: new Error("No active user session.") };
   }
 
-  if (
-    isSupabaseAdminAuthMode() &&
-    (user.role === "super_admin" || user.role === "electoral_board")
-  ) {
+  if (user.role === "super_admin" || user.role === "electoral_board") {
     const { data, error } = await getCurrentAdminProfile({ force: true });
     if (error || !data) return { data: null, error };
 
@@ -88,41 +40,16 @@ export async function fetchCurrentUserProfile() {
     const { data, error } = await getCurrentStudentProfile({ force: true });
     if (error || !data) return { data: null, error };
 
-    const studentOrganizations = await getStudentExplicitOrganizations(data.id);
+    const studentOrganizations = await getStudentCurrentMemberships(data);
     const nextUser = {
       ...data,
-      student_organizations: studentOrganizations,
+      current_organization_memberships: studentOrganizations,
     };
     setStoredUser(nextUser);
     return { data: nextUser, error: null };
   }
 
-  const table = user.role === "student" ? "students" : "admin_users";
-  const { data, error } = await supabase
-    .from(table)
-    .select(getProfileSelect(user.role))
-    .eq("id", user.id)
-    .single();
-
-  if (!error && data) {
-    const studentOrganizations =
-      user.role === "student"
-        ? await getStudentExplicitOrganizations(data.id)
-        : data.student_organizations;
-
-    const nextUser = {
-      ...user,
-      ...data,
-      role: user.role,
-      ...(user.role === "student"
-        ? { student_organizations: studentOrganizations }
-        : {}),
-    };
-    setStoredUser(nextUser);
-    return { data: nextUser, error: null };
-  }
-
-  return { data: null, error };
+  return { data: null, error: new Error("The authenticated profile is unavailable.") };
 }
 
 export async function updateCurrentUserProfile(payload) {
@@ -132,12 +59,11 @@ export async function updateCurrentUserProfile(payload) {
     return { data: null, error: new Error("No active user session.") };
   }
 
-  if (
-    isSupabaseAdminAuthMode() &&
-    (user.role === "super_admin" || user.role === "electoral_board")
-  ) {
+  if (user.role === "super_admin" || user.role === "electoral_board") {
     const allowedPayload = {
-      full_name: payload.full_name,
+      ...(user.role !== "electoral_board" && payload.full_name !== undefined
+        ? { full_name: payload.full_name }
+        : {}),
       photo_url: payload.photo_url,
     };
     const { data, error } = await updateCurrentAdminProfile(allowedPayload);
@@ -168,33 +94,25 @@ export async function updateCurrentUserProfile(payload) {
       }
     }
 
-    const allowedPayload = {
-      email: payload.email || null,
-      photo_url: payload.photo_url || null,
-    };
-
-    const { error } = await supabase
-      .from("students")
-      .update(allowedPayload)
-      .eq("id", currentStudent.id);
-
-    if (error) {
-      return { data: null, error };
+    let emailChangePending = false;
+    const requestedEmail = String(payload.email || "").trim().toLowerCase();
+    const currentEmail = String(currentStudent.email || "").trim().toLowerCase();
+    if (requestedEmail && requestedEmail !== currentEmail) {
+      const { error: emailError } = await supabase.auth.updateUser({ email: requestedEmail });
+      if (emailError) return { data: null, error: emailError };
+      emailChangePending = true;
     }
 
-    return fetchCurrentUserProfile();
+    if (payload.photo_url !== undefined && payload.photo_url !== currentStudent.photo_url) {
+      const { error: photoError } = await supabase.functions.invoke(STUDENT_PROFILE_FUNCTION, {
+        body: { action: "update_photo", photo_url: payload.photo_url || null },
+      });
+      if (photoError) return { data: null, error: photoError };
+    }
+
+    const refreshed = await fetchCurrentUserProfile();
+    return { ...refreshed, emailChangePending };
   }
 
-  const table = user.role === "student" ? "students" : "admin_users";
-
-  const { error } = await supabase
-    .from(table)
-    .update(payload)
-    .eq("id", user.id);
-
-  if (error) {
-    return { data: null, error };
-  }
-
-  return fetchCurrentUserProfile();
+  return { data: null, error: new Error("This account cannot update that profile.") };
 }

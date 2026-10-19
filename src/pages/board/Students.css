@@ -1,0 +1,556 @@
+.kandid-app-theme .board-students-register {
+  --board-students-columns: minmax(0, 1.55fr) minmax(0, 1fr) minmax(0, 0.78fr) 10.5rem;
+}
+
+.modal-overlay .board-student-registration {
+  --kandid-app-ink: #101114;
+  --kandid-app-muted: #5b5e66;
+  --kandid-app-orange: #f4512c;
+  --kandid-app-border: #e5e0d6;
+  --kandid-app-border-strong: #cfc9bf;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.board-student-registration .board-registration-id-field {
+  width: min(100%, 34rem);
+}
+
+.board-student-registration .board-registration-optional {
+  border-top: 1px solid var(--kandid-app-border);
+  padding-top: 0.8rem;
+}
+
+.board-student-registration .board-registration-optional summary {
+  width: fit-content;
+  color: var(--kandid-app-ink);
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.board-student-registration .board-registration-optional summary:focus-visible {
+  outline: 2px solid var(--kandid-app-orange);
+  outline-offset: 3px;
+}
+
+.board-student-registration .board-registration-optional .sa-registration-fields {
+  margin-top: 1rem;
+}
+
+.kandid-app-theme .board-student-action-group {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
+.board-student-registration .board-registration-feedback {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.board-student-registration .board-registration-feedback > p,
+.board-student-registration .board-registration-feedback > small {
+  margin: 0;
+  font: inherit;
+  line-height: 1.45;
+}
+
+.board-student-registration .board-registration-feedback > strong {
+  text-transform: uppercase;
+}
+
+.board-student-registration .board-registration-feedback.is-configuration {
+  border-left-color: var(--kandid-app-orange, #f4512c);
+  color: var(--kandid-app-ink-3, #514d46);
+}
+
+/* Registry record dialogs (Edit / Remove) share the Add Student language:
+   bond-paper sheet, ink top rule, serif heading, ruled sections. */
+.modal-overlay .board-registry-sheet {
+  --kandid-app-ink: #101114;
+  --kandid-app-muted: #5b5e66;
+  --kandid-app-ink-3: #514d46;
+  --kandid-app-orange: #f4512c;
+  --kandid-app-border: #e5e0d6;
+  --kandid-app-border-strong: #cfc9bf;
+  --kandid-app-danger: #a13228;
+
+  width: min(42rem, calc(100vw - 2rem)) !important;
+  max-height: calc(100dvh - 2rem) !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  background: #f8f6f1;
+  box-shadow: 0 14px 32px rgba(22, 20, 17, 0.18) !important;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.board-registry-sheet .popup-header {
+  margin-bottom: 0 !important;
+  border-top: 3px solid var(--kandid-app-ink);
+  border-bottom: 1px solid var(--kandid-app-border-strong);
+  padding: 1.25rem 1.5rem 1rem;
+}
+
+.board-registry-sheet.is-danger .popup-header {
+  border-top-color: var(--kandid-app-danger);
+}
+
+.board-registry-sheet .popup-header-copy {
+  gap: 0;
+}
+
+.board-registry-kicker {
+  margin: 0;
+  color: var(--kandid-app-orange, #f4512c);
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.board-registry-sheet.is-danger .board-registry-kicker {
+  color: var(--kandid-app-danger, #a13228);
+}
+
+.board-registry-sheet .popup-header h2 {
+  margin: 0.35rem 0 0;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-weight: 700;
+  line-height: 0.98;
+}
+
+.board-registry-sheet .popup-header .surface-copy {
+  margin: 0.5rem 0 0 !important;
+  color: var(--kandid-app-muted, #5b5e66);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.modal-overlay .board-registry-sheet .popup-close {
+  width: 2.6rem;
+  height: 2.6rem;
+  flex: 0 0 auto;
+  border: 0 !important;
+  border-bottom: 1px solid var(--kandid-app-border-strong) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.modal-overlay .board-registry-sheet .popup-close:hover {
+  border-color: var(--kandid-app-orange) !important;
+  background: rgba(244, 81, 44, 0.08) !important;
+  color: var(--kandid-app-orange) !important;
+}
+
+.board-registry-sheet.is-danger .popup-close:hover {
+  border-color: var(--kandid-app-danger) !important;
+  background: rgba(161, 50, 40, 0.08) !important;
+  color: var(--kandid-app-danger) !important;
+}
+
+.board-registry-sheet > .popup-content {
+  display: grid;
+  min-width: 0;
+  gap: 1.15rem;
+  padding: 1.25rem 1.5rem 1.5rem;
+}
+
+.board-registry-identity {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+  border-bottom: 1px solid var(--kandid-app-border-strong);
+  padding-bottom: 0.9rem;
+}
+
+.board-registry-identity-name {
+  margin: 0;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.board-registry-identity-meta {
+  margin: 0;
+  color: var(--kandid-app-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.board-registry-section {
+  display: grid;
+  min-width: 0;
+  gap: 0.7rem;
+  border-top: 1px solid var(--kandid-app-border-strong);
+  padding-top: 0.9rem;
+}
+
+.board-registry-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.15rem 1.5rem;
+}
+
+.board-registry-field {
+  display: grid;
+  min-width: 0;
+  gap: 0.42rem;
+}
+
+.board-registry-field.is-wide {
+  grid-column: 1 / -1;
+}
+
+.board-registry-field label {
+  color: var(--kandid-app-ink-3, #514d46);
+  font-size: 0.65rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.modal-overlay .board-registry-sheet .board-registry-field input,
+.modal-overlay .board-registry-sheet .board-registry-field select,
+.modal-overlay .board-registry-sheet .board-registry-field textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.9rem;
+  border: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+  border-radius: 0 !important;
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--kandid-app-ink, #101114);
+  padding: 0.68rem 0.75rem;
+  font: inherit;
+  font-size: 0.86rem;
+  outline: none;
+}
+
+.modal-overlay .board-registry-sheet .board-registry-field textarea {
+  min-height: 5.5rem;
+  resize: vertical;
+}
+
+.modal-overlay .board-registry-sheet .board-registry-field input::placeholder,
+.modal-overlay .board-registry-sheet .board-registry-field textarea::placeholder {
+  color: var(--kandid-app-muted);
+}
+
+.board-registry-field input:focus,
+.board-registry-field select:focus,
+.board-registry-field textarea:focus {
+  border-color: var(--kandid-app-orange);
+}
+
+.board-registry-sheet .board-registry-field input:focus-visible,
+.board-registry-sheet .board-registry-field select:focus-visible,
+.board-registry-sheet .board-registry-field textarea:focus-visible,
+.board-registry-sheet .board-registry-actions button:focus-visible,
+.board-registry-sheet .popup-close:focus-visible {
+  outline: 2px solid var(--kandid-app-orange);
+  outline-offset: 3px;
+}
+
+.board-registry-context {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 1.5rem;
+  margin: 0;
+}
+
+.board-registry-context > div {
+  min-width: 0;
+  border-top: 1px solid var(--kandid-app-border);
+  padding-top: 0.5rem;
+}
+
+.board-registry-context dt {
+  color: var(--kandid-app-muted);
+  font-size: 0.62rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.board-registry-context dd {
+  margin: 0.25rem 0 0;
+  color: var(--kandid-app-ink);
+  font-size: 0.84rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.board-registry-context dd.is-muted {
+  color: var(--kandid-app-muted);
+  font-weight: 600;
+}
+
+.board-registry-error {
+  margin: 0;
+  border-left: 2px solid var(--kandid-app-danger);
+  color: #8b2b23;
+  padding: 0.15rem 0 0.15rem 0.9rem;
+  font-size: 0.78rem;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.board-registry-danger-label {
+  margin: 0;
+  border-top: 1px solid var(--kandid-app-danger);
+  padding-top: 0.75rem;
+  color: var(--kandid-app-danger);
+  font-size: 0.62rem;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.board-registry-reauth-note {
+  margin: 0;
+  color: var(--kandid-app-muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.board-registry-field small {
+  color: var(--kandid-app-muted);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+/* Password control: sharp field with a square visibility toggle on the same rule. */
+.board-registry-secret {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 2.6rem;
+  min-width: 0;
+}
+
+.modal-overlay .board-registry-sheet .board-registry-secret input {
+  border-right: 0;
+}
+
+.board-registry-secret-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.9rem;
+  border: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+  border-radius: 0 !important;
+  background: rgba(255, 255, 255, 0.35);
+  color: var(--kandid-app-muted, #5b5e66);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.board-registry-secret-toggle:hover:not(:disabled) {
+  background: rgba(244, 81, 44, 0.08);
+  color: var(--kandid-app-orange, #f4512c);
+}
+
+.board-registry-secret-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.board-registry-secret-toggle:focus-visible {
+  outline: 2px solid var(--kandid-app-orange, #f4512c);
+  outline-offset: 3px;
+}
+
+/* Remove dialog consequence ledger: a ruled register, not a warning panel. */
+.board-registry-consequences {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--kandid-app-danger);
+  border-bottom: 1px solid var(--kandid-app-border-strong);
+}
+
+.board-registry-consequences > div {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 0.4rem;
+  padding: 0.9rem 1rem 1rem 0;
+}
+
+.board-registry-consequences > div + div {
+  border-left: 1px solid var(--kandid-app-border);
+  padding-left: 1rem;
+  padding-right: 0;
+}
+
+.board-registry-consequences h3 {
+  margin: 0;
+  color: var(--kandid-app-muted);
+  font-size: 0.62rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.board-registry-consequences > div.is-removed h3 {
+  color: var(--kandid-app-danger);
+}
+
+.board-registry-consequences ul {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--kandid-app-ink);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.board-registry-consequences li {
+  display: grid;
+  grid-template-columns: 0.85rem minmax(0, 1fr);
+  gap: 0.4rem;
+}
+
+.board-registry-consequences li::before {
+  color: var(--kandid-app-border-strong);
+  content: "\2014";
+}
+
+.board-registry-consequences > div.is-removed li::before {
+  color: var(--kandid-app-danger);
+}
+
+.board-registry-consequences-note {
+  margin: 0;
+  color: var(--kandid-app-muted);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.board-registry-sheet > .popup-content .board-registry-actions,
+.board-registry-sheet .board-registry-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  border-top: 1px solid var(--kandid-app-border);
+  padding-top: 1rem;
+}
+
+.modal-overlay .board-registry-sheet .board-registry-actions .primary-btn,
+.modal-overlay .board-registry-sheet .board-registry-actions .secondary-btn,
+.modal-overlay .board-registry-sheet .board-registry-actions .danger-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.7rem;
+  padding: 0.68rem 1.15rem;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.modal-overlay .board-registry-sheet .board-registry-actions .primary-btn {
+  box-shadow: 0 6px 14px rgba(239, 78, 35, 0.16) !important;
+}
+
+.modal-overlay .board-registry-sheet .board-registry-actions .secondary-btn {
+  border: 0;
+  border-bottom: 1px solid var(--kandid-app-border-strong);
+  background: transparent;
+  box-shadow: none !important;
+  padding-right: 0.15rem;
+  padding-left: 0.15rem;
+  color: var(--kandid-app-ink);
+}
+
+.modal-overlay .board-registry-sheet .board-registry-actions .secondary-btn:hover {
+  border-color: var(--kandid-app-orange);
+  color: var(--kandid-app-orange);
+}
+
+.modal-overlay .board-registry-sheet .board-registry-actions .danger-btn {
+  border: 1px solid var(--kandid-app-danger);
+  background: var(--kandid-app-danger);
+  color: #ffffff;
+}
+
+.modal-overlay .board-registry-sheet .board-registry-actions .danger-btn:hover {
+  border-color: #8b2b23;
+  background: #8b2b23;
+}
+
+.modal-overlay .board-registry-sheet .board-registry-actions .danger-btn:disabled {
+  border-color: var(--kandid-app-border-strong);
+  background: transparent;
+  color: var(--kandid-app-muted);
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+@media (max-width: 1280px) {
+  .kandid-app-theme .board-students-register {
+    --board-students-columns: minmax(0, 1.45fr) minmax(0, 1fr) minmax(0, 0.72fr) 10rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  .kandid-app-theme .board-students-register {
+    --board-students-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 0.8fr);
+  }
+
+  .kandid-app-theme .board-student-action-group {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .board-registry-fields,
+  .board-registry-context,
+  .board-registry-consequences {
+    grid-template-columns: 1fr;
+  }
+
+  .board-registry-consequences > div {
+    padding: 0.75rem 0 0.85rem;
+  }
+
+  .board-registry-consequences > div + div {
+    border-top: 1px solid var(--kandid-app-border);
+    border-left: 0;
+    padding: 0.85rem 0 0.9rem;
+  }
+
+  .board-registry-sheet .board-registry-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  /* Defeat the legacy mobile sticky action bar so it matches the bond-paper sheet. */
+  .modal-overlay .board-registry-sheet .board-registry-actions {
+    margin: 0 -1.5rem -1.5rem !important;
+    padding: 0.85rem 1.5rem max(0.85rem, env(safe-area-inset-bottom)) !important;
+    background: #f8f6f1 !important;
+  }
+
+  .modal-overlay .board-registry-sheet .board-registry-actions .primary-btn,
+  .modal-overlay .board-registry-sheet .board-registry-actions .secondary-btn,
+  .modal-overlay .board-registry-sheet .board-registry-actions .danger-btn {
+    width: 100%;
+  }
+
+  .modal-overlay .board-registry-sheet .board-registry-actions .secondary-btn {
+    padding-right: 0.75rem;
+    padding-left: 0.75rem;
+  }
+}

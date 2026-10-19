@@ -9,7 +9,8 @@ import {
   ShieldCheck,
   Wallet,
 } from "lucide-react";
-import { supabase } from "../../lib/supabaseClient";
+import SuperAdminPageHeader from "../../components/SuperAdminPageHeader";
+import { callVoteAccess } from "../../utils/voteAccess";
 import {
   checkVoteHashOnChain,
   connectBlockchainWallet,
@@ -18,6 +19,11 @@ import {
   getVoteRegistryContract,
   recordVoteHashOnChain,
 } from "../../utils/blockchain";
+import {
+  canRecordVoteHashOnChain,
+  getBlockchainVerificationCounts,
+  getBlockchainVerificationStatus,
+} from "../../utils/blockchainVerification";
 
 function BlockchainVerification() {
   const [votes, setVotes] = useState([]);
@@ -37,27 +43,9 @@ function BlockchainVerification() {
   async function fetchVotes() {
     setLoading(true);
 
-    const { data, error } = await supabase
-      .from("votes")
-      .select(`
-        *,
-        students (
-          student_number,
-          first_name,
-          last_name
-        ),
-        elections (
-          title
-        ),
-        positions (
-          name
-        )
-      `)
-      .order("id", { ascending: false });
-
-    if (!error) {
-      setVotes(data || []);
-    }
+    const { data, error } = await callVoteAccess("super_admin_blockchain_queue");
+    if (error) setWalletError("Blockchain verification records could not be loaded.");
+    else setVotes(data?.votes || []);
 
     setLoading(false);
   }
@@ -80,17 +68,24 @@ function BlockchainVerification() {
       setRecordingId(vote.id);
       setWalletError("");
 
+      const { data: authorization, error: authorizationError } = await callVoteAccess("prepare_vote_anchor", {
+        vote_id: vote.id,
+      });
+      if (authorizationError || !authorization?.authorized || authorization.vote_hash !== vote.vote_hash) {
+        throw new Error(authorizationError?.message || "This record is not authorized for legacy anchoring.");
+      }
+
       const { signer } = await connectBlockchainWallet();
       const contract = getVoteRegistryContract(signer);
       const { txHash } = await recordVoteHashOnChain(contract, vote.vote_hash);
 
-      const { error } = await supabase
-        .from("votes")
-        .update({ blockchain_tx_id: txHash })
-        .eq("id", vote.id);
-
+      const { error } = await callVoteAccess("confirm_vote_anchor", {
+        vote_id: vote.id,
+        vote_hash: vote.vote_hash,
+        transaction_hash: txHash,
+      });
       if (error) {
-        throw new Error(error.message || "Failed to save blockchain transaction.");
+        throw new Error(error.message || "The blockchain transaction could not be verified and recorded.");
       }
 
       await fetchVotes();
@@ -108,7 +103,7 @@ function BlockchainVerification() {
 
       const { provider } = await connectBlockchainWallet();
       const contract = getVoteRegistryContract(provider);
-      const recorded = await checkVoteHashOnChain(contract, vote.vote_hash);
+      const recorded = await checkVoteHashOnChain(contract, vote.vote_hash || vote.ballot_hash);
 
       alert(
         recorded
@@ -122,9 +117,7 @@ function BlockchainVerification() {
     }
   }
 
-  const verified = votes.filter((vote) => vote.blockchain_tx_id).length;
-  const pending = votes.filter((vote) => !vote.blockchain_tx_id && vote.vote_hash).length;
-  const missingHash = votes.filter((vote) => !vote.vote_hash).length;
+  const { verified, pending, needsReview, missingHash } = getBlockchainVerificationCounts(votes);
 
   const contractState = useMemo(() => {
     if (!contractAddress) return "Missing contract";
@@ -134,38 +127,19 @@ function BlockchainVerification() {
 
   return (
     <div className="sa-remaining-page sa-blockchain-verification">
-      <div className="page-head">
-        <div>
-          <p className="sa-remaining-breadcrumb"><span>Kandid</span><span>/</span><span>Super Admin</span></p>
-          <div className="page-kicker">Sepolia Verification</div>
-          <h1 className="page-title">
-            Blockchain
-            <span className="page-title-accent"> registry monitor</span>
-          </h1>
-          <p className="page-subtitle">
-            Connect a Sepolia wallet, push pending vote hashes to the vote registry
-            contract, and confirm the transaction hash stored with each ballot.
-          </p>
-        </div>
+      <SuperAdminPageHeader
+        section="System record"
+        title="Blockchain Verification"
+        description="Review ballot registry anchors and verify recorded transactions."
+        actions={(
+          <>
+            <button onClick={connectWallet} className="secondary-btn"><Wallet size={18} />{walletAddress ? "Reconnect Wallet" : "Connect Sepolia Wallet"}</button>
+            <button onClick={fetchVotes} className="primary-btn"><RefreshCw size={18} />Refresh</button>
+          </>
+        )}
+      />
 
-        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-          <button onClick={connectWallet} className="secondary-btn">
-            <Wallet size={18} />
-            {walletAddress ? "Reconnect Wallet" : "Connect Sepolia Wallet"}
-          </button>
-          <button
-            onClick={() => {
-              fetchVotes();
-            }}
-            className="primary-btn"
-          >
-            <RefreshCw size={18} />
-            Refresh
-          </button>
-        </div>
-      </div>
-
-      <div className="section-grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
+      <div className="section-grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5">
         <div className="metric-card lift-card">
           <div className="flex items-center justify-between">
             <div>
@@ -187,6 +161,18 @@ function BlockchainVerification() {
               <h2 className="mt-4 text-4xl font-black">{pending}</h2>
             </div>
             <Clock className="text-[#c98a22]" />
+          </div>
+        </div>
+
+        <div className="metric-card lift-card">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#55726b]">
+                Needs Review
+              </p>
+              <h2 className="mt-4 text-4xl font-black">{needsReview}</h2>
+            </div>
+            <AlertTriangle className="text-[#cb4f58]" />
           </div>
         </div>
 
@@ -305,7 +291,7 @@ function BlockchainVerification() {
               <table className="w-full text-left text-sm">
                 <thead className="table-head text-white">
                   <tr>
-                    <th className="px-6 py-4">Voter</th>
+                <th className="px-6 py-4">Vote Ref</th>
                     <th className="px-6 py-4">Election</th>
                     <th className="px-6 py-4">Position</th>
                     <th className="px-6 py-4">Vote Hash</th>
@@ -323,24 +309,15 @@ function BlockchainVerification() {
                     </tr>
                   ) : (
                     votes.map((vote) => {
-                      const status = vote.blockchain_tx_id
-                        ? "Verified"
-                        : vote.vote_hash
-                          ? "Pending"
-                          : "Missing Hash";
+                      const status = getBlockchainVerificationStatus(vote);
 
                       return (
                         <tr key={vote.id} className="border-b border-[rgba(104,86,72,0.08)] last:border-b-0">
-                          <td className="px-6 py-4">
-                            <p className="font-bold">
-                              {vote.students?.first_name} {vote.students?.last_name}
-                            </p>
-                            <p className="text-xs text-gray-500">{vote.students?.student_number}</p>
-                          </td>
+                          <td className="px-6 py-4 font-mono text-xs">{vote.record_type === "ballot" ? "Ballot" : "Vote"} #{String(vote.id).slice(0, 8)}</td>
                           <td className="px-6 py-4">{vote.elections?.title || "-"}</td>
                           <td className="px-6 py-4">{vote.positions?.name || "-"}</td>
                           <td className="px-6 py-4 text-xs font-mono">
-                            <span className="block max-w-[240px] truncate">{vote.vote_hash || "-"}</span>
+                            <span className="block max-w-[240px] truncate">{vote.vote_hash || vote.ballot_hash || "-"}</span>
                           </td>
                           <td className="px-6 py-4 text-xs font-mono">
                             {vote.blockchain_tx_id ? (
@@ -372,7 +349,7 @@ function BlockchainVerification() {
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex justify-end gap-2">
-                              {!vote.blockchain_tx_id && vote.vote_hash ? (
+                              {canRecordVoteHashOnChain(vote) ? (
                                 <button
                                   onClick={() => recordVote(vote)}
                                   disabled={recordingId === vote.id}
@@ -381,7 +358,7 @@ function BlockchainVerification() {
                                   {recordingId === vote.id ? "Recording..." : "Record On-Chain"}
                                 </button>
                               ) : null}
-                              {vote.vote_hash ? (
+                              {vote.vote_hash || vote.ballot_hash ? (
                                 <button
                                   onClick={() => verifyVote(vote)}
                                   disabled={verifyingId === vote.id}

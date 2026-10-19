@@ -145,22 +145,38 @@ function MobileMenu({
                       <div className="flex flex-col gap-1">
                         {group.items.map((item) => {
                           const Icon = item.icon;
+                          const itemContent = <>
+                            <Icon size={18} />
+                            <span>{item.readonlyUnavailable ? `${item.name} · unavailable` : item.name}</span>
+                          </>;
                           return (
-                            <NavLink
-                              key={item.path}
-                              to={item.path}
-                              onClick={onClose}
-                              className={({ isActive }) =>
-                                `mobile-menu-link flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold transition-colors ${
-                                  isActive
-                                    ? "bg-orange-50 text-orange-600"
-                                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                                }`
-                              }
-                            >
-                              <Icon size={18} />
-                              <span>{item.name}</span>
-                            </NavLink>
+                            item.readonlyUnavailable ? (
+                              <button
+                                key={item.path}
+                                type="button"
+                                disabled
+                                aria-disabled="true"
+                                title="Unavailable during read-only production inspection"
+                                className="mobile-menu-link flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-bold text-gray-400 opacity-60"
+                              >
+                                {itemContent}
+                              </button>
+                            ) : (
+                              <NavLink
+                                key={item.path}
+                                to={item.path}
+                                onClick={onClose}
+                                className={({ isActive }) =>
+                                  `mobile-menu-link flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold transition-colors ${
+                                    isActive
+                                      ? "bg-orange-50 text-orange-600"
+                                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                                  }`
+                                }
+                              >
+                                {itemContent}
+                              </NavLink>
+                            )
                           );
                         })}
                       </div>

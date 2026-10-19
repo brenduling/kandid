@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, RefreshCw } from "lucide-react";
 import {
   StudentSkeletonGroup,
   StudentSkeletonLine,
@@ -10,7 +10,6 @@ import {
   canStudentViewResults,
   isMissingElectionCoverColumn,
 } from "../../utils/elections";
-import { getStudentElectionOrganizationIds } from "../../utils/organizationAccess";
 import { fetchResultDimensions } from "../../utils/resultDimensions";
 import { fetchElectionResultDataset } from "../../utils/resultDataLoader";
 import {
@@ -23,6 +22,15 @@ import {
   HorizontalStatChart,
 } from "../../components/ResultsVisualization";
 import ElectionCover from "../../components/ElectionCover";
+import { loadElectionTurnout, formatTurnoutPercentage, turnoutMetricValue, turnoutAvailabilityLabel } from "../../utils/electionTurnout";
+import { getStoredUser } from "../../utils/auth";
+import {
+  STUDENT_RESULTS_ERROR_COPY,
+  classifyStudentResultsError,
+  studentAwaitingResultsCopy,
+  studentResultsStatusMeta,
+  studentZeroVoteCopy,
+} from "../../utils/studentResults";
 
 const electionSelectWithRelease =
   "id, title, cover_url, status, start_date, end_date, student_result_visibility, results_released_at, organization_id, organizations(name)";
@@ -32,7 +40,6 @@ const electionSelectWithoutRelease =
   "id, title, status, start_date, end_date, student_result_visibility, organization_id, organizations(name)";
 
 async function fetchResultElections(
-  organizationIds,
   includeReleaseColumn = true,
   includeCoverColumn = true,
 ) {
@@ -44,9 +51,7 @@ async function fetchResultElections(
   const { data, error } = await supabase
     .from("elections")
     .select(selectColumns)
-    .in("organization_id", organizationIds)
     .neq("status", "draft")
-    .neq("status", "archived")
     .order("start_date", { ascending: false });
 
   return {
@@ -100,14 +105,6 @@ function ElectionChooser({ elections, selectedElection, onSelect }) {
   }, []);
 
   useEffect(() => {
-    if (open) {
-      setActiveIndex(
-        Math.max(elections.findIndex((e) => e.id === Number(selectedElection)), 0),
-      );
-    }
-  }, [open, elections, selectedElection]);
-
-  useEffect(() => {
     if (!open || activeIndex < 0) return;
     listRef.current?.children[activeIndex]?.scrollIntoView({ block: "nearest" });
   }, [open, activeIndex]);
@@ -118,6 +115,19 @@ function ElectionChooser({ elections, selectedElection, onSelect }) {
     setOpen(false);
   }
 
+  function openElectionChooser() {
+    setActiveIndex(Math.max(elections.findIndex((e) => e.id === Number(selectedElection)), 0));
+    setOpen(true);
+  }
+
+  function toggleElectionChooser() {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    openElectionChooser();
+  }
+
   function handleTriggerKeyDown(event) {
     if (event.key === "Escape") {
       setOpen(false);
@@ -126,7 +136,7 @@ function ElectionChooser({ elections, selectedElection, onSelect }) {
     if (!open) {
       if (event.key === "Enter" || event.key === " " || event.key === "ArrowDown") {
         event.preventDefault();
-        setOpen(true);
+        openElectionChooser();
       }
       return;
     }
@@ -154,7 +164,7 @@ function ElectionChooser({ elections, selectedElection, onSelect }) {
         className={`student-elections-trigger${open ? " is-open" : ""}`}
         aria-haspopup="listbox"
         aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
+        onClick={toggleElectionChooser}
         onKeyDown={handleTriggerKeyDown}
       >
         <span className="student-elections-trigger-copy">
@@ -241,12 +251,43 @@ function ResultsLoadingSkeleton() {
   );
 }
 
+function StudentResultsStateBlock({ copy, meta, actionLabel, onAction, actionDisabled }) {
+  if (!copy) return null;
+
+  return (
+    <div className="student-empty-card student-elections-state student-results-state">
+      {copy.kicker ? (
+        <span className="student-results-state-kicker">{copy.kicker}</span>
+      ) : null}
+      <h2 className="student-results-state-title">{copy.title}</h2>
+      {copy.body ? (
+        <p className="student-results-state-body">{copy.body}</p>
+      ) : null}
+      {meta ? <p className="student-results-state-meta">{meta}</p> : null}
+      {actionLabel ? (
+        <button
+          type="button"
+          className="student-results-refresh"
+          onClick={onAction}
+          disabled={actionDisabled}
+        >
+          <RefreshCw size={13} aria-hidden="true" />
+          {actionLabel}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function StudentResults() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [elections, setElections] = useState([]);
   const [votes, setVotes] = useState([]);
   const [candidates, setCandidates] = useState([]);
-  const [voteLoadError, setVoteLoadError] = useState("");
+  const [resultErrorKind, setResultErrorKind] = useState("");
+  const [electionsErrorKind, setElectionsErrorKind] = useState("");
+  const [refreshNonce, setRefreshNonce] = useState(0);
+  const [turnoutSummary, setTurnoutSummary] = useState(null);
   const [resultsLoading, setResultsLoading] = useState(false);
   const [electionsLoading, setElectionsLoading] = useState(true);
   const [voterBreakdownMode, setVoterBreakdownMode] = useState("program");
@@ -255,7 +296,7 @@ function StudentResults() {
     searchParams.get("election") || ""
   );
 
-  const user = JSON.parse(localStorage.getItem("user"));
+  const user = getStoredUser() || {};
 
   useEffect(() => {
     let active = true;
@@ -263,31 +304,34 @@ function StudentResults() {
     async function loadResults() {
       setElectionsLoading(true);
 
-      const organizationIds = await getStudentElectionOrganizationIds(user);
-
-      if (organizationIds.length === 0) {
-        setElectionsLoading(false);
-        return;
-      }
-
       let { data: electionData, error: electionError } =
-        await fetchResultElections(organizationIds);
+        await fetchResultElections();
 
       if (isMissingElectionCoverColumn(electionError)) {
-        const fallback = await fetchResultElections(organizationIds, true, false);
+        const fallback = await fetchResultElections(true, false);
         electionData = fallback.data;
         electionError = fallback.error;
       }
 
       if (isMissingResultReleaseColumn(electionError)) {
-        const fallback = await fetchResultElections(organizationIds, false);
+        const fallback = await fetchResultElections(false);
         electionData = fallback.data;
         electionError = fallback.error;
       }
 
       if (!active) return;
 
-      const visibleElections = electionError ? [] : electionData || [];
+      if (electionError) {
+        const errorKind = await classifyStudentResultsError(electionError);
+        if (!active) return;
+        setElectionsErrorKind(errorKind);
+        setElections([]);
+        setElectionsLoading(false);
+        return;
+      }
+
+      const visibleElections = electionData || [];
+      setElectionsErrorKind("");
       setElections(visibleElections);
       setSelectedElection((current) => {
         if (current) return current;
@@ -301,7 +345,7 @@ function StudentResults() {
     return () => {
       active = false;
     };
-  }, [user.id]);
+  }, [user.id, refreshNonce]);
 
   const activeElection = elections.find(
     (election) => election.id === Number(selectedElection)
@@ -314,30 +358,50 @@ function StudentResults() {
       setVotes([]);
       setCandidates([]);
       setResultDimensions({ programs: [], yearLevels: [] });
-      setVoteLoadError("");
+      setResultErrorKind("");
+      setTurnoutSummary(null);
 
       if (!activeElection || !canStudentViewResults(activeElection)) return;
 
       setResultsLoading(true);
 
-      const [resultDataset, dimensions] = await Promise.all([
-        fetchElectionResultDataset(activeElection),
-        fetchResultDimensions(activeElection),
-      ]);
+      // The turnout RPC is the server-side visibility and eligibility gate.
+      // Do not fan out to tallies, candidate details, or demographic lookups
+      // until it confirms that this student can see this election's results.
+      const turnoutResult = await loadElectionTurnout(activeElection.id);
+      if (!active) return;
+
+      if (turnoutResult.error) {
+        const errorKind = await classifyStudentResultsError(turnoutResult.error);
+        if (!active) return;
+        setResultErrorKind(errorKind);
+        setResultsLoading(false);
+        return;
+      }
+
+      const resultDataset = await fetchElectionResultDataset(activeElection);
 
       const { votes: voteData, candidates: candidateData, error: resultsError } = resultDataset;
 
       if (!active) return;
 
       if (resultsError) {
+        const errorKind = await classifyStudentResultsError(resultsError);
+        if (!active) return;
+        setResultErrorKind(errorKind);
         setResultsLoading(false);
-        setVoteLoadError(resultsError.message || "Unable to load result totals.");
         return;
       }
+
+      const dimensions = await fetchResultDimensions(activeElection, {
+        includeMembershipDemographics: false,
+      });
+      if (!active) return;
 
       setVotes(voteData || []);
       setCandidates(candidateData || []);
       setResultDimensions(dimensions);
+      setTurnoutSummary(turnoutResult.data);
       setResultsLoading(false);
     }
 
@@ -392,10 +456,30 @@ function StudentResults() {
     },
   }[voterBreakdownMode];
 
+  const hasGroupedResults = Object.keys(analytics.groupedResults).length > 0;
+  const awaitingResultsCopy =
+    activeElection && !canStudentViewResults(activeElection)
+      ? studentAwaitingResultsCopy(activeElection)
+      : null;
+  const zeroVoteCopy =
+    activeElection && !resultErrorKind && !hasGroupedResults
+      ? studentZeroVoteCopy(activeElection)
+      : null;
+  const resultErrorCopy = resultErrorKind
+    ? STUDENT_RESULTS_ERROR_COPY[resultErrorKind] || STUDENT_RESULTS_ERROR_COPY.backend
+    : null;
+  const electionsErrorCopy = electionsErrorKind
+    ? STUDENT_RESULTS_ERROR_COPY[electionsErrorKind] || STUDENT_RESULTS_ERROR_COPY.backend
+    : null;
+
   function handleSelectElection(value) {
     setSelectedElection(value);
     if (value) setSearchParams({ election: value });
     else setSearchParams({});
+  }
+
+  function handleRefreshResults() {
+    setRefreshNonce((current) => current + 1);
   }
 
   return (
@@ -435,41 +519,67 @@ function StudentResults() {
               )}
             </span>
           </div>
+          <button
+            type="button"
+            className="student-results-refresh"
+            onClick={handleRefreshResults}
+            disabled={electionsLoading || resultsLoading}
+          >
+            <RefreshCw size={13} aria-hidden="true" />
+            Refresh
+          </button>
         </div>
       ) : null}
 
       <div className="student-results-body space-y-5">
         {electionsLoading ? (
           <ResultsLoadingSkeleton />
-        ) : !selectedElection ? (
-          <div className="student-empty-card student-elections-state">
-            Select an election to view results.
-          </div>
+        ) : electionsErrorCopy ? (
+          <StudentResultsStateBlock
+            copy={electionsErrorCopy}
+            actionLabel={electionsErrorCopy.action}
+            onAction={handleRefreshResults}
+          />
+        ) : !activeElection ? (
+          <StudentResultsStateBlock
+            copy={{
+              kicker: "Results Center",
+              title: "Select an election to view results",
+              body:
+                elections.length === 0
+                  ? "No elections are available yet."
+                  : "Choose an election from the list above to see its official tallies.",
+            }}
+          />
         ) : !canStudentViewResults(activeElection) ? (
-          <div className="student-empty-card student-elections-state">
-            {activeElection
-              ? `${resultVisibilityLabel(
-                  activeElection.student_result_visibility,
-                  activeElection.results_released_at,
-                )}: results are not available to students yet.`
-              : "Results are hidden until the election team releases them."}
-          </div>
+          <StudentResultsStateBlock
+            copy={awaitingResultsCopy}
+            meta={studentResultsStatusMeta(activeElection)}
+            actionLabel="Check again"
+            onAction={handleRefreshResults}
+          />
         ) : resultsLoading ? (
           <ResultsLoadingSkeleton />
-        ) : voteLoadError ? (
-          <div className="student-empty-card student-elections-state">
-            {voteLoadError}
-          </div>
-        ) : Object.keys(analytics.groupedResults).length === 0 ? (
-          <div className="student-empty-card student-elections-state">
-            No results yet.
-          </div>
+        ) : resultErrorCopy ? (
+          <StudentResultsStateBlock
+            copy={resultErrorCopy}
+            actionLabel={resultErrorCopy.action}
+            onAction={handleRefreshResults}
+          />
+        ) : !hasGroupedResults ? (
+          <StudentResultsStateBlock
+            copy={zeroVoteCopy}
+            meta={studentResultsStatusMeta(activeElection)}
+            actionLabel="Refresh"
+            onAction={handleRefreshResults}
+          />
         ) : (
           <>
-            <div className="student-summary-rail section-grid grid-cols-1 md:grid-cols-3">
+            <div className="student-summary-rail section-grid grid-cols-1 md:grid-cols-4">
               {[
-                ["Total Ballots", analytics.totalVoteEntries, "All submitted vote rows in this election"],
-                ["Voters", analytics.totalUniqueVoters, `Student turnout for ${analytics.organizationName}`],
+                ["Eligible Voters", turnoutMetricValue(turnoutSummary, "eligible_voters"), "Members in the locked election electorate"],
+                ["Voters Participated", turnoutMetricValue(turnoutSummary, "participated_voters"), "Distinct submitted ballots"],
+                ["Voter Turnout", formatTurnoutPercentage(turnoutSummary), turnoutAvailabilityLabel(turnoutSummary)],
                 ["Abstentions", analytics.totalAbstains, "Recorded abstain selections across positions"],
               ].map(([label, value, hint]) => (
                 <div key={label} className="border-t border-black/10 pt-3">
@@ -487,7 +597,7 @@ function StudentResults() {
               </div>
               <ElectionResultsChart
                 groups={Object.values(analytics.groupedResults)}
-                totalVoters={analytics.totalUniqueVoters}
+                totalVoters={turnoutSummary?.participated_voters ?? analytics.totalUniqueVoters}
                 dimensions={analytics.resultDimensions}
                 presentation="editorial"
               />

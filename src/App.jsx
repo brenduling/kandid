@@ -3,10 +3,15 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
 import PWAInstallPrompt from "./components/PWAInstallPrompt";
 import PWAOfflineNotice from "./components/PWAOfflineNotice";
+import ProgressiveValidationLayer from "./components/ProgressiveValidationLayer";
 import { KandidRouteLoader } from "./components/KandidLoader";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import { PromptProvider } from "./context/PromptContext";
+import {
+  isAllowedLocalProductionReadonlyPath,
+  localProductionReadonlyRedirect,
+} from "./utils/localProductionReadOnly";
 
 const Home = lazy(() => import("./pages/Home"));
 const RoleLanding = lazy(() => import("./pages/RoleLanding"));
@@ -42,6 +47,7 @@ const BoardEligibilityRules = lazy(() => import("./pages/board/EligibilityRules"
 const BoardVotingMonitor = lazy(() => import("./pages/board/VotingMonitor"));
 const BoardResults = lazy(() => import("./pages/board/Results"));
 const BoardReports = lazy(() => import("./pages/board/Reports"));
+const BoardAuditTrail = lazy(() => import("./pages/board/AuditTrail"));
 
 const Dashboard = lazy(() => import("./pages/superadmin/Dashboard"));
 const Organizations = lazy(() => import("./pages/superadmin/Organizations"));
@@ -67,6 +73,21 @@ const AdminLogin = lazy(() => import("./pages/auth/AdminLogin"));
 const BoardLogin = lazy(() => import("./pages/auth/BoardLogin"));
 const StudentLogin = lazy(() => import("./pages/auth/StudentLogin"));
 const AdminAuthSetup = lazy(() => import("./pages/auth/AdminAuthSetup"));
+
+const LOCAL_PRODUCTION_READONLY_MODE = "localhost-production-readonly";
+
+function LocalProductionReadOnlyRouteGate({ children }) {
+  const { pathname } = useLocation();
+
+  if (
+    import.meta.env.MODE === LOCAL_PRODUCTION_READONLY_MODE &&
+    !isAllowedLocalProductionReadonlyPath(pathname)
+  ) {
+    return <Navigate to={localProductionReadonlyRedirect(pathname)} replace />;
+  }
+
+  return children;
+}
 
 function RouteFallback() {
   const { pathname } = useLocation();
@@ -97,12 +118,14 @@ function App() {
   return (
     <BrowserRouter>
       <PromptProvider>
+        <ProgressiveValidationLayer />
 
         {/* GLOBAL PWA UPDATE NOTIFICATION */}
         <PWAUpdatePrompt />
         <PWAInstallPrompt />
         <PWAOfflineNotice />
 
+        <LocalProductionReadOnlyRouteGate>
         <Suspense fallback={<RouteFallback />}>
         <Routes>
 
@@ -363,6 +386,11 @@ function App() {
             />
 
             <Route
+              path="audit-trail"
+              element={<BoardAuditTrail />}
+            />
+
+            <Route
               path="students"
               element={<BoardStudents />}
             />
@@ -466,6 +494,7 @@ function App() {
 
         </Routes>
         </Suspense>
+        </LocalProductionReadOnlyRouteGate>
 
       </PromptProvider>
     </BrowserRouter>

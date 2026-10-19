@@ -1,6 +1,19 @@
 import { supabase } from "../lib/supabaseClient";
+import { officersContract } from "./officersContract";
 import { listAdminUsers } from "./adminUsers";
-import { isSupabaseAdminAuthMode } from "./auth";
+import { getVoteDependencyCount } from "./voteAccess";
+import { loadAdminCandidates } from "./adminCandidates";
+
+async function countVoteRecords(entityType, id, context) {
+  const { count, error } = await getVoteDependencyCount(entityType, id, context);
+  if (error) {
+    console.warn(`Vote dependency count failed for ${entityType}:`, error);
+    // Fail closed: an unavailable trusted count must never make a destructive
+    // dependency check look clear.
+    return 1;
+  }
+  return count;
+}
 
 async function countRows(table, column, value) {
   if (value == null) return 0;
@@ -38,36 +51,13 @@ async function getCandidateIdsByPartylist(partylistId) {
 async function getElectionPhaseCounts(electionId) {
   if (!electionId) return { votes: 0, tokens: 0 };
   const [votes, tokens] = await Promise.all([
-    countRows("votes", "election_id", electionId),
+    countVoteRecords("election", electionId),
     countRows("election_access_tokens", "election_id", electionId),
   ]);
   return { votes, tokens };
 }
 
-async function countRowsByFilters(table, filters = []) {
-  let query = supabase
-    .from(table)
-    .select("id", { count: "exact", head: true });
-
-  filters.forEach(([column, value]) => {
-    query = query.eq(column, value);
-  });
-
-  const { count, error } = await query;
-
-  if (error) {
-    console.warn(`Dependency count failed for ${table}:`, error);
-    return 0;
-  }
-
-  return count || 0;
-}
-
 async function countAdminUsersByOrganization(organizationId) {
-  if (!isSupabaseAdminAuthMode()) {
-    return countRows("admin_users", "organization_id", organizationId);
-  }
-
   const { data, error } = await listAdminUsers();
   if (error) {
     console.warn("Admin user dependency count failed:", error);
@@ -114,41 +104,26 @@ export async function analyzeMembershipDependencies({ studentId, organizationId 
   const electionIds = elections.map((election) => election.id).filter(Boolean);
   const positionIds = await getPositionIdsByElections(electionIds);
 
-  const [currentOfficers, pastOfficers, votes] = await Promise.all([
-    countRowsByFilters("officers", [
-      ["student_id", studentId],
-      ["organization_id", organizationId],
-      ["is_current", true],
-    ]),
-    countRowsByFilters("officers", [
-      ["student_id", studentId],
-      ["organization_id", organizationId],
-      ["is_current", false],
-    ]),
+  const [officerCounts, votes] = await Promise.all([
+    officersContract("student_counts", { student_id: studentId, organization_id: organizationId })
+      .catch((error) => {
+        console.warn("Officer membership dependency count failed:", error);
+        return { current: 0, previous: 0 };
+      }),
     electionIds.length
-      ? supabase
-          .from("votes")
-          .select("id", { count: "exact", head: true })
-          .eq("student_id", studentId)
-          .in("election_id", electionIds)
-          .then(({ count, error }) => {
-            if (error) {
-              console.warn("Membership vote dependency count failed:", error);
-              return 0;
-            }
-            return count || 0;
-          })
+      ? countVoteRecords("student_in_organization", studentId, { organization_id: organizationId })
       : 0,
   ]);
+  const currentOfficers = officerCounts.current || 0;
+  const pastOfficers = officerCounts.previous || 0;
 
   let candidates = 0;
   if (positionIds.length > 0) {
-    const { count, error } = await supabase
-      .from("candidates")
-      .select("id", { count: "exact", head: true })
-      .eq("student_id", studentId)
-      .in("position_id", positionIds);
-    candidates = error ? 0 : count || 0;
+    const { data, error } = await loadAdminCandidates({
+      electionIds,
+      studentIds: [studentId],
+    });
+    candidates = error ? 1 : (data || []).filter((candidate) => positionIds.includes(candidate.position_id)).length;
   }
 
   const activeElections = elections.filter((election) =>
@@ -185,6 +160,12 @@ export async function analyzeMembershipDependencies({ studentId, organizationId 
   };
 }
 
+/**
+ * Legacy client-side advisory checks used by Candidates, Elections, Eligibility
+ * Rules, Officers, Partylists, Positions, Students, Users/Roles, and Archives.
+ * Organization deletion uses the trusted database readiness/delete RPCs instead;
+ * these client counts can fail open and are not an authorization boundary.
+ */
 export async function analyzeDeleteDependencies(entityType, entity) {
   const id = typeof entity === "object" ? entity?.id : entity;
   const dependencies = [];
@@ -204,7 +185,7 @@ export async function analyzeDeleteDependencies(entityType, entity) {
       countRows("student_organizations", "organization_id", id),
       countRows("organization_programs", "organization_id", id),
       countRows("elections", "organization_id", id),
-      countRows("officers", "organization_id", id),
+      countRows("officer_directory", "organization_id", id),
       countAdminUsersByOrganization(id),
     ]);
 
@@ -228,12 +209,22 @@ export async function analyzeDeleteDependencies(entityType, entity) {
   }
 
   if (entityType === "student") {
-    const [memberships, candidates, officers, votes] = await Promise.all([
+    const [memberships, candidates, officerCounts, votes] = await Promise.all([
       countRows("student_organizations", "student_id", id),
-      countRows("candidates", "student_id", id),
-      countRows("officers", "student_id", id),
-      countRows("votes", "student_id", id),
+      loadAdminCandidates({ studentIds: [id] }).then(({ data, error }) => {
+        if (error) {
+          console.warn("Candidate dependency count failed:", error);
+          return 1;
+        }
+        return (data || []).length;
+      }),
+      officersContract("student_counts", { student_id: id }).catch((error) => {
+        console.warn("Officer student dependency count failed:", error);
+        return { total: 0 };
+      }),
+      countVoteRecords("student", id),
     ]);
+    const officers = officerCounts.total || 0;
 
     [
       ["Organization memberships", memberships],
@@ -257,11 +248,13 @@ export async function analyzeDeleteDependencies(entityType, entity) {
 
   if (entityType === "election") {
     const positionIds = await getPositionIds(id);
-    const [positions, partylists, eligibilityRules, votes, tokens] = await Promise.all([
+    /* Partylists are deliberately absent from this list. They are
+       organization-level and are no longer owned by an election, so their
+       existence must not block an election deletion. */
+    const [positions, eligibilityRules, votes, tokens] = await Promise.all([
       countRows("positions", "election_id", id),
-      countRows("partylists", "election_id", id),
       countRows("eligibility_rules", "election_id", id),
-      countRows("votes", "election_id", id),
+      countVoteRecords("election", id),
       countRows("election_access_tokens", "election_id", id),
     ]);
 
@@ -277,7 +270,6 @@ export async function analyzeDeleteDependencies(entityType, entity) {
     [
       ["Positions", positions],
       ["Candidates", candidates],
-      ["Partylists", partylists],
       ["Eligibility rules", eligibilityRules],
       ["Votes", votes],
       ["Access tokens", tokens],
@@ -299,7 +291,7 @@ export async function analyzeDeleteDependencies(entityType, entity) {
   if (entityType === "position") {
     const [candidates, votes] = await Promise.all([
       countRows("candidates", "position_id", id),
-      countRows("votes", "position_id", id),
+      countVoteRecords("position", id),
     ]);
     if (candidates > 0) dependencies.push({ label: "Candidates", count: candidates });
     if (votes > 0) dependencies.push({ label: "Vote records", count: votes });
@@ -313,7 +305,7 @@ export async function analyzeDeleteDependencies(entityType, entity) {
   }
 
   if (entityType === "candidate") {
-    const voteCount = await countRows("votes", "candidate_id", id);
+    const voteCount = await countVoteRecords("candidate", id);
     if (voteCount > 0) dependencies.push({ label: "Vote records", count: voteCount });
 
     if (voteCount > 0) {
@@ -329,11 +321,7 @@ export async function analyzeDeleteDependencies(entityType, entity) {
     let votes = 0;
 
     if (candidateIds.length > 0) {
-      const { count, error } = await supabase
-        .from("votes")
-        .select("id", { count: "exact", head: true })
-        .in("candidate_id", candidateIds);
-      votes = error ? 0 : count || 0;
+      votes = await countVoteRecords("partylist", id);
     }
 
     if (candidates > 0) dependencies.push({ label: "Candidates", count: candidates });
@@ -375,11 +363,11 @@ export async function analyzeDeleteDependencies(entityType, entity) {
     if (votes > 0) {
       severity = "archive";
       recommendation =
-        "This rule belongs to an election with voting history. Keep it as part of the historical access configuration.";
+        "This rule belongs to an election with voting history. Keep it as part of the historical declared audience.";
     } else {
       severity = "delete";
       recommendation =
-        "Deleting this rule changes who can vote in the election. Confirm only if the election setup should no longer use it.";
+        "Deleting this rule removes its declared audience metadata. Enrollment, organization participation and the locked electorate continue to determine voting access.";
     }
   }
 

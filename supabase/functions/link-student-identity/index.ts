@@ -1,10 +1,6 @@
+import { corsHeaders, handleCorsPreflight, rejectDisallowedOrigin, serveWithKandidCors } from "../_shared/kandidProductionSecurity.mjs";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -16,29 +12,37 @@ function jsonResponse(body: Record<string, unknown>, status = 200) {
   });
 }
 
-function cleanText(value: unknown, maxLength = 255) {
-  return String(value || "").trim().slice(0, maxLength);
+function cleanStudentNumber(value: unknown) {
+  if (typeof value !== "string") return "";
+  const normalized = value.trim();
+  return /^[0-9]{1,20}$/.test(normalized) ? normalized : "";
 }
 
 function normalizeEmail(email: unknown) {
-  return cleanText(email, 320).toLowerCase();
+  return typeof email === "string" ? email.trim().slice(0, 320).toLowerCase() : "";
 }
 
-function safeLinkingError(status = 403) {
-  return jsonResponse({ error: "Student identity could not be linked." }, status);
+function validSetupPassword(value: unknown) {
+  return typeof value === "string" && value.length >= 6 && value.length <= 256 &&
+    /[A-Za-z]/.test(value) && /\d/.test(value) && /[^A-Za-z0-9]/.test(value);
 }
 
-function logLinkFailure(reason: string, details: Record<string, unknown> = {}) {
-  console.warn("[link-student-identity] link rejected", {
-    reason,
-    ...details,
-  });
+function safeLinkingError() {
+  return jsonResponse({ error: "Student identity could not be linked." }, 403);
 }
 
-Deno.serve(async (request) => {
-  if (request.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+function logLinkFailure(reason: string) {
+  // Log only fixed reason codes. Never log student identifiers, email, Auth IDs,
+  // passwords, tokens, or database error details from this boundary.
+  console.warn("[link-student-identity] link rejected", reason);
+}
+
+serveWithKandidCors(async (request) => {
+  const preflightResponse = handleCorsPreflight(request);
+  if (preflightResponse) return preflightResponse;
+
+  const originRejection = rejectDisallowedOrigin(request);
+  if (originRejection) return originRejection;
 
   if (request.method !== "POST") {
     return jsonResponse({ error: "Method not allowed." }, 405);
@@ -72,10 +76,8 @@ Deno.serve(async (request) => {
   }
 
   if (!user.email_confirmed_at) {
-    logLinkFailure("auth_email_not_verified", {
-      auth_user_id: user.id,
-    });
-    return safeLinkingError(403);
+    logLinkFailure("auth_email_not_verified");
+    return safeLinkingError();
   }
 
   let body: Record<string, unknown>;
@@ -85,12 +87,12 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: "Invalid JSON body." }, 400);
   }
 
-  const studentNumber = cleanText(body.student_number, 80);
-  const legacyPassword = String(body.legacy_password || "");
+  const studentNumber = cleanStudentNumber(body.student_number);
   const setupMode = body.setup_mode === true;
+  const password = body.password;
 
-  if (!studentNumber || (!legacyPassword && !setupMode)) {
-    return safeLinkingError(401);
+  if (!studentNumber || !setupMode || !validSetupPassword(password)) {
+    return safeLinkingError();
   }
 
   const verifiedEmail = normalizeEmail(user.email);
@@ -107,10 +109,7 @@ Deno.serve(async (request) => {
     .limit(2);
 
   if (privilegedAuthError) {
-    console.error("[link-student-identity] privileged collision check failed", {
-      code: privilegedAuthError.code || null,
-      message: privilegedAuthError.message || "Unknown database error.",
-    });
+    console.error("[link-student-identity] privileged collision check failed");
     return jsonResponse({ error: "Unable to verify account eligibility." }, 500);
   }
 
@@ -120,10 +119,7 @@ Deno.serve(async (request) => {
     .not("email", "is", null);
 
   if (privilegedEmailError) {
-    console.error("[link-student-identity] privileged email collision check failed", {
-      code: privilegedEmailError.code || null,
-      message: privilegedEmailError.message || "Unknown database error.",
-    });
+    console.error("[link-student-identity] privileged email collision check failed");
     return jsonResponse({ error: "Unable to verify account eligibility." }, 500);
   }
 
@@ -132,10 +128,8 @@ Deno.serve(async (request) => {
   );
 
   if ((privilegedAuthProfiles || []).length > 0 || privilegedEmailProfiles.length > 0) {
-    logLinkFailure("privileged_identity_collision", {
-      auth_user_id: user.id,
-    });
-    return safeLinkingError(409);
+    logLinkFailure("privileged_identity_collision");
+    return safeLinkingError();
   }
 
   const { data: existingLinks, error: existingLinkError } = await adminClient
@@ -145,32 +139,24 @@ Deno.serve(async (request) => {
     .limit(2);
 
   if (existingLinkError) {
-    console.error("[link-student-identity] existing student link check failed", {
-      code: existingLinkError.code || null,
-      message: existingLinkError.message || "Unknown database error.",
-    });
+    console.error("[link-student-identity] existing student link check failed");
     return jsonResponse({ error: "Unable to verify existing student link." }, 500);
   }
 
   const { data: studentRows, error: studentLookupError } = await adminClient
     .from("students")
-    .select("id, auth_user_id, student_number, email, password, status")
+    .select("id, auth_user_id, student_number, email, status")
     .eq("student_number", studentNumber)
     .limit(2);
 
   if (studentLookupError) {
-    console.error("[link-student-identity] student lookup failed", {
-      code: studentLookupError.code || null,
-      message: studentLookupError.message || "Unknown database error.",
-    });
+    console.error("[link-student-identity] student lookup failed");
     return jsonResponse({ error: "Unable to verify student account." }, 500);
   }
 
   if (!studentRows || studentRows.length !== 1) {
-    logLinkFailure("student_number_not_unique_or_missing", {
-      auth_user_id: user.id,
-    });
-    return safeLinkingError(401);
+    logLinkFailure("student_number_not_unique_or_missing");
+    return safeLinkingError();
   }
 
   const student = studentRows[0];
@@ -179,49 +165,24 @@ Deno.serve(async (request) => {
     existingLinks?.length === 1 && Number(existingLinks[0].id) === Number(student.id);
 
   if (existingLinks?.length && !existingSameStudentLink) {
-    logLinkFailure("auth_user_already_linked_to_other_student", {
-      auth_user_id: user.id,
-    });
-    return safeLinkingError(409);
+    logLinkFailure("auth_user_already_linked_to_other_student");
+    return safeLinkingError();
   }
 
-  if (setupMode && student.status !== "pending") {
-    logLinkFailure("setup_mode_requires_pending_student", {
-      student_id: student.id,
-      status: student.status || null,
-    });
-    return safeLinkingError(403);
-  }
-
-  if (student.status !== "active" && !(setupMode && student.status === "pending")) {
-    logLinkFailure("student_status_not_active", {
-      student_id: student.id,
-      status: student.status || null,
-    });
-    return safeLinkingError(403);
-  }
-
-  if (!setupMode && student.password !== legacyPassword) {
-    logLinkFailure("legacy_credentials_invalid", {
-      student_id: student.id,
-    });
-    return safeLinkingError(401);
+  if (student.status !== "active" && student.status !== "pending") {
+    logLinkFailure("student_status_not_eligible");
+    return safeLinkingError();
   }
 
   const studentEmail = normalizeEmail(student.email);
   if (!studentEmail || studentEmail !== verifiedEmail) {
-    logLinkFailure("student_email_mismatch", {
-      student_id: student.id,
-      auth_user_id: user.id,
-    });
-    return safeLinkingError(403);
+    logLinkFailure("student_email_mismatch");
+    return safeLinkingError();
   }
 
   if (student.auth_user_id && student.auth_user_id !== user.id) {
-    logLinkFailure("student_already_linked_to_other_auth_user", {
-      student_id: student.id,
-    });
-    return safeLinkingError(409);
+    logLinkFailure("student_already_linked_to_other_auth_user");
+    return safeLinkingError();
   }
 
   const { data: emailRows, error: emailLookupError } = await adminClient
@@ -230,10 +191,7 @@ Deno.serve(async (request) => {
     .not("email", "is", null);
 
   if (emailLookupError) {
-    console.error("[link-student-identity] student email collision check failed", {
-      code: emailLookupError.code || null,
-      message: emailLookupError.message || "Unknown database error.",
-    });
+    console.error("[link-student-identity] student email collision check failed");
     return jsonResponse({ error: "Unable to verify student email uniqueness." }, 500);
   }
 
@@ -248,11 +206,29 @@ Deno.serve(async (request) => {
       : activeEmailMatches.length === 0;
 
   if (!activeEmailMatchesExpected) {
-    logLinkFailure("active_student_email_not_unique", {
-      student_id: student.id,
-      match_count: activeEmailMatches.length,
+    logLinkFailure("active_student_email_not_unique");
+    return safeLinkingError();
+  }
+
+  // This stateless function has the verified caller's bearer token, not an
+  // SDK-persisted session. Use Auth's self-service endpoint with that token;
+  // never substitute an administrator password reset or client-selected UID.
+  let passwordUpdated: boolean;
+  try {
+    const passwordResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      method: "PUT",
+      headers: { Authorization: authorization, apikey: anonKey, "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
     });
-    return safeLinkingError(409);
+    const updatedUser = await passwordResponse.json().catch(() => null);
+    passwordUpdated = passwordResponse.ok && updatedUser?.id === user.id &&
+      normalizeEmail(updatedUser.email) === verifiedEmail && Boolean(updatedUser.email_confirmed_at);
+  } catch {
+    passwordUpdated = false;
+  }
+  if (!passwordUpdated) {
+    logLinkFailure("password_setup_failed");
+    return jsonResponse({ error: "Account setup could not be completed." }, 400);
   }
 
   if (student.auth_user_id === user.id && existingSameStudentLink && student.status === "active") {
@@ -284,11 +260,8 @@ Deno.serve(async (request) => {
     .single();
 
   if (updateError) {
-    console.error("[link-student-identity] student link update failed", {
-      code: updateError.code || null,
-      message: updateError.message || "Unknown database error.",
-    });
-    return safeLinkingError(409);
+    console.error("[link-student-identity] student link update failed");
+    return safeLinkingError();
   }
 
   return jsonResponse({

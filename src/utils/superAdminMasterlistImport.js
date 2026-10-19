@@ -24,6 +24,7 @@ export async function createMasterlistImport({
   academicTermId,
   fileName,
   rows,
+  importScope = "incremental",
 }) {
   const { data: result, error } = await supabase.functions.invoke(
     MASTERLIST_FUNCTION,
@@ -32,6 +33,7 @@ export async function createMasterlistImport({
         action: "create_import",
         academic_term_id: Number(academicTermId),
         file_name: fileName,
+        import_scope: importScope,
         rows,
       },
     },
@@ -101,13 +103,15 @@ export async function removeMasterlistImportRow({ importId, rowId }) {
   };
 }
 
-export async function finalizeMasterlistImport(importId) {
+export async function finalizeMasterlistImport(importId, options = {}) {
   const { data: result, error } = await supabase.functions.invoke(
     MASTERLIST_FUNCTION,
     {
       body: {
         action: "finalize_import",
         import_id: Number(importId),
+        confirm_full_roster: options.confirmFullRoster === true,
+        absence_preview_fingerprint: options.absencePreviewFingerprint || null,
       },
     },
   );

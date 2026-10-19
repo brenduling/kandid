@@ -1,71 +1,43 @@
 import { useEffect, useState } from "react";
 import "./RemainingPages.css";
-import { RefreshCw, Vote, Users, Clock, CheckCircle } from "lucide-react";
+import { RefreshCw, Vote, Users, Clock } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
+import { callVoteAccess } from "../../utils/voteAccess";
+import SuperAdminPageHeader from "../../components/SuperAdminPageHeader";
 import { formatLocalDateTime } from "../../utils/time";
+import { loadElectionTurnout, formatTurnoutPercentage, turnoutMetricValue, turnoutAvailabilityLabel } from "../../utils/electionTurnout";
 
 function VotingMonitor() {
   const [votes, setVotes] = useState([]);
-  const [students, setStudents] = useState([]);
   const [elections, setElections] = useState([]);
   const [selectedElection, setSelectedElection] = useState("all");
+  const [turnoutSummary, setTurnoutSummary] = useState(null);
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  async function fetchData() {
-    const [
-      { data: votesData, error: votesError },
-      { data: studentsData, error: studentsError },
-      { data: electionsData, error: electionsError },
-    ] = await Promise.all([
-      supabase
-        .from("votes")
-        .select(`
-          id,
-          election_id,
-          position_id,
-          candidate_id,
-          student_id,
-          is_abstain,
-          vote_timestamp,
-          blockchain_tx_id,
-          students (
-            student_number,
-            first_name,
-            last_name
-          ),
-          elections (
-            title
-          ),
-          positions (
-            name
-          ),
-          candidates (
-            students (
-              first_name,
-              last_name
-            )
-          )
-        `)
-        .order("vote_timestamp", { ascending: false }),
-      supabase
-        .from("students")
-        .select("id", { count: "exact" }),
+  async function fetchData(electionValue = selectedElection) {
+    const [voteResult, { data: electionsData, error: electionsError }] = await Promise.all([
+      callVoteAccess("super_admin_voting_monitor"),
       supabase
         .from("elections")
-        .select("id, title")
+        .select("id, title, organization_id")
         .order("id", { ascending: true }),
     ]);
 
-    [votesError, studentsError, electionsError].filter(Boolean).forEach((error) => {
+    [voteResult.error, electionsError].filter(Boolean).forEach((error) => {
       console.error("Failed to load voting monitor data:", error);
     });
 
-    setVotes(votesData || []);
-    setStudents(studentsData || []);
+    setVotes(voteResult.data?.rows || []);
     setElections(electionsData || []);
+    if (electionValue !== "all") {
+      const turnoutResult = await loadElectionTurnout(electionValue);
+      setTurnoutSummary(turnoutResult.error ? null : turnoutResult.data);
+    } else {
+      setTurnoutSummary(null);
+    }
   }
 
   const filteredVotes =
@@ -73,36 +45,25 @@ function VotingMonitor() {
       ? votes
       : votes.filter((vote) => vote.election_id === Number(selectedElection));
 
-  const uniqueVoters = new Set(filteredVotes.map((vote) => vote.student_id));
-
-  const totalStudents = students.length;
-  const totalVotes = filteredVotes.length;
-  const totalVoters = uniqueVoters.size;
-  const turnout =
-    totalStudents > 0 ? ((totalVoters / totalStudents) * 100).toFixed(1) : 0;
+  const totalVotes = filteredVotes.reduce((count, row) => count + Number(row.total_ballots || 0), 0);
 
   return (
     <div className="sa-remaining-page sa-voting-monitor">
-      <div className="page-head">
-        <div>
-          <p className="sa-remaining-breadcrumb"><span>Kandid</span><span>/</span><span>Super Admin</span></p>
-          <div className="page-kicker">Live Operations</div>
-          <h1 className="page-title">Voting Monitor</h1>
-          <p className="page-subtitle">
-            Monitor vote submissions, turnout, and election activity.
-          </p>
-        </div>
-
-        <button onClick={fetchData} className="primary-btn">
-          <RefreshCw size={18} />
-          Refresh
-        </button>
-      </div>
+      <SuperAdminPageHeader
+        section="Election operations"
+        title="Voting Monitor"
+        description="Monitor vote submissions, turnout, and election activity."
+        actions={<button onClick={fetchData} className="primary-btn"><RefreshCw size={18} />Refresh</button>}
+      />
 
       <div className="mt-8 flex justify-between items-center">
         <select
           value={selectedElection}
-          onChange={(e) => setSelectedElection(e.target.value)}
+          onChange={(e) => {
+            const value = e.target.value;
+            setSelectedElection(value);
+            fetchData(value);
+          }}
           className="field-shell bg-white px-4 py-3 outline-none"
         >
           <option value="all">All Elections</option>
@@ -125,18 +86,18 @@ function VotingMonitor() {
 
         <div className="metric-card">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">Unique Voters</p>
+            <p className="text-sm text-gray-500">Eligible Voters</p>
             <Users className="text-[#ff5a1f]" size={22} />
           </div>
-          <h2 className="text-3xl font-black mt-2">{totalVoters}</h2>
+          <h2 className="text-3xl font-black mt-2">{turnoutMetricValue(turnoutSummary, "eligible_voters")}</h2>
         </div>
 
         <div className="metric-card">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">Total Students</p>
-            <CheckCircle className="text-[#ff5a1f]" size={22} />
+            <p className="text-sm text-gray-500">Voters Participated</p>
+            <Users className="text-[#ff5a1f]" size={22} />
           </div>
-          <h2 className="text-3xl font-black mt-2">{totalStudents}</h2>
+          <h2 className="text-3xl font-black mt-2">{turnoutMetricValue(turnoutSummary, "participated_voters")}</h2>
         </div>
 
         <div className="metric-card">
@@ -144,7 +105,8 @@ function VotingMonitor() {
             <p className="text-sm text-gray-500">Turnout</p>
             <Clock className="text-[#ff5a1f]" size={22} />
           </div>
-          <h2 className="text-3xl font-black mt-2">{turnout}%</h2>
+          <h2 className="text-3xl font-black mt-2">{formatTurnoutPercentage(turnoutSummary)}</h2>
+          <p className="mt-2 text-xs text-gray-500">{turnoutSummary ? turnoutAvailabilityLabel(turnoutSummary) : "Select an election for turnout."}</p>
         </div>
       </div>
 
@@ -152,12 +114,12 @@ function VotingMonitor() {
         <table className="app-table">
           <thead>
             <tr>
-              <th className="px-6 py-4 text-sm">Voter</th>
+              <th className="px-6 py-4 text-sm">Submitted</th>
               <th className="px-6 py-4 text-sm">Election</th>
-              <th className="px-6 py-4 text-sm">Position</th>
-              <th className="px-6 py-4 text-sm">Vote Type</th>
-              <th className="px-6 py-4 text-sm">Time</th>
-              <th className="px-6 py-4 text-sm">Blockchain</th>
+              <th className="px-6 py-4 text-sm">Ballot V1</th>
+              <th className="px-6 py-4 text-sm">Legacy Records</th>
+              <th className="px-6 py-4 text-sm">Latest Submission</th>
+              <th className="px-6 py-4 text-sm">Anchor Queue</th>
             </tr>
           </thead>
 
@@ -165,55 +127,32 @@ function VotingMonitor() {
             {filteredVotes.length === 0 ? (
               <tr>
                 <td colSpan="6" className="px-6 py-10 text-center text-gray-500">
-                  No votes recorded yet.
+                  No aggregate vote activity is available.
                 </td>
               </tr>
             ) : (
               filteredVotes.map((vote) => (
                 <tr key={vote.id} className="border-b last:border-b-0">
-                  <td className="px-6 py-4">
-                    <p className="font-bold">
-                      {vote.students?.first_name} {vote.students?.last_name}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {vote.students?.student_number}
-                    </p>
-                  </td>
+                  <td className="px-6 py-4 font-bold">{vote.total_ballots}</td>
 
                   <td className="px-6 py-4">
                     {vote.elections?.title || "-"}
                   </td>
 
                   <td className="px-6 py-4">
-                    {vote.positions?.name || "-"}
+                    {vote.ballot_count}
                   </td>
 
-                  <td className="px-6 py-4">
-                    {vote.is_abstain ? (
-                      <span className="sa-vote-type is-abstain">
-                        Abstain
-                      </span>
-                    ) : (
-                      <span className="sa-vote-type is-candidate">
-                        Candidate Vote
-                      </span>
-                    )}
-                  </td>
+                  <td className="px-6 py-4">{vote.legacy_voter_count}</td>
 
                   <td className="px-6 py-4 text-sm text-gray-600">
-                    {formatLocalDateTime(vote.vote_timestamp, "-")}
+                    {formatLocalDateTime(vote.latest_submission, "-")}
                   </td>
 
                   <td className="px-6 py-4">
-                    {vote.blockchain_tx_id ? (
-                      <span className="text-xs font-bold text-green-600">
-                        Recorded
-                      </span>
-                    ) : (
-                      <span className="text-xs font-bold text-orange-600">
-                        Pending
-                      </span>
-                    )}
+                    <span className="text-xs font-bold">
+                      {vote.pending_anchors} pending · {vote.failed_anchors} attention
+                    </span>
                   </td>
                 </tr>
               ))

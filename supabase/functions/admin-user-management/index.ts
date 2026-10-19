@@ -1,10 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+import {
+  corsHeaders,
+  handleCorsPreflight,
+  rejectDisallowedOrigin,
+  resolveAdminInviteRedirect,
+  serveWithKandidCors,
+} from "../_shared/kandidProductionSecurity.mjs";
 
 const roles = new Set(["super_admin", "electoral_board"]);
 const statuses = new Set(["active", "disabled"]);
@@ -39,14 +40,14 @@ function sanitizeDbError(error: { code?: string; message?: string } | null) {
 }
 
 function logStage(stage: string, details: Record<string, unknown> = {}) {
-  console.log(`[admin-user-management] ${stage}`, details);
+  void details;
+  console.log(`[admin-user-management] ${stage}`);
 }
 
 function logFailure(stage: string, error: { code?: string; message?: string } | Error | null) {
   const safeError = error as { code?: string; message?: string } | null;
   console.error(`[admin-user-management] ${stage}`, {
-    code: safeError?.code || null,
-    message: safeError?.message || "Request failed.",
+    code: /^[A-Z0-9]{5}$/.test(String(safeError?.code || "")) ? safeError?.code : null,
   });
 }
 
@@ -125,7 +126,7 @@ async function findAuthUsersByEmail(adminClient: ReturnType<typeof createClient>
   return { users: matches, error: null };
 }
 
-async function requireSuperAdmin(request: Request, supabaseUrl: string, anonKey: string, serviceRoleKey: string) {
+async function requireActiveAdmin(request: Request, supabaseUrl: string, anonKey: string, serviceRoleKey: string) {
   const authorization = request.headers.get("Authorization");
   if (!authorization) return { response: jsonResponse({ error: "Authentication required." }, 401) };
 
@@ -166,10 +167,10 @@ async function requireSuperAdmin(request: Request, supabaseUrl: string, anonKey:
   if (
     !adminProfile ||
     adminProfile.auth_user_id !== user.id ||
-    adminProfile.role !== "super_admin" ||
+    !roles.has(String(adminProfile.role)) ||
     adminProfile.status !== "active"
   ) {
-    return { response: jsonResponse({ error: "Super Admin authorization required." }, 403) };
+    return { response: jsonResponse({ error: "Active administrator authorization required." }, 403) };
   }
 
   return { adminClient, user, adminProfile };
@@ -222,12 +223,14 @@ async function validateAdminPayload(adminClient: ReturnType<typeof createClient>
   return { full_name: fullName, email, role, status, organization_id: organizationId, photo_url: photoUrl };
 }
 
-Deno.serve(async (request) => {
+serveWithKandidCors(async (request) => {
   logStage("start", { method: request.method });
 
-  if (request.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const preflightResponse = handleCorsPreflight(request);
+  if (preflightResponse) return preflightResponse;
+
+  const originRejection = rejectDisallowedOrigin(request);
+  if (originRejection) return originRejection;
 
   if (request.method !== "POST") {
     return jsonResponse({ error: "Method not allowed." }, 405);
@@ -236,13 +239,12 @@ Deno.serve(async (request) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const inviteRedirectTo = Deno.env.get("KANDID_ADMIN_INVITE_REDIRECT_URL");
 
   if (!supabaseUrl || !anonKey || !serviceRoleKey) {
     return jsonResponse({ error: "Server configuration is incomplete." }, 500);
   }
 
-  const auth = await requireSuperAdmin(request, supabaseUrl, anonKey, serviceRoleKey);
+  const auth = await requireActiveAdmin(request, supabaseUrl, anonKey, serviceRoleKey);
   if ("response" in auth) return auth.response;
 
   let body: Record<string, unknown>;
@@ -256,6 +258,13 @@ Deno.serve(async (request) => {
   const { adminClient, adminProfile } = auth;
   const action = String(body.action || "");
   logStage("action-resolved", { action });
+
+  if (
+    adminProfile.role !== "super_admin" &&
+    !(adminProfile.role === "electoral_board" && action === "update_self_profile")
+  ) {
+    return jsonResponse({ error: "Super Admin authorization required." }, 403);
+  }
 
   try {
     if (body.action === "list") {
@@ -296,7 +305,9 @@ Deno.serve(async (request) => {
       if (body.action === "create") {
         const { data: inviteData, error: inviteError } =
           await adminClient.auth.admin.inviteUserByEmail(payload.email, {
-            redirectTo: inviteRedirectTo || undefined,
+            redirectTo: resolveAdminInviteRedirect(
+              Deno.env.get("KANDID_ADMIN_INVITE_REDIRECT_URL"),
+            ),
           });
 
         if (inviteError || !inviteData.user?.id) {
@@ -439,7 +450,9 @@ Deno.serve(async (request) => {
 
       const { data: inviteData, error: inviteError } =
         await adminClient.auth.admin.inviteUserByEmail(normalizedEmail, {
-          redirectTo: inviteRedirectTo || undefined,
+          redirectTo: resolveAdminInviteRedirect(
+            Deno.env.get("KANDID_ADMIN_INVITE_REDIRECT_URL"),
+          ),
         });
 
       if (inviteError || !inviteData.user?.id) {
@@ -622,12 +635,14 @@ Deno.serve(async (request) => {
       logStage("update-self-profile-start");
 
       const profile = (body.profile || {}) as Record<string, unknown>;
-      const payload = {
-        full_name: cleanText(profile.full_name),
+      const fullName =
+        adminProfile.role === "electoral_board" ? "" : cleanText(profile.full_name);
+      const payload: Record<string, string | null> = {
+        ...(adminProfile.role === "electoral_board" ? {} : { full_name: fullName }),
         photo_url: cleanText(profile.photo_url || "", 2000) || null,
       };
 
-      if (!payload.full_name) {
+      if (adminProfile.role !== "electoral_board" && !fullName) {
         logFailure("update-self-profile-failed", new Error("Full name is required."));
         return jsonResponse({ error: "Full name is required." }, 400);
       }
@@ -636,6 +651,9 @@ Deno.serve(async (request) => {
         .from("admin_users")
         .update(payload)
         .eq("id", adminProfile.id)
+        .eq("auth_user_id", auth.user.id)
+        .eq("role", adminProfile.role)
+        .eq("status", "active")
         .select("id, auth_user_id, email, full_name, role, status, organization_id, photo_url, created_at, organizations(id, name)")
         .single();
 

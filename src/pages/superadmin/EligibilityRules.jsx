@@ -3,6 +3,7 @@ import "./RemainingPages.css";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
 import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
+import SuperAdminPageHeader from "../../components/SuperAdminPageHeader";
 import { usePrompt } from "../../context/PromptContext";
 import { logAuditEvent } from "../../utils/auditLog";
 import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
@@ -169,24 +170,12 @@ function EligibilityRules() {
 
   return (
     <div className="sa-remaining-page sa-eligibility-rules">
-      <div className="page-head">
-        <div>
-          <p className="sa-remaining-breadcrumb"><span>Kandid</span><span>/</span><span>Super Admin</span></p>
-          <div className="page-kicker">Voting Access</div>
-          <h1 className="page-title">Eligibility rules</h1>
-          <p className="page-subtitle">
-            Define who is allowed to vote in each election.
-          </p>
-        </div>
-
-        <button
-          onClick={openCreate}
-          className="primary-btn self-start lg:self-auto"
-        >
-          <Plus size={18} />
-          Add Rule
-        </button>
-      </div>
+      <SuperAdminPageHeader
+        section="Election operations"
+        title="Eligibility Rules"
+        description="Define which students may vote in each election."
+        actions={<button onClick={openCreate} className="primary-btn"><Plus size={18} />Add Rule</button>}
+      />
 
       {rules.length === 0 ? (
         <div className="empty-state mt-8">No eligibility rules found.</div>

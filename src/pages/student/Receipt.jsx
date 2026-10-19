@@ -8,7 +8,11 @@ import {
 } from "../../components/student/StudentSkeleton";
 import { formatUtcTimestampAsManilaDate, formatUtcTimestampAsManilaDateTime } from "../../utils/time";
 import {
-  BLOCKCHAIN_POLL_INTERVAL_MS,
+  getReceiptPollDelayMs,
+  RECEIPT_AUTO_POLL_MAX_MS,
+  shouldContinueReceiptAutoPolling,
+} from "../../utils/receiptPolling";
+import {
   fetchStudentVotes,
   getBlockchainStatusMeta,
   getNormalizedBlockchainStatus,
@@ -141,6 +145,9 @@ function StudentReceipt() {
   const [expandedReceipts, setExpandedReceipts] = useState({});
   const isFetchingRef = useRef(false);
   const pollingErrorLoggedRef = useRef(false);
+  const pollingStartedAtRef = useRef(null);
+  const [pollAttempt, setPollAttempt] = useState(0);
+  const [autoPollingStopped, setAutoPollingStopped] = useState(false);
   const user = JSON.parse(localStorage.getItem("user"));
 
   const loadVotes = useCallback(async ({ active = () => true, silent = false } = {}) => {
@@ -149,6 +156,9 @@ function StudentReceipt() {
     isFetchingRef.current = true;
 
     if (!silent) {
+      pollingStartedAtRef.current = null;
+      setPollAttempt(0);
+      setAutoPollingStopped(false);
       setLoading(true);
       setLoadError("");
     }
@@ -212,18 +222,39 @@ function StudentReceipt() {
   );
 
   useEffect(() => {
-    if (!shouldPollReceipts && !shouldPollLegacyVotes) return undefined;
+    if (!shouldPollReceipts && !shouldPollLegacyVotes) {
+      pollingStartedAtRef.current = null;
+      return undefined;
+    }
+
+    if (pollingStartedAtRef.current === null) {
+      pollingStartedAtRef.current = Date.now();
+    }
+
+    const startedAt = pollingStartedAtRef.current;
+    if (!shouldContinueReceiptAutoPolling(startedAt)) {
+      return undefined;
+    }
 
     let mounted = true;
-    const refreshId = window.setInterval(() => {
-      loadVotes({ active: () => mounted, silent: true });
-    }, BLOCKCHAIN_POLL_INTERVAL_MS);
+    const elapsed = Date.now() - startedAt;
+    const remaining = Math.max(0, RECEIPT_AUTO_POLL_MAX_MS - elapsed);
+    const refreshId = window.setTimeout(async () => {
+      await loadVotes({ active: () => mounted, silent: true });
+      if (mounted) {
+        if (shouldContinueReceiptAutoPolling(startedAt)) {
+          setPollAttempt((attempt) => attempt + 1);
+        } else {
+          setAutoPollingStopped(true);
+        }
+      }
+    }, Math.min(getReceiptPollDelayMs(pollAttempt), remaining));
 
     return () => {
       mounted = false;
-      window.clearInterval(refreshId);
+      window.clearTimeout(refreshId);
     };
-  }, [loadVotes, shouldPollReceipts, shouldPollLegacyVotes]);
+  }, [loadVotes, shouldPollReceipts, shouldPollLegacyVotes, pollAttempt]);
 
   function isReceiptExpanded(receipt, index) {
     if (expandedReceipts[receipt.key] === undefined) {
@@ -264,6 +295,11 @@ function StudentReceipt() {
           <RefreshCw size={15} />
           Refresh
         </button>
+        {autoPollingStopped && (shouldPollReceipts || shouldPollLegacyVotes) ? (
+          <span className="student-receipts-polling-note" role="status">
+            Automatic updates paused. Use Refresh to check again.
+          </span>
+        ) : null}
       </header>
 
       <div className="student-receipts-list">

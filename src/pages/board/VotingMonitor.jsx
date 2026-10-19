@@ -1,236 +1,177 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import "./BoardRemainingPages.css";
-import { RefreshCw, Vote, Users, CheckCircle, Clock } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
-import { formatLocalDateTime } from "../../utils/time";
+import "./VotingMonitor.css";
+
+const EMPTY_SUMMARY = {
+  ballots_submitted: 0,
+  students_voted: 0,
+  anchored: 0,
+  processing: 0,
+  needs_attention: 0,
+};
+
+async function requestBoardMonitor(electionId) {
+  try {
+    return await supabase.rpc("kandid_get_board_voting_monitor", {
+      p_election_id: electionId,
+      p_offset: 0,
+      p_limit: 50,
+    });
+  } catch (error) {
+    return { data: null, error };
+  }
+}
 
 function BoardVotingMonitor() {
-  const [votes, setVotes] = useState([]);
+  const [summary, setSummary] = useState(EMPTY_SUMMARY);
   const [elections, setElections] = useState([]);
   const [selectedElection, setSelectedElection] = useState("all");
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
   const user = JSON.parse(localStorage.getItem("user"));
-  const orgId = user?.organization_id;
+  const orgName = user?.organizations?.name || "your organization";
 
-  useEffect(() => {
-    fetchData();
-  }, [orgId]);
-
-  async function fetchData() {
-    if (!orgId) return;
-
-    const { data: orgElections } = await supabase
-      .from("elections")
-      .select("id, title")
-      .eq("organization_id", orgId);
-
-    const electionIds = orgElections?.map((e) => e.id) || [];
-
-    setElections(orgElections || []);
-
-    if (electionIds.length === 0) {
-      setVotes([]);
+  const applyResponse = useCallback(({ data, error }) => {
+    if (error) {
+      console.error("Unable to load Board ballot monitor.", error.message || error);
+      setLoadError("Ballot activity could not be loaded. Refresh and try again.");
+      setLoading(false);
+      setRefreshing(false);
       return;
     }
 
-    const { data: voteData, error } = await supabase
-      .from("votes")
-      .select(`
-        id,
-        election_id,
-        position_id,
-        candidate_id,
-        student_id,
-        is_abstain,
-        vote_timestamp,
-        blockchain_tx_id,
-        students (
-          student_number,
-          first_name,
-          last_name
-        ),
-        elections (
-          title
-        ),
-        positions (
-          name
-        ),
-        candidates (
-          students (
-            first_name,
-            last_name
-          )
-        )
-      `)
-      .in("election_id", electionIds)
-      .order("vote_timestamp", { ascending: false });
+    const result = data || {};
+    setElections(Array.isArray(result.elections) ? result.elections : []);
+    setSummary({ ...EMPTY_SUMMARY, ...(result.summary || {}) });
+    setLoading(false);
+    setRefreshing(false);
+  }, []);
 
-    if (!error) setVotes(voteData || []);
-    if (error) console.log(error);
+  const fetchData = useCallback(async (electionValue = selectedElection) => {
+    setLoadError("");
+    setRefreshing(true);
+    setLoading(true);
+    const electionId = electionValue === "all" ? null : Number(electionValue);
+    applyResponse(await requestBoardMonitor(electionId));
+  }, [applyResponse, selectedElection]);
+
+  useEffect(() => {
+    let active = true;
+    requestBoardMonitor(null).then((response) => {
+      if (active) applyResponse(response);
+    });
+    return () => { active = false; };
+  }, [applyResponse]);
+
+  function handleElectionChange(event) {
+    const value = event.target.value;
+    setSelectedElection(value);
+    fetchData(value);
   }
-
-  const filteredVotes =
-    selectedElection === "all"
-      ? votes
-      : votes.filter((vote) => vote.election_id === Number(selectedElection));
-
-  const uniqueVoters = new Set(filteredVotes.map((vote) => vote.student_id));
-
-  const totalVotes = filteredVotes.length;
-  const totalVoters = uniqueVoters.size;
-  const abstainVotes = filteredVotes.filter((vote) => vote.is_abstain).length;
-  const candidateVotes = filteredVotes.filter((vote) => !vote.is_abstain).length;
 
   return (
     <div className="board-remaining-page board-voting-monitor">
-      <div className="page-head">
-        <div>
-          <p className="board-remaining-breadcrumb"><span>Kandid</span><span>/</span><span>Electoral Board</span></p>
-          <div className="page-kicker">Live Vote Activity</div>
-          <h1 className="page-title">Board voting monitor</h1>
-          <p className="page-subtitle">
-            Monitor vote activity for your assigned organization.
+      <header className="board-voting-masthead">
+        <div className="board-voting-masthead-context">
+          <span className="board-voting-eyebrow">Electoral Board / {orgName}</span>
+          <span className="board-voting-masthead-rule" aria-hidden="true" />
+        </div>
+
+        <div className="board-voting-baseline">
+          <h1 className="page-title board-voting-title">Voting Monitor</h1>
+          <button
+            type="button"
+            className="board-voting-refresh"
+            onClick={() => fetchData()}
+            disabled={refreshing}
+          >
+            <RefreshCw size={15} aria-hidden="true" className={refreshing ? "is-spinning" : ""} />
+            Refresh
+          </button>
+        </div>
+
+        <p className="board-voting-standfirst">
+          Aggregate turnout and anchoring health for {orgName}.
+        </p>
+      </header>
+
+      <section className="board-voting-context" aria-labelledby="board-voting-context-title">
+        <div className="board-voting-section-heading">
+          <p className="board-voting-section-label">Election context</p>
+          <h2 id="board-voting-context-title">
+            {selectedElection === "all"
+              ? "All elections"
+              : elections.find((election) => String(election.id) === selectedElection)?.title || "Selected election"}
+          </h2>
+        </div>
+        <label className="board-voting-filter">
+          <span className="board-voting-filter-label-desktop">Monitor</span>
+          <span className="board-voting-filter-label-mobile">Election</span>
+          <select value={selectedElection} onChange={handleElectionChange}>
+            <option value="all">All Elections</option>
+            {elections.map((election) => (
+              <option key={election.id} value={election.id}>
+                {election.title}
+              </option>
+            ))}
+          </select>
+        </label>
+      </section>
+
+      <section className="board-voting-summary" aria-label="Ballot summary" aria-busy={loading}>
+        {loading ? (
+          <div className="board-voting-summary-skeleton" role="status" aria-label="Loading ballot summary">
+            {[0, 1, 2, 3, 4].map((index) => <span key={index} />)}
+          </div>
+        ) : loadError ? (
+          <p className="board-voting-summary-unavailable" role="status">Ballot summary is unavailable.</p>
+        ) : (
+          <>
+            <div className="board-voting-metric board-voting-metric-primary">
+              <span>{summary.ballots_submitted === 1 ? "Ballot submitted" : "Ballots submitted"}</span>
+              <strong>{summary.ballots_submitted}</strong>
+            </div>
+            <div className="board-voting-metric board-voting-metric-context">
+              <span>{summary.students_voted === 1 ? "Student voted" : "Students voted"}</span>
+              <strong>{summary.students_voted}</strong>
+            </div>
+            <div className="board-voting-anchor-metrics" role="group" aria-label="Ballot anchor status">
+              <div className="board-voting-metric is-anchored">
+                <span>Anchored</span>
+                <strong>{summary.anchored}</strong>
+              </div>
+              <div className="board-voting-metric is-processing">
+                <span>Processing</span>
+                <strong>{summary.processing}</strong>
+              </div>
+              <div className="board-voting-metric is-attention">
+                <span>Needs attention</span>
+                <strong>{summary.needs_attention}</strong>
+              </div>
+            </div>
+          </>
+        )}
+      </section>
+
+      <section className="board-voting-activity" aria-labelledby="board-voting-activity-title">
+        <div className="board-voting-activity-heading">
+          <div>
+            <p className="board-voting-section-label">Privacy-protected activity</p>
+            <h2 id="board-voting-activity-title">Aggregate ballot status</h2>
+          </div>
+        </div>
+        {loadError ? (
+          <p className="board-voting-state is-error" role="alert">{loadError}</p>
+        ) : (
+          <p className="board-voting-state">
+            This monitor reports aggregate turnout and anchoring health. It does not display voter identities or individual ballot activity.
           </p>
-        </div>
-
-        <button onClick={fetchData} className="primary-btn self-start lg:self-auto">
-          <RefreshCw size={18} />
-          Refresh
-        </button>
-      </div>
-
-      <div className="mt-8">
-        <select
-          value={selectedElection}
-          onChange={(e) => setSelectedElection(e.target.value)}
-          className="field-shell bg-white px-4 py-3 outline-none"
-        >
-          <option value="all">All Elections</option>
-          {elections.map((election) => (
-            <option key={election.id} value={election.id}>
-              {election.title}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 mt-6 sm:grid-cols-2 xl:grid-cols-4 xl:gap-6">
-        <div className="metric-card">
-          <div className="flex items-start justify-between gap-3">
-            <p className="field-label">Total Votes</p>
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[rgba(255,90,31,0.1)] text-[#ff5a1f]">
-              <Vote size={18} />
-            </span>
-          </div>
-          <h2 className="mt-6 text-4xl font-black leading-none">{totalVotes}</h2>
-        </div>
-
-        <div className="metric-card">
-          <div className="flex items-start justify-between gap-3">
-            <p className="field-label">Unique Voters</p>
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[rgba(255,90,31,0.1)] text-[#ff5a1f]">
-              <Users size={18} />
-            </span>
-          </div>
-          <h2 className="mt-6 text-4xl font-black leading-none">{totalVoters}</h2>
-        </div>
-
-        <div className="metric-card">
-          <div className="flex items-start justify-between gap-3">
-            <p className="field-label">Candidate Votes</p>
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[rgba(255,90,31,0.1)] text-[#ff5a1f]">
-              <CheckCircle size={18} />
-            </span>
-          </div>
-          <h2 className="mt-6 text-4xl font-black leading-none">{candidateVotes}</h2>
-        </div>
-
-        <div className="metric-card">
-          <div className="flex items-start justify-between gap-3">
-            <p className="field-label">Abstain Votes</p>
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[rgba(255,90,31,0.1)] text-[#ff5a1f]">
-              <Clock size={18} />
-            </span>
-          </div>
-          <h2 className="mt-6 text-4xl font-black leading-none">{abstainVotes}</h2>
-        </div>
-      </div>
-
-      <div className="table-shell mt-8">
-        <div className="overflow-x-auto">
-          <table className="app-table">
-            <thead>
-              <tr>
-                <th>Voter</th>
-                <th>Election</th>
-                <th>Position</th>
-                <th>Vote Type</th>
-                <th>Time</th>
-                <th>Blockchain</th>
-              </tr>
-            </thead>
-
-            <tbody>
-            {filteredVotes.length === 0 ? (
-              <tr>
-                <td colSpan="6" className="px-6 py-10 text-center empty-copy">
-                  No votes recorded yet.
-                </td>
-              </tr>
-            ) : (
-              filteredVotes.map((vote) => (
-                <tr key={vote.id}>
-                  <td data-label="Voter">
-                    <p className="font-bold">
-                      {vote.students?.first_name} {vote.students?.last_name}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {vote.students?.student_number}
-                    </p>
-                  </td>
-
-                  <td data-label="Election">
-                    {vote.elections?.title || "-"}
-                  </td>
-
-                  <td data-label="Position">
-                    {vote.positions?.name || "-"}
-                  </td>
-
-                  <td data-label="Vote Type">
-                    {vote.is_abstain ? (
-                      <span className="status-pill !bg-slate-100 !text-slate-700">
-                        Abstain
-                      </span>
-                    ) : (
-                      <span className="status-pill !bg-emerald-100 !text-emerald-700">
-                        Candidate Vote
-                      </span>
-                    )}
-                  </td>
-
-                  <td data-label="Time" className="text-sm text-gray-600">
-                    {formatLocalDateTime(vote.vote_timestamp, "-")}
-                  </td>
-
-                  <td data-label="Blockchain">
-                    {vote.blockchain_tx_id ? (
-                      <span className="status-pill !bg-emerald-100 !text-emerald-700">
-                        Recorded
-                      </span>
-                    ) : (
-                      <span className="status-pill !bg-orange-100 !text-orange-700">
-                        Pending
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+        )}
+      </section>
     </div>
   );
 }

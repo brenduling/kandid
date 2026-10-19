@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
-import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
-  ArrowLeft,
   ChevronDown,
   LogOut,
 } from "lucide-react";
@@ -17,18 +16,38 @@ import logo from "../assets/kandidlogo.png";
 import TransitionWrapper from "../components/TransitionWrapper";
 import { usePrompt } from "../context/PromptContext";
 import { logAuditEvent } from "../utils/auditLog";
+import {
+  LOCAL_PRODUCTION_READONLY_BOARD_PATHS,
+  READ_ONLY_DASHBOARD_MODE,
+} from "../utils/localProductionReadOnly";
+
+const localProductionReadonly = import.meta.env.MODE === READ_ONLY_DASHBOARD_MODE;
 
 function BoardLayout() {
   const navigate = useNavigate();
-  const location = useLocation();
   const [user, setUser] = useState(() => getStoredUser());
   const prompt = usePrompt();
   const homePath = "/board/dashboard";
-  const showBackButton = location.pathname !== homePath;
   const [openGroups, setOpenGroups] = useState(() =>
     Object.fromEntries(boardMenuGroups.map((group) => [group.label, true])),
   );
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const visibleBoardMenuGroups = localProductionReadonly
+    ? boardMenuGroups
+      .map((group) => ({
+        ...group,
+        items: group.items.map((item) => ({
+          ...item,
+          readonlyUnavailable: !LOCAL_PRODUCTION_READONLY_BOARD_PATHS.has(item.path),
+        })),
+      }))
+    : boardMenuGroups;
+  const visibleBoardPrimaryNav = localProductionReadonly
+    ? boardPrimaryNav.map((item) => ({
+        ...item,
+        readonlyUnavailable: !LOCAL_PRODUCTION_READONLY_BOARD_PATHS.has(item.path),
+      }))
+    : boardPrimaryNav;
 
   useEffect(() => {
     if (!user || user.role !== "electoral_board") {
@@ -63,17 +82,19 @@ function BoardLayout() {
     });
     if (!ok) return;
 
-    await logAuditEvent({
-      action: "logout",
-      entityType: "auth",
-      entityLabel: "Electoral Board Portal",
-      organizationId: user?.organization_id,
-      organizationName: user?.organizations?.name,
-      status: "completed",
-      user,
-    });
+    if (!localProductionReadonly) {
+      await logAuditEvent({
+        action: "logout",
+        entityType: "auth",
+        entityLabel: "Electoral Board Portal",
+        organizationId: user?.organization_id,
+        organizationName: user?.organizations?.name,
+        status: "completed",
+        user,
+      });
+    }
     await signOutAdminSession();
-    navigate("/board-portal", { replace: true });
+    navigate(localProductionReadonly ? "/eb-login" : "/board-portal", { replace: true });
   }
 
   function toggleGroup(label) {
@@ -81,15 +102,6 @@ function BoardLayout() {
       ...current,
       [label]: !current[label],
     }));
-  }
-
-  function handleBack() {
-    if (window.history.length > 1) {
-      navigate(-1);
-      return;
-    }
-
-    navigate(homePath);
   }
 
   return (
@@ -120,7 +132,7 @@ function BoardLayout() {
           </div>
 
           <nav className="sidebar-nav-scroll">
-            {boardMenuGroups.map((group, groupIndex) => {
+            {visibleBoardMenuGroups.map((group, groupIndex) => {
               const isGroupOpen =
                 openGroups[group.label] ??
                 group.items.some((item) => location.pathname.startsWith(item.path));
@@ -145,26 +157,38 @@ function BoardLayout() {
                     <div className="nav-section-inner mt-3 space-y-2">
                       {group.items.map((item, itemIndex) => {
                         const Icon = item.icon;
+                        const itemClass = `fade-up nav-item${item.readonlyUnavailable ? " nav-item-disabled opacity-50" : ""}`;
 
                         return (
-                          <NavLink
-                            key={item.path}
-                            to={item.path}
-                            aria-label={item.name}
-                            title={item.name}
-                            data-tooltip={item.name}
-                            className={({ isActive }) =>
-                              `fade-up nav-item ${isActive ? "nav-item-active" : ""}`
-                            }
-                            style={{
-                              animationDelay: `${groupIndex * 110 + itemIndex * 28}ms`,
-                            }}
-                          >
-                            <span className="nav-item-icon">
-                              <Icon size={18} />
-                            </span>
-                            <span className="sidebar-reveal min-w-0">{item.name}</span>
-                          </NavLink>
+                          item.readonlyUnavailable ? (
+                            <button
+                              key={item.path}
+                              type="button"
+                              disabled
+                              aria-disabled="true"
+                              aria-label={`${item.name}, unavailable in read-only production inspection`}
+                              title="Unavailable during read-only production inspection"
+                              data-tooltip={`${item.name} · unavailable in read-only mode`}
+                              className={itemClass}
+                              style={{ animationDelay: `${groupIndex * 110 + itemIndex * 28}ms` }}
+                            >
+                              <span className="nav-item-icon"><Icon size={18} /></span>
+                              <span className="sidebar-reveal min-w-0">{item.name} · unavailable</span>
+                            </button>
+                          ) : (
+                            <NavLink
+                              key={item.path}
+                              to={item.path}
+                              aria-label={item.name}
+                              title={item.name}
+                              data-tooltip={item.name}
+                              className={({ isActive }) => `${itemClass} ${isActive ? "nav-item-active" : ""}`}
+                              style={{ animationDelay: `${groupIndex * 110 + itemIndex * 28}ms` }}
+                            >
+                              <span className="nav-item-icon"><Icon size={18} /></span>
+                              <span className="sidebar-reveal min-w-0">{item.name}</span>
+                            </NavLink>
+                          )
                         );
                       })}
                     </div>
@@ -192,16 +216,34 @@ function BoardLayout() {
         <main className="workspace-main">
           {/* Header area */}
           <header className="shell-header kandid-header hidden lg:flex fade-up">
-            <GlobalSearch
-              user={user}
-              className="shell-search lg:max-w-xl"
-              placeholder="Search elections, candidates, reports..."
-            />
+            {localProductionReadonly ? (
+              <p className="rounded-full border border-amber-700/20 bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-950">
+                Local read-only test connected to production data
+              </p>
+            ) : (
+              <GlobalSearch
+                user={user}
+                className="shell-search lg:max-w-xl"
+                placeholder="Search elections, candidates, reports..."
+              />
+            )}
 
             <div className="kandid-header-actions hidden w-full items-center justify-between gap-3 sm:w-auto sm:justify-end lg:flex">
-              <NotificationCenter user={user} />
+              {!localProductionReadonly && <NotificationCenter user={user} placement="desktop" />}
 
-              <button
+              {localProductionReadonly ? (
+                <div className="shell-profile-chip" aria-label="Electoral Board account">
+                  {user?.photo_url ? (
+                    <img src={user.photo_url} alt="Board profile" className="shell-profile-avatar h-12 w-12 object-cover" />
+                  ) : (
+                    <div className="shell-profile-avatar shell-profile-monogram flex h-12 w-12 items-center justify-center text-sm font-black">EB</div>
+                  )}
+                  <div className="shell-profile-copy min-w-0 text-left">
+                    <p className="truncate text-sm font-bold text-[#18212b]">{user?.full_name || "Electoral Board"}</p>
+                    <p className="surface-subcopy truncate text-xs">{user?.organizations?.name || "Assigned Organization"}</p>
+                  </div>
+                </div>
+              ) : <button
                 onClick={() => navigate(getProfileRoute(user?.role))}
                 className="shell-profile-chip"
               >
@@ -224,22 +266,16 @@ function BoardLayout() {
                     {user?.organizations?.name || "Assigned Organization"}
                   </p>
                 </div>
-              </button>
+              </button>}
             </div>
           </header>
 
           <section className="content-stack pb-24 pt-20 lg:pb-8 lg:pt-8">
-            {showBackButton ? (
-              <button
-                type="button"
-                onClick={handleBack}
-                className="app-page-back-button"
-              >
-                <ArrowLeft size={15} />
-                Back
-              </button>
-            ) : null}
-
+            {localProductionReadonly && (
+              <div className="mb-5 rounded-xl border border-amber-700/20 bg-amber-50 px-4 py-3 text-sm text-amber-950" role="note">
+                Read-only Electoral Board test connected to production data. Writes are blocked in this local test mode; database RLS and server authorization remain authoritative.
+              </div>
+            )}
             <TransitionWrapper>
               <Outlet />
             </TransitionWrapper>
@@ -248,7 +284,7 @@ function BoardLayout() {
       </div>
 
       <MobileHeader
-        user={user}
+        user={localProductionReadonly ? null : user}
         onMenuClick={() => setIsMobileMenuOpen(true)}
         homePath={homePath}
       />
@@ -256,14 +292,14 @@ function BoardLayout() {
       <MobileMenu
         isOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
-        menuGroups={boardMenuGroups}
+        menuGroups={visibleBoardMenuGroups}
         user={user}
         onLogout={handleLogout}
         title="ELECTORAL BOARD"
       />
 
       <MobileNav
-        primaryItems={boardPrimaryNav}
+        primaryItems={visibleBoardPrimaryNav}
       />
     </div>
   );

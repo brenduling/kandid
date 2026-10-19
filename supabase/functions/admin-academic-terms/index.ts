@@ -1,10 +1,6 @@
+import { corsHeaders, handleCorsPreflight, rejectDisallowedOrigin, serveWithKandidCors } from "../_shared/kandidProductionSecurity.mjs";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
 
 const semesters = new Set(["1st Semester", "2nd Semester"]);
 
@@ -39,10 +35,12 @@ function sanitizeTermError(error: { code?: string; message?: string } | null) {
   return "Academic term request could not be completed.";
 }
 
-Deno.serve(async (request) => {
-  if (request.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+serveWithKandidCors(async (request) => {
+  const preflightResponse = handleCorsPreflight(request);
+  if (preflightResponse) return preflightResponse;
+
+  const originRejection = rejectDisallowedOrigin(request);
+  if (originRejection) return originRejection;
 
   if (request.method !== "POST") {
     return jsonResponse({ error: "Method not allowed." }, 405);

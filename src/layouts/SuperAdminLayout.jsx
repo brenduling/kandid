@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
-import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
-  ArrowLeft,
   ChevronDown,
   LogOut,
 } from "lucide-react";
@@ -18,13 +17,13 @@ import { superAdminMenuGroups, superAdminPrimaryNav } from "../config/navigation
 import { usePrompt } from "../context/PromptContext";
 import { logAuditEvent } from "../utils/auditLog";
 
+const localProductionReadonly = import.meta.env.MODE === "localhost-production-readonly";
+
 function SuperAdminLayout() {
   const navigate = useNavigate();
-  const location = useLocation();
   const [user, setUser] = useState(() => getStoredUser());
   const prompt = usePrompt();
   const homePath = "/super-admin/dashboard";
-  const showBackButton = location.pathname !== homePath;
   const [openGroups, setOpenGroups] = useState(() =>
     Object.fromEntries(superAdminMenuGroups.map((group) => [group.label, true])),
   );
@@ -74,15 +73,6 @@ function SuperAdminLayout() {
     }));
   }
 
-  function handleBack() {
-    if (window.history.length > 1) {
-      navigate(-1);
-      return;
-    }
-
-    navigate(homePath);
-  }
-
   return (
     <div className="super-admin-theme kandid-app-theme app-shell relative overflow-hidden">
       <div className="ambient-orb left-[-120px] top-16 h-96 w-96 bg-[rgba(17,128,106,0.16)]" />
@@ -112,7 +102,9 @@ function SuperAdminLayout() {
             </div>
           </div>
 
-          <nav className="sidebar-nav-scroll">
+          {localProductionReadonly ? (
+            <p className="px-5 py-5 text-xs text-white/75">Read-only dashboard test</p>
+          ) : <nav className="sidebar-nav-scroll">
             {superAdminMenuGroups.map((group, groupIndex) => {
               const isGroupOpen =
                 openGroups[group.label] ??
@@ -165,7 +157,7 @@ function SuperAdminLayout() {
                 </div>
               );
             })}
-          </nav>
+          </nav>}
 
           <button
             onClick={handleLogout}
@@ -183,51 +175,38 @@ function SuperAdminLayout() {
 
         <main className="workspace-main">
           <header className="shell-header kandid-header hidden lg:flex fade-up">
-            <GlobalSearch
-              user={user}
-              className="shell-search lg:max-w-xl"
-            />
-
-            <div className="kandid-header-actions hidden w-full items-center justify-between gap-3 sm:w-auto sm:justify-end lg:flex">
-              <NotificationCenter user={user} />
-
-              <button
-                onClick={() => navigate(getProfileRoute(user?.role))}
-                className="shell-profile-chip"
-              >
-                {user?.photo_url ? (
-                  <img
-                    src={user.photo_url}
-                    alt="Admin profile"
-                    className="shell-profile-avatar h-12 w-12 object-cover"
-                  />
-                ) : (
-                  <div className="shell-profile-avatar shell-profile-monogram flex h-12 w-12 items-center justify-center text-sm font-black">
-                    SA
+            {localProductionReadonly ? (
+              <p className="rounded-full border border-amber-700/20 bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-950">
+                Local read-only test connected to production data
+              </p>
+            ) : <>
+              <GlobalSearch user={user} className="shell-search lg:max-w-xl" />
+              <div className="kandid-header-actions hidden w-full items-center justify-between gap-3 sm:w-auto sm:justify-end lg:flex">
+                <NotificationCenter user={user} placement="desktop" />
+                <button
+                  onClick={() => navigate(getProfileRoute(user?.role))}
+                  className="shell-profile-chip"
+                >
+                  {user?.photo_url ? (
+                    <img src={user.photo_url} alt="Admin profile" className="shell-profile-avatar h-12 w-12 object-cover" />
+                  ) : (
+                    <div className="shell-profile-avatar shell-profile-monogram flex h-12 w-12 items-center justify-center text-sm font-black">SA</div>
+                  )}
+                  <div className="shell-profile-copy min-w-0 text-left">
+                    <p className="truncate text-sm font-bold text-[#18212b]">{user?.full_name || "Super Admin"}</p>
+                    <p className="surface-subcopy truncate text-xs">System Administrator</p>
                   </div>
-                )}
-                <div className="shell-profile-copy min-w-0 text-left">
-                  <p className="truncate text-sm font-bold text-[#18212b]">
-                    {user?.full_name || "Super Admin"}
-                  </p>
-                  <p className="surface-subcopy truncate text-xs">System Administrator</p>
-                </div>
-              </button>
-            </div>
+                </button>
+              </div>
+            </>}
           </header>
 
           <section className="content-stack pb-24 pt-20 lg:pb-8 lg:pt-8">
-            {showBackButton ? (
-              <button
-                type="button"
-                onClick={handleBack}
-                className="app-page-back-button"
-              >
-                <ArrowLeft size={15} />
-                Back
-              </button>
-            ) : null}
-
+            {localProductionReadonly && (
+              <div className="mb-5 rounded-xl border border-amber-700/20 bg-amber-50 px-4 py-3 text-sm text-amber-950" role="note">
+                Read-only dashboard test. A frontend request guard blocks non-dashboard writes; database RLS and server authorization remain authoritative.
+              </div>
+            )}
             <TransitionWrapper>
               <Outlet />
             </TransitionWrapper>
@@ -235,24 +214,24 @@ function SuperAdminLayout() {
         </main>
       </div>
 
-      <MobileHeader
+      {!localProductionReadonly && <MobileHeader
         user={user}
         onMenuClick={() => setIsMobileMenuOpen(true)}
         homePath={homePath}
-      />
+      />}
 
-      <MobileMenu
+      {!localProductionReadonly && <MobileMenu
         isOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
         menuGroups={superAdminMenuGroups}
         user={user}
         onLogout={handleLogout}
         title="SUPER ADMIN"
-      />
+      />}
 
-      <MobileNav
+      {!localProductionReadonly && <MobileNav
         primaryItems={superAdminPrimaryNav}
-      />
+      />}
     </div>
   );
 }

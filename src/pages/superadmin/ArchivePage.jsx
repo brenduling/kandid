@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import "./RemainingPages.css";
 import { Archive, Trash2 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
+import SuperAdminPageHeader from "../../components/SuperAdminPageHeader";
 import { usePrompt } from "../../context/PromptContext";
 import { logAuditEvent } from "../../utils/auditLog";
 import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
@@ -62,14 +63,7 @@ function Archives() {
 
   return (
     <div className="sa-remaining-page sa-archives">
-      <div className="page-head">
-        <div>
-          <p className="sa-remaining-breadcrumb"><span>Kandid</span><span>/</span><span>Super Admin</span></p>
-          <div className="page-kicker">Historical Record</div>
-          <h1 className="page-title">Archive Center</h1>
-          <p className="page-subtitle">View and manage archived elections.</p>
-        </div>
-      </div>
+      <SuperAdminPageHeader section="System record" title="Archives" description="Review historical election records retained across Kandid." />
 
       <div className="table-shell mt-8">
         <table className="app-table">

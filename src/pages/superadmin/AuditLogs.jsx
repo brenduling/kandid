@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./RemainingPages.css";
 import { CalendarDays, Filter, RefreshCw, Search, ShieldCheck, X } from "lucide-react";
 import { fetchAuditLogs } from "../../utils/auditLog";
+import SuperAdminPageHeader from "../../components/SuperAdminPageHeader";
 import PopupOverlay from "../../components/PopupOverlay";
 import { formatLocalDateTime, parseAbsoluteTimestamp } from "../../utils/time";
 
@@ -21,45 +22,51 @@ function AuditLogs() {
     organization: "",
     date: "",
   });
-  const [page, setPage] = useState(0);
+  const [nextCursor, setNextCursor] = useState(null);
+  const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedLog, setSelectedLog] = useState(null);
+  const queryState = useRef({ search, filters });
 
   useEffect(() => {
-    fetchLogs(0);
-    window.addEventListener("kandid-audit-updated", handleAuditRefresh);
-    return () => window.removeEventListener("kandid-audit-updated", handleAuditRefresh);
-  }, []);
+    queryState.current = { search, filters };
+  }, [search, filters]);
 
-  function handleAuditRefresh() {
-    fetchLogs(0);
-  }
-
-  async function fetchLogs(nextPage = page) {
+  const fetchLogs = useCallback(async (cursor = null, append = false) => {
+    const { search: currentSearch, filters: currentFilters } = queryState.current;
     setLoading(true);
-    const from = nextPage * pageSize;
-    const { data, error } = await fetchAuditLogs({
+    const result = await fetchAuditLogs({
       limit: pageSize,
-      from,
-      search: search.trim(),
-      action: filters.action,
-      entityType: filters.entityType,
-      status: filters.status,
+      cursor,
+      search: currentSearch.trim(),
+      action: currentFilters.action,
+      entityType: currentFilters.entityType,
+      status: currentFilters.status,
+      organizationId: currentFilters.organization,
+      date: currentFilters.date,
     });
 
-    if (error) {
-      console.error("Failed to load audit logs:", error);
+    if (result.error) {
+      console.error("Failed to load audit logs:", result.error);
     } else {
-      setLogs(nextPage === 0 ? data : [...logs, ...data]);
-      setPage(nextPage);
+      setLogs((current) => append ? [...current, ...result.data] : result.data);
+      setNextCursor(result.nextCursor);
+      setHasMore(result.hasMore);
     }
     setLoading(false);
-  }
+  }, []);
+
+  useEffect(() => {
+    queueMicrotask(() => fetchLogs());
+    const handleAuditRefresh = () => fetchLogs();
+    window.addEventListener("kandid-audit-updated", handleAuditRefresh);
+    return () => window.removeEventListener("kandid-audit-updated", handleAuditRefresh);
+  }, [fetchLogs]);
 
   const filteredLogs = useMemo(() => {
     return logs.filter((log) => {
       const matchesOrganization =
-        !filters.organization || log.organization === filters.organization;
+        !filters.organization || String(log.organizationId) === filters.organization;
       const matchesDate =
         !filters.date ||
         (log.createdAt &&
@@ -71,7 +78,13 @@ function AuditLogs() {
   const actionOptions = useMemo(() => uniqueOptions(logs, "action"), [logs]);
   const entityOptions = useMemo(() => uniqueOptions(logs, "entityType"), [logs]);
   const statusOptions = useMemo(() => uniqueOptions(logs, "status"), [logs]);
-  const organizationOptions = useMemo(() => uniqueOptions(logs, "organization"), [logs]);
+  const organizationOptions = useMemo(() => {
+    const options = new Map();
+    logs.forEach((log) => {
+      if (log.organizationId) options.set(String(log.organizationId), log.organization);
+    });
+    return Array.from(options, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [logs]);
 
   function updateFilter(key, value) {
     setFilters((current) => ({ ...current, [key]: value }));
@@ -79,26 +92,17 @@ function AuditLogs() {
 
   return (
     <div className="sa-remaining-page sa-audit-logs">
-      <div className="page-head">
-        <div>
-          <p className="sa-remaining-breadcrumb"><span>Kandid</span><span>/</span><span>Super Admin</span></p>
-          <div className="page-kicker">Security Ledger</div>
-          <h1 className="page-title">Audit logs</h1>
-          <p className="page-subtitle">
-            Search, filter, and inspect real administrative activity records.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => fetchLogs(0)}
-          className="primary-btn self-start lg:self-auto"
-          disabled={loading}
-        >
-          <RefreshCw size={18} />
-          {loading ? "Refreshing..." : "Refresh"}
-        </button>
-      </div>
+      <SuperAdminPageHeader
+        section="System record"
+        title="Audit Trail"
+        description="Review trusted Super Admin activity recorded across Kandid."
+        actions={(
+          <button type="button" onClick={() => fetchLogs()} className="primary-btn" disabled={loading}>
+            <RefreshCw size={18} />
+            {loading ? "Refreshing..." : "Refresh"}
+          </button>
+        )}
+      />
 
       <div className="toolbar-row">
         <div className="search-shell">
@@ -107,12 +111,12 @@ function AuditLogs() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === "Enter") fetchLogs(0);
+              if (event.key === "Enter") fetchLogs();
             }}
             placeholder="Search actor, action, entity, organization..."
           />
         </div>
-        <button type="button" onClick={() => fetchLogs(0)} className="secondary-btn">
+        <button type="button" onClick={() => fetchLogs()} className="secondary-btn">
           <Filter size={16} />
           Apply Filters
         </button>
@@ -129,7 +133,7 @@ function AuditLogs() {
         </select>
         <select className="field-shell" value={filters.organization} onChange={(e) => updateFilter("organization", e.target.value)}>
           <option value="">All organizations</option>
-          {organizationOptions.map((item) => <option key={item} value={item}>{item}</option>)}
+          {organizationOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
         </select>
         <select className="field-shell" value={filters.status} onChange={(e) => updateFilter("status", e.target.value)}>
           <option value="">All statuses</option>
@@ -199,11 +203,11 @@ function AuditLogs() {
         </div>
       </div>
 
-      {logs.length >= (page + 1) * pageSize ? (
+      {hasMore ? (
         <div className="mt-4 flex justify-center">
           <button
             type="button"
-            onClick={() => fetchLogs(page + 1)}
+            onClick={() => fetchLogs(nextCursor, true)}
             className="secondary-btn"
             disabled={loading}
           >

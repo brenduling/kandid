@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import AuthLayout from "../../components/AuthLayout";
 import { KandidButtonLoader } from "../../components/KandidLoader";
+import StudentCaptcha from "../../components/StudentCaptcha";
 import { supabase } from "../../lib/supabaseClient";
 import {
   getCurrentAdminProfile,
@@ -68,6 +69,10 @@ function setupDestination(profile) {
 
 function AdminAuthSetup() {
   const navigate = useNavigate();
+  const recoveryMode = new URLSearchParams(window.location.search).get("mode") === "recovery";
+  const recoveryCallback = new URLSearchParams(window.location.search).has("code") ||
+    window.location.hash.includes("type=recovery");
+  const isRecoveryFlow = recoveryMode || recoveryCallback;
   const [checkingSession, setCheckingSession] = useState(true);
   const [sessionReady, setSessionReady] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -77,6 +82,13 @@ function AdminAuthSetup() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [completedProfile, setCompletedProfile] = useState(null);
+  const [recoveryEmail, setRecoveryEmail] = useState("");
+  const [recoveryCaptchaToken, setRecoveryCaptchaToken] = useState("");
+  const [recoveryCaptchaResetKey, setRecoveryCaptchaResetKey] = useState(0);
+  const [recoverySubmitting, setRecoverySubmitting] = useState(false);
+  const [recoveryRequested, setRecoveryRequested] = useState(false);
+  const [recoveryError, setRecoveryError] = useState("");
+  const recoveryCaptchaConfigured = Boolean(import.meta.env.VITE_TURNSTILE_SITE_KEY);
 
   const passwordChecks = useMemo(() => getPasswordChecks(password), [password]);
   const passwordValid = passwordChecks.every((check) => check.met);
@@ -92,8 +104,20 @@ function AdminAuthSetup() {
       setErrorMessage("");
 
       const code = new URLSearchParams(window.location.search).get("code");
+      if (recoveryMode && !recoveryCallback) {
+        setSessionReady(false);
+        setCheckingSession(false);
+        return;
+      }
       if (code) {
-        await supabase.auth.exchangeCodeForSession(code);
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+        if (exchangeError) {
+          if (!active) return;
+          setSessionReady(false);
+          setErrorMessage(friendlySetupError(exchangeError, "This recovery link is unavailable. Request a new password reset link."));
+          setCheckingSession(false);
+          return;
+        }
       }
 
       const { data, error } = await supabase.auth.getSession();
@@ -119,6 +143,7 @@ function AdminAuthSetup() {
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (!active) return;
+      if (recoveryMode && !recoveryCallback) return;
       if (event === "SIGNED_IN" || event === "PASSWORD_RECOVERY") {
         setSessionReady(Boolean(session?.user));
         setErrorMessage("");
@@ -130,7 +155,91 @@ function AdminAuthSetup() {
       active = false;
       listener?.subscription?.unsubscribe();
     };
-  }, []);
+  }, [recoveryMode, recoveryCallback]);
+
+  async function requestPasswordRecovery(event) {
+    event.preventDefault();
+    if (recoverySubmitting || (recoveryCaptchaConfigured && !recoveryCaptchaToken)) return;
+
+    setRecoverySubmitting(true);
+    setRecoveryError("");
+    const redirectTo = new URL("/admin-auth/setup", window.location.origin).toString();
+    const options = { redirectTo };
+    if (recoveryCaptchaConfigured) options.captchaToken = recoveryCaptchaToken;
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        recoveryEmail.trim().toLowerCase(),
+        options,
+      );
+      if (error) {
+        setRecoveryError("We couldn't submit the recovery request. Check the project recovery settings or try again later.");
+        return;
+      }
+      setRecoveryRequested(true);
+    } catch {
+      setRecoveryError("We couldn't submit the recovery request. Check the project recovery settings or try again later.");
+    } finally {
+      setRecoverySubmitting(false);
+      setRecoveryCaptchaToken("");
+      setRecoveryCaptchaResetKey((current) => current + 1);
+    }
+  }
+
+  function renderRecoveryRequest() {
+    return (
+      <form onSubmit={requestPasswordRecovery} className="student-setup-flow student-setup-activation">
+        <div className="student-setup-intro">
+          <div className="student-setup-step-pill">Administrator password recovery</div>
+          <h3>Reset your KANDID password</h3>
+          <p>Enter the email address already linked to your active administrator account.</p>
+        </div>
+
+        {recoveryRequested ? (
+          <div className="student-setup-success" role="status" aria-live="polite">
+            <CheckCircle2 size={30} aria-hidden="true" />
+            <p>If that address is linked to an account, recovery instructions will be sent to it.</p>
+          </div>
+        ) : (
+          <section className="student-setup-password-panel">
+            <label className="student-setup-label" htmlFor="admin-recovery-email">
+              <span>Administrator email</span>
+              <input
+                id="admin-recovery-email"
+                type="email"
+                required
+                autoComplete="email"
+                value={recoveryEmail}
+                onChange={(event) => { setRecoveryEmail(event.target.value); setRecoveryError(""); }}
+                placeholder="Enter your registered email"
+              />
+            </label>
+
+            {recoveryCaptchaConfigured ? (
+              <StudentCaptcha
+                onToken={setRecoveryCaptchaToken}
+                resetKey={recoveryCaptchaResetKey}
+              />
+            ) : null}
+
+            {recoveryError ? (
+              <div className="student-auth-inline-error" role="alert">
+                <AlertCircle size={18} aria-hidden="true" />
+                <span>{recoveryError}</span>
+              </div>
+            ) : null}
+
+            <button
+              disabled={recoverySubmitting || (recoveryCaptchaConfigured && !recoveryCaptchaToken)}
+              className="student-auth-submit"
+            >
+              {recoverySubmitting ? <KandidButtonLoader label="Submitting request..." /> : "Send recovery link"}
+            </button>
+          </section>
+        )}
+      </form>
+    );
+  }
 
   async function completeSetup(event) {
     event.preventDefault();
@@ -180,8 +289,8 @@ function AdminAuthSetup() {
     return (
       <form onSubmit={completeSetup} className="student-setup-flow student-setup-activation">
         <div className="student-setup-intro">
-          <div className="student-setup-step-pill">Admin Auth Setup</div>
-          <h3>Secure your KANDID access</h3>
+          <div className="student-setup-step-pill">{isRecoveryFlow ? "Administrator password recovery" : "Admin Auth Setup"}</div>
+          <h3>{isRecoveryFlow ? "Choose a new password" : "Secure your KANDID access"}</h3>
           <p>
             This setup is for existing Super Admin and Electoral Board accounts
             that were already approved in KANDID.
@@ -213,14 +322,16 @@ function AdminAuthSetup() {
 
         <section className="student-setup-password-panel">
           <div className="student-setup-section-head">
-            <span>Create Auth Password</span>
+            <span>{isRecoveryFlow ? "New Auth Password" : "Create Auth Password"}</span>
           </div>
 
           <label className="student-setup-label">
             <span>Password</span>
             <div className="student-auth-password">
               <input
+                id="admin-auth-setup-password"
                 required
+                data-password-policy="true"
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(event) => {
@@ -271,7 +382,10 @@ function AdminAuthSetup() {
             <span>Confirm Password</span>
             <div className="student-auth-password">
               <input
+                id="admin-auth-setup-confirm-password"
                 required
+                data-match-field="#admin-auth-setup-password"
+                data-match-message="Confirm password must match your new password."
                 type={showConfirmPassword ? "text" : "password"}
                 value={confirmPassword}
                 onChange={(event) => {
@@ -318,7 +432,7 @@ function AdminAuthSetup() {
           ) : null}
 
           <button disabled={!canSubmit} className="student-auth-submit">
-            {submitting ? <KandidButtonLoader label="Completing setup..." /> : "Complete Secure Setup"}
+            {submitting ? <KandidButtonLoader label={isRecoveryFlow ? "Updating password..." : "Completing setup..."} /> : isRecoveryFlow ? "Update Password" : "Complete Secure Setup"}
           </button>
         </section>
       </form>
@@ -334,15 +448,20 @@ function AdminAuthSetup() {
       );
     }
 
+    if (recoveryMode && !sessionReady && !recoveryCallback) {
+      return renderRecoveryRequest();
+    }
+
     if (completedProfile) {
       const destination = setupDestination(completedProfile);
       return (
         <div className="student-setup-success" role="status" aria-live="polite">
           <CheckCircle2 size={34} aria-hidden="true" />
-          <h3>Secure setup complete</h3>
+          <h3>{isRecoveryFlow ? "Password updated" : "Secure setup complete"}</h3>
           <p>
-            Your KANDID administrator access is linked. Sign in through the
-            correct portal using your Supabase Auth password.
+            {isRecoveryFlow
+              ? "Your administrator password was updated. Sign in through the correct portal using your new Supabase Auth password."
+              : "Your KANDID administrator access is linked. Sign in through the correct portal using your Supabase Auth password."}
           </p>
           <button
             type="button"
@@ -378,8 +497,8 @@ function AdminAuthSetup() {
   return (
     <AuthLayout
       roleLabel="Administrator Setup"
-      title={completedProfile ? "Setup Complete" : "Secure Account Setup"}
-      copy="Create the Supabase Auth password for an existing KANDID administrator profile."
+      title={completedProfile ? (isRecoveryFlow ? "Password Updated" : "Setup Complete") : isRecoveryFlow ? "Password Recovery" : "Secure Account Setup"}
+      copy={isRecoveryFlow ? "Restore access through the administrator email already registered with KANDID." : "Create the Supabase Auth password for an existing KANDID administrator profile."}
       backTo="/admin-login"
       screenClassName="student-setup-auth-screen"
     >

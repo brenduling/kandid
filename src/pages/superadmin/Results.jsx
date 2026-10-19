@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import "./RemainingPages.css";
 import { supabase } from "../../lib/supabaseClient";
+import SuperAdminPageHeader from "../../components/SuperAdminPageHeader";
 import { usePrompt } from "../../context/PromptContext";
 import {
   buildElectionAnalytics,
@@ -10,7 +11,6 @@ import {
   RESULT_VISIBILITY_MODES,
 } from "../../utils/results";
 import {
-  fetchAuthoritativeNow,
   getElectionPhase,
   isMissingElectionCoverColumn,
 } from "../../utils/elections";
@@ -22,6 +22,8 @@ import {
   HorizontalStatChart,
 } from "../../components/ResultsVisualization";
 import ElectionCover from "../../components/ElectionCover";
+import { loadElectionTurnout, formatTurnoutPercentage, turnoutMetricValue, turnoutAvailabilityLabel } from "../../utils/electionTurnout";
+import { useElectionClock } from "../../utils/useElectionClock";
 
 const RELEASE_COLUMN_SELECT =
   "id, title, cover_url, status, end_date, organization_id, student_result_visibility, results_released_at, organizations(name)";
@@ -36,6 +38,7 @@ function isMissingReleaseColumn(error) {
 
 function Results() {
   const prompt = usePrompt();
+  const now = useElectionClock();
   const [votes, setVotes] = useState([]);
   const [candidates, setCandidates] = useState([]);
   const [elections, setElections] = useState([]);
@@ -44,6 +47,7 @@ function Results() {
   const [voterBreakdownMode, setVoterBreakdownMode] = useState("program");
   const [voteLoadError, setVoteLoadError] = useState("");
   const [resultDimensions, setResultDimensions] = useState({ programs: [], yearLevels: [] });
+  const [turnoutSummary, setTurnoutSummary] = useState(null);
   const activeElection = elections.find(
     (election) => election.id === Number(selectedElection)
   );
@@ -66,9 +70,6 @@ function Results() {
     let active = true;
 
     if (!activeElection) {
-      setVotes([]);
-      setCandidates([]);
-      setResultDimensions({ programs: [], yearLevels: [] });
       return () => {
         active = false;
       };
@@ -131,9 +132,10 @@ function Results() {
       setCandidates([]);
       setResultDimensions({ programs: [], yearLevels: [] });
 
-      const [resultDataset, dimensions] = await Promise.all([
+      const [resultDataset, dimensions, turnoutResult] = await Promise.all([
         fetchElectionResultDataset(election),
         fetchResultDimensions(election),
+        loadElectionTurnout(election.id),
       ]);
 
       const { votes: votesData, candidates: candidateData, error: resultsError } = resultDataset;
@@ -152,18 +154,21 @@ function Results() {
       }
 
       setResultDimensions(dimensions);
+      setTurnoutSummary(turnoutResult.error ? null : turnoutResult.data);
   }
 
   async function fetchData(active = true) {
     await fetchElections(active);
   }
 
-  const filteredVotes = votes.filter(
-    (v) => v.election_id === Number(selectedElection)
-  );
-  const filteredCandidates = candidates.filter(
-    (candidate) => candidate.positions?.election_id === Number(selectedElection)
-  );
+  const filteredVotes = activeElection
+    ? votes.filter((v) => v.election_id === Number(selectedElection))
+    : [];
+  const filteredCandidates = activeElection
+    ? candidates.filter(
+        (candidate) => candidate.positions?.election_id === Number(selectedElection)
+      )
+    : [];
   const analytics = buildElectionAnalytics(
     filteredVotes,
     activeElection ? { ...activeElection, resultDimensions } : activeElection,
@@ -190,10 +195,11 @@ function Results() {
   const activeVisibilityMode = normalizeResultVisibilityMode(
     activeElection?.student_result_visibility,
   );
-  const phase = activeElection ? getElectionPhase(activeElection) : "";
+  const phase = activeElection ? getElectionPhase(activeElection, now) : "";
   const canPublishResults =
     releaseColumnReady &&
     activeElection &&
+    !activeElection.results_released_at &&
     activeVisibilityMode === RESULT_VISIBILITY_MODES.MANUAL &&
     phase === "closed";
   const publishButtonLabel = !releaseColumnReady
@@ -208,6 +214,10 @@ function Results() {
 
   async function releaseResults() {
     if (!activeElection) return;
+    if (activeElection.results_released_at) {
+      await prompt.alert({ title: "Results already finalized", message: "This election’s results have already been finalized." });
+      return;
+    }
 
     if (!releaseColumnReady) {
       prompt.error("Apply the result release migration in Supabase before releasing results.");
@@ -225,26 +235,33 @@ function Results() {
     }
 
     const confirmed = await prompt.confirm({
-      title: activeElection.results_released_at ? "Update Official Release?" : "Publish Official Results?",
+      title: "Publish Official Results?",
       message: `${activeElection.title}\n\nVote entries: ${verification.totalVoteEntries}\nMissing vote hashes: ${verification.missingHash}\nDuplicate vote row IDs: ${verification.duplicateVoteIds}\n\nPublishing will make official aggregate results visible to eligible students.`,
       type: "primary",
-      confirmText: activeElection.results_released_at ? "Update Release" : "Publish Results",
+      confirmText: "Finalize Results",
     });
 
     if (!confirmed) return;
 
-    const serverNow = await fetchAuthoritativeNow();
-    const { error } = await supabase
-      .from("elections")
-      .update({
-        results_released_at: serverNow.toISOString(),
-      })
-      .eq("id", activeElection.id);
-
-    if (error) {
+    let alreadyFinalized;
+    try {
+      const { data: releaseResult, error: releaseError } = await supabase.rpc(
+        "kandid_finalize_officer_results",
+        { p_election_id: activeElection.id },
+      );
+      if (releaseError) throw new Error(releaseError.message || "Failed to release results.");
+      alreadyFinalized = releaseResult?.already_finalized === true;
+    } catch (error) {
       prompt.error(error.message || "Failed to release results.");
       return;
     }
+
+    if (alreadyFinalized) {
+      await prompt.alert({ title: "Results already finalized", message: "These results were already finalized." });
+      await fetchData();
+      return;
+    }
+
 
     await logAuditEvent({
       action: "results_published",
@@ -265,14 +282,7 @@ function Results() {
 
   return (
     <div className="sa-remaining-page sa-results">
-      <div className="page-head">
-        <div>
-          <p className="sa-remaining-breadcrumb"><span>Kandid</span><span>/</span><span>Super Admin</span></p>
-          <div className="page-kicker">Election Outcomes</div>
-          <h1 className="page-title">Results Management</h1>
-          <p className="page-subtitle">View election results and vote tally.</p>
-        </div>
-      </div>
+      <SuperAdminPageHeader section="Election operations" title="Results" description="Review election outcomes and published vote tallies." />
 
       <div className="mt-6">
         <select
@@ -331,15 +341,17 @@ function Results() {
                 </p>
               </div>
             ) : null}
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
               {[
-                ["Vote Entries", analytics.totalVoteEntries],
-                ["Unique Voters", analytics.totalUniqueVoters],
+                ["Eligible Voters", turnoutMetricValue(turnoutSummary, "eligible_voters")],
+                ["Voters Participated", turnoutMetricValue(turnoutSummary, "participated_voters")],
+                ["Voter Turnout", formatTurnoutPercentage(turnoutSummary)],
                 ["Abstain Count", analytics.totalAbstains],
               ].map(([label, value]) => (
                 <div key={label} className="metric-card lift-card">
                   <p className="text-sm font-semibold text-gray-500">{label}</p>
                   <h2 className="mt-4 text-5xl font-black tracking-tight">{value}</h2>
+                  {label === "Voter Turnout" ? <p className="mt-2 text-sm text-gray-500">{turnoutAvailabilityLabel(turnoutSummary)}</p> : null}
                 </div>
               ))}
             </div>
@@ -375,7 +387,7 @@ function Results() {
 
             <ElectionResultsChart
               groups={Object.values(analytics.groupedResults)}
-              totalVoters={analytics.totalUniqueVoters}
+              totalVoters={turnoutSummary?.participated_voters ?? analytics.totalUniqueVoters}
               dimensions={analytics.resultDimensions}
             />
           </>

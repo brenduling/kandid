@@ -3,6 +3,7 @@ import "./RemainingPages.css";
 import { Plus, Pencil, Trash2, X, UsersRound } from "lucide-react";
 import PopupOverlay from "../../components/PopupOverlay";
 import { supabase } from "../../lib/supabaseClient";
+import SuperAdminPageHeader from "../../components/SuperAdminPageHeader";
 import { readFileAsDataUrl } from "../../utils/files";
 import { usePrompt } from "../../context/PromptContext";
 import { logAuditEvent } from "../../utils/auditLog";
@@ -10,14 +11,16 @@ import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/delete
 
 function Partylists() {
   const prompt = usePrompt();
-  const [partylists, setPartylists] = useState([]);
+const [partylists, setPartylists] = useState([]);
   const [candidateCounts, setCandidateCounts] = useState({});
-  const [elections, setElections] = useState([]);
+  const [organizations, setOrganizations] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState(null);
 
+  /* organization_id, not election_id: a partylist belongs to an organization and
+     may be referenced by any of that organization's elections. */
   const [form, setForm] = useState({
-    election_id: "",
+    organization_id: "",
     name: "",
     description: "",
     logo_url: "",
@@ -25,15 +28,19 @@ function Partylists() {
 
   useEffect(() => {
     fetchPartylists();
-    fetchElections();
+    fetchOrganizations();
   }, []);
 
   async function fetchPartylists() {
     const { data } = await supabase
       .from("partylists")
       .select(`
-        *,
-        elections (title)
+        id,
+        organization_id,
+        name,
+        description,
+        logo_url,
+        organizations (name)
       `)
       .order("id", { ascending: true });
 
@@ -58,18 +65,19 @@ function Partylists() {
     );
   }
 
-  async function fetchElections() {
+  async function fetchOrganizations() {
     const { data } = await supabase
-      .from("elections")
-      .select("id, title");
+      .from("organizations")
+      .select("id, name")
+      .order("name", { ascending: true });
 
-    setElections(data || []);
+    setOrganizations(data || []);
   }
 
   function openCreate() {
     setEditing(null);
     setForm({
-      election_id: "",
+      organization_id: "",
       name: "",
       description: "",
       logo_url: "",
@@ -80,7 +88,7 @@ function Partylists() {
   function openEdit(p) {
     setEditing(p);
     setForm({
-      election_id: p.election_id,
+      organization_id: p.organization_id,
       name: p.name,
       description: p.description || "",
       logo_url: p.logo_url || "",
@@ -99,7 +107,7 @@ function Partylists() {
     e.preventDefault();
 
     const payload = {
-      election_id: Number(form.election_id),
+      organization_id: Number(form.organization_id),
       name: form.name,
       description: form.description,
       logo_url: form.logo_url || null,
@@ -182,24 +190,12 @@ function Partylists() {
 
   return (
     <div className="sa-remaining-page sa-partylists">
-      <div className="page-head">
-        <div>
-          <p className="sa-remaining-breadcrumb"><span>Kandid</span><span>/</span><span>Super Admin</span></p>
-          <div className="page-kicker">Political Groups</div>
-          <h1 className="page-title">Partylist management</h1>
-          <p className="page-subtitle">
-            Create and manage election partylists.
-          </p>
-        </div>
-
-        <button
-          onClick={openCreate}
-          className="primary-btn self-start lg:self-auto"
-        >
-          <Plus size={18} />
-          Add Partylist
-        </button>
-      </div>
+      <SuperAdminPageHeader
+        section="Election operations"
+        title="Partylists"
+        description="Manage organization-level party affiliations used in elections."
+        actions={<button onClick={openCreate} className="primary-btn"><Plus size={18} />Add Partylist</button>}
+      />
 
       {partylists.length === 0 ? (
         <div className="empty-state mt-8">No partylists found.</div>
@@ -215,7 +211,7 @@ function Partylists() {
                 )}
               </div>
               <div className="partylist-card-body">
-                <p className="page-kicker">{p.elections?.title || "Election"}</p>
+                <p className="page-kicker">{p.organizations?.name || "Organization"}</p>
                 <h2>{p.name}</h2>
                 <p>{p.description || "No description provided."}</p>
               </div>
@@ -252,20 +248,23 @@ function Partylists() {
             </div>
 
             <form onSubmit={handleSubmit} className="modal-form-stack">
+              {/* Super Admin is not organization-scoped by session, so the owning
+                  organization is selected here. This replaces the former
+                  Election field rather than being added alongside it. */}
               <div>
-                <label className="field-label">Election</label>
+                <label className="field-label">Organization</label>
               <select
                 required
-                value={form.election_id}
+                value={form.organization_id}
                 onChange={(e) =>
-                  setForm({ ...form, election_id: e.target.value })
+                  setForm({ ...form, organization_id: e.target.value })
                 }
                 className="field-shell w-full"
               >
-                <option value="">Select Election</option>
-                {elections.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.title}
+                <option value="">Select Organization</option>
+                {organizations.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.name}
                   </option>
                 ))}
               </select>

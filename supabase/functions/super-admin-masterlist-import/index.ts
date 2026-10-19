@@ -1,17 +1,6 @@
+import { corsHeaders, handleCorsPreflight, rejectDisallowedOrigin, serveWithKandidCors } from "../_shared/kandidProductionSecurity.mjs";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
-
-const REQUIRED_STUDENT_ORGANIZATION_NAMES = [
-  "WITSG",
-  "WIT-SG",
-  "WIT SG",
-  "Western Institute of Technology Student Government",
-];
 
 const VALID_RECONCILIATION_STATUSES = [
   "new",
@@ -114,6 +103,22 @@ function sanitizeDbError(error: { code?: string; message?: string } | null) {
   return "Masterlist request could not be completed.";
 }
 
+function logLocalDbError(
+  context: string,
+  importId: number,
+  error: { code?: string; message?: string; details?: string; hint?: string } | null,
+) {
+  if (!error) return;
+  console.error("[super-admin-masterlist-import] database diagnostic", {
+    context,
+    import_id: importId,
+    code: error.code || null,
+    message: error.message || null,
+    details: error.details || null,
+    hint: error.hint || null,
+  });
+}
+
 async function requireSuperAdmin(
   request: Request,
   supabaseUrl: string,
@@ -143,7 +148,7 @@ async function requireSuperAdmin(
 
   const { data: adminProfile, error: adminError } = await adminClient
     .from("admin_users")
-    .select("id, auth_user_id, role, status")
+    .select("id, auth_user_id, full_name, role, status")
     .eq("auth_user_id", user.id)
     .maybeSingle();
 
@@ -161,6 +166,33 @@ async function requireSuperAdmin(
   }
 
   return { adminClient, user, adminProfile };
+}
+
+async function auditSuperAdminImport(
+  adminClient: ReturnType<typeof createClient>,
+  adminProfile: { id: number; full_name: string },
+  importId: number,
+  metadata: Record<string, unknown>,
+) {
+  const { error } = await adminClient.from("audit_logs").insert({
+    user_id: Number(adminProfile.id),
+    actor_name: adminProfile.full_name,
+    actor_role: "super_admin",
+    action: "student_batch_imported",
+    event_type: "student_batch_imported",
+    event_category: "students",
+    event_origin: "trusted_edge",
+    entity_type: "student_import",
+    entity_id: String(importId),
+    entity_label: "Masterlist import",
+    status: "completed",
+    metadata,
+  });
+  if (error) {
+    console.error("[super-admin-masterlist-import] trusted audit write failed", { code: error.code });
+    return false;
+  }
+  return true;
 }
 
 async function resolvePreviousTermId(adminClient: ReturnType<typeof createClient>, academicTermId: number) {
@@ -196,15 +228,29 @@ async function resolvePreviousTermId(adminClient: ReturnType<typeof createClient
     .sort((a, b) => b.yearStart - a.yearStart || b.semesterOrder - a.semesterOrder)[0]?.id || null;
 }
 
-async function loadImport(adminClient: ReturnType<typeof createClient>, importId: number) {
+async function loadImport(
+  adminClient: ReturnType<typeof createClient>,
+  importId: number,
+  actorAdminId: number,
+) {
   const { data: masterlistImport, error: importError } = await adminClient
     .from("masterlist_imports")
-    .select("id, academic_term_id, file_name, import_status, total_rows, valid_rows, invalid_rows, conflict_rows, created_at, finalized_at, academic_terms(id, academic_year, semester, status)")
+    .select("id, academic_term_id, file_name, import_status, import_scope, full_roster_confirmed_by, full_roster_confirmed_at, full_roster_confirmation_fingerprint, total_rows, valid_rows, invalid_rows, conflict_rows, created_at, finalized_at, academic_terms(id, academic_year, semester, status)")
     .eq("id", importId)
     .maybeSingle();
 
   if (importError) return { data: null, error: importError };
   if (!masterlistImport) return { data: null, error: new Error("Masterlist import was not found.") };
+
+  let absencePreview = null;
+  if (masterlistImport.import_scope === "full_roster" && masterlistImport.import_status === "review") {
+    const { data, error } = await adminClient.rpc("kandid_preview_masterlist_full_roster", {
+      p_import_id: importId,
+      p_actor_admin_id: actorAdminId,
+    });
+    if (error) return { data: null, error };
+    absencePreview = data;
+  }
 
   const { data: rows, error: rowsError } = await adminClient
     .from("masterlist_import_rows")
@@ -238,9 +284,17 @@ async function loadImport(adminClient: ReturnType<typeof createClient>, importId
         .in("student_id", matchedStudentIds)
       : Promise.resolve({ data: [], error: null }),
   ]);
+  const { data: currentEnrollments, error: currentEnrollmentError } = matchedStudentIds.length > 0
+    ? await adminClient
+      .from("student_term_enrollments")
+      .select("student_id, program, year_level, enrollment_status")
+      .eq("academic_term_id", Number(masterlistImport.academic_term_id))
+      .in("student_id", matchedStudentIds)
+    : { data: [], error: null };
 
   if (studentsResult.error) return { data: null, error: studentsResult.error };
   if (previousEnrollmentsResult.error) return { data: null, error: previousEnrollmentsResult.error };
+  if (currentEnrollmentError) return { data: null, error: currentEnrollmentError };
 
   const studentsById = new Map(
     (studentsResult.data || []).map((student) => [Number(student.id), student]),
@@ -251,16 +305,23 @@ async function loadImport(adminClient: ReturnType<typeof createClient>, importId
       enrollment,
     ]),
   );
+  const currentEnrollmentByStudentId = new Map(
+    (currentEnrollments || []).map((enrollment) => [Number(enrollment.student_id), enrollment]),
+  );
 
   const enrichedRows = (rows || []).map((row) => {
     const matchedStudentId = Number(row.matched_student_id);
     const matchedStudent = studentsById.get(matchedStudentId) || null;
     const previousEnrollment = previousEnrollmentByStudentId.get(matchedStudentId) || null;
+    const currentEnrollment = currentEnrollmentByStudentId.get(matchedStudentId) || null;
+    const fingerprintParts = String(row.review_fingerprint || "").split("|");
 
     return {
       ...row,
       incoming_program: row.program || null,
-      previous_program: previousEnrollment?.program || null,
+      previous_program: previousEnrollment?.program ||
+        (fingerprintParts[0] === "current_term_shifted_program" ? fingerprintParts[3] : null) ||
+        (row.reconciliation_status === "shifted_program" ? currentEnrollment?.program : null) || null,
       matched_student: matchedStudent,
     };
   });
@@ -291,6 +352,7 @@ async function loadImport(adminClient: ReturnType<typeof createClient>, importId
       import: masterlistImport,
       rows: enrichedRows,
       counts,
+      absence_preview: absencePreview,
     },
     error: null,
   };
@@ -329,181 +391,40 @@ async function ensureEditableImportRow(
 async function rerunReconciliationAndLoad(
   adminClient: ReturnType<typeof createClient>,
   importId: number,
+  actorAdminId: number,
 ) {
   const { error: reconcileError } = await adminClient.rpc("reconcile_masterlist_import", {
     target_import_id: importId,
   });
 
   if (reconcileError) return { data: null, error: reconcileError };
-  return loadImport(adminClient, importId);
+  const { error: programChangeError } = await adminClient.rpc("kandid_review_current_term_program_changes", {
+    p_import_id: importId,
+    p_actor_admin_id: actorAdminId,
+  });
+  if (programChangeError) return { data: null, error: programChangeError };
+  return loadImport(adminClient, importId, actorAdminId);
 }
 
-async function ensureProgram(adminClient: ReturnType<typeof createClient>, program: string) {
-  if (!program) return null;
-
-  const { data, error } = await adminClient
-    .from("programs")
-    .upsert({ code: program, name: program }, { onConflict: "code" })
-    .select("id")
-    .single();
-
-  if (error) return null;
-  return data?.id || null;
-}
-
-async function resolveMembershipOrganizationIds(adminClient: ReturnType<typeof createClient>, program: string) {
-  const { data: requiredOrganizations } = await adminClient
-    .from("organizations")
-    .select("id")
-    .in("name", REQUIRED_STUDENT_ORGANIZATION_NAMES);
-
-  const programId = await ensureProgram(adminClient, program);
-  const { data: programOrganizations } = programId
-    ? await adminClient
-      .from("organization_programs")
-      .select("organization_id")
-      .eq("program_id", programId)
-    : { data: [] };
-
-  return [
-    ...new Set(
-      [
-        ...(requiredOrganizations || []).map((organization) => organization.id),
-        ...(programOrganizations || []).map((link) => link.organization_id),
-      ]
-        .map((id) => Number(id))
-        .filter(Boolean),
-    ),
-  ];
-}
-
-async function ensureTermParticipations(
+async function syncMembershipsForImport(
   adminClient: ReturnType<typeof createClient>,
-  rows: Array<{ student_id: number; organization_id: number }>,
-  academicTermId: number,
-  source: string,
+  importId: number,
+  actorAdminId: number,
 ) {
-  let createdTermCount = 0;
-  let removedTermCount = 0;
-
-  for (const row of rows) {
-    const { data: participationRows, error } = await adminClient.rpc(
-      "ensure_student_organization_term_participation",
-      {
-        target_student_id: Number(row.student_id),
-        target_organization_id: Number(row.organization_id),
-        target_academic_term_id: academicTermId,
-        target_source: source,
-      },
-    );
-
-    if (error) {
-      return { error, createdTermCount, removedTermCount };
-    }
-
-    const participation = Array.isArray(participationRows)
-      ? participationRows[0]
-      : participationRows;
-
-    if (participation?.status === "removed") {
-      removedTermCount += 1;
-    } else if (participation?.status !== "active") {
-      return {
-        error: { message: participation?.reason || "Term participation could not be verified." },
-        createdTermCount,
-        removedTermCount,
-      };
-    } else if (participation?.created) {
-      createdTermCount += 1;
-    }
+  const { data, error } = await adminClient.rpc("kandid_finalize_masterlist_import_with_membership_sync", {
+    p_import_id: importId,
+    p_actor_admin_id: actorAdminId,
+  });
+  if (error) {
+    logLocalDbError("membership finalization RPC failed", importId, error);
+    return { error, syncedCount: 0, syncedTermCount: 0, removedTermCount: 0, admissionSkippedCount: 0 };
   }
-
-  return { error: null, createdTermCount, removedTermCount };
-}
-
-async function syncMembershipsForImport(adminClient: ReturnType<typeof createClient>, importId: number) {
-  const { data: masterlistImport, error: importError } = await adminClient
-    .from("masterlist_imports")
-    .select("academic_term_id")
-    .eq("id", importId)
-    .single();
-
-  if (importError || !masterlistImport?.academic_term_id) {
-    return {
-      error: importError || { message: "Masterlist import academic term could not be loaded." },
-      syncedCount: 0,
-      syncedTermCount: 0,
-      removedTermCount: 0,
-    };
-  }
-
-  const { data: rows, error: rowsError } = await adminClient
-    .from("masterlist_import_rows")
-    .select("matched_student_id, program, reconciliation_status")
-    .eq("import_id", importId)
-    .in("reconciliation_status", ["new", "continuing", "shifted_program", "returnee"]);
-
-  if (rowsError) {
-    return { error: rowsError, syncedCount: 0, syncedTermCount: 0, removedTermCount: 0 };
-  }
-
-  const membershipRows: Array<{ student_id: number; organization_id: number; role: string }> = [];
-
-  for (const row of rows || []) {
-    const studentId = Number(row.matched_student_id);
-    const program = normalizeProgram(row.program);
-    if (!studentId) continue;
-
-    const organizationIds = await resolveMembershipOrganizationIds(adminClient, program);
-    organizationIds.forEach((organizationId) => {
-      membershipRows.push({
-        student_id: studentId,
-        organization_id: organizationId,
-        role: "member",
-      });
-    });
-  }
-
-  const dedupedRows = Array.from(
-    new Map(
-      membershipRows.map((row) => [`${row.student_id}:${row.organization_id}`, row]),
-    ).values(),
-  );
-
-  if (dedupedRows.length === 0) {
-    return { error: null, syncedCount: 0, syncedTermCount: 0, removedTermCount: 0 };
-  }
-
-  const { error } = await adminClient
-    .from("student_organizations")
-    .upsert(dedupedRows, {
-      onConflict: "student_id,organization_id",
-      ignoreDuplicates: true,
-    });
-
-  if (error) return { error, syncedCount: 0, syncedTermCount: 0, removedTermCount: 0 };
-
-  const termParticipationResult = await ensureTermParticipations(
-    adminClient,
-    dedupedRows,
-    Number(masterlistImport.academic_term_id),
-    "masterlist",
-  );
-
-  if (termParticipationResult.error) {
-    return {
-      error: termParticipationResult.error,
-      syncedCount: dedupedRows.length,
-      syncedTermCount: termParticipationResult.createdTermCount,
-      removedTermCount: termParticipationResult.removedTermCount,
-    };
-  }
-
   return {
     error: null,
-    syncedCount: dedupedRows.length,
-    syncedTermCount: termParticipationResult.createdTermCount,
-    removedTermCount: termParticipationResult.removedTermCount,
+    syncedCount: Number(data?.membership_synced_count || 0),
+    syncedTermCount: Number(data?.term_participation_synced_count || 0),
+    removedTermCount: Number(data?.removed_term_participation_count || 0),
+    admissionSkippedCount: Number(data?.admission_skipped_count || 0),
   };
 }
 
@@ -540,10 +461,12 @@ function normalizeRows(inputRows: unknown) {
   });
 }
 
-Deno.serve(async (request) => {
-  if (request.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+serveWithKandidCors(async (request) => {
+  const preflightResponse = handleCorsPreflight(request);
+  if (preflightResponse) return preflightResponse;
+
+  const originRejection = rejectDisallowedOrigin(request);
+  if (originRejection) return originRejection;
 
   if (request.method !== "POST") {
     return jsonResponse({ error: "Method not allowed." }, 405);
@@ -574,6 +497,10 @@ Deno.serve(async (request) => {
     if (action === "create_import") {
       const academicTermId = parsePositiveInteger(body.academic_term_id, "Academic term");
       const fileName = cleanText(body.file_name, 500) || "masterlist.csv";
+      const importScope = body.import_scope === undefined ? "incremental" : String(body.import_scope);
+      if (importScope !== "incremental" && importScope !== "full_roster") {
+        return jsonResponse({ error: "Choose incremental or full-roster import scope." }, 400);
+      }
       const rows = normalizeRows(body.rows);
 
       const { data: term, error: termError } = await adminClient
@@ -590,7 +517,7 @@ Deno.serve(async (request) => {
 
       const { data: masterlistImport, error: importError } = await adminClient
         .from("masterlist_imports")
-        .insert([{ academic_term_id: academicTermId, file_name: fileName, import_status: "draft" }])
+        .insert([{ academic_term_id: academicTermId, file_name: fileName, import_status: "draft", import_scope: importScope }])
         .select("id")
         .single();
 
@@ -614,8 +541,13 @@ Deno.serve(async (request) => {
       });
 
       if (reconcileError) return jsonResponse({ error: sanitizeDbError(reconcileError) }, 400);
+      const { error: programChangeError } = await adminClient.rpc("kandid_review_current_term_program_changes", {
+        p_import_id: Number(masterlistImport.id),
+        p_actor_admin_id: Number(auth.adminProfile.id),
+      });
+      if (programChangeError) return jsonResponse({ error: sanitizeDbError(programChangeError) }, 400);
 
-      const loaded = await loadImport(adminClient, Number(masterlistImport.id));
+      const loaded = await loadImport(adminClient, Number(masterlistImport.id), Number(auth.adminProfile.id));
       if (loaded.error) return jsonResponse({ error: sanitizeDbError(loaded.error) }, 400);
       return jsonResponse({
         data: {
@@ -630,7 +562,7 @@ Deno.serve(async (request) => {
 
     if (action === "get_import") {
       const importId = parsePositiveInteger(body.import_id, "Masterlist import");
-      const loaded = await loadImport(adminClient, importId);
+      const loaded = await loadImport(adminClient, importId, Number(auth.adminProfile.id));
       if (loaded.error) return jsonResponse({ error: sanitizeDbError(loaded.error) }, 400);
       return jsonResponse({ data: loaded.data });
     }
@@ -652,7 +584,7 @@ Deno.serve(async (request) => {
 
       if (updateError) return jsonResponse({ error: sanitizeDbError(updateError) }, 400);
 
-      const loaded = await rerunReconciliationAndLoad(adminClient, importId);
+      const loaded = await rerunReconciliationAndLoad(adminClient, importId, Number(auth.adminProfile.id));
       if (loaded.error) return jsonResponse({ error: sanitizeDbError(loaded.error) }, 400);
       return jsonResponse({ data: loaded.data });
     }
@@ -673,39 +605,75 @@ Deno.serve(async (request) => {
 
       if (deleteError) return jsonResponse({ error: sanitizeDbError(deleteError) }, 400);
 
-      const loaded = await rerunReconciliationAndLoad(adminClient, importId);
+      const loaded = await rerunReconciliationAndLoad(adminClient, importId, Number(auth.adminProfile.id));
       if (loaded.error) return jsonResponse({ error: sanitizeDbError(loaded.error) }, 400);
       return jsonResponse({ data: loaded.data });
     }
 
     if (action === "finalize_import") {
       const importId = parsePositiveInteger(body.import_id, "Masterlist import");
-
-      const { error: finalizeError } = await adminClient.rpc("finalize_masterlist_import", {
-        target_import_id: importId,
-      });
-
-      if (finalizeError) return jsonResponse({ error: sanitizeDbError(finalizeError) }, 400);
-
-      const membershipResult = await syncMembershipsForImport(adminClient, importId);
+      const { data: importScope, error: scopeError } = await adminClient
+        .from("masterlist_imports")
+        .select("import_scope")
+        .eq("id", importId)
+        .maybeSingle();
+      if (scopeError) return jsonResponse({ error: sanitizeDbError(scopeError) }, 400);
+      if (!importScope || !["incremental", "full_roster"].includes(importScope.import_scope)) {
+        return jsonResponse({ error: "Masterlist import scope is missing or unknown. Finalization is blocked." }, 409);
+      }
+      if (importScope.import_scope === "full_roster") {
+        const expectedFingerprint = cleanText(body.absence_preview_fingerprint, 64);
+        if (body.confirm_full_roster !== true || !expectedFingerprint) {
+          return jsonResponse({ error: "Review the affected-Student preview and explicitly confirm the full roster before finalization." }, 409);
+        }
+        const { error: confirmationError } = await adminClient.rpc("kandid_confirm_masterlist_full_roster", {
+          p_import_id: importId,
+          p_actor_admin_id: Number(auth.adminProfile.id),
+          p_expected_fingerprint: expectedFingerprint,
+        });
+        if (confirmationError) return jsonResponse({ error: sanitizeDbError(confirmationError) }, 409);
+      }
+      const membershipResult = await syncMembershipsForImport(
+        adminClient,
+        importId,
+        Number(auth.adminProfile.id),
+      );
       if (membershipResult.error) {
         return jsonResponse(
           {
-            error: "Masterlist finalized, but organization membership synchronization failed.",
+            error: "Masterlist finalization was not committed because organization membership synchronization failed. Refresh before retrying.",
             membership_error: sanitizeDbError(membershipResult.error),
           },
           500,
         );
       }
 
-      const loaded = await loadImport(adminClient, importId);
+      const loaded = await loadImport(adminClient, importId, Number(auth.adminProfile.id));
       if (loaded.error) return jsonResponse({ error: sanitizeDbError(loaded.error) }, 400);
+      const auditRecorded = await auditSuperAdminImport(
+        adminClient,
+        auth.adminProfile,
+        importId,
+        {
+          membership_synced_count: membershipResult.syncedCount,
+          term_participation_synced_count: membershipResult.syncedTermCount,
+          removed_term_participation_count: membershipResult.removedTermCount,
+          admission_skipped_count: membershipResult.admissionSkippedCount,
+        },
+      );
+      if (!auditRecorded) {
+        return jsonResponse({
+          error: "Masterlist finalization completed, but its audit record could not be saved. Refresh before retrying.",
+          code: "audit_record_failed",
+        }, 500);
+      }
       return jsonResponse({
         data: {
           ...loaded.data,
           membership_synced_count: membershipResult.syncedCount,
           term_participation_synced_count: membershipResult.syncedTermCount,
           removed_term_participation_count: membershipResult.removedTermCount,
+          admission_skipped_count: membershipResult.admissionSkippedCount,
         },
       });
     }

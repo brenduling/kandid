@@ -7,7 +7,7 @@ project_id = "kandid"
 [api]
 enabled = true
 # Port to use for the API URL.
-port = 54321
+port = 55321
 # Schemas to expose in your API. Tables, views and stored procedures in this schema will get API
 # endpoints. `public` and `graphql_public` schemas are included by default.
 schemas = ["public", "graphql_public"]
@@ -31,7 +31,7 @@ enabled = false
 
 [db]
 # Port to use for the local database URL.
-port = 54322
+port = 55322
 # Port used by db diff command to initialize the shadow database.
 shadow_port = 54320
 # Maximum amount of time to wait for health check when starting the local database.
@@ -43,7 +43,7 @@ major_version = 17
 [db.pooler]
 enabled = false
 # Port to use for the local connection pooler.
-port = 54329
+port = 55329
 # Specifies when a server connection can be reused by other clients.
 # Configure one of the supported pooler modes: `transaction`, `session`.
 pool_mode = "transaction"
@@ -93,7 +93,7 @@ enabled = true
 [studio]
 enabled = true
 # Port to use for Supabase Studio.
-port = 54323
+port = 55323
 # External URL of the API server that frontend connects to.
 api_url = "http://127.0.0.1"
 # OpenAI API Key to use for Supabase AI in the Supabase Studio.
@@ -104,7 +104,7 @@ openai_api_key = "env(OPENAI_API_KEY)"
 [local_smtp]
 enabled = true
 # Port to use for the email testing server web interface.
-port = 54324
+port = 55324
 # Uncomment to expose additional ports for testing user applications that send emails.
 # smtp_port = 54325
 # pop3_port = 54326
@@ -231,6 +231,14 @@ max_frequency = "1s"
 otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
 otp_expiry = 3600
+
+[auth.email.template.confirmation]
+subject = "Your Kandid verification code"
+content_path = "./supabase/templates/student_email_otp.html"
+
+[auth.email.template.magic_link]
+subject = "Your Kandid verification code"
+content_path = "./supabase/templates/student_email_otp.html"
 
 # Use a production-ready SMTP server
 # [auth.email.smtp]
@@ -386,7 +394,7 @@ deno_version = 2
 
 [analytics]
 enabled = true
-port = 54327
+port = 55327
 # Configure one of the supported backends: `postgres`, `bigquery`.
 backend = "postgres"
 
@@ -418,3 +426,54 @@ verify_jwt = true
 
 [functions.anchor-ballot-hashes]
 verify_jwt = true
+
+[functions.officers-contract]
+verify_jwt = true
+
+[functions.vote-access]
+verify_jwt = true
+
+[functions.manage-election-removal]
+verify_jwt = true
+
+[functions.admin-user-management]
+verify_jwt = true
+
+[functions.resolve-student-login]
+verify_jwt = false
+
+[functions.student-profile]
+verify_jwt = true
+entrypoint = "./functions/student-profile-readonly-deploy/index.ts"
+
+[functions.link-student-identity]
+verify_jwt = true
+
+[functions.link-admin-identity]
+verify_jwt = true
+
+[functions.submit-vote]
+verify_jwt = true
+
+[functions.get-student-ballot-receipt]
+verify_jwt = true
+
+[functions.organization-eligibility]
+verify_jwt = true
+
+[functions.board-manual-enrollment]
+verify_jwt = true
+entrypoint = "./functions/board-manual-enrollment-complete-deploy/index.ts"
+
+[functions.admin-academic-terms]
+verify_jwt = true
+
+[functions.super-admin-manual-enrollment]
+verify_jwt = true
+
+[functions.super-admin-masterlist-import]
+verify_jwt = true
+
+[functions.student-notifications]
+verify_jwt = true
+entrypoint = "./functions/student-notifications-readonly-deploy/index.ts"

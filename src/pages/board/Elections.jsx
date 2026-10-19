@@ -1,33 +1,36 @@
-import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Plus, Pencil, Trash2, X, QrCode, Power, ImagePlus } from "lucide-react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { KandidButtonLoader, KandidInlineLoader } from "../../components/KandidLoader";
-import PopupOverlay from "../../components/PopupOverlay";
-import ElectionCover from "../../components/ElectionCover";
-import ElectionManagementCard from "../../components/ElectionManagementCard";
-import ScheduleDateTimePicker, {
-  currentDateTimeInputValue,
-} from "../../components/ScheduleDateTimePicker";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowRight, Plus, Pencil, Trash2 } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { currentDateTimeInputValue } from "../../components/ScheduleDateTimePicker";
+import BoardElectionSetup from "./BoardElectionSetup";
+import BoardElectionWorkspace from "./BoardElectionWorkspace";
+import BoardElectionDeleteSheet from "./BoardElectionDeleteSheet";
+import { electionPhaseLabel, formatElectionSchedule } from "./electionDisplay";
+import { buildElectionPhaseSummary } from "./electionPhaseSummary";
+import "./Elections.css";
 import { supabase } from "../../lib/supabaseClient";
+import { loadElectionForEdit, saveElectionEdit, electionSaveError } from "../../utils/electionEditContract";
+import { createElectionSubmission } from "../../utils/electionCreateContract";
+import { electionManagementQuery, verifyElectionRemovalReadiness } from "../../utils/electionManagementCompatibility";
+import { isElectionSoftRemovalEnabled } from "../../utils/electionRemovalFeatureGate";
+import { useElectionClock } from "../../utils/useElectionClock";
 import {
-  formatLocalDateTime,
   formValueToScheduleTimestamp,
   getElectionPhase,
   isMissingElectionCoverColumn,
   scheduleTimestampToFormValue,
   validateElectionSchedule,
 } from "../../utils/elections";
-import { uploadPublicImage } from "../../utils/files";
+import { uploadElectionCover, electionCoverError } from "../../utils/electionCovers";
 import {
   generateAccessToken,
-  getAccessQrImageUrl,
   getVotingAccessModeLabel,
-  TOKEN_SCOPE_TYPES,
-  VOTING_ACCESS_MODES,
 } from "../../utils/votingAccess";
 import { usePrompt } from "../../context/PromptContext";
+import { toBoardFacingError } from "../../utils/boardFeedback";
 import { logAuditEvent } from "../../utils/auditLog";
-import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
+import { loadElectionDeleteReview } from "../../utils/electionDeleteReview";
+import { callElectionRemoval, electionRemovalErrorMessage } from "../../utils/electionRemoval";
 import { copyLatestOrganizationPositions } from "../../utils/positionReuse";
 import {
   isResultVisibilityConstraintError,
@@ -38,17 +41,39 @@ import {
 
 function BoardElections() {
   const prompt = usePrompt();
-  const navigate = useNavigate();
+  const now = useElectionClock();
   const [searchParams] = useSearchParams();
   const [elections, setElections] = useState([]);
+  const [expandedElectionSchedules, setExpandedElectionSchedules] = useState({});
   const [accessTokens, setAccessTokens] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
-  const [createdElection, setCreatedElection] = useState(null);
   const [editing, setEditing] = useState(null);
+  const [workspaceElection, setWorkspaceElection] = useState(null);
+  /* Danger Zone delete review state. One sheet, four states, and the phase is
+     only ever set from the guard's own result. */
+  const [deleteReview, setDeleteReview] = useState(null);
+  const [removalReady, setRemovalReady] = useState(false);
+  const [removalUnavailable, setRemovalUnavailable] = useState(false);
+  const [removedView, setRemovedView] = useState(false);
+  const [removedElections, setRemovedElections] = useState([]);
+  const [removedTotal, setRemovedTotal] = useState(0);
+  const [removedOffset, setRemovedOffset] = useState(0);
+  const [removedError, setRemovedError] = useState("");
+  const deleteReviewRequest = useRef(0);
+  const deleteInFlight = useRef(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const saveInFlight = useRef(false);
+  const createSubmission = useRef(null);
   const [coverUploading, setCoverUploading] = useState(false);
+  const coverUploadRequest = useRef(0);
+  const coverUploadBusy = useRef(false);
+  /* Covers that failed to resolve. A missing or broken cover leaves an empty
+     ruled cell; the record is carried entirely by its name, phase, schedule and
+     actions, so it stays readable in every one of those cases, and no stand-in
+     image is generated. */
+  const [brokenCovers, setBrokenCovers] = useState({});
   const [tokenForm, setTokenForm] = useState({
     scope_type: "general",
     scope_value: "",
@@ -56,6 +81,7 @@ function BoardElections() {
   });
   const [form, setForm] = useState({
     title: "",
+    academic_term_id: "",
     cover_url: "",
     campaign_start: "",
     campaign_end: "",
@@ -90,24 +116,20 @@ function BoardElections() {
       setLoading(true);
       setLoadError("");
 
-      const { data, error } = await supabase
-        .from("elections")
-        .select(`
-          *,
-          organizations (
-            name,
-            logo_url
-          )
-        `)
-        .eq("organization_id", orgId)
-        .order("created_at", { ascending: false });
+      const requested = isElectionSoftRemovalEnabled();
+      const ready = await verifyElectionRemovalReadiness(requested, callElectionRemoval);
+      if (!active) return;
+      setRemovalReady(ready);
+      setRemovalUnavailable(requested && !ready);
+      if (!ready) setRemovedView(false);
+      const { data, error } = await electionManagementQuery(supabase, { organizationId: orgId, removalReady: ready });
 
       if (!active) return;
 
       if (error) {
         console.error("Failed to load board elections:", error);
-        setLoadError(error.message || "Unable to load elections.");
-        setElections([]);
+        setLoadError(toBoardFacingError(error.message, "Unable to load elections."));
+
         setLoading(false);
         return;
       }
@@ -134,22 +156,17 @@ function BoardElections() {
     setLoading(true);
     setLoadError("");
 
-    const { data, error } = await supabase
-      .from("elections")
-      .select(`
-        *,
-        organizations (
-          name,
-          logo_url
-        )
-      `)
-      .eq("organization_id", orgId)
-      .order("created_at", { ascending: false });
+    const requested = isElectionSoftRemovalEnabled();
+    const ready = await verifyElectionRemovalReadiness(requested, callElectionRemoval);
+    setRemovalReady(ready);
+    setRemovalUnavailable(requested && !ready);
+    if (!ready) setRemovedView(false);
+    const { data, error } = await electionManagementQuery(supabase, { organizationId: orgId, removalReady: ready });
 
     if (error) {
       console.error("Failed to refresh board elections:", error);
-      setLoadError(error.message || "Unable to load elections.");
-      setElections([]);
+      setLoadError(toBoardFacingError(error.message, "Unable to load elections."));
+
       setLoading(false);
       return;
     }
@@ -159,9 +176,14 @@ function BoardElections() {
   }
 
   function openCreate() {
+    coverUploadRequest.current++;
+    coverUploadBusy.current = false;
+    setCoverUploading(false);
+    createSubmission.current = createElectionSubmission(supabase);
     setEditing(null);
     setForm({
       title: "",
+      academic_term_id: "",
       cover_url: "",
       campaign_start: "",
       campaign_end: "",
@@ -190,9 +212,20 @@ function BoardElections() {
   }
 
   async function openEdit(election) {
+    coverUploadRequest.current++;
+    coverUploadBusy.current = false;
+    setCoverUploading(false);
+    try {
+      election = await loadElectionForEdit(supabase, election.id);
+    } catch (error) {
+      prompt.error(electionSaveError(error));
+      return;
+    }
+    const geofence = election;
     setEditing(election);
     setForm({
       title: election.title || "",
+      academic_term_id: election.academic_term_id ?? "",
       cover_url: election.cover_url || "",
       campaign_start: election.campaign_start
         ? scheduleTimestampToFormValue(election.campaign_start)
@@ -209,9 +242,9 @@ function BoardElections() {
           : election.student_result_visibility || "after_close",
       voting_access_mode: election.voting_access_mode || "anywhere",
       location_label: election.location_label || "",
-      geo_lat: election.geo_lat ?? "",
-      geo_lng: election.geo_lng ?? "",
-      geo_radius_meters: election.geo_radius_meters ?? "",
+      geo_lat: geofence.geo_lat ?? "",
+      geo_lng: geofence.geo_lng ?? "",
+      geo_radius_meters: geofence.geo_radius_meters ?? "",
     });
     await fetchAccessTokens(election.id);
     setTokenForm({
@@ -225,17 +258,26 @@ function BoardElections() {
   async function handleSubmit(e) {
     e.preventDefault();
 
-    if (submitting) return;
+    if (saveInFlight.current) return;
+    if (coverUploadBusy.current) return;
 
     if (!orgId) {
       prompt.error("No organization is assigned to this Electoral Board account.");
       return;
     }
 
+    if (!form.academic_term_id) {
+      prompt.error("Choose the academic term this election belongs to.");
+      return;
+    }
+
+    saveInFlight.current = true;
     setSubmitting(true);
+    try {
 
     const validationMessage = validateElectionSchedule({
       ...form,
+      academic_term_id: Number(form.academic_term_id),
       organization_id: orgId,
     });
     if (validationMessage) {
@@ -246,6 +288,7 @@ function BoardElections() {
 
     const payload = {
       ...form,
+      academic_term_id: Number(form.academic_term_id),
       cover_url: form.cover_url || null,
       campaign_start: formValueToScheduleTimestamp(form.campaign_start),
       campaign_end: formValueToScheduleTimestamp(form.campaign_end),
@@ -264,13 +307,8 @@ function BoardElections() {
 
     const saveElection = (nextPayload) =>
       editing
-        ? supabase
-            .from("elections")
-            .update(nextPayload)
-            .eq("id", editing.id)
-            .select("id")
-            .single()
-        : supabase.from("elections").insert([nextPayload]).select("id").single();
+        ? saveElectionEdit(supabase, editing, nextPayload)
+        : (createSubmission.current ||= createElectionSubmission(supabase))(nextPayload, orgId);
 
     let result = await saveElection(payload);
 
@@ -302,12 +340,16 @@ function BoardElections() {
       prompt.error(
         isResultVisibilityConstraintError(result.error) && form.student_result_visibility === "manual"
           ? "Manual admin release requires the updated result visibility schema in Supabase."
-          : result.error.message || "Failed to save election."
+          : electionSaveError(result.error)
       );
       setSubmitting(false);
       return;
     }
 
+    if (result.unchanged) {
+      prompt.info("No changes to save.");
+      return;
+    }
     let reusedPositions = { copiedCount: 0, sourceElection: null };
 
     if (editing) {
@@ -340,33 +382,38 @@ function BoardElections() {
     await refreshElections();
 
     if (!editing && result?.data?.id) {
-      setCreatedElection({
+      prompt.success("Election created successfully");
+      setWorkspaceElection({
         ...payload,
         id: result.data.id,
         reusedPositionCount: reusedPositions.copiedCount || 0,
         reusedFromElectionTitle: reusedPositions.sourceElection?.title || "",
       });
     }
+    } catch (error) { prompt.error(electionSaveError(error)); } finally { saveInFlight.current = false; setSubmitting(false); }
   }
 
   async function handleCoverUpload(file) {
-    if (!file) return;
+    if (!file || coverUploadBusy.current || saveInFlight.current) return;
 
+    const request = ++coverUploadRequest.current;
+    coverUploadBusy.current = true;
     setCoverUploading(true);
     try {
-      const publicUrl = await uploadPublicImage(supabase, file, {
-        bucket: "election-covers",
-        folder: "covers",
+      const publicUrl = await uploadElectionCover(supabase, file, {
+        organizationId: orgId,
+        electionId: editing?.id ?? null,
       });
+      if (request !== coverUploadRequest.current) return;
       setForm((currentForm) => ({ ...currentForm, cover_url: publicUrl }));
-      prompt.success("Election cover uploaded.");
+      prompt.success("Cover uploaded. Save the election to keep this change.");
     } catch (error) {
-      console.error("Board election cover upload failed:", error);
-      prompt.error(
-        `${error.message || "Failed to upload cover image."} Make sure the election-covers storage bucket migration is applied.`,
-      );
+      if (request === coverUploadRequest.current) prompt.error(electionCoverError(error));
     } finally {
-      setCoverUploading(false);
+      if (request === coverUploadRequest.current) {
+        coverUploadBusy.current = false;
+        setCoverUploading(false);
+      }
     }
   }
 
@@ -415,61 +462,86 @@ function BoardElections() {
     await fetchAccessTokens(editing.id);
   }
 
+  useEffect(() => () => { deleteReviewRequest.current += 1; }, [orgId]);
+
+  function closeDeleteReview() {
+    if (deleteInFlight.current) return;
+    deleteReviewRequest.current += 1;
+    setDeleteReview(null);
+  }
+
+  /* Merely inspecting dependencies is read-only. Ignore responses belonging to
+     a closed dialog, another election, or an earlier organization context. */
   async function handleDelete(id) {
+    if (deleteInFlight.current) return;
+    const request = ++deleteReviewRequest.current;
     const election = elections.find((item) => item.id === id) || {};
-    const analysis = await analyzeDeleteDependencies("election", { id });
+    setDeleteReview({ id, election, phase: "reviewing", analysis: null });
 
-    if (analysis.blocked) {
-      await logAuditEvent({
-        action: "election_delete_blocked",
-        entityType: "election",
-        entityId: id,
-        entityLabel: election.title || "Election",
-        organizationId: orgId,
-        organizationName: orgName,
-        status: "requires_action",
-        metadata: { dependencies: analysis.dependencies },
-      });
+    const analysis = await loadElectionDeleteReview(id, removalReady ? callElectionRemoval : undefined, { removalReady });
+    if (request !== deleteReviewRequest.current) return;
 
-      await prompt.alert({
-        title: analysis.severity === "archive" ? "Archive Recommended" : "Election Cannot Be Deleted Yet",
-        message: dependencyMessage(election.title || "This election", analysis),
-        type: "warning",
-        confirmText: "Review Related Records",
-      });
+    if (analysis.severity === "unavailable") {
+      setDeleteReview({ id, election, phase: "unavailable", analysis });
       return;
     }
 
-    const ok = await prompt.confirm({
-      title: "Delete Election?",
-      message: dependencyMessage(election.title || "This election", analysis),
-      type: "danger",
-      confirmText: "Delete Election",
-    });
-    if (!ok) return;
+    setDeleteReview({ id, election, phase: "review", analysis, mode: "remove", error: "" });
+  }
 
-    const recheck = await analyzeDeleteDependencies("election", { id });
-    if (recheck.blocked) {
-      prompt.error(dependencyMessage(election.title || "This election", recheck));
-      return;
-    }
+  // Future soft removal requires both explicit opt-in and verified backend
+  // compatibility. Its server independently rechecks password, scope and phase.
+  async function confirmDelete(password) {
+    if (!removalReady || deleteInFlight.current || deleteReview?.phase !== "danger_zone" || !password) return;
+    deleteInFlight.current = true;
+    const { id, election } = deleteReview;
 
-    const { error } = await supabase.from("elections").delete().eq("id", id);
-    if (error) {
-      prompt.error(error.message || "Failed to delete election.");
-      return;
+    try {
+      setDeleteReview((current) => ({ ...current, phase: "removing", error: "" }));
+      const { data, error } = await callElectionRemoval("soft_remove", { election_id: Number(id), password });
+      if (error || data?.removed !== true) throw error || new Error("Removal was not confirmed.");
+      prompt.success("Election removed. Related records remain preserved.");
+      setDeleteReview(null);
+      await refreshElections();
+    } catch (error) {
+      setDeleteReview((current) => ({ ...current, id, election, phase: "danger_zone", error: electionRemovalErrorMessage(error) }));
+    } finally {
+      deleteInFlight.current = false;
     }
-    prompt.success("Election deleted.");
-    await logAuditEvent({
-      action: "election_deleted",
-      entityType: "election",
-      entityId: id,
-      entityLabel: election.title || "Election",
-      organizationId: orgId,
-      organizationName: orgName,
-      status: "completed",
-    });
-    refreshElections();
+  }
+
+  async function openRemovedElections(offset = 0) {
+    if (!removalReady) return;
+    setRemovedError("");
+    const { data, error } = await callElectionRemoval("list_removed", { limit: 50, offset });
+    if (error || !Array.isArray(data?.elections)) {
+      setRemovedError(electionRemovalErrorMessage(error));
+      setRemovedElections([]);
+    } else {
+      setRemovedElections(data.elections);
+      setRemovedTotal(Number(data.total || 0));
+      setRemovedOffset(Number(data.offset || 0));
+    }
+    setRemovedView(true);
+  }
+
+  async function confirmRestore(password) {
+    if (!removalReady || deleteInFlight.current || deleteReview?.phase !== "danger_zone" || !password) return;
+    deleteInFlight.current = true;
+    const { id, election } = deleteReview;
+    try {
+      setDeleteReview((current) => ({ ...current, phase: "restoring", error: "" }));
+      const { data, error } = await callElectionRemoval("restore", { election_id: Number(id), password });
+      if (error || data?.restored !== true) throw error || new Error("Restoration was not confirmed.");
+      setDeleteReview(null);
+      prompt.success("Election restored to the normal management list.");
+      await refreshElections();
+      await openRemovedElections(removedOffset);
+    } catch (error) {
+      setDeleteReview((current) => ({ ...current, id, election, mode: "restore", phase: "danger_zone", error: electionRemovalErrorMessage(error) }));
+    } finally {
+      deleteInFlight.current = false;
+    }
   }
 
   const filteredElections = useMemo(() => {
@@ -479,7 +551,7 @@ function BoardElections() {
       const values = [
         election.title,
         election.status,
-        getElectionPhase(election),
+        getElectionPhase(election, now),
         getVotingAccessModeLabel(election.voting_access_mode),
       ]
         .filter(Boolean)
@@ -488,426 +560,418 @@ function BoardElections() {
 
       return values.includes(searchQuery);
     });
-  }, [elections, searchQuery]);
+  }, [elections, searchQuery, now]);
 
-  const electionStatusSummary = useMemo(
-    () => ({
-      draft: elections.filter((election) => election.status === "draft").length,
-      active: elections.filter((election) => election.status === "active").length,
-      closed: elections.filter((election) => election.status === "closed").length,
-    }),
-    [elections],
+  const phaseSummary = useMemo(
+    () => buildElectionPhaseSummary(filteredElections, (election) => getElectionPhase(election, now)),
+    [filteredElections, now],
   );
+
+  /* Display copy for the phase the lifecycle logic actually returned. The stored
+     value from getElectionPhase() is unchanged and stays on the title attribute,
+     so no status is introduced, renamed or reinterpreted here. The same label is
+     used by the register and the Manage Setup workspace. */
+  function phaseLabel(election) {
+    return electionPhaseLabel(election, now);
+  }
+
+  /* Field updates arrive as a patch from the guided setup sheet so it can never
+     hold a stale copy of the form object. The resulting state is identical to the
+     previous per-field setForm({ ...form, key: value }). */
+  function updateForm(patch) {
+    setForm((previous) => ({ ...previous, ...patch }));
+  }
+
+  function updateTokenForm(patch) {
+    setTokenForm((previous) => ({ ...previous, ...patch }));
+  }
+
+  /* Manage Setup is a workspace for the selected election. It performs no
+     queries and no writes; each of its actions is one of the navigations or
+     handlers the register already uses. */
+  function openWorkspace(election) {
+    setWorkspaceElection(election);
+  }
 
   return (
     <div className="board-elections-desktop">
-      <div className="page-head board-elections-opening">
-        <div className="board-elections-opening-copy">
-          <div className="page-kicker board-elections-kicker">Election Setup</div>
-          <h1 className="page-title board-elections-title">Board elections</h1>
-          <p className="page-subtitle">
-            Create and manage elections for {orgName || "your assigned organization"}.
-          </p>
+      <header className="board-elections-masthead">
+        <div className="board-elections-context">
+          <span className="board-elections-eyebrow">Electoral Board / {orgName}</span>
+          <span className="board-elections-context-rule" aria-hidden="true" />
         </div>
 
-        <button
-          onClick={openCreate}
-          className="primary-btn board-elections-create self-start lg:self-auto"
+        <div className="board-elections-baseline">
+          <h1 className="page-title board-elections-title">Elections</h1>
+          <div className="board-elections-header-actions">
+          <button
+            type="button"
+            onClick={openCreate}
+            className="board-elections-create"
+          >
+            <Plus size={15} aria-hidden="true" />
+            Create Election
+          </button>
+          {removalReady ? <button type="button" className="board-election-action is-quiet" onClick={() => openRemovedElections()}>
+            Removed Elections
+          </button> : null}
+          </div>
+        </div>
+
+        <p className="board-elections-standfirst">
+          Create and manage elections for {orgName}.
+        </p>
+      </header>
+
+      {removalUnavailable ? <div role="status"><p>Soft removal is unavailable. The existing election register remains available.</p><button type="button" className="board-elections-state-action" onClick={refreshElections}>Retry readiness check</button></div> : null}
+      <section className="board-elections-summary" aria-label="Election summary">
+        <dl
+          className="board-elections-snapshot"
+          style={{ "--board-elections-summary-columns": phaseSummary.metrics.length + 1 }}
+          data-metric-count={phaseSummary.metrics.length + 1}
         >
-          <Plus size={18} />
-          Create Election
-        </button>
-      </div>
-
-      <section className="board-elections-summary" aria-label="Election workspace summary">
-        <div className="board-elections-summary-main">
-          <p className="board-elections-section-kicker">Records</p>
-          <strong>{filteredElections.length}</strong>
-          <span>{searchQuery ? "matching elections" : "elections in this workspace"}</span>
-        </div>
-        <div className="board-elections-status-ledger" aria-label="Election status totals">
-          <div>
-            <span>Draft</span>
-            <strong>{electionStatusSummary.draft}</strong>
+          <div className="board-elections-snapshot-total">
+            <dd data-unavailable={Boolean(loadError)}>{loading ? "Loading" : loadError ? "Unavailable" : filteredElections.length}</dd>
+            <dt>Elections</dt>
           </div>
-          <div>
-            <span>Active</span>
-            <strong>{electionStatusSummary.active}</strong>
-          </div>
-          <div>
-            <span>Closed</span>
-            <strong>{electionStatusSummary.closed}</strong>
-          </div>
-        </div>
+          {phaseSummary.metrics.map(({ phase, label, count }) => (
+            <div className="board-elections-snapshot-state" data-phase={phase} key={phase}>
+              <dd>{loading ? "…" : loadError ? "—" : count}</dd>
+              <dt>{label}</dt>
+            </div>
+          ))}
+        </dl>
       </section>
 
-      {loading ? (
-        <div className="empty-state board-elections-state">
-          <KandidInlineLoader message="Loading elections..." />
+      {removalReady && removedView ? (
+        <section className="board-elections-register" aria-label="Removed elections">
+          <div className="board-elections-register-head">
+            <div><p className="board-elections-section-kicker">Preserved register</p><h2>Removed Elections</h2></div>
+            <button type="button" className="board-elections-state-action" onClick={() => setRemovedView(false)}>Back to Elections</button>
+          </div>
+          {removedError ? <p className="board-election-removal-error" role="alert">{removedError}</p> : null}
+          {removedElections.length === 0 && !removedError ? <p className="board-elections-state-copy">No removed elections are available in this organization.</p> : null}
+          <div className="board-elections-list">
+            {removedElections.map((election) => <article className="board-election-record" key={election.id}>
+              <div className="board-election-identity-copy"><h3>{election.title || "Untitled Election"}</h3><p>{election.status} · Removed {election.removed_at ? new Date(election.removed_at).toLocaleString() : ""}</p></div>
+              <button type="button" className="board-election-action is-quiet" onClick={() => setDeleteReview({ id: election.id, election, phase: "danger_zone", mode: "restore", analysis: null, error: "" })}>Restore</button>
+            </article>)}
+          </div>
+          <div className="board-election-danger-footer" aria-label="Removed election pages">
+            <button type="button" className="board-election-danger-quiet" onClick={() => openRemovedElections(Math.max(0, removedOffset - 50))} disabled={removedOffset === 0}>Previous</button>
+            <span>{removedTotal ? `${removedOffset + 1}–${Math.min(removedOffset + removedElections.length, removedTotal)} of ${removedTotal}` : "0 removed elections"}</span>
+            <button type="button" className="board-election-danger-quiet" onClick={() => openRemovedElections(removedOffset + 50)} disabled={removedOffset + 50 >= removedTotal}>Next</button>
+          </div>
+        </section>
+      ) : loading ? (
+        <div className="board-elections-skeleton" role="status" aria-label="Loading elections" aria-busy="true">
+          {[0, 1, 2, 3].map((row) => (
+            <div className="board-elections-skeleton-row" key={row}>
+              <span className="is-cover" />
+              <span className="is-title" />
+              <span className="is-schedule" />
+              <span className="is-phase" />
+            </div>
+          ))}
         </div>
       ) : loadError ? (
-        <div className="empty-state board-elections-state">
-          <p className="font-bold text-rose-600">Unable to load elections.</p>
-          <p className="text-sm text-gray-500">{loadError}</p>
-          <button type="button" onClick={refreshElections} className="secondary-btn mt-3">
+        <div className="board-elections-state is-error" role="alert">
+          <p className="board-elections-state-kicker">Register unavailable</p>
+          <h3>Unable to load elections.</h3>
+          <p className="board-elections-state-copy">{loadError}</p>
+          <button type="button" onClick={refreshElections} className="board-elections-state-action">
             Retry
           </button>
         </div>
       ) : filteredElections.length === 0 ? (
-        <div className="empty-state board-elections-state">
-          {searchQuery ? "No elections match your search." : "No elections yet."}
+        <div className="board-elections-state">
+          <p className="board-elections-state-kicker">
+            {searchQuery ? "No matches" : "Empty register"}
+          </p>
+          <h3>{searchQuery ? "No elections match your search." : "No elections yet."}</h3>
+          <p className="board-elections-state-copy">
+            {searchQuery
+              ? "Try a different title, status or voting access rule."
+              : `Create an election to start configuring positions, candidates and the ballot for ${orgName}.`}
+          </p>
         </div>
       ) : (
-        <section className="board-elections-records" aria-label="Election records">
-          <div className="board-elections-records-head">
+        <section className="board-elections-register" aria-label="Election records">
+          <div className="board-elections-register-head">
             <div>
               <p className="board-elections-section-kicker">Election register</p>
-              <h2>Manage ballot setup</h2>
+              <h2>Election records</h2>
             </div>
-            <span>{filteredElections.length} shown</span>
+            <span className="board-elections-register-count">
+              <strong>{filteredElections.length}</strong>{" "}
+              {searchQuery ? "matching" : "shown"}
+            </span>
           </div>
-          <div className="election-management-grid board-elections-grid">
-            {filteredElections.map((election) => (
-              <article key={election.id} className="entity-card board-election-card">
-                <ElectionManagementCard
-                  election={election}
-                  organization={election.organizations || user?.organizations}
-                  eyebrow="Election Setup"
-                  onClick={() => navigate(`/board/positions?election=${election.id}`)}
-                />
 
-                <div className="board-election-status-row">
-                  <span className="status-pill">{getElectionPhase(election)}</span>
-                  <span className="status-pill">
-                    {resultVisibilityLabel(
-                      election.student_result_visibility,
-                      election.results_released_at,
-                    )}
-                  </span>
-                  <span className="status-pill">
-                    {getVotingAccessModeLabel(election.voting_access_mode)}
-                  </span>
-                </div>
+            <div className="board-elections-register-columns" aria-hidden="true">
+              <span>Election</span>
+              <span>Campaign</span>
+              <span>Voting</span>
+              <span>Phase</span>
+              <span className="board-elections-head-actions">Actions</span>
+            </div>
 
-                <div className="board-election-schedule">
-                  <p>
-                    <span className="font-black text-[#111827]">Campaign:</span>{" "}
-                    {formatLocalDateTime(election.campaign_start)}
-                  </p>
-                  <p>
-                    <span className="font-black text-[#111827]">Voting:</span>{" "}
-                    {formatLocalDateTime(election.start_date)} -{" "}
-                    {formatLocalDateTime(election.end_date)}
-                  </p>
-                </div>
+          <div className="board-elections-list">
+            {filteredElections.map((election, position) => {
+              const phase = phaseSummary.phasesByElectionId.get(election.id) || getElectionPhase(election, now);
+              const coverFailed = brokenCovers[election.id] === election.cover_url;
+              const hasCover = Boolean(election.cover_url) && !coverFailed;
 
-                <div className="board-election-actions">
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/board/positions?election=${election.id}`)}
-                    className="secondary-btn board-election-setup-btn"
+              /* Read-only display formatting over the stored timestamps. Only the
+                 campaign timestamps the record actually holds are used, so a
+                 single campaign value is never given an invented end. */
+              const campaignSchedule = formatElectionSchedule(
+                election.campaign_start,
+                election.campaign_end,
+              );
+              const votingSchedule = formatElectionSchedule(
+                election.start_date,
+                election.end_date,
+              );
+              const scheduleDetails = (
+                <>
+                  <dl
+                    className="board-election-window"
+                    data-absent={campaignSchedule.time ? undefined : "yes"}
                   >
-                    Manage Setup
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => openEdit(election)}
-                    className="icon-action"
-                    aria-label={`Edit ${election.title || "election"}`}
+                    <dt>Campaign</dt>
+                    <dd>
+                      <span className="board-election-when">
+                        <span className="board-election-when-date">
+                          {campaignSchedule.date}
+                        </span>
+                        <span className="board-election-when-time">
+                          {campaignSchedule.time}
+                        </span>
+                      </span>
+                    </dd>
+                  </dl>
+
+                  <dl
+                    className="board-election-window"
+                    data-absent={votingSchedule.time ? undefined : "yes"}
                   >
-                    <Pencil size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(election.id)}
-                    className="icon-action icon-action-danger"
-                    aria-label={`Delete ${election.title || "election"}`}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </article>
-            ))}
+                    <dt>Voting</dt>
+                    <dd>
+                      <span className="board-election-when">
+                        <span className="board-election-when-date">
+                          {votingSchedule.date}
+                        </span>
+                        <span className="board-election-when-time">
+                          {votingSchedule.time}
+                        </span>
+                      </span>
+                    </dd>
+                  </dl>
+                </>
+              );
+
+              return (
+                <article
+                  key={election.id}
+                  className="board-election-record"
+                  data-phase={phase}
+                >
+                  <div className="board-election-mobile-head">
+                    <div className="board-election-identity">
+                      <span className="board-election-index" aria-hidden="true">
+                        {String(position + 1).padStart(2, "0")}
+                      </span>
+
+                      <span
+                        className={`board-election-cover${hasCover ? "" : " is-empty"}`}
+                        aria-hidden="true"
+                      >
+                        {hasCover && (
+                          <img
+                            src={election.cover_url}
+                            alt=""
+                            loading="lazy"
+                            decoding="async"
+                            onError={() =>
+                              setBrokenCovers((current) => ({
+                                ...current,
+                                [election.id]: election.cover_url,
+                              }))
+                            }
+                          />
+                        )}
+                      </span>
+
+                      <div className="board-election-identity-copy">
+                        <h3>{election.title || "Untitled Election"}</h3>
+                        <p className="board-election-config-line">
+                          {resultVisibilityLabel(
+                            election.student_result_visibility,
+                            election.results_released_at,
+                          )}
+                          <span className="board-election-config-divider" aria-hidden="true" />
+                          {getVotingAccessModeLabel(election.voting_access_mode)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="board-election-standing">
+                      <span className="board-election-phase" title={`Election phase: ${phase}`}>
+                        {phaseLabel(election)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Desktop keeps the schedule values in their register columns.
+                      Mobile uses the native disclosure below so long schedules
+                      do not expand every election row by default.
+
+                      Each window keeps exactly the date and time the formatter
+                      returned for it, so a cross-day range stays two dates and
+                      never merges into the label or the neighbouring column. The
+                      separator the earlier inline prose treatment needed is gone
+                      with that treatment.
+
+                      data-absent marks a window with no timestamps at all. The
+                      formatter returns the absent marker "-" as the date then,
+                      which reads as a stray dash in a column, and an empty time
+                      already says the window is unset, so the marker is dropped
+                      on this layout only. */}
+                  <div className="board-election-schedules is-desktop-schedule">
+                    {scheduleDetails}
+                  </div>
+
+                  <div className="board-election-mobile-utility-row">
+                    <details
+                      className="board-election-schedule-disclosure"
+                      open={Boolean(expandedElectionSchedules[election.id])}
+                      onToggle={(event) => {
+                        const expanded = event.currentTarget.open;
+                        setExpandedElectionSchedules((current) =>
+                          current[election.id] === expanded
+                            ? current
+                            : { ...current, [election.id]: expanded },
+                        );
+                      }}
+                    >
+                      <summary
+                        aria-expanded={Boolean(expandedElectionSchedules[election.id])}
+                        aria-controls={`election-schedule-${election.id}`}
+                      >
+                        <span>Schedule</span>
+                      </summary>
+                      <div
+                        className="board-election-schedules"
+                        id={`election-schedule-${election.id}`}
+                      >
+                        {scheduleDetails}
+                      </div>
+                    </details>
+
+                    <div className="board-election-record-actions">
+                      <button
+                        type="button"
+                        onClick={() => openWorkspace(election)}
+                        className="board-election-action is-manage"
+                        title={`Manage election ${election.title || ""}`.trim()}
+                        aria-label={`Manage election ${election.title || ""}`.trim()}
+                      >
+                        Manage
+                        <ArrowRight
+                          size={14}
+                          strokeWidth={2.5}
+                          aria-hidden="true"
+                          className="board-election-action-arrow"
+                        />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openEdit(election)}
+                        className="board-election-action is-quiet"
+                        title={`Edit election ${election.title || ""}`.trim()}
+                        aria-label={`Edit election ${election.title || ""}`.trim()}
+                      >
+                        <Pencil size={15} aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(election.id)}
+                        className="board-election-action is-danger"
+                        title={`Delete election ${election.title || ""}`.trim()}
+                        aria-label={`Delete election ${election.title || ""}`.trim()}
+                      >
+                        <Trash2 size={15} aria-hidden="true" />
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </section>
       )}
 
       {formOpen && (
-        <PopupOverlay>
-          <div className="modal-card max-w-xl">
-            <div className="mb-4 flex justify-between">
-              <h2 className="text-xl font-black">
-                {editing ? "Edit Election" : "Create Election"}
-              </h2>
-
-              <button type="button" onClick={() => setFormOpen(false)} className="popup-close">
-                <X />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="upload-shell">
-                <div className="grid gap-4">
-                  <ElectionCover
-                    election={{ title: form.title || "Election", cover_url: form.cover_url }}
-                    compact
-                  />
-                  <div className="min-w-0">
-                    <label className="field-label">Election Cover Photo</label>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <label className="secondary-btn cursor-pointer">
-                        <ImagePlus size={16} />
-                        {form.cover_url ? "Change Cover" : "Add Cover"}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          disabled={coverUploading}
-                          onChange={(event) => handleCoverUpload(event.target.files?.[0])}
-                          className="sr-only"
-                        />
-                      </label>
-                      {form.cover_url ? (
-                        <button
-                          type="button"
-                          onClick={() => setForm({ ...form, cover_url: "" })}
-                          className="secondary-btn"
-                        >
-                          Remove
-                        </button>
-                      ) : null}
-                    </div>
-                    <input
-                      value={form.cover_url}
-                      onChange={(event) =>
-                        setForm({ ...form, cover_url: event.target.value })
-                      }
-                      placeholder="Cover image URL optional"
-                      className="field-shell mt-3 w-full"
-                    />
-                    <p className="mt-2 text-xs font-semibold text-gray-500">
-                      {coverUploading ? "Uploading cover..." : "Stored as a public image URL."}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="field-label">Election Title</label>
-                <input
-                  required
-                  placeholder="Election Title"
-                  value={form.title}
-                  onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  className="field-shell w-full"
-                />
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <ScheduleDateTimePicker
-                  label="Campaign Start Date & Time"
-                  required={form.status !== "draft"}
-                  value={form.campaign_start}
-                  min={scheduleMin}
-                  max={form.campaign_end || form.start_date}
-                  onChange={(value) => setForm({ ...form, campaign_start: value })}
-                />
-
-                <ScheduleDateTimePicker
-                  label="Campaign End Date & Time"
-                  required={form.status !== "draft"}
-                  value={form.campaign_end}
-                  min={form.campaign_start || scheduleMin}
-                  max={form.start_date}
-                  onChange={(value) => setForm({ ...form, campaign_end: value })}
-                />
-
-                <ScheduleDateTimePicker
-                  label="Voting Start Date & Time"
-                  required
-                  value={form.start_date}
-                  min={form.campaign_end || scheduleMin}
-                  max={form.end_date}
-                  onChange={(value) => setForm({ ...form, start_date: value })}
-                />
-
-                <ScheduleDateTimePicker
-                  label="Voting End Date & Time"
-                  required
-                  value={form.end_date}
-                  min={form.start_date || form.campaign_end || scheduleMin}
-                  onChange={(value) => setForm({ ...form, end_date: value })}
-                />
-              </div>
-
-              <select
-                value={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.value })}
-                className="field-shell w-full"
-              >
-                <option value="draft">Draft</option>
-                <option value="active">Active</option>
-                <option value="closed">Closed</option>
-              </select>
-
-              <select
-                value={form.student_result_visibility}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    student_result_visibility: e.target.value,
-                  })
-                }
-                className="field-shell w-full"
-              >
-                <option value="realtime">Real-time results</option>
-                <option value="after_close">Show after voting ends</option>
-                <option value="manual">Manual admin release</option>
-              </select>
-
-              <div className="rounded-2xl border border-[rgba(24,54,49,0.08)] p-4">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#55726b]">
-                  Voting Access Rule
-                </p>
-                <div className="mt-3 grid gap-4 md:grid-cols-2">
-                  <select
-                    value={form.voting_access_mode}
-                    onChange={(e) =>
-                      setForm({ ...form, voting_access_mode: e.target.value })
-                    }
-                    className="field-shell w-full"
-                  >
-                    {VOTING_ACCESS_MODES.map((mode) => (
-                      <option key={mode.value} value={mode.value}>
-                        {mode.label}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    value={form.location_label}
-                    onChange={(e) => setForm({ ...form, location_label: e.target.value })}
-                    placeholder="Location label optional"
-                    className="field-shell w-full"
-                  />
-                </div>
-
-                {form.voting_access_mode === "location_range" ? (
-                  <div className="mt-4 grid gap-4 md:grid-cols-3">
-                    <input type="number" step="any" value={form.geo_lat} onChange={(e) => setForm({ ...form, geo_lat: e.target.value })} placeholder="Latitude" className="field-shell w-full" />
-                    <input type="number" step="any" value={form.geo_lng} onChange={(e) => setForm({ ...form, geo_lng: e.target.value })} placeholder="Longitude" className="field-shell w-full" />
-                    <input type="number" min="1" value={form.geo_radius_meters} onChange={(e) => setForm({ ...form, geo_radius_meters: e.target.value })} placeholder="Radius in meters" className="field-shell w-full" />
-                  </div>
-                ) : null}
-              </div>
-
-              {editing && form.voting_access_mode !== "anywhere" && form.voting_access_mode !== "location_range" ? (
-                <div className="rounded-2xl border border-[rgba(24,54,49,0.08)] p-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#55726b]">
-                      Access Tokens / QR
-                    </p>
-                    <QrCode size={18} className="text-[#ff5a1f]" />
-                  </div>
-
-                  <div className="mt-4 grid gap-4 md:grid-cols-3">
-                    <select value={tokenForm.scope_type} onChange={(e) => setTokenForm({ ...tokenForm, scope_type: e.target.value, scope_value: e.target.value === "general" ? "" : tokenForm.scope_value })} className="field-shell w-full">
-                      {TOKEN_SCOPE_TYPES.map((scope) => (
-                        <option key={scope.value} value={scope.value}>{scope.label}</option>
-                      ))}
-                    </select>
-                    <input value={tokenForm.scope_value} onChange={(e) => setTokenForm({ ...tokenForm, scope_value: e.target.value })} placeholder="Scope value" disabled={tokenForm.scope_type === "general"} className="field-shell w-full" />
-                    <input type="datetime-local" value={tokenForm.expires_at} onChange={(e) => setTokenForm({ ...tokenForm, expires_at: e.target.value })} className="field-shell w-full" />
-                  </div>
-
-                  <button type="button" onClick={handleCreateAccessToken} className="secondary-btn mt-4">
-                    Generate Token
-                  </button>
-
-                  <div className="mt-4 space-y-3">
-                    {accessTokens.length === 0 ? (
-                      <div className="rounded-2xl bg-gray-50 px-4 py-4 text-sm text-gray-500">
-                        No tokens yet for this election.
-                      </div>
-                    ) : (
-                      accessTokens.map((tokenRow) => (
-                        <div key={tokenRow.id} className="rounded-2xl bg-gray-50 p-4">
-                          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                            <div>
-                              <p className="font-black tracking-[0.12em]">{tokenRow.token}</p>
-                              <p className="mt-1 text-xs uppercase tracking-[0.16em] text-gray-500">
-                                {tokenRow.scope_type}{tokenRow.scope_value ? ` • ${tokenRow.scope_value}` : ""}
-                              </p>
-                              <p className="mt-2 text-xs text-gray-500">
-                                Expires: {formatLocalDateTime(tokenRow.expires_at)}
-                              </p>
-                            </div>
-                            <div className="flex items-start gap-4">
-                              <img src={getAccessQrImageUrl(tokenRow.token)} alt={`QR for ${tokenRow.token}`} className="h-24 w-24 rounded-2xl border bg-white p-2" />
-                              <button type="button" onClick={() => handleToggleToken(tokenRow)} className="rounded-xl bg-white px-4 py-3 text-sm font-bold text-[#102220]">
-                                <Power size={15} className="inline" /> {tokenRow.is_active ? " Disable" : " Enable"}
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              ) : null}
-
-              <button className="primary-btn w-full" disabled={submitting}>
-                {submitting ? <KandidButtonLoader label="Saving..." /> : "Save"}
-              </button>
-            </form>
-          </div>
-        </PopupOverlay>
+        <BoardElectionSetup
+          editing={editing}
+          onElectorateLocked={(lockResult) => {
+            setEditing((current) => current ? { ...current, electorate_frozen_at: lockResult?.locked_at } : current);
+          }}
+          form={form}
+          updateForm={updateForm}
+          onSubmit={handleSubmit}
+          submitting={submitting}
+          onClose={() => {
+            coverUploadRequest.current++;
+            coverUploadBusy.current = false;
+            setCoverUploading(false);
+            setFormOpen(false);
+          }}
+          coverUploading={coverUploading}
+          onCoverUpload={handleCoverUpload}
+          scheduleMin={scheduleMin}
+          accessTokens={accessTokens}
+          tokenForm={tokenForm}
+          updateTokenForm={updateTokenForm}
+          onCreateAccessToken={handleCreateAccessToken}
+          onToggleToken={handleToggleToken}
+        />
       )}
 
-      {createdElection && (
-        <PopupOverlay>
-          <div className="modal-card max-w-lg text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
-              <CheckCircle2 size={28} />
-            </div>
-            <p className="field-label mt-5">Configuration Complete</p>
-            <h2 className="mt-2 text-2xl font-black">Election created successfully</h2>
-            <p className="mt-3 text-sm leading-6 text-gray-500">
-              {createdElection.title} has been created. Continue configuring the ballot by adding positions and candidates.
-            </p>
-            {createdElection.reusedPositionCount > 0 ? (
-              <p className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
-                {createdElection.reusedPositionCount} position
-                {createdElection.reusedPositionCount === 1 ? "" : "s"} reused
-                {createdElection.reusedFromElectionTitle
-                  ? ` from ${createdElection.reusedFromElectionTitle}`
-                  : ""}.
-              </p>
-            ) : null}
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setCreatedElection(null);
-                  openEdit(createdElection);
-                }}
-                className="secondary-btn justify-center"
-              >
-                View Election
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const election = createdElection;
-                  setCreatedElection(null);
-                  navigate(`/board/positions?election=${election.id}`);
-                }}
-                className="primary-btn justify-center"
-              >
-                Continue Setup
-              </button>
-            </div>
-          </div>
-        </PopupOverlay>
+      {workspaceElection && (
+        <BoardElectionWorkspace
+          election={workspaceElection}
+          orgName={orgName}
+          onClose={() => setWorkspaceElection(null)}
+          onEdit={() => {
+            setWorkspaceElection(null);
+            openEdit(workspaceElection);
+          }}
+          onDelete={() => {
+            setWorkspaceElection(null);
+            handleDelete(workspaceElection.id);
+          }}
+        />
       )}
+
+      {deleteReview && (
+        <BoardElectionDeleteSheet
+          key={deleteReview.id}
+          election={deleteReview.election}
+          orgName={orgName}
+          phase={deleteReview.phase}
+          analysis={deleteReview.analysis}
+          mode={deleteReview.mode}
+          removalReady={removalReady}
+          error={deleteReview.error}
+          onClose={closeDeleteReview}
+          onRetry={() => handleDelete(deleteReview.id)}
+          onContinue={() => { if (removalReady) setDeleteReview((current) => ({ ...current, phase: "danger_zone" })); }}
+          onConfirm={deleteReview.mode === "restore" ? confirmRestore : confirmDelete}
+        />
+      )}
+
     </div>
   );
 }

@@ -1,0 +1,371 @@
+.kandid-app-theme .board-audit-page {
+  --audit-ink: var(--kandid-app-ink, #101114);
+  --audit-muted: var(--kandid-app-muted, #5b5e66);
+  --audit-rule: var(--kandid-app-border, #e5e0d6);
+  --audit-rule-strong: var(--kandid-app-border-strong, #cfc9bf);
+  --audit-orange: var(--kandid-app-orange, #f4512c);
+  display: grid;
+  min-width: 0;
+  gap: clamp(1.35rem, 2vw, 1.9rem);
+  color: var(--audit-ink);
+}
+
+.kandid-app-theme .board-audit-masthead {
+  gap: 0.5rem;
+}
+
+.kandid-app-theme .board-audit-section-head {
+  display: flex;
+  min-width: 0;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--audit-rule-strong);
+  padding-bottom: 0.8rem;
+}
+
+.kandid-app-theme .board-audit-kicker {
+  margin: 0;
+  color: var(--audit-orange);
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.13em;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-audit-section-head h2 {
+  margin: 0.28rem 0 0;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(1.55rem, 2.2vw, 2rem);
+  font-weight: 650;
+  line-height: 1.08;
+}
+
+.kandid-app-theme .board-audit-refresh,
+.kandid-app-theme .board-audit-state button,
+.kandid-app-theme .board-audit-load-more button,
+.kandid-app-theme .board-audit-filter-error button {
+  display: inline-flex;
+  min-height: 2.4rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+  border: 0;
+  border-bottom: 1px solid var(--audit-rule-strong);
+  border-radius: 0;
+  background: transparent;
+  padding: 0.35rem 0;
+  color: var(--audit-ink);
+  font: inherit;
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.kandid-app-theme .board-audit-refresh:hover,
+.kandid-app-theme .board-audit-state button:hover,
+.kandid-app-theme .board-audit-load-more button:hover,
+.kandid-app-theme .board-audit-filter-error button:hover {
+  border-color: var(--audit-orange);
+  color: var(--audit-orange);
+}
+
+.kandid-app-theme .board-audit-refresh:focus-visible,
+.kandid-app-theme .board-audit-state button:focus-visible,
+.kandid-app-theme .board-audit-load-more button:focus-visible,
+.kandid-app-theme .board-audit-filter-error button:focus-visible,
+.kandid-app-theme .board-audit-filter input:focus-visible,
+.kandid-app-theme .board-audit-filter select:focus-visible,
+.kandid-app-theme .board-audit-details summary:focus-visible {
+  outline: 2px solid var(--audit-orange);
+  outline-offset: 3px;
+}
+
+.kandid-app-theme .board-audit-refresh:disabled,
+.kandid-app-theme .board-audit-load-more button:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.kandid-app-theme .board-audit-filters {
+  display: grid;
+  grid-template-columns: minmax(10rem, 0.8fr) minmax(12rem, 1fr) minmax(14rem, 1.4fr);
+  gap: 1rem 1.25rem;
+  padding: 0.15rem 0 0.95rem;
+}
+
+.kandid-app-theme .board-audit-filter {
+  display: grid;
+  min-width: 0;
+  gap: 0.35rem;
+}
+
+.kandid-app-theme .board-audit-filter > span {
+  color: var(--audit-muted);
+  font-size: 0.61rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-audit-filter input,
+.kandid-app-theme .board-audit-filter select {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.65rem;
+  border: 1px solid var(--audit-rule-strong);
+  border-radius: 0;
+  background: transparent;
+  padding: 0.55rem 0.7rem;
+  color: var(--audit-ink);
+  font: inherit;
+  font-size: 0.78rem;
+}
+
+.kandid-app-theme .board-audit-filter input::placeholder { color: var(--audit-muted); }
+.kandid-app-theme .board-audit-filter select:disabled { opacity: 0.62; }
+
+.kandid-app-theme .board-audit-filter-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  border-top: 1px solid var(--audit-rule);
+  padding: 0.55rem 0;
+  color: var(--audit-muted);
+  font-size: 0.74rem;
+}
+
+.kandid-app-theme .board-audit-filter-error button {
+  min-height: 1.8rem;
+  font-size: 0.6rem;
+}
+
+.kandid-app-theme .board-audit-list,
+.kandid-app-theme .board-audit-skeleton-list {
+  display: grid;
+  min-width: 0;
+}
+
+.kandid-app-theme .board-audit-event {
+  min-width: 0;
+  border-bottom: 1px solid var(--audit-rule);
+  padding: 1rem 0 0.9rem;
+}
+
+.kandid-app-theme .board-audit-event-main {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(11rem, 1.2fr) minmax(9rem, 1fr) minmax(9rem, 0.9fr) minmax(9rem, 0.8fr);
+  gap: 1.1rem;
+}
+
+.kandid-app-theme .board-audit-event-action,
+.kandid-app-theme .board-audit-event-target,
+.kandid-app-theme .board-audit-event-actor,
+.kandid-app-theme .board-audit-event-time {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 0.2rem;
+}
+
+.kandid-app-theme .board-audit-event-category,
+.kandid-app-theme .board-audit-label {
+  margin: 0;
+  color: var(--audit-muted);
+  font-size: 0.59rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-audit-event-action h3 {
+  margin: 0;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.08rem;
+  font-weight: 650;
+  line-height: 1.22;
+  overflow-wrap: anywhere;
+}
+
+.kandid-app-theme .board-audit-event-target strong,
+.kandid-app-theme .board-audit-event-actor strong {
+  color: var(--audit-ink);
+  font-size: 0.78rem;
+  font-weight: 750;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.kandid-app-theme .board-audit-event-actor > span:last-child,
+.kandid-app-theme .board-audit-event-time time,
+.kandid-app-theme .board-audit-election-context,
+.kandid-app-theme .board-audit-legacy {
+  color: var(--audit-muted);
+  font-size: 0.7rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.kandid-app-theme .board-audit-legacy {
+  color: var(--audit-orange);
+  font-size: 0.61rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-audit-event-status {
+  width: fit-content;
+  margin: 0.6rem 0 0;
+  border-left: 2px solid var(--audit-orange);
+  padding-left: 0.55rem;
+  color: var(--audit-muted);
+  font-size: 0.67rem;
+  font-weight: 750;
+}
+
+.kandid-app-theme .board-audit-details { margin-top: 0.65rem; }
+
+.kandid-app-theme .board-audit-details summary {
+  width: fit-content;
+  color: var(--audit-muted);
+  font-size: 0.65rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.kandid-app-theme .board-audit-details summary:hover { color: var(--audit-orange); }
+
+.kandid-app-theme .board-audit-details-content {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+  padding-left: 0.75rem;
+  border-left: 1px solid var(--audit-rule-strong);
+}
+
+.kandid-app-theme .board-audit-details-content h4 {
+  margin: 0 0 0.15rem;
+  color: var(--audit-muted);
+  font-size: 0.59rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-audit-details-content p {
+  margin: 0;
+  color: var(--audit-ink);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.kandid-app-theme .board-audit-program-change {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1.25rem;
+}
+
+.kandid-app-theme .board-audit-state {
+  border-top: 1px solid var(--audit-rule-strong);
+  border-bottom: 1px solid var(--audit-rule);
+  padding: 1.2rem 0;
+}
+
+.kandid-app-theme .board-audit-state h3 {
+  margin: 0;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.2rem;
+  font-weight: 650;
+}
+
+.kandid-app-theme .board-audit-state p {
+  margin: 0.3rem 0 0.7rem;
+  color: var(--audit-muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.kandid-app-theme .board-audit-state.is-error h3 { color: #8b2b23; }
+
+.kandid-app-theme .board-audit-load-more {
+  display: flex;
+  justify-content: center;
+  border-bottom: 1px solid var(--audit-rule);
+  padding: 0.75rem 0;
+}
+
+.kandid-app-theme .board-audit-older-error {
+  margin: 0;
+  padding: 0.55rem 0;
+  color: #8b2b23;
+  font-size: 0.74rem;
+}
+
+.kandid-app-theme .board-audit-skeleton-list { border-top: 1px solid var(--audit-rule-strong); }
+
+.kandid-app-theme .board-audit-skeleton-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 0.9fr 0.8fr;
+  gap: 1.1rem;
+  border-bottom: 1px solid var(--audit-rule);
+  padding: 1.15rem 0;
+}
+
+.kandid-app-theme .board-audit-skeleton-row span {
+  height: 0.72rem;
+  background: #e9e4da;
+  animation: board-audit-pulse 1.35s ease-in-out infinite alternate;
+}
+
+.kandid-app-theme .board-audit-skeleton-row .is-action { width: 78%; }
+.kandid-app-theme .board-audit-skeleton-row .is-target { width: 70%; }
+.kandid-app-theme .board-audit-skeleton-row .is-actor { width: 75%; }
+.kandid-app-theme .board-audit-skeleton-row .is-time { width: 80%; }
+
+.kandid-app-theme .board-audit-skeleton-note {
+  margin-top: 0.6rem;
+  color: var(--audit-muted);
+  font-size: 0.68rem;
+}
+
+@keyframes board-audit-pulse {
+  from { opacity: 0.55; }
+  to { opacity: 1; }
+}
+
+@media (max-width: 900px) {
+  .kandid-app-theme .board-audit-event-main {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    gap: 0.8rem 1.5rem;
+  }
+
+  .kandid-app-theme .board-audit-skeleton-row { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 640px) {
+  .kandid-app-theme .board-audit-page { gap: 1.15rem; }
+  .kandid-app-theme .board-audit-section-head { align-items: start; }
+  .kandid-app-theme .board-audit-refresh { min-height: 2rem; font-size: 0.6rem; }
+  .kandid-app-theme .board-audit-filters { grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .kandid-app-theme .board-audit-filter.is-search { grid-column: 1 / -1; }
+  .kandid-app-theme .board-audit-event { padding: 0.85rem 0; }
+  .kandid-app-theme .board-audit-event-main { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.7rem 0.85rem; }
+  .kandid-app-theme .board-audit-event-action { grid-column: 1 / -1; }
+  .kandid-app-theme .board-audit-event-action h3 { font-size: 1.02rem; }
+  .kandid-app-theme .board-audit-event-target strong,
+  .kandid-app-theme .board-audit-event-actor strong { font-size: 0.73rem; }
+  .kandid-app-theme .board-audit-skeleton-row { grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .kandid-app-theme .board-audit-program-change { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kandid-app-theme .board-audit-skeleton-row span { animation: none; }
+}

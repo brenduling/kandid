@@ -11,6 +11,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { formatAcademicTerm } from "../../utils/academicTerms";
+import SuperAdminPageHeader from "../../components/SuperAdminPageHeader";
 import {
   finalizeMasterlistImport,
   getMasterlistImport,
@@ -184,8 +185,13 @@ function MasterlistReview() {
     return rows.filter((row) => row.reconciliation_status === activeTab);
   }, [activeTab, rows]);
 
+  const importScope = masterlistImport?.import_scope;
+  const validScope = importScope === "incremental" || importScope === "full_roster";
+  const hasCurrentFullRosterPreview =
+    importScope !== "full_roster" || Boolean(payload?.absence_preview?.fingerprint);
   const canFinalize =
-    masterlistImport?.import_status === "review" && rows.length > 0 && counts.blocking === 0;
+    validScope && hasCurrentFullRosterPreview && masterlistImport?.import_status === "review" &&
+    rows.length > 0 && counts.blocking === 0;
   const canMutateRows = masterlistImport?.import_status !== "finalized";
   const pendingProgramChanges = rows.filter(
     (row) =>
@@ -318,8 +324,24 @@ function MasterlistReview() {
   async function handleFinalize() {
     if (!canFinalize || actionLoading) return;
 
+    let finalizeOptions = {};
+    if (importScope === "full_roster") {
+      const affected = payload?.absence_preview?.affected_students || [];
+      const confirmed = await prompt.confirm({
+        type: "warning",
+        title: "Confirm Complete Roster",
+        message: `This is an authoritative full-term roster. The preview above lists ${affected.length} previously enrolled Student(s) absent from the roster; they may lose current-term enrollment eligibility. Confirm only if this file is complete for the selected term.`,
+        confirmText: "Confirm Full Roster",
+      });
+      if (!confirmed) return;
+      finalizeOptions = {
+        confirmFullRoster: true,
+        absencePreviewFingerprint: payload.absence_preview.fingerprint,
+      };
+    }
+
     setActionLoading(true);
-    const { data, error } = await finalizeMasterlistImport(importId);
+    const { data, error } = await finalizeMasterlistImport(importId, finalizeOptions);
 
     if (error || !data) {
       prompt.error(error?.message || "Masterlist could not be finalized.");
@@ -363,35 +385,18 @@ function MasterlistReview() {
 
   return (
     <div className="content-section sa-remaining-page sa-masterlist-review">
-      <div className="page-head">
-        <div>
-          <p className="sa-remaining-breadcrumb"><span>Kandid</span><span>/</span><span>Super Admin</span></p>
-          <div className="page-kicker">Semester Masterlist</div>
-          <h1 className="page-title">
-            {finalized ? "Masterlist Finalized" : "Masterlist Review"}
-          </h1>
-          <p className="page-subtitle">
-            {term ? formatAcademicTerm(term) : "Academic term"} -{" "}
-            {masterlistImport?.file_name || "CSV Import"}
-          </p>
-        </div>
-
-        <div className="flex flex-wrap gap-3">
-          <Link to="/super-admin/csv-import" className="secondary-btn">
-            <FileUp size={18} />
-            Upload Corrected Masterlist
-          </Link>
-          <button
-            type="button"
-            className="secondary-btn"
-            onClick={loadImport}
-            disabled={actionLoading}
-          >
-            <RefreshCw size={18} />
-            Refresh
-          </button>
-        </div>
-      </div>
+      <SuperAdminPageHeader
+        section="Student records"
+        title={finalized ? "Masterlist Finalized" : "Masterlist Review"}
+        description="Review imported student records before they enter the registry."
+        context={<>{term ? formatAcademicTerm(term) : "Academic term"} · {masterlistImport?.file_name || "CSV Import"}</>}
+        actions={(
+          <>
+            <Link to="/super-admin/csv-import" className="secondary-btn"><FileUp size={18} />Upload Corrected Masterlist</Link>
+            <button type="button" className="secondary-btn" onClick={loadImport} disabled={actionLoading}><RefreshCw size={18} />Refresh</button>
+          </>
+        )}
+      />
 
       <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div className="metric-card">
@@ -417,6 +422,44 @@ function MasterlistReview() {
           </h2>
         </div>
       </div>
+
+      {!finalized && importScope === "full_roster" ? (
+        <section className="soft-card mt-6 border-amber-200" aria-labelledby="full-roster-preview-heading">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-1 text-amber-600" size={22} />
+            <div className="min-w-0 flex-1">
+              <h2 id="full-roster-preview-heading" className="surface-heading text-lg font-black">
+                Complete roster: affected Student preview
+              </h2>
+              <p className="surface-subcopy mt-1">
+                {payload?.absence_preview
+                  ? `${payload.absence_preview.affected_count} previously enrolled Student(s) are absent from this roster and would be marked not in the masterlist.`
+                  : "The trusted affected-Student preview is unavailable. Refresh before finalization."}
+              </p>
+              {payload?.absence_preview?.affected_students?.length > 0 ? (
+                <ul className="mt-3 grid gap-1 text-sm text-slate-700 sm:grid-cols-2">
+                  {payload.absence_preview.affected_students.map((student) => (
+                    <li key={student.student_id}>
+                      {student.first_name} {student.last_name} <span className="text-slate-500">({student.student_number})</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : payload?.absence_preview ? (
+                <p className="mt-3 text-sm text-slate-600">No previously enrolled Students are absent from this roster.</p>
+              ) : null}
+              <p className="mt-3 text-xs font-semibold text-amber-800">
+                Finalization requires a fresh server-side fingerprint and explicit active Super Admin confirmation.
+              </p>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {!finalized && !validScope ? (
+        <div className="mt-6 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800" role="alert">
+          This import has a missing or unknown scope. Finalization is blocked until it is safely reviewed and classified.
+        </div>
+      ) : null}
 
       {finalized ? (
         <div className="soft-card mt-8 border-emerald-200">
