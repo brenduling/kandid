@@ -5,3 +5,9 @@ node_modules/
 dist/
 cache/
 .hardhat-cache/
+
+# Local database dumps and regenerable Hardhat compiler metadata.
+/backup.sql
+/artifacts/build-info/
+/artifacts/artifacts.d.ts
+/artifacts/contracts/**/artifacts.d.ts
