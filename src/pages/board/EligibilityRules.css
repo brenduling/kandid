@@ -1,0 +1,895 @@
+/* Board > Eligibility Rules — declared-audience directory.
+
+   The page previously presented each rule as a database record: a bordered
+   "lift" card, an orange uppercase pill carrying the election title, a red/grey
+   "SHS on" / "SHS off" pill, a single "Year level: - to -" meta line, and two
+   permanently exposed square icon buttons. It read as a rule editor, and the
+   red SHS pill in particular signalled something broken rather than something
+   merely off.
+
+   This stylesheet reuses the systems the portal already established instead of
+   inventing a third:
+
+     - the Elections masthead, mirrored rule for rule: the orange
+       "Electoral Board / [organization]" eyebrow with its hairline, the page
+       title carrying the one orange action on its baseline, the standfirst, and
+       the single 2px ink rule closing the header;
+     - the Partylists / Officer register: hairline-separated rows, a tabular
+       index, serif serif-strength content, and the inline EDIT / DELETE pair on
+       desktop giving way to the overflow menu on mobile;
+     - the Add Student form system for Add / Edit, reused via an import of
+       ../superadmin/Students.css rather than restated here;
+     - the shared Board palette, aliases of --kandid-app-*, and zero radius.
+
+   Scope note: every selector is qualified with .board-eligibility, and the form
+   additions with .board-eligibility-registration or an id on this form. No shared
+   stylesheet is edited, so Elections, Partylists, Officers, Students and every
+   other Board page are unaffected.
+
+   The only page-level addition with no Elections or Partylists precedent is
+   .board-eligibility-note, the single scope sentence. It is set as a footnote -
+   no border, no panel, no icon - because what it corrects is a labelling
+   ambiguity, not a fault. */
+
+.kandid-app-theme .board-eligibility {
+  --board-eligibility-hairline: var(--kandid-app-border, #e5e0d6);
+  --board-eligibility-hairline-strong: var(--kandid-app-border-strong, #d2ccc0);
+  --board-eligibility-ink: var(--kandid-app-ink, #101114);
+  --board-eligibility-ink-soft: var(--kandid-app-ink-3, #3a3d45);
+  --board-eligibility-muted: var(--kandid-app-muted, #5b5e66);
+  --board-eligibility-orange: var(--kandid-app-orange, #f4512c);
+  --board-eligibility-paper: var(--kandid-app-paper, #ffffff);
+  --board-eligibility-paper-soft: var(--kandid-app-paper-soft, #f8f6f1);
+  --board-eligibility-danger: #9f1239;
+  --board-eligibility-danger-strong: #a83224;
+
+  /* The page box belongs to the shared Board content wrapper, .content-stack
+     (index.css:20233), which is width:100% with max-width:100% and supplies the
+     --kandid-app-gutter padding. Elections and Partylists add nothing on top of
+     it, so this page adds nothing either: the masthead, its 2px divider, the
+     declared-audience head, the row separators, the empty state and the
+     ADD RULE action all reach the same left and right content edges they do on
+     those pages.
+
+     This rule used to set max-width:84rem with margin:0 auto plus its own padding
+     on top of the wrapper's, which centred the register in a narrow column and
+     padded the page twice. The row grid already groups the rule information to
+     the left and holds the actions in an auto column on the right, so the extra
+     width widens that gap instead of spreading the individual fields. */
+  width: 100%;
+  min-width: 0;
+}
+
+/* --- masthead -----------------------------------------------------------------
+   Element for element the Elections header, under this page's own names so the
+   two pages stay independently editable. */
+
+.kandid-app-theme .board-eligibility-masthead {
+  display: grid;
+  min-width: 0;
+  gap: 0.4rem;
+  border: 0 !important;
+  border-bottom: 2px solid var(--board-eligibility-ink) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 0 clamp(1.7rem, 2.6vw, 2.25rem) !important;
+  box-shadow: none !important;
+}
+
+.kandid-app-theme .board-eligibility-context {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.kandid-app-theme .board-eligibility-eyebrow {
+  flex: 0 0 auto;
+  max-width: 100%;
+  overflow: hidden;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  color: var(--board-eligibility-orange) !important;
+  font-size: 0.68rem !important;
+  font-weight: 850 !important;
+  letter-spacing: 0.14em !important;
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.kandid-app-theme .board-eligibility-context-rule {
+  flex: 1 1 auto;
+  min-width: 1.5rem;
+  height: 1px;
+  background: var(--board-eligibility-hairline);
+}
+
+/* "Eligibility rules" inherits the shared Board page-title rule, so it stays in
+   the same Source Serif 4 family as "Elections" and "Officer record".
+
+   Its size is reduced one step from the shared scale, which is
+   clamp(2.35rem, 3.6vw, 3.2rem), for the same reason the Officers title is: at
+   the shared size it outweighed the register it introduces, and the page read as
+   a newspaper headline with some rows underneath rather than a register with a
+   title. The `!important` is required because the shared rule sets font-size at
+   that weight, and it is confined to this one property so no other Board page's
+   title is affected. Level 1 stays the strongest heading on the page. The clamp
+   also brings the title down on its own at narrow widths, so it needs no mobile
+   override. */
+.kandid-app-theme .board-eligibility-title {
+  max-width: 48rem;
+  font-size: clamp(1.95rem, 2.7vw, 2.5rem) !important;
+}
+
+.kandid-app-theme .board-eligibility-baseline {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem 1.5rem;
+}
+
+.kandid-app-theme .board-eligibility-header-actions {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.kandid-app-theme .board-eligibility-standfirst {
+  max-width: 44rem;
+  margin: 0;
+  color: var(--board-eligibility-ink-soft);
+  font-size: 0.94rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.kandid-app-theme .board-eligibility-create {
+  display: inline-flex;
+  min-height: 2.45rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: 1px solid var(--board-eligibility-orange) !important;
+  border-radius: 0 !important;
+  padding: 0 1.05rem !important;
+  background: var(--board-eligibility-orange) !important;
+  color: #ffffff !important;
+  font-family: inherit;
+  font-size: 0.71rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.kandid-app-theme .board-eligibility-create:hover {
+  border-color: #d93f1d !important;
+  background: #d93f1d !important;
+}
+
+.kandid-app-theme .board-eligibility-create:focus-visible {
+  outline: 2px solid var(--board-eligibility-orange);
+  outline-offset: 2px;
+}
+
+/* --- directory heading ---------------------------------------------------------
+   Functional, not decorative. It names the records, counts them, and carries the
+   scope note, so nothing here repeats the page title and the note is not a
+   standalone section stranded between the masthead and the register.
+
+   The note is a footnote on the heading rather than a panel: no border, no icon,
+   no warning colour. It corrects a labelling ambiguity, nothing more. */
+
+/* The section head, element for element the Ballot Positions register head:
+   an orange eyebrow and a serif Level 2 heading on the left, the record count on
+   the outer edge, above a 2px rule that opens the section. */
+.kandid-app-theme .board-eligibility-register-head {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+  border-top: 2px solid var(--board-eligibility-ink);
+  padding-top: 0.8rem;
+}
+
+.kandid-app-theme .board-eligibility-register-head h2 {
+  margin: 0.25rem 0 0 !important;
+  overflow-wrap: anywhere;
+  color: var(--board-eligibility-ink) !important;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(1.35rem, 1.9vw, 1.95rem) !important;
+  font-weight: 650 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.08;
+}
+
+/* Level 4: a tracked orange eyebrow, matching .board-positions-section-kicker. */
+.kandid-app-theme .board-eligibility-section-kicker {
+  margin: 0;
+  color: var(--board-eligibility-orange) !important;
+  font-size: 0.68rem !important;
+  font-weight: 850 !important;
+  letter-spacing: 0.12em !important;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+/* The count is metadata on the outer edge: an orange serif numeral at heading
+   scale with the label at text scale, exactly as the Positions register counts
+   its elections. */
+.kandid-app-theme .board-eligibility-register-count {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  color: var(--board-eligibility-muted);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-eligibility-register-count strong {
+  color: var(--board-eligibility-orange);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.55rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+/* Small supporting copy under the section heading, the way the Positions
+   workspace carries its own quiet note. It states the truthful scope and stays
+   deliberately quieter than the heading and the records below it. */
+.kandid-app-theme .board-eligibility-note {
+  max-width: 46rem;
+  margin: 0.55rem 0 0;
+  color: var(--board-eligibility-muted);
+  font-size: 0.74rem;
+  font-weight: 550;
+  line-height: 1.45;
+}
+
+/* --- register -----------------------------------------------------------------
+   The Ballot Positions section pattern: one column template on the section, used
+   by every row, so the order rail, the identity block and the controls always
+   resolve to the same edges. Positions carries ORDER | POSITION | MAX SELECTIONS
+   | STATUS | ACTIONS as separate tracks; here the second, third and fourth are
+   stacked inside one identity block instead, because program coverage, year
+   coverage and the SHS condition describe one declared audience rather than
+   three independent fields. */
+
+.kandid-app-theme .board-eligibility-register {
+  --board-eligibility-register-columns: 2.9rem minmax(0, 1fr) 11.5rem;
+
+  display: grid;
+  min-width: 0;
+}
+
+.kandid-app-theme .board-eligibility-list {
+  display: grid;
+  min-width: 0;
+}
+
+/* One record = one row: index rail, one compact content block, actions.
+
+   The content track is capped rather than given 1fr. On a wide monitor the
+   record is already a short three-line block, so letting the column grow would
+   only push a wall of space between the words and the controls and make the row
+   look scattered instead of composed. Capping it and letting justify-content
+   space-between hand the leftover width to the gap means the content sits at one
+   fixed measure on the left and EDIT/DELETE stay pinned to the same far-right
+   edge on every row. The content starts closer to the index rail to avoid an
+   accidental column gap between 01 and the rule.
+
+   The actions track is auto, never flexible, so the pair keeps its intrinsic
+   width and the content track absorbs the squeeze on a narrow viewport instead
+   of overflowing the controls. */
+/* The row sits on the section's shared column template, with the same row
+   padding, hairline and hover state as .board-position-entry. The identity block
+   takes the flexible track so it grows with the workspace instead of sitting in a
+   capped island, and the controls take a fixed track at the right edge. */
+.kandid-app-theme .board-eligibility-item {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: var(--board-eligibility-register-columns);
+  gap: 1.1rem;
+  align-items: center;
+  border-bottom: 1px solid var(--board-eligibility-hairline);
+  padding: 0.85rem 0;
+  transition: background-color 140ms ease;
+}
+
+.kandid-app-theme .board-eligibility-item:hover {
+  background: var(--board-eligibility-paper-soft);
+}
+
+.kandid-app-theme .board-eligibility-index {
+  min-width: 0;
+  align-self: start;
+  padding-top: 0.15rem;
+  color: var(--board-eligibility-muted);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+
+/* The identity block. A single implicit column, so the election and the two
+   audience lines all start at exactly the same x and read as one record rather
+   than as three fields sharing a row. */
+.kandid-app-theme .board-eligibility-context {
+  display: grid;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  gap: 0.15rem;
+}
+
+/* The election is the rule's primary line, matching .board-position-entry-name:
+   the same size, weight and ink that the office name carries on the ballot
+   positions register. It is a sans operational value, not a serif headline -
+   the serif on this page belongs to the masthead and the section heading. */
+.kandid-app-theme .board-eligibility-election {
+  margin: 0 !important;
+  overflow-wrap: anywhere;
+  color: var(--board-eligibility-ink) !important;
+  font-size: 1rem !important;
+  font-weight: 850 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.25 !important;
+}
+
+/* The declared audience directly under the election: program coverage and year
+   coverage on one line, one step below the election in size and ink. */
+.kandid-app-theme .board-eligibility-audience {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--board-eligibility-ink-soft);
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+/* The SHS condition is the quietest line on the record, matching the weight of
+   .board-position-entry-limit: tracked, uppercase, muted. */
+.kandid-app-theme .board-eligibility-shs {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--board-eligibility-muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+/* The missing-bound clarification. Deliberately smaller and quieter than the
+   lead phrase it qualifies, but present and readable: a rule with only one year
+   bound is under-specified, and the reader should be able to see that without
+   having to open the rule. */
+.kandid-app-theme .board-eligibility-gap {
+  color: var(--board-eligibility-muted);
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-transform: none;
+}
+
+/* --- desktop actions ---------------------------------------------------------
+   An Edit + Delete pair on every row, at the same restrained weight as the
+   Officers register: a short rule under them, square corners, muted ink at rest.
+   Delete is muted like Edit until it is hovered or focused, then takes the
+   danger colour - the restraint is in the interaction, not a permanent red
+   control. */
+
+/* One right-aligned cluster, matching .board-position-entry-actions. */
+.kandid-app-theme .board-eligibility-actions {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem 0.5rem;
+}
+
+.kandid-app-theme .board-eligibility-action {
+  display: inline-flex;
+  min-height: 2rem;
+  align-items: center;
+  gap: 0.3rem;
+  border: 0;
+  border-bottom: 1px solid var(--board-eligibility-hairline);
+  border-radius: 0;
+  background: transparent;
+  padding: 0.3rem 0;
+  color: var(--board-eligibility-muted);
+  font-family: inherit;
+  font-size: 0.6rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: none;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+
+/* Hover and keyboard focus both raise the control to full ink and give it the
+   one accent colour it is allowed, so the state is reachable without a pointer
+   and stays consistent for keyboard users. */
+.kandid-app-theme .board-eligibility-action:hover,
+.kandid-app-theme .board-eligibility-action:focus-visible {
+  border-bottom-color: var(--board-eligibility-orange);
+  color: var(--board-eligibility-ink);
+}
+
+.kandid-app-theme .board-eligibility-action:focus-visible {
+  outline: 2px solid var(--board-eligibility-orange);
+  outline-offset: 2px;
+}
+
+.kandid-app-theme .board-eligibility-action.is-danger {
+  color: var(--board-eligibility-muted);
+}
+
+.kandid-app-theme .board-eligibility-action.is-danger:hover,
+.kandid-app-theme .board-eligibility-action.is-danger:focus-visible {
+  border-bottom-color: var(--board-eligibility-danger-strong);
+  color: var(--board-eligibility-danger);
+}
+
+/* --- overflow menu (mobile) ---------------------------------------------------- */
+
+.kandid-app-theme .board-eligibility-menu {
+  position: relative;
+  display: none;
+  justify-self: end;
+}
+
+.kandid-app-theme .board-eligibility-menu-trigger {
+  display: grid;
+  width: 2.4rem;
+  height: 2.4rem;
+  place-items: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--board-eligibility-muted);
+  cursor: pointer;
+}
+
+.kandid-app-theme .board-eligibility-menu-trigger:hover {
+  color: var(--board-eligibility-ink);
+}
+
+.kandid-app-theme .board-eligibility-menu-trigger:focus-visible {
+  color: var(--board-eligibility-ink);
+  outline: 2px solid var(--board-eligibility-orange);
+  outline-offset: 2px;
+}
+
+.kandid-app-theme .board-eligibility-menu-list {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 4px);
+  right: 0;
+  display: grid;
+  min-width: 9.5rem;
+  border: 1px solid var(--board-eligibility-hairline-strong);
+  background: var(--board-eligibility-paper);
+  box-shadow: 0 8px 18px rgb(22 20 17 / 12%);
+}
+
+.kandid-app-theme .board-eligibility-menu-item {
+  border: 0;
+  border-bottom: 1px solid var(--board-eligibility-hairline);
+  border-radius: 0;
+  background: transparent;
+  padding: 0.7rem 0.8rem;
+  color: var(--board-eligibility-ink);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.kandid-app-theme .board-eligibility-menu-item:last-child {
+  border-bottom: 0;
+}
+
+.kandid-app-theme .board-eligibility-menu-item:hover,
+.kandid-app-theme .board-eligibility-menu-item:focus-visible {
+  background: var(--board-eligibility-paper-soft);
+}
+
+.kandid-app-theme .board-eligibility-menu-item.is-danger {
+  color: var(--board-eligibility-danger);
+}
+
+.kandid-app-theme .board-eligibility-menu-item.is-danger:hover,
+.kandid-app-theme .board-eligibility-menu-item.is-danger:focus-visible {
+  color: var(--board-eligibility-danger-strong);
+}
+
+/* --- empty state ---------------------------------------------------------------
+   Intentional rather than apologetic: a label, one sentence, and the action that
+   resolves it. No box, no illustration, no border.
+
+   The band spans the full content width so its rule lines up with the row
+   separators below it, matching .board-officers-state. justify-items:start then
+   keeps the kicker, the sentence and the button at their natural measure instead
+   of letting them stretch across a wide monitor, which is the same restraint the
+   row grid applies to the register itself. */
+
+.kandid-app-theme .board-eligibility-empty {
+  display: grid;
+  justify-items: start;
+  min-width: 0;
+  gap: 0.6rem;
+  margin-top: 1.5rem;
+  border-bottom: 1px solid var(--board-eligibility-hairline);
+  padding: 0.2rem 0 1.4rem;
+}
+
+.kandid-app-theme .board-eligibility-empty-kicker {
+  margin: 0;
+  color: var(--board-eligibility-orange);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-eligibility-empty h2 {
+  margin: 0 !important;
+  overflow-wrap: anywhere;
+  color: var(--board-eligibility-ink) !important;
+  font-family: "Source Serif 4", Georgia, serif !important;
+  font-size: clamp(1.15rem, 1.7vw, 1.4rem) !important;
+  font-weight: 650 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.25 !important;
+}
+
+/* Same geometry as the masthead action, so the empty state offers the identical
+   control in the identical place it occupies once rules exist. */
+.kandid-app-theme .board-eligibility-empty-action {
+  display: inline-flex;
+  min-height: 2.45rem;
+  align-items: center;
+  justify-content: center;
+  justify-self: start;
+  gap: 0.4rem;
+  border: 1px solid var(--board-eligibility-orange) !important;
+  border-radius: 0 !important;
+  padding: 0 1.05rem !important;
+  background: var(--board-eligibility-orange) !important;
+  color: #ffffff !important;
+  font-family: inherit;
+  font-size: 0.71rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.kandid-app-theme .board-eligibility-empty-action:hover {
+  border-color: #d93f1d !important;
+  background: #d93f1d !important;
+}
+
+.kandid-app-theme .board-eligibility-empty-action:focus-visible {
+  outline: 2px solid var(--board-eligibility-orange);
+  outline-offset: 2px;
+}
+
+/* --- add / edit form -----------------------------------------------------------
+   The dialog is the Board "Add Student" sheet, reused rather than imitated, via
+   the shared import of ../superadmin/Students.css in EligibilityRules.jsx. The
+   shell, its black top rule, header spacing, progress rail, question headings,
+   uppercase field labels, dividers, footer layout and button geometry are all
+   shared primitives and are not restated here.
+
+   That import is also what keeps the sheet correct. PopupOverlay portals this
+   dialog directly under .modal-overlay on document.body, so no
+   .kandid-app-theme ancestor exists and the large .kandid-app-theme .popup-sheet
+   block in src/index.css does not match it. What does match are bare
+   .popup-sheet rules carrying !important - radius, shadow, and width/max-width/
+   padding at 1023px. The shared
+   .modal-overlay .sa-students-modal.is-registration rule already overrides all
+   of them with its own !important declarations, so reusing the system is what
+   produces correct zero-radius geometry here. Nothing below needs !important.
+
+   Only what Add Student does not have is declared: this sheet's token block, the
+   year-range field pair, and the Yes/No SHS control. */
+
+.modal-overlay .board-eligibility-registration {
+  --kandid-app-ink: #101114;
+  --kandid-app-muted: #5b5e66;
+  --kandid-app-ink-3: #514d46;
+  --kandid-app-orange: #f4512c;
+  --kandid-app-border: #e5e0d6;
+  --kandid-app-border-strong: #cfc9bf;
+  --kandid-app-danger: #a13228;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Step one is a single answer, so it is kept to the same measure the Partylist
+   name field uses rather than spanning the whole sheet. */
+.board-eligibility-registration .board-eligibility-election-field,
+.board-eligibility-registration .board-eligibility-program-field {
+  width: min(100%, 34rem);
+}
+
+/* The two year bounds need no rule of their own: they use the shared
+   .sa-registration-fields two-column primitive, which already collapses to a
+   single column at the shared 767px breakpoint. */
+
+/* Yes / No for allow_shs.
+
+   A real radio group, visually two square segments. The inputs stay in the
+   accessibility tree and keep native keyboard and screen-reader behaviour; only
+   the default rendering is replaced. The group deliberately sits outside
+   .sa-registration-field, whose shared input rule would otherwise stretch a
+   radio to the full field width. */
+.board-eligibility-shs-field {
+  display: grid;
+  min-width: 0;
+  gap: 0.5rem;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.board-eligibility-shs-field legend {
+  padding: 0;
+  color: var(--kandid-app-ink, #101114);
+  font-size: 0.78rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.board-eligibility-shs-field small {
+  color: var(--kandid-app-muted, #5b5e66);
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+
+.board-eligibility-choice {
+  display: grid;
+  width: min(100%, 34rem);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+}
+
+.board-eligibility-choice label {
+  display: flex;
+  min-height: 2.9rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--kandid-app-ink, #101114);
+  font-size: 0.76rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+/* Shared edge between the two segments, removed so the border does not double. */
+.board-eligibility-choice label + label {
+  border-left: 0;
+}
+
+.board-eligibility-choice label:hover {
+  border-color: var(--kandid-app-ink, #101114);
+}
+
+/* Selected segment carries the orange edge and a solid ground, matching how the
+   shared sheet marks a confirmed value. */
+.board-eligibility-choice label.is-selected {
+  border-color: var(--kandid-app-orange, #f4512c);
+  background: var(--kandid-app-orange, #f4512c);
+  color: #fff;
+}
+
+.board-eligibility-choice input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.board-eligibility-choice label:has(input:focus-visible) {
+  outline: 2px solid var(--kandid-app-ink, #101114);
+  outline-offset: 2px;
+}
+
+/* Review: three sections here - election, declared audience, Senior High School -
+   which is exactly what the shared three-track review grid already expects, so
+   this page adds no column rules of its own and the confirm lines up with Add
+   Student's column for column.
+
+   Only the missing-bound clarification needs a rule. It is a span inside a
+   section's <strong>, and the shared .sa-registration-review strong rule would
+   otherwise inherit the section heading's serif size, so it is reset here to the
+   secondary treatment it has in the register. Two classes against the shared
+   class-plus-element, so it wins on specificity rather than on !important. */
+.sa-registration-review .board-eligibility-gap {
+  display: block;
+  margin-top: 0.2rem;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--kandid-app-muted, #69645c);
+  text-transform: none;
+}
+
+/* --- responsive -----------------------------------------------------------------
+   Same breakpoints as Elections: the masthead becomes a grid so the action drops
+   to its own full-width row at 760px, and the title and standfirst step down at
+   430px.
+
+   The register is one column at every width. At 760px the inline EDIT / DELETE
+   pair gives way to the overflow menu - horizontal space is the only reason for
+   the difference, and the actions themselves are identical. At 430px the index
+   rail narrows and the audience steps down a size. The record keeps its internal
+   grouping at every width, so a rule reads the same way on a phone as it does on
+   a desktop: nothing becomes a card and nothing scrolls sideways. */
+
+@media (max-width: 760px) {
+  .kandid-app-theme .board-eligibility-masthead {
+    padding-bottom: 0.9rem !important;
+  }
+
+  .kandid-app-theme .board-eligibility-baseline {
+    display: grid;
+    justify-content: stretch;
+    gap: 0.9rem;
+  }
+
+  .kandid-app-theme .board-eligibility-create {
+    width: 100%;
+  }
+
+  /* The desktop column template is not squeezed at this width: the row becomes the
+     same three-part composition Positions uses, with the order number and the
+     identity sharing the line and the ••• control holding the right edge. The
+     overflow menu takes over from the inline pair here. */
+  .kandid-app-theme .board-eligibility-register {
+    --board-eligibility-register-columns: 1.5rem minmax(0, 1fr) 2.4rem;
+  }
+
+  .kandid-app-theme .board-eligibility-item {
+    gap: 0.75rem;
+  }
+
+  .kandid-app-theme .board-eligibility-actions {
+    display: none;
+  }
+
+  /* The numeral carries the count on its own once the head stacks. */
+  .kandid-app-theme .board-eligibility-register-count-word {
+    display: none;
+  }
+
+  .kandid-app-theme .board-eligibility-menu {
+    display: block;
+  }
+}
+
+@media (max-width: 430px) {
+  .kandid-app-theme .board-eligibility-standfirst {
+    font-size: 0.86rem;
+  }
+
+  .kandid-app-theme .board-eligibility-audience {
+    font-size: 0.8rem;
+  }
+
+  /* The Yes / No segments stop being legible side by side at this width. */
+  .board-eligibility-registration .board-eligibility-choice {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .board-eligibility-choice label + label {
+    border-top: 0;
+    border-left: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+  }
+}
+
+.kandid-app-theme .board-eligibility-load-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-top: 1px solid #9e3429;
+  border-bottom: 1px solid var(--kandid-app-border);
+  padding: 0.7rem 0;
+  color: #71433d;
+  font-size: 0.78rem;
+}
+
+.kandid-app-theme .board-eligibility-refreshing {
+  margin: 0;
+  border-bottom: 1px solid var(--kandid-app-border);
+  padding: 0.4rem 0;
+  color: var(--kandid-app-muted);
+  font-size: 0.7rem;
+}
+
+.kandid-app-theme .board-eligibility-load-error button {
+  border-bottom: 1px solid currentColor;
+  color: var(--kandid-app-ink);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-eligibility-skeleton {
+  display: grid;
+  border-top: 1px solid var(--kandid-app-border-strong);
+}
+
+.kandid-app-theme .board-eligibility-skeleton-row {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) 5rem;
+  align-items: center;
+  gap: 1rem;
+  min-height: 5rem;
+  border-bottom: 1px solid var(--kandid-app-border);
+}
+
+.kandid-app-theme .board-eligibility-skeleton-row span {
+  display: block;
+  height: 0.65rem;
+  background: #e9e4da;
+  animation: board-eligibility-breathe 1.5s ease-in-out infinite alternate;
+}
+
+.kandid-app-theme .board-eligibility-skeleton-row span:first-child { width: 1.5rem; }
+.kandid-app-theme .board-eligibility-skeleton-row span:nth-child(2) { width: min(22rem, 92%); }
+.kandid-app-theme .board-eligibility-skeleton-row span:last-child { width: 4rem; }
+
+@keyframes board-eligibility-breathe { to { opacity: 0.55; } }
+
+@media (max-width: 640px) {
+  .kandid-app-theme .board-eligibility-load-error { align-items: flex-start; flex-direction: column; }
+  .kandid-app-theme .board-eligibility-skeleton-row { grid-template-columns: 1.5rem minmax(0, 1fr) 2.5rem; gap: 0.7rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kandid-app-theme .board-eligibility-skeleton-row span { animation-duration: 0.01ms; animation-iteration-count: 1; }
+}

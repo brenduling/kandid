@@ -1,0 +1,1485 @@
+/* --- page root ---------------------------------------------------------------
+   The approved Board pages declare their local token map and the same vertical
+   rhythm on the page root: Positions uses `clamp(1.15rem, 1.9vw, 1.7rem)` and
+   Elections the same figure, so navigating between them is a change of content
+   and never a change of page cadence. Candidates had a wider, airier gap of its
+   own; it now inherits the shared rhythm. The token map is the same shared
+   Kandid values Positions maps locally, so this surface cannot drift into a
+   Candidates-only palette. */
+
+.kandid-app-theme .board-candidates-page {
+  --board-candidate-rule: var(--kandid-app-border, #e5e0d6);
+  --board-candidate-rule-strong: var(--kandid-app-border-strong, #d2ccc0);
+  --board-candidate-ink: var(--kandid-app-ink, #101114);
+  --board-candidate-ink-soft: var(--kandid-app-ink-3, #3a3d45);
+  --board-candidate-muted: var(--kandid-app-muted, #5b5e66);
+  --board-candidate-orange: var(--kandid-app-orange, #f4512c);
+  --board-candidate-paper: var(--kandid-app-paper, #ffffff);
+  --board-candidate-paper-soft: var(--kandid-app-paper-soft, #f8f6f1);
+
+  display: grid;
+  min-width: 0;
+  gap: clamp(1.15rem, 1.9vw, 1.7rem);
+  color: var(--board-candidate-ink);
+}
+
+.kandid-app-theme .board-candidate-masthead {
+  display: grid;
+  min-width: 0;
+  gap: 0.5rem;
+  border-bottom: 2px solid var(--board-candidate-ink);
+  padding: 0 0 clamp(1rem, 1.7vw, 1.5rem);
+}
+
+.kandid-app-theme .board-candidate-masthead-actions {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.kandid-app-theme .board-candidate-masthead-actions {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.kandid-app-theme .board-candidate-context-line,
+.kandid-app-theme .board-candidate-eyebrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.55rem;
+  margin: 0;
+  color: var(--kandid-app-orange, #ef4e23);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.13em;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+
+/* The page title is the shared Board scale. Elections and Positions declare only
+   the measure and let `.kandid-app-theme.board-theme .page-title` in index.css
+   supply the size, serif and weight; Candidates used to override it with a
+   larger clamp of its own. That override is gone, so "Candidates", "Elections"
+   and "Ballot positions" are set identically. */
+.kandid-app-theme .board-candidate-page-title {
+  max-width: 48rem;
+}
+
+.kandid-app-theme .board-candidate-standfirst {
+  max-width: 44rem;
+  margin: 0;
+  color: var(--board-candidate-ink-soft);
+  font-size: 0.94rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.kandid-app-theme .board-candidate-page-state {
+  display: grid;
+  justify-items: start;
+  gap: 0.5rem;
+  margin: 0;
+  border: 0;
+  border-block: 1px solid var(--kandid-app-border, #d8d1c7);
+  border-radius: 0;
+  background: transparent;
+  padding: 1.4rem 0;
+  box-shadow: none;
+}
+
+.kandid-app-theme .board-candidate-page-state h2 {
+  margin: 0;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.45rem;
+  line-height: 1.15;
+}
+
+.kandid-app-theme .board-candidate-page-state p {
+  margin: 0;
+  color: var(--kandid-app-muted, #68645e);
+}
+
+.kandid-app-theme .board-candidate-page-state .page-kicker {
+  color: var(--kandid-app-orange, #ef4e23);
+  font-size: 0.67rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-candidate-page-state .primary-btn {
+  min-height: 2.5rem;
+  margin-top: 0.4rem;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.kandid-app-theme .board-candidate-election-picker,
+.kandid-app-theme .board-candidate-workspace {
+  display: grid;
+  min-width: 0;
+  gap: 1.1rem;
+}
+
+.kandid-app-theme .board-candidate-section-head,
+.kandid-app-theme .board-candidate-register-head {
+  display: flex;
+  min-width: 0;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  border-top: 2px solid var(--kandid-app-ink, #171717);
+  padding-top: 0.8rem;
+}
+
+.kandid-app-theme .board-candidate-section-head > div,
+.kandid-app-theme .board-candidate-register-head > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.3rem;
+}
+
+/* Section and register heads share one scale, taken from the approved Positions
+   register head so the two pages' management sections sit at the same level. */
+.kandid-app-theme .board-candidate-section-head h2,
+.kandid-app-theme .board-candidate-register-head h2 {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--board-candidate-ink);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(1.35rem, 1.9vw, 1.95rem);
+  font-weight: 650;
+  line-height: 1.08;
+}
+
+.kandid-app-theme .board-candidate-section-head > div > p:last-child:not(.board-candidate-eyebrow) {
+  margin: 0.1rem 0 0;
+  color: var(--kandid-app-ink-3, #4c4b48);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.kandid-app-theme .board-candidate-section-head > span,
+.kandid-app-theme .board-candidate-register-head > span {
+  flex: 0 0 auto;
+  color: var(--kandid-app-muted, #68645e);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+/* The election-selection state, and only this state. */
+.kandid-app-theme .board-candidates-page.is-selecting {
+  gap: clamp(1.05rem, 1.6vw, 1.4rem);
+}
+
+.kandid-app-theme .board-candidate-election-picker {
+  gap: 0.85rem;
+}
+
+/* One block: the orange context eyebrow, the serif heading, the standfirst and
+   the "NN elections" tally are a single concise introduction under the page
+   header's rule. */
+.kandid-app-theme .board-candidate-election-picker .board-candidate-section-head {
+  align-items: baseline;
+  gap: 0.75rem 1.5rem;
+  border-top: 0;
+  padding-top: 0;
+}
+
+.kandid-app-theme .board-candidate-election-picker .board-candidate-section-head > div {
+  gap: 0.22rem;
+}
+
+.kandid-app-theme .board-candidate-election-picker .board-candidate-section-head > span {
+  letter-spacing: 0.11em;
+  white-space: nowrap;
+}
+
+/* ── KANDID ELECTION WORKSPACE REGISTER ─────────────────────────────────────
+   Tokens are declared once on the page root above, mapped from the shared
+   product values the same way Positions.css does it, so this surface cannot
+   drift into its own palette. Typography is the approved Kandid pairing:
+   Source Serif 4 for election names and headings, the inherited sans for
+   metadata, weight 850 + 0.1em tracking for eyebrow-level uppercase, weight
+   600-700 for supporting metadata.
+
+   This is the same surface the approved Positions page builds as
+   .board-positions-selector: a full-width ruled register, one horizontal
+   operational record per election, no column header row and no card grid. The
+   earlier two-column editorial index gave Candidates a composition of its own, so
+   navigating Elections -> Positions -> Candidates changed the page's shape
+   instead of only its content. There is now exactly one vertical reading
+   direction.
+
+   Each row is one record and the whole row is the target:
+
+       01   S-Elect
+           PSITS . 2026 . 8 CANDIDATES              CONCLUDED   ->
+
+   The phase appears exactly once per row, held at the right edge with the arrow.
+   The arrow is the interaction cue only; the phase beside it is a state. They are
+   never allowed to read as two competing statuses. */
+
+.kandid-app-theme .board-candidate-election-list {
+  display: grid;
+  min-width: 0;
+  border-top: 2px solid var(--board-candidate-ink);
+}
+
+.kandid-app-theme .board-candidate-election-row {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  min-height: 3.5rem;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1.25rem;
+  border: 0;
+  border-bottom: 1px solid var(--board-candidate-rule);
+  border-left: 3px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.85rem 0;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 140ms ease, border-left-color 140ms ease;
+}
+
+/* Cover plus name plus supporting metadata. The same pairing and gap the
+   Positions rows use, so an election is identified the same way on both pages. */
+.kandid-app-theme .board-candidate-election-identity {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+}
+
+/* The election name is the row's title: Source Serif 4 at weight 650 and
+   1.12rem, the exact pairing the approved Positions and Elections registers use
+   for their record names. */
+.kandid-app-theme .board-candidate-election-name {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--board-candidate-ink);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.12rem;
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 1.2;
+}
+
+/* Organization, year and the real candidate count: one supporting metadata line
+   in the Board metadata treatment, the same 0.68rem / 700 / 0.06em uppercase that
+   Positions uses for its row metadata. */
+.kandid-app-theme .board-candidate-election-context {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--board-candidate-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+/* Phase and arrow share the right edge. The phase is right-aligned within this
+   cell so a long name cannot push it out of alignment with the rows above. */
+.kandid-app-theme .board-candidate-election-state {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.9rem;
+}
+
+/* The whole row is the target. The affordance is a paper-tone shift and a leading
+   orange rule, so it reads as a rule and not a lift. No shadow, no rounded
+   background, no scale. */
+.kandid-app-theme .board-candidate-election-row:hover {
+  border-left-color: var(--board-candidate-orange);
+  background: var(--board-candidate-paper-soft);
+}
+
+.kandid-app-theme .board-candidate-election-row:focus-visible {
+  border-left-color: var(--board-candidate-orange);
+  background: var(--board-candidate-paper-soft);
+  outline: 2px solid var(--board-candidate-orange);
+  outline-offset: -2px;
+}
+
+.kandid-app-theme .board-candidate-election-row:focus-visible,
+.kandid-app-theme .board-candidate-switch:focus-visible,
+.kandid-app-theme .board-candidate-add:focus-visible,
+.kandid-app-theme .board-candidate-action:focus-visible {
+  outline-color: var(--board-candidate-orange);
+}
+
+/* A plain arrow, not a verb. It names no action and carries no state, so it
+   cannot be read against the phase as a second status. It takes a few pixels of
+   travel while the row is pointed at, which is the whole interaction cue. */
+.kandid-app-theme .board-candidate-election-arrow {
+  flex: 0 0 auto;
+  color: var(--board-candidate-ink-soft);
+  font-size: 0.95rem;
+  line-height: 1;
+  transition: color 140ms ease, transform 140ms ease;
+}
+
+.kandid-app-theme .board-candidate-election-row:hover .board-candidate-election-arrow,
+.kandid-app-theme .board-candidate-election-row:focus-visible .board-candidate-election-arrow {
+  color: var(--board-candidate-orange);
+  transform: translateX(3px);
+}
+
+/* Orange has two jobs here: the numerical index, and the interaction cue. Weight
+   700 keeps the index a reference, not a headline. */
+.kandid-app-theme .board-candidate-election-index {
+  color: var(--board-candidate-orange);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+}
+
+/* Cover styling belongs to the selected-election workspace header, which is the
+   one place the identity still earns a poster. The selection register renders no
+   cover, so only the workspace class is kept here. */
+/* The election identity frame in the workspace context header. Dimensions and
+   content are unchanged; only the corner radius is cleared, on the frame and on
+   the image and fallback it clips. */
+.kandid-app-theme .board-candidate-context-cover {
+  display: block;
+  width: 4rem;
+  height: 4.5rem;
+  min-width: 4rem;
+  overflow: hidden;
+  border: 1px solid var(--kandid-app-border, #d8d1c7);
+  border-radius: 0;
+  background: var(--kandid-app-paper-soft, #f0ede7);
+}
+
+.kandid-app-theme .board-candidate-context-cover img {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  object-fit: cover;
+}
+
+.kandid-app-theme .board-candidate-context-cover .election-cover-fallback {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  border-radius: 0;
+  color: var(--kandid-app-orange, #f4512c);
+}
+
+.kandid-app-theme .board-candidate-context-cover .election-cover-fallback svg {
+  display: none;
+}
+
+.kandid-app-theme .board-candidate-context-cover .election-cover-fallback span {
+  border-radius: 0;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+/* Phase reads as a quiet marked value: a square marker in the phase's own colour
+   beside tracked text, held at the right edge. This is the approved Positions
+   treatment copied across: the same size, weight, tracking and, critically, the
+   same colour set. Only the two live phases earn colour, so orange stays a scarce
+   signal and a concluded election reads as a neutral value. */
+.kandid-app-theme .board-candidate-election-phase,
+.kandid-app-theme .board-candidate-context-phase {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--board-candidate-ink-soft);
+  font-size: 0.64rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-candidate-election-phase::before,
+.kandid-app-theme .board-candidate-context-phase::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 0.45rem;
+  height: 0.45rem;
+  background: currentColor;
+}
+
+.kandid-app-theme [data-phase="voting"] .board-candidate-election-phase {
+  color: var(--board-candidate-orange);
+}
+
+.kandid-app-theme [data-phase="campaign"] .board-candidate-election-phase {
+  color: #047857;
+}
+
+.kandid-app-theme [data-phase="closed"] .board-candidate-election-phase,
+.kandid-app-theme [data-phase="archived"] .board-candidate-election-phase,
+.kandid-app-theme [data-phase="draft"] .board-candidate-election-phase {
+  color: var(--board-candidate-muted);
+}
+
+
+.kandid-app-theme .board-candidate-workspace {
+  gap: 1rem;
+}
+
+/* Switch election, mirroring the approved Positions workspace control
+   (.board-positions-change) declaration for declaration. Positions is the visual
+   source of truth for this action, so every value here is that rule's value:
+
+     min-height 2.2rem · 1px hairline border · transparent background
+     inherited family · 0.66rem · 850 · 0.1em · uppercase · 0 0.7rem padding
+     zero radius · no shadow · muted ink at rest, ink on hover
+     2px orange focus ring at 2px offset
+
+   The four token names differ but resolve to the same shared variables, so the
+   rendered control is identical without Positions being touched:
+     --board-position-hairline  == --board-candidate-rule    (--kandid-app-border)
+     --board-position-muted    == --board-candidate-muted  (--kandid-app-muted)
+     --board-position-ink      == --board-candidate-ink    (--kandid-app-ink)
+     --board-position-orange   == --board-candidate-orange (--kandid-app-orange)
+
+   This replaces the previous orange text link with its own bottom rule, which
+   read as a section eyebrow above the context rather than as a quiet way out of
+   it. */
+.kandid-app-theme .board-candidate-switch {
+  display: inline-flex;
+  min-height: 2.2rem;
+  align-items: center;
+  border: 1px solid var(--board-candidate-rule);
+  border-radius: 0;
+  background: transparent;
+  color: var(--board-candidate-muted);
+  font-family: inherit;
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  padding: 0 0.7rem;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.kandid-app-theme .board-candidate-switch:hover {
+  border-color: var(--board-candidate-ink);
+  color: var(--board-candidate-ink);
+}
+
+.kandid-app-theme .board-candidate-switch:focus-visible {
+  outline: 2px solid var(--board-candidate-orange);
+  outline-offset: 2px;
+}
+
+/* --- workspace header: the selected election ---------------------------------
+   This identifies the election the Board member is working in. It is not a hero,
+   so it takes the same shape as the approved Positions workspace header: a single
+   2px ink rule on top, no rule underneath, a small supporting thumbnail, and a
+   name set in the same 1.3rem-1.75rem clamp Positions uses. The former
+   1.75rem-2.5rem name and the two-sided rule gave the context more visual weight
+   than the candidate register below it, which inverted the hierarchy on this
+   page. */
+
+.kandid-app-theme .board-candidate-context {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 4rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.85rem 1.1rem;
+  border-top: 2px solid var(--board-candidate-ink);
+  padding: 0.85rem 0 0;
+}
+
+.kandid-app-theme .board-candidate-context-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.3rem;
+}
+
+.kandid-app-theme .board-candidate-context-copy h2 {
+  overflow-wrap: anywhere;
+  margin: 0;
+  color: var(--board-candidate-ink);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(1.3rem, 1.9vw, 1.75rem);
+  font-weight: 650;
+  line-height: 1.1;
+}
+
+/* The count and the phase share this one line. The phase is marked in place by
+   its own square, so the metadata does not need a second separator rule between
+   the two values. */
+.kandid-app-theme .board-candidate-context-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.8rem;
+  color: var(--board-candidate-muted);
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-candidate-context-meta span + span {
+  border-left: 1px solid var(--board-candidate-rule);
+  padding-left: 0.8rem;
+}
+
+/* The context's control row: a full-width second row beneath the election
+   identity, holding Switch election and then the create control. This is the
+   relationship .board-positions-working-actions establishes, and the same flex
+   values. Left aligned, not pushed to the far edge, so the quiet control reads as
+   belonging to the context above it instead of as another column of it. */
+.kandid-app-theme .board-candidate-context-actions {
+  display: flex;
+  grid-column: 1 / -1;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 0.75rem;
+}
+
+.kandid-app-theme .board-candidate-add,
+.kandid-app-theme .board-candidate-form-submit {
+  display: inline-flex;
+  min-height: 2.55rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border: 1px solid var(--kandid-app-orange, #ef4e23);
+  border-radius: 0;
+  background: var(--kandid-app-orange, #ef4e23);
+  padding: 0.4rem 0.85rem;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.kandid-app-theme .board-candidate-add:hover,
+.kandid-app-theme .board-candidate-form-submit:hover {
+  border-color: #d93f1d;
+  background: #d93f1d;
+}
+
+.kandid-app-theme .board-candidate-add:disabled,
+.kandid-app-theme .board-candidate-add:disabled:hover {
+  border-color: #a6a39c;
+  background: #a6a39c;
+  cursor: not-allowed;
+}
+
+.board-candidate-material-file,
+.candidate-material-file {
+  display: grid;
+  min-width: 0;
+  gap: 0.35rem;
+}
+
+.board-candidate-material-file small,
+.candidate-material-file small {
+  color: #667085;
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.board-candidate-material-file [role="alert"],
+.candidate-material-file [role="alert"] {
+  color: #a3291b;
+  font-weight: 700;
+}
+
+.kandid-app-theme .board-candidate-add:disabled,
+.kandid-app-theme .board-candidate-add:disabled:hover {
+  border-color: #a6a39c;
+  background: #a6a39c;
+  cursor: not-allowed;
+}
+
+.board-candidate-material-file,
+.candidate-material-file {
+  display: grid;
+  min-width: 0;
+  gap: 0.35rem;
+}
+
+.board-candidate-material-file small,
+.candidate-material-file small {
+  color: #667085;
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.board-candidate-material-file [role="alert"],
+.candidate-material-file [role="alert"] {
+  color: #a3291b;
+  font-weight: 700;
+}
+
+.kandid-app-theme .board-candidate-register {
+  display: grid;
+  min-width: 0;
+  gap: 0;
+}
+
+.kandid-app-theme .board-candidate-register-head {
+  margin-bottom: 0.85rem;
+}
+
+.kandid-app-theme .board-candidate-columns,
+.kandid-app-theme .board-candidate-record {
+  display: grid;
+  grid-template-columns: minmax(16rem, 1.4fr) minmax(10rem, 0.75fr) minmax(12rem, 0.9fr) minmax(8rem, auto);
+  align-items: center;
+  gap: 1rem;
+}
+
+/* A read-only election has no mutation controls, so the Actions track is not
+   reserved and not left empty: the register drops to three columns and the freed
+   width goes to the three that carry information. The header row and the records
+   are rebalanced by the same rule, so the columns cannot drift out of
+   alignment. */
+.kandid-app-theme .board-candidate-register.is-read-only .board-candidate-columns,
+.kandid-app-theme .board-candidate-register.is-read-only .board-candidate-record {
+  grid-template-columns: minmax(18rem, 1.55fr) minmax(11rem, 0.85fr) minmax(13rem, 1fr);
+}
+
+.kandid-app-theme .board-candidate-columns {
+  border-bottom: 1px solid var(--kandid-app-border-strong, #bdb6ab);
+  padding: 0.65rem 0.5rem;
+  color: var(--kandid-app-muted, #68645e);
+  font-size: 0.63rem;
+  font-weight: 850;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-candidate-position-group {
+  min-width: 0;
+  border-bottom: 1px solid var(--kandid-app-border, #d8d1c7);
+}
+
+/* One compact register divider: orange index, position name, count on the right.
+   Tight vertical padding keeps this reading as a divider between ballot groups
+   rather than another headline block. */
+.kandid-app-theme .board-candidate-position-head {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0.8rem;
+  border-top: 1px solid var(--kandid-app-border, #d8d1c7);
+  border-bottom: 1px solid var(--kandid-app-border, #d8d1c7);
+  padding: 0.6rem 0.5rem 0.55rem;
+}
+
+.kandid-app-theme .board-candidate-position-head > span {
+  color: var(--kandid-app-orange, #ef4e23);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 0.83rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A position heading is an organizational group label, not a title. index.css
+   forces an oversized display treatment here with !important, so these
+   declarations answer it at the same weight. 1.18rem (19px) sits inside the
+   approved 18-21px band and keeps a clear step below the register's own section
+   heading, which now runs 1.35rem-1.95rem to match the other Board pages. */
+.kandid-app-theme .board-candidate-position-head h3 {
+  margin: 0 !important;
+  overflow-wrap: anywhere;
+  color: var(--board-candidate-ink) !important;
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif !important;
+  font-size: 1.18rem !important;
+  font-weight: 850 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.15;
+  text-transform: none;
+}
+
+.kandid-app-theme .board-candidate-position-head small {
+  color: var(--kandid-app-muted, #68645e);
+  font-size: 0.66rem;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-candidate-list {
+  min-width: 0;
+  border-top: 1px solid var(--kandid-app-border, #d8d1c7);
+}
+
+.kandid-app-theme .board-candidate-record {
+  min-width: 0;
+  border-bottom: 1px solid var(--kandid-app-border, #d8d1c7);
+  padding: 0.7rem 0.5rem;
+}
+
+.kandid-app-theme .board-candidate-identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* The avatar frame is the clipping container for both the photo and the fallback
+   initials, so the radius is cleared here at the source: index.css sets
+   border-radius: var(--kandid-radius-sm) on this exact element. The image and
+   span are cleared below as well, so no nested frame can reintroduce rounding. */
+.kandid-app-theme .board-candidate-avatar {
+  display: grid;
+  width: 2.8rem;
+  height: 2.8rem;
+  flex: 0 0 2.8rem;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--kandid-app-border, #d8d1c7);
+  border-radius: 0;
+  background: var(--kandid-app-paper-soft, #f0ede7);
+  color: var(--kandid-app-orange, #f4512c);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.kandid-app-theme .board-candidate-avatar img,
+.kandid-app-theme .board-candidate-avatar span {
+  border-radius: 0;
+}
+
+.kandid-app-theme .board-candidate-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.kandid-app-theme .board-candidate-name-block {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+}
+
+.kandid-app-theme .board-candidate-name {
+  overflow-wrap: anywhere;
+  margin: 0;
+  color: var(--kandid-app-ink, #171717);
+  font-size: 0.94rem;
+  font-weight: 820;
+  line-height: 1.2;
+}
+
+.kandid-app-theme .board-candidate-id {
+  margin: 0;
+  color: var(--kandid-app-muted, #68645e);
+  font-size: 0.69rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.kandid-app-theme .board-candidate-position-value {
+  color: var(--kandid-app-ink-3, #4c4b48);
+  font-size: 0.81rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.kandid-app-theme .board-candidate-affiliation {
+  display: grid;
+  min-width: 0;
+  gap: 0.25rem;
+}
+
+.kandid-app-theme .board-candidate-affiliation strong {
+  overflow-wrap: anywhere;
+  color: var(--kandid-app-ink-3, #4c4b48);
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.kandid-app-theme .board-candidate-affiliation small {
+  color: var(--kandid-app-muted, #68645e);
+  font-size: 0.67rem;
+}
+
+.kandid-app-theme .board-candidate-actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem;
+}
+
+.kandid-app-theme .board-candidate-action {
+  display: inline-flex;
+  min-height: 2.25rem;
+  align-items: center;
+  gap: 0.3rem;
+  border: 0;
+  border-bottom: 1px solid var(--kandid-app-border-strong, #bdb6ab);
+  border-radius: 0;
+  background: transparent;
+  padding: 0.35rem 0;
+  color: var(--kandid-app-ink-3, #4c4b48);
+  font-size: 0.65rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.kandid-app-theme .board-candidate-action:hover {
+  border-color: var(--kandid-app-orange, #ef4e23);
+  color: var(--kandid-app-orange, #ef4e23);
+}
+
+.kandid-app-theme .board-candidate-action.is-danger:hover {
+  border-color: #a83224;
+  color: #a83224;
+}
+
+.kandid-app-theme .board-candidate-empty-position,
+.kandid-app-theme .board-candidate-empty-register {
+  margin: 0;
+  border-bottom: 1px solid var(--kandid-app-border, #d8d1c7);
+  padding: 0.85rem 0.5rem;
+  color: var(--kandid-app-muted, #68645e);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.kandid-app-theme .board-candidate-empty-register strong {
+  color: var(--kandid-app-ink, #171717);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.2rem;
+}
+
+.kandid-app-theme .board-candidate-empty-register p {
+  margin: 0.3rem 0 0;
+}
+
+.kandid-app-theme .board-candidate-form-dialog {
+  width: min(64rem, calc(100vw - 2rem));
+  max-width: 64rem;
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  border: 1px solid #cfc9bf !important;
+  border-radius: 0 !important;
+  background: #f8f6f1 !important;
+  padding: 0 !important;
+  box-shadow: 0 16px 40px rgba(20, 18, 16, 0.2) !important;
+  color: #171717 !important;
+}
+
+.modal-overlay .board-candidate-form-dialog::before {
+  display: none;
+}
+
+.board-candidate-form-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid #cfc9bf;
+  padding: 1.2rem 1.5rem 1rem;
+}
+
+.board-candidate-form-header > div {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.board-candidate-form-header p {
+  margin: 0;
+  color: #ef4e23;
+  font-size: 0.65rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.board-candidate-form-header h2 {
+  margin: 0;
+  color: #171717;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-weight: 650;
+  line-height: 0.98;
+}
+
+.board-candidate-form-header span {
+  color: #69645c;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.modal-overlay .board-candidate-form-close {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: 0 0 2.5rem;
+  place-items: center;
+  border: 0 !important;
+  border-bottom: 1px solid #cfc9bf !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0;
+  color: #37342f;
+  box-shadow: none !important;
+  cursor: pointer;
+}
+
+.modal-overlay .board-candidate-form-close:hover {
+  border-color: #ef4e23 !important;
+  color: #ef4e23;
+}
+
+.board-candidate-form-context {
+  display: grid;
+  gap: 0.25rem;
+  border-bottom: 1px solid #cfc9bf;
+  padding: 0.85rem 1.5rem;
+}
+
+.board-candidate-form-context span {
+  color: #ef4e23;
+  font-size: 0.62rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.board-candidate-form-context strong {
+  color: #171717;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.15rem;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.board-candidate-form-context small {
+  color: #69645c;
+  font-size: 0.69rem;
+}
+
+.board-candidate-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.15rem 1.25rem;
+  padding: 1.1rem 1.5rem 1.4rem;
+}
+
+.board-candidate-form-section {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 0.85rem;
+  border-top: 1px solid #cfc9bf;
+  padding-top: 0.9rem;
+}
+
+.board-candidate-form-section:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.board-candidate-form-campaign,
+.board-candidate-form-actions {
+  grid-column: 1 / -1;
+}
+
+.board-candidate-form-section-head {
+  display: grid;
+  grid-template-columns: 1.8rem minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: start;
+}
+
+.board-candidate-form-section-head > span {
+  padding-top: 0.1rem;
+  color: #ef4e23;
+  font-size: 0.65rem;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+}
+
+.board-candidate-form-section-head h3 {
+  margin: 0;
+  color: #171717;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 650;
+  line-height: 1.05;
+}
+
+.board-candidate-form-section-head p {
+  margin: 0.3rem 0 0;
+  color: #69645c;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.board-candidate-form-field {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 0.35rem;
+}
+
+.board-candidate-form-field .field-label {
+  margin: 0;
+  color: #37342f;
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.modal-overlay .board-candidate-form-dialog .field-shell,
+.modal-overlay .board-candidate-form-dialog input:not([type="checkbox"]),
+.modal-overlay .board-candidate-form-dialog select,
+.modal-overlay .board-candidate-form-dialog textarea {
+  min-width: 0;
+  border: 1px solid #cfc9bf !important;
+  border-radius: 0 !important;
+  background: #fffefa !important;
+  box-shadow: none !important;
+}
+
+.modal-overlay .board-candidate-form-dialog .field-shell:focus,
+.modal-overlay .board-candidate-form-dialog input:focus,
+.modal-overlay .board-candidate-form-dialog select:focus,
+.modal-overlay .board-candidate-form-dialog textarea:focus {
+  border-color: #ef4e23 !important;
+  outline: 2px solid rgba(239, 78, 35, 0.15);
+  outline-offset: 0;
+}
+
+.board-candidate-form-materials {
+  grid-column: 1 / -1;
+  border: 0 !important;
+  border-top: 1px solid #cfc9bf !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0.9rem 0 0 !important;
+  box-shadow: none !important;
+}
+
+.board-candidate-material-title,
+.board-candidate-material-copy {
+  margin: 0;
+}
+
+.board-candidate-material-title {
+  color: #171717;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.board-candidate-material-copy {
+  margin-top: 0.25rem;
+  color: #69645c;
+  font-size: 0.7rem;
+}
+
+.board-candidate-material-list {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.8rem;
+}
+
+.board-candidate-material-record {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(8rem, 0.35fr);
+  gap: 0.55rem;
+  border-bottom: 1px solid #e1ddd5;
+  padding: 0 0 0.75rem;
+}
+
+.board-candidate-material-record .board-candidate-material-url,
+.board-candidate-material-download {
+  grid-column: 1 / -1;
+}
+
+.board-candidate-material-download {
+  display: flex;
+  min-height: 2.5rem;
+  align-items: center;
+  gap: 0.6rem;
+  border-top: 1px solid #e1ddd5;
+  padding: 0.55rem 0.1rem 0;
+  color: #37342f;
+  font-size: 0.75rem;
+}
+
+.board-candidate-material-download input[type="checkbox"] {
+  accent-color: #ef4e23;
+}
+
+.board-candidate-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-top: 1px solid #cfc9bf;
+  padding-top: 0.9rem;
+}
+
+.modal-overlay .board-candidate-form-cancel {
+  min-height: 2.55rem;
+  border: 0 !important;
+  border-bottom: 1px solid #cfc9bf !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0.4rem 0.65rem;
+  color: #5d5851;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  box-shadow: none !important;
+  cursor: pointer;
+}
+
+.modal-overlay .board-candidate-form-submit {
+  min-width: 10.5rem;
+}
+
+.modal-overlay .board-candidate-form-dialog button:focus-visible {
+  outline: 2px solid #ef4e23;
+  outline-offset: 2px;
+}
+
+@media (max-width: 1000px) {
+  .kandid-app-theme .board-candidate-columns,
+  .kandid-app-theme .board-candidate-record {
+    grid-template-columns: minmax(13rem, 1.2fr) minmax(8rem, 0.7fr) minmax(10rem, 0.8fr) minmax(7rem, auto);
+    gap: 0.7rem;
+  }
+
+  /* The read-only template needs its own tablet step. Its desktop minimums total
+     more than the four-track template's do, and dropping a track removes width
+     rather than adding it, so leaving the desktop minimums in place here would
+     have overflowed between 760px and 1000px. These minimums are the tightest of
+     the three columns. */
+  .kandid-app-theme .board-candidate-register.is-read-only .board-candidate-columns,
+  .kandid-app-theme .board-candidate-register.is-read-only .board-candidate-record {
+    grid-template-columns: minmax(12rem, 1.5fr) minmax(7.5rem, 0.85fr) minmax(9rem, 1fr);
+    gap: 0.7rem;
+  }
+}
+
+@media (max-width: 760px) {
+  /* The page root keeps the shared clamp, exactly as Elections and Positions do.
+     An airier mobile gap here would have made Candidates feel like a separate
+     page on a phone. */
+  .kandid-app-theme .board-candidate-masthead {
+    gap: 0.4rem;
+    padding-bottom: 0.9rem;
+  }
+
+  .kandid-app-theme .board-candidate-standfirst {
+    font-size: 0.84rem;
+  }
+
+  .kandid-app-theme .board-candidate-section-head,
+  .kandid-app-theme .board-candidate-register-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  .kandid-app-theme .board-candidate-section-head > span,
+  .kandid-app-theme .board-candidate-register-head > span {
+    text-align: left;
+  }
+
+  /* The register is already one column, so the desktop row template is only
+     tightened. Index, name, metadata, phase and arrow all stay on the same
+     horizontal line; nothing becomes a card. */
+  .kandid-app-theme .board-candidate-election-row {
+    gap: 0.75rem;
+    padding: 0.8rem 0;
+  }
+
+  .kandid-app-theme .board-candidate-election-name {
+    font-size: 1.05rem;
+  }
+
+  .kandid-app-theme .board-candidate-election-index {
+    font-size: 0.88rem;
+  }
+
+  .kandid-app-theme .board-candidate-election-context {
+    font-size: 0.64rem;
+  }
+
+  .kandid-app-theme .board-candidate-election-state {
+    gap: 0.6rem;
+  }
+
+  .kandid-app-theme .board-candidate-election-picker {
+    gap: 0.7rem;
+  }
+
+  .kandid-app-theme .board-candidate-context {
+    grid-template-columns: 3.5rem minmax(0, 1fr);
+    gap: 0.7rem;
+    padding: 0.8rem 0 0;
+  }
+
+  .kandid-app-theme .board-candidate-context-cover {
+    width: 3.5rem;
+    height: 3.9rem;
+    min-width: 3.5rem;
+  }
+
+  .kandid-app-theme .board-candidate-context-copy h2 {
+    font-size: clamp(1.2rem, 5.4vw, 1.5rem);
+  }
+
+  .kandid-app-theme .board-candidate-context-meta {
+    font-size: 0.62rem;
+  }
+
+/* READ ONLY, stated once against an ink rule. This is the established Positions
+   treatment (.board-positions-context-lock) rather than a new Candidates one:
+   a tracked uppercase label in ink, not an error colour, because a concluded
+   election is a normal historical state and not a failure. It replaces the phase
+   label in the metadata line rather than sitting beside it, so the state is
+   never stated twice. */
+.kandid-app-theme .board-candidate-context-lock {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--board-candidate-ink);
+  font-size: 0.64rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  line-height: 1.3;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+  /* Controls move under the identity at tablet width rather than competing with
+     it for the same line. Each takes its own full-width row, which is exactly
+     what .board-positions-working-actions does at the same breakpoint. */
+  .kandid-app-theme .board-candidate-context-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.6rem;
+  }
+
+  .kandid-app-theme .board-candidate-add,
+  .kandid-app-theme .board-candidate-switch {
+    width: 100%;
+    min-height: 2.45rem;
+    justify-content: center;
+  }
+
+  .kandid-app-theme .board-candidate-register-head {
+    margin-bottom: 0.55rem;
+  }
+
+  .kandid-app-theme .board-candidate-columns {
+    display: none;
+  }
+
+  .kandid-app-theme .board-candidate-position-head {
+    grid-template-columns: 1.7rem minmax(0, 1fr) auto;
+    gap: 0.5rem;
+    padding: 0.75rem 0.1rem 0.55rem;
+  }
+
+  .kandid-app-theme .board-candidate-position-head h3 {
+    font-size: 1.06rem !important;
+  }
+
+  .kandid-app-theme .board-candidate-position-head small {
+    font-size: 0.59rem;
+  }
+
+  .kandid-app-theme .board-candidate-list {
+    border-top: 1px solid var(--board-candidate-rule);
+  }
+
+  .kandid-app-theme .board-candidate-record {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.55rem;
+    padding: 0.7rem 0.1rem;
+  }
+
+  /* The read-only template is declared with one more class than this rule, so
+     it would otherwise keep its three tracks on a phone and overflow. The header
+     row is already display:none at this width, so only the record needs it. */
+  .kandid-app-theme .board-candidate-register.is-read-only .board-candidate-record {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .kandid-app-theme .board-candidate-avatar {
+    width: 2.75rem;
+    height: 2.75rem;
+    flex-basis: 2.75rem;
+  }
+
+  .kandid-app-theme .board-candidate-position-value {
+    display: none;
+  }
+
+  .kandid-app-theme .board-candidate-affiliation {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.3rem 0.75rem;
+    padding-left: 3.5rem;
+  }
+
+  .kandid-app-theme .board-candidate-affiliation strong {
+    font-size: 0.73rem;
+  }
+
+  .kandid-app-theme .board-candidate-affiliation small {
+    font-size: 0.65rem;
+  }
+
+  .kandid-app-theme .board-candidate-actions {
+    justify-content: flex-end;
+    gap: 0.85rem;
+    border-top: 1px solid var(--kandid-app-border, #d8d1c7);
+    padding-top: 0.3rem;
+  }
+
+  .kandid-app-theme .board-candidate-action {
+    min-height: 2.5rem;
+  }
+
+  .board-candidate-form-header,
+  .board-candidate-form-context {
+    padding-right: 1rem;
+    padding-left: 1rem;
+  }
+
+  .board-candidate-form {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.85rem;
+    padding: 0.9rem 1rem 1rem;
+  }
+
+  .board-candidate-form-section,
+  .board-candidate-form-campaign,
+  .board-candidate-form-actions {
+    grid-column: 1;
+  }
+
+  .board-candidate-form-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .modal-overlay .board-candidate-form-submit,
+  .modal-overlay .board-candidate-form-cancel {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kandid-app-theme .board-candidate-election-row,
+  .kandid-app-theme .board-candidate-election-arrow {
+    transition: none;
+  }
+
+  .kandid-app-theme .board-candidate-election-row:hover .board-candidate-election-arrow,
+  .kandid-app-theme .board-candidate-election-row:focus-visible .board-candidate-election-arrow {
+    transform: none;
+  }
+}
+
+.candidate-campaign-status-text { font-weight: 800; }
+.candidate-campaign-status-text.is-published { color: #17633a; }
+.candidate-campaign-status-text.is-draft { color: #805512; }
+
+
+.board-theme .board-candidate-context-skeleton,
+.board-theme .board-candidate-register-skeleton {
+  display: grid;
+  min-width: 0;
+  border-top: 1px solid var(--kandid-app-border-strong);
+}
+
+.board-theme .board-candidate-context-skeleton > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 8rem 6rem;
+  align-items: center;
+  gap: 1rem;
+  min-height: 4.5rem;
+  border-bottom: 1px solid var(--kandid-app-border);
+}
+
+.board-theme .board-candidate-register-skeleton > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(8rem, 0.6fr) minmax(10rem, 0.9fr) 7rem;
+  align-items: center;
+  gap: 1rem;
+  min-height: 4.25rem;
+  border-bottom: 1px solid var(--kandid-app-border);
+}
+
+.board-theme .board-candidate-context-skeleton span,
+.board-theme .board-candidate-register-skeleton span {
+  display: block;
+  height: 0.65rem;
+  background: #e9e4da;
+  animation: board-candidate-breathe 1.5s ease-in-out infinite alternate;
+}
+
+.board-theme .board-candidate-context-skeleton span:first-child { width: min(19rem, 90%); height: 0.9rem; }
+.board-theme .board-candidate-context-skeleton span:nth-child(2) { width: 6rem; }
+.board-theme .board-candidate-context-skeleton span:last-child { width: 4rem; }
+.board-theme .board-candidate-register-skeleton span:first-child { width: min(14rem, 92%); height: 0.85rem; }
+.board-theme .board-candidate-register-skeleton span:nth-child(2) { width: min(9rem, 92%); }
+.board-theme .board-candidate-register-skeleton span:nth-child(3) { width: min(12rem, 92%); }
+.board-theme .board-candidate-register-skeleton span:last-child { width: 6rem; }
+
+@keyframes board-candidate-breathe { to { opacity: 0.55; } }
+
+@media (max-width: 640px) {
+  .board-theme .board-candidate-context-skeleton > div { grid-template-columns: minmax(0, 1fr) 4rem; gap: 0.6rem; }
+  .board-theme .board-candidate-context-skeleton span:nth-child(2) { display: none; }
+  .board-theme .board-candidate-register-skeleton > div { grid-template-columns: minmax(0, 1fr) 5rem; gap: 0.45rem 0.7rem; padding-block: 0.65rem; }
+  .board-theme .board-candidate-register-skeleton span:nth-child(2) { grid-column: 1; }
+  .board-theme .board-candidate-register-skeleton span:nth-child(3) { grid-column: 1; }
+  .board-theme .board-candidate-register-skeleton span:last-child { grid-column: 2; grid-row: 1 / span 2; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .board-theme .board-candidate-context-skeleton span,
+  .board-theme .board-candidate-register-skeleton span {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+}

@@ -1,41 +1,33 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, Plus, Pencil, Trash2, X, Search } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { ArrowLeft, ArrowRight, Check, Plus, Pencil, Trash2, UserX, X, Search, MoreHorizontal, Upload } from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
 import PopupOverlay from "../../components/PopupOverlay";
 import { OrganizationLogo, StudentAvatar } from "../../components/KandidImage";
 import { supabase } from "../../lib/supabaseClient";
 import { readImageFileAsCompressedDataUrl } from "../../utils/files";
 import {
+  getCurrentMembershipsForStudents,
+  getCurrentOrganizationMembers,
   getPrograms,
-  syncStudentOrganizationMemberships,
 } from "../../utils/organizationAccess";
 import { usePrompt } from "../../context/PromptContext";
 import { logAuditEvent } from "../../utils/auditLog";
-import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
 import { formatAcademicTerm, getCurrentAcademicTerm } from "../../utils/academicTerms";
+import SuperAdminPageHeader from "../../components/SuperAdminPageHeader";
 import { isSupabaseAdminAuthMode } from "../../utils/auth";
 import {
   enrollExistingSuperAdminStudent,
+  deleteSuperAdminStudent,
+  getSuperAdminStudentDeletionReadiness,
+  listSuperAdminStudents,
   registerNewSuperAdminStudent,
   resolveSuperAdminStudentForTerm,
+  unenrollSuperAdminStudentForCurrentTerm,
+  updateSuperAdminStudent,
 } from "../../utils/superAdminManualEnrollment";
 import "./Students.css";
 
 const PAGE_SIZE = 10;
-const STUDENT_DIRECTORY_SELECT = `
-  id,
-  student_number,
-  first_name,
-  last_name,
-  email,
-  program,
-  year_level,
-  precinct_code,
-  batch_code,
-  is_shs,
-  status,
-  created_at
-`;
 const ORGANIZATION_CATALOG_SELECT = "id, name, description, organization_type";
 const EMPTY_STUDENT_FORM = {
   student_number: "",
@@ -50,6 +42,92 @@ const EMPTY_STUDENT_FORM = {
   batch_code: "",
   status: "pending",
 };
+
+function StudentMobileActions({ student, studentName, onEdit, onDelete, onUnenroll }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef(null);
+  const triggerRef = useRef(null);
+  const firstItemRef = useRef(null);
+  const menuId = `student-actions-${student.id}`;
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    function handlePointerDown(event) {
+      if (!rootRef.current?.contains(event.target)) setOpen(false);
+    }
+
+    function handleKeyDown(event) {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setOpen(false);
+      triggerRef.current?.focus();
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    firstItemRef.current?.focus();
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
+
+  function handleMenuKeyDown(event) {
+    if (event.key === "Tab") {
+      setOpen(false);
+      return;
+    }
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    const items = [...(rootRef.current?.querySelectorAll('[role="menuitem"]') || [])];
+    if (!items.length) return;
+    event.preventDefault();
+    const currentIndex = items.indexOf(document.activeElement);
+    const nextIndex = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? items.length - 1
+        : (currentIndex + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
+    items[nextIndex]?.focus();
+  }
+
+  return (
+    <div className="sa-students-mobile-actions" ref={rootRef}>
+      <button
+        ref={triggerRef}
+        type="button"
+        className="sa-students-mobile-actions-trigger"
+        aria-label="Student actions"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={menuId}
+        onClick={() => setOpen((wasOpen) => !wasOpen)}
+      >
+        <MoreHorizontal size={20} aria-hidden="true" />
+      </button>
+      {open ? (
+        <div
+          id={menuId}
+          className="sa-students-mobile-actions-menu"
+          role="menu"
+          aria-label={`Student actions for ${studentName}`}
+          onKeyDown={handleMenuKeyDown}
+        >
+          <button ref={firstItemRef} type="button" role="menuitem" onClick={() => { setOpen(false); onEdit(); }}>
+            Edit student
+          </button>
+          <button type="button" role="menuitem" onClick={() => { setOpen(false); onUnenroll(); }}>
+            Unenroll from current term
+          </button>
+          <button type="button" role="menuitem" onClick={() => { setOpen(false); onDelete(); }}>
+            Delete student
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 function studentDisplayName(student) {
   return [student?.first_name, student?.last_name].filter(Boolean).join(" ") || "Student";
@@ -104,6 +182,7 @@ function Students() {
   const [registrationError, setRegistrationError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
   const [resolvingStudent, setResolvingStudent] = useState(false);
+  const [unenrollingStudentId, setUnenrollingStudentId] = useState(null);
   const latestPhotoFetchId = useRef(0);
   const latestOrganizationLogoFetchId = useRef(0);
   const studentPhotoCache = useRef(new Map());
@@ -334,31 +413,10 @@ function Students() {
       return { data: studentRows, error: null };
     }
 
-    let organizationRows = organizations;
-    if (organizationRows.length === 0) {
-      const { data: organizationData, error: organizationError } =
-        await loadOrganizationCatalog();
-
-      if (organizationError) {
-        return { data: [], error: organizationError };
-      }
-
-      organizationRows = organizationData || [];
-      setOrganizations(organizationRows);
-    }
-
-    const { data, error } = await supabase
-      .from("student_organizations")
-      .select("student_id, organization_id, role")
-      .in("student_id", studentIds);
-
+    const { data, error } = await getCurrentMembershipsForStudents(studentIds);
     if (error) {
       return { data: [], error };
     }
-
-    const organizationById = new Map(
-      organizationRows.map((organization) => [Number(organization.id), organization]),
-    );
     const membershipsByStudentId = new Map();
     (data || []).forEach((membership) => {
       const key = Number(membership.student_id);
@@ -367,8 +425,12 @@ function Students() {
       }
       membershipsByStudentId.get(key).push({
         organization_id: membership.organization_id,
-        role: membership.role,
-        organizations: organizationById.get(Number(membership.organization_id)) || null,
+        academic_term_id: membership.academic_term_id,
+        membership_status: membership.membership_status,
+        source: membership.source,
+        program: membership.program,
+        year_level: membership.year_level,
+        organizations: membership.organization || null,
       });
     });
 
@@ -388,13 +450,12 @@ function Students() {
     let allowedStudentIds = null;
 
     if (organizationFilter !== "all") {
-      const { data: membershipData, error: membershipError } = await supabase
-        .from("student_organizations")
-        .select("student_id")
-        .eq("organization_id", Number(organizationFilter));
+      const { data: members, error: membershipError } = await getCurrentOrganizationMembers(
+        Number(organizationFilter),
+      );
 
       if (membershipError) {
-        console.error("Failed to load organization memberships:", membershipError);
+        console.error("Failed to load current organization members:", membershipError);
         setStudents([]);
         setTotalStudents(0);
         setStudentsError("Unable to load students for the selected organization.");
@@ -402,7 +463,7 @@ function Students() {
         return;
       }
 
-      allowedStudentIds = [...new Set((membershipData || []).map((item) => item.student_id).filter(Boolean))];
+      allowedStudentIds = [...new Set((members || []).map((membership) => Number(membership.student_id)).filter(Boolean))];
 
       if (allowedStudentIds.length === 0) {
         setStudents([]);
@@ -412,36 +473,16 @@ function Students() {
       }
     }
 
-    const sort = sortOptions[sortBy] || sortOptions.name_asc;
-    const from = (page - 1) * PAGE_SIZE;
-    const to = from + PAGE_SIZE - 1;
+    const { data: directory, error } = await listSuperAdminStudents({
+      search: debouncedSearch,
+      status: statusFilter,
+      studentIds: allowedStudentIds,
+      sort: sortBy,
+      page,
+      pageSize: PAGE_SIZE,
+    });
 
-    let query = supabase
-      .from("students")
-      .select(STUDENT_DIRECTORY_SELECT, { count: "exact" });
-
-    if (allowedStudentIds) {
-      query = query.in("id", allowedStudentIds);
-    }
-
-    if (statusFilter !== "all") {
-      query = query.eq("status", statusFilter);
-    }
-
-    if (debouncedSearch) {
-      const term = debouncedSearch.replaceAll("%", "\\%").replaceAll(",", " ");
-      query = query.or(
-        `student_number.ilike.%${term}%,first_name.ilike.%${term}%,last_name.ilike.%${term}%,email.ilike.%${term}%`,
-      );
-    }
-
-    const { data, error, count } = await query
-      .order(sort.column, { ascending: sort.ascending, nullsFirst: false })
-      .order("first_name", { ascending: sort.ascending, nullsFirst: false })
-      .order("id", { ascending: true })
-      .range(from, to);
-
-    if (error) {
+    if (error || !directory) {
       console.error("Failed to load students:", error);
       setStudents([]);
       setTotalStudents(0);
@@ -449,6 +490,9 @@ function Students() {
       setLoadingStudents(false);
       return;
     }
+
+    const data = directory.data || [];
+    const count = Number(directory.total_count) || 0;
 
     const {
       data: studentsWithOrganizations,
@@ -541,16 +585,6 @@ function Students() {
       }
     }
 
-    const existingOrganizations =
-      student.student_organizations || [];
-
-    const specificOrganization =
-      existingOrganizations.find(
-        (item) =>
-          item.organizations?.organization_type !==
-          "non_departmental"
-      );
-
     setForm({
       student_number:
         student.student_number || "",
@@ -566,8 +600,6 @@ function Students() {
         student.program || "",
       year_level:
         student.year_level || 1,
-      organization_id:
-        specificOrganization?.organization_id || "",
       precinct_code:
         student.precinct_code || "",
       batch_code:
@@ -607,6 +639,7 @@ function Students() {
       IDENTITY_RECHECK_REQUIRED: "The student record changed while you were working. Check the Student ID again.",
       CLIENT_STATUS_NOT_ALLOWED: "Account status is managed separately from term registration.",
       RESTORATION_REQUIRED: "The term enrollment was saved, but organization participation requires administrative review.",
+      PROGRAM_CHANGE_REQUIRES_MASTERLIST_REVIEW: "A program change requires the trusted Masterlist Review workflow before this Student can be re-enrolled.",
     };
     return messages[outcome] || fallback;
   }
@@ -818,10 +851,7 @@ function Students() {
       status: form.status,
     };
     const savedStudentId = editingStudent.id;
-    const { error } = await supabase
-      .from("students")
-      .update(payload)
-      .eq("id", savedStudentId);
+    const { error } = await updateSuperAdminStudent(savedStudentId, payload);
 
     if (error) {
       console.error("Student save failed:", error);
@@ -829,43 +859,7 @@ function Students() {
       setSubmitting(false);
       return;
     }
-    const {
-      error: syncError,
-      createdOrganizationIds = [],
-      existingOrganizationIds = [],
-    } = await syncStudentOrganizationMemberships({
-      studentId: savedStudentId,
-      program: form.program,
-      explicitOrganizationIds: form.organization_id ? [form.organization_id] : [],
-    });
-
-    if (syncError) {
-      console.error("Student organization sync failed:", syncError);
-      prompt.error(syncError.message || "Failed to link student to organizations.");
-      setSubmitting(false);
-      return;
-    }
-
     prompt.success("Student record updated.");
-
-    await logAuditEvent({
-      action: "student_updated",
-      entityType: "student",
-      entityId: savedStudentId,
-      entityLabel: `${form.first_name} ${form.last_name}`.trim() || form.student_number,
-      organizationId: form.organization_id || null,
-      organizationName:
-        organizations.find((org) => String(org.id) === String(form.organization_id))?.name ||
-        null,
-      status: "completed",
-      metadata: {
-        program: form.program,
-        year_level: Number(form.year_level),
-        student_status: form.status,
-        linked_organizations: createdOrganizationIds,
-        existing_organizations: existingOrganizationIds,
-      },
-    });
 
     studentPhotoCache.current.set(String(savedStudentId), form.photo_url || "");
     setStudentPhotos((current) => ({
@@ -885,81 +879,124 @@ function Students() {
       `${student.first_name || ""} ${student.last_name || ""}`.trim() ||
       student.student_number ||
       "Student";
-    const analysis = await analyzeDeleteDependencies("student", { id });
+    const { data: readiness, error: readinessError } = await getSuperAdminStudentDeletionReadiness(id);
+    if (readinessError) {
+      prompt.error("Student deletion readiness could not be verified. No records were changed.");
+      return;
+    }
 
-    if (analysis.blocked) {
-      await logAuditEvent({
-        action: "student_delete_blocked",
-        entityType: "student",
-        entityId: id,
-        entityLabel: label,
-        status: "requires_action",
-        metadata: { dependencies: analysis.dependencies },
-      });
-
+    const dependencyLines = (readiness?.dependencies || [])
+      .filter((dependency) => Number(dependency.count) > 0)
+      .map((dependency) => `${dependency.count} ${dependency.relation}`)
+      .join("\n");
+    if (readiness?.outcome === "BLOCKED") {
       await prompt.alert({
         title: "Student Cannot Be Deleted Yet",
-        message: dependencyMessage(label, analysis),
+        message: `${label} is linked to protected records.\n\n${dependencyLines || "Resolve the protected records before deleting this student."}`,
         type: "warning",
         confirmText: "Review Related Records",
       });
+      return;
+    }
+    if (readiness?.outcome !== "READY") {
+      prompt.error("Student deletion readiness could not be verified. No records were changed.");
       return;
     }
 
     const confirmDelete =
       await prompt.confirm({
         title: "Delete Student?",
-        message: dependencyMessage(label, analysis),
+        message: dependencyLines
+          ? `${label} has ${dependencyLines}. These structural organization links will be removed in the same transaction as the student record.`
+          : `No protected history was found for ${label}. Confirm to delete the student record.`,
         type: "danger",
         confirmText: "Delete Student",
       });
 
     if (!confirmDelete) return;
-
-    // Remove organization memberships first
-    const {
-      error: orgError,
-    } = await supabase
-      .from("student_organizations")
-      .delete()
-      .eq("student_id", id);
-
-    if (orgError) {
-      prompt.error(
-        orgError.message ||
-        "Failed to remove student organization memberships."
-      );
-
+    const { data: deletion, error } = await deleteSuperAdminStudent(id);
+    if (error) {
+      prompt.error("Student deletion could not be completed. No records were changed.");
       return;
     }
-
-    // Delete student
-    const { error } = await supabase
-      .from("students")
-      .delete()
-      .eq("id", id);
-
-    if (error) {
-      prompt.error(
-        error.message ||
-        "Failed to delete student."
-      );
-
+    if (deletion?.outcome === "BLOCKED") {
+      const latestDependencies = (deletion.dependencies || [])
+        .filter((dependency) => Number(dependency.count) > 0)
+        .map((dependency) => `${dependency.count} ${dependency.relation}`)
+        .join("\n");
+      await prompt.alert({
+        title: "Student Cannot Be Deleted Yet",
+        message: `${label} now has protected linked records.\n\n${latestDependencies}`,
+        type: "warning",
+        confirmText: "Review Related Records",
+      });
+      return;
+    }
+    if (deletion?.outcome !== "DELETED") {
+      prompt.error("Student deletion could not be completed. No records were changed.");
       return;
     }
 
     prompt.success("Student deleted.");
-
-    await logAuditEvent({
-      action: "student_deleted",
-      entityType: "student",
-      entityId: id,
-      entityLabel: label,
-      status: "completed",
-      metadata: { removed_memberships: analysis.dependencies },
-    });
-
     fetchStudents();
+  }
+
+  async function handleUnenroll(student) {
+    if (unenrollingStudentId) return;
+    setUnenrollingStudentId(Number(student.id));
+    const label = studentDisplayName(student);
+    try {
+      const { data: resolution, error: resolutionError } = await resolveSuperAdminStudentForTerm(
+        student.student_number,
+      );
+      if (resolutionError) {
+        prompt.error("Current-term enrollment could not be verified. No records were changed.");
+        return;
+      }
+      if (resolution?.outcome !== "ALREADY_ENROLLED_CURRENT_TERM") {
+        await prompt.alert({
+          title: "Student Is Not Enrolled This Term",
+          message: `${label} does not have an enrolled record in the active academic term. No records were changed.`,
+          type: "info",
+          confirmText: "Close",
+        });
+        return;
+      }
+
+      const confirmed = await prompt.confirm({
+        title: "Unenroll Student for the Current Term?",
+        message: `${label} will temporarily lose current-term organization participation, candidate-registration eligibility, and voting eligibility. Their account, directory access, history, submitted ballots, and receipts will remain unchanged. They can be re-enrolled through the existing term-enrollment workflow.`,
+        type: "warning",
+        confirmText: "Unenroll for Current Term",
+      });
+      if (!confirmed) return;
+
+      const { data, error } = await unenrollSuperAdminStudentForCurrentTerm(student.id);
+      if (error) {
+        prompt.error(error.message || "Current-term unenrollment could not be completed.");
+        return;
+      }
+      if (data?.outcome === "UNENROLLED_CURRENT_TERM") {
+        prompt.success(`${label} was unenrolled for the current term. Their account and historical records were preserved.`);
+        fetchStudents();
+        return;
+      }
+      if (data?.outcome === "ALREADY_UNENROLLED_CURRENT_TERM") {
+        await prompt.alert({
+          title: "Already Unenrolled",
+          message: `${label} is already unenrolled for the current academic term.`,
+          type: "info",
+          confirmText: "Close",
+        });
+        fetchStudents();
+        return;
+      }
+      prompt.error("Current-term unenrollment could not be verified.");
+    } catch {
+      prompt.error("Current-term unenrollment could not be completed. Refresh the directory before trying again.");
+    } finally {
+      setUnenrollingStudentId(null);
+    }
   }
 
   function getStudentOrganizations(student) {
@@ -1195,7 +1232,7 @@ function Students() {
           {renderIdentitySummary(resolvedStudent)}
           <div className="sa-registration-note">
             <strong>{restoring ? "Register for the current term" : "Not yet enrolled for this term"}</strong>
-            <p>{restoring ? "This student was not included in the current term's finalized masterlist. Registration can be restored without replacing the existing account." : "This student already has a Kandid record. Confirm the current-term academic details before enrollment."}</p>
+            <p>{restoring ? "This student is not currently enrolled for the active term. Registration can be restored without replacing the existing account." : "This student already has a Kandid record. Confirm the current-term academic details before enrollment."}</p>
           </div>
           {renderTermFields()}
           <aside className="sa-registration-status"><span>Current account status</span><strong>{resolvedStudent?.status || "Not recorded"}</strong><p>Term registration will not change this account status.</p></aside>
@@ -1218,7 +1255,7 @@ function Students() {
             <section><span>Academic</span><strong>{form.program}</strong><p>{yearLevelLabel(form.year_level)}</p><small>{formatAcademicTerm(activeTerm)}</small>{selectedOrganization ? <small>{selectedOrganization.name}</small> : null}</section>
             <section><span>Account</span><strong>{isNewStudent ? "Pending" : form.status}</strong><p>{isNewStudent ? "New student records begin as Pending." : "The existing account status will not be changed."}</p></section>
           </div>
-          {registrationResolution?.outcome === "EXISTING_STUDENT_NOT_IN_MASTERLIST" ? <p className="sa-registration-note">Registration will restore this student's enrollment for the current term while preserving the existing Kandid account.</p> : null}
+          {registrationResolution?.outcome === "EXISTING_STUDENT_NOT_IN_MASTERLIST" ? <p className="sa-registration-note">Registration will restore this student's enrollment for the current term while preserving the existing Kandid account. Program changes must be reviewed through the trusted Masterlist workflow.</p> : null}
           {registrationError ? <p className="sa-registration-error" role="alert">{registrationError}</p> : null}
           <div className="sa-registration-actions">
             <button type="button" className="secondary-btn" onClick={() => setRegistrationStep(isNewStudent ? "details" : "existing")}><ArrowLeft size={16} aria-hidden="true" />{isNewStudent ? "Edit details" : "Back"}</button>
@@ -1251,32 +1288,23 @@ function Students() {
 
   return (
     <div className="sa-students">
-      <header className="sa-students-masthead">
-        <div className="sa-students-masthead-copy">
-          <p className="sa-students-brandline">
-            <span>Kandid</span>
-            <span>/</span>
-            <span>Super Admin</span>
-          </p>
-          <p className="sa-students-eyebrow">Student registry</p>
-          <h1>Students</h1>
-          <p className="sa-students-deck">
-            Review student identity, academic records, organization membership,
-            and administrative access across Kandid.
-          </p>
-        </div>
-
-        <div className="sa-students-masthead-aside">
-          <span>Registry desk</span>
-          <strong>
-            {loadingStudents ? "Reading student records" : `${totalStudents} matching records`}
-          </strong>
-          <button className="sa-students-add" type="button" onClick={openCreateForm}>
-            <Plus size={16} aria-hidden="true" />
-            Add student
-          </button>
-        </div>
-      </header>
+      <SuperAdminPageHeader
+        section="Student records"
+        title="Students"
+        description="Maintain student records used across organization and election operations."
+        actions={(
+          <div className="sa-students-header-actions">
+            <Link className="sa-students-import" to="/super-admin/csv-import">
+              <Upload size={16} aria-hidden="true" />
+              Import CSV
+            </Link>
+            <button className="sa-students-add" type="button" onClick={openCreateForm}>
+              <Plus size={16} aria-hidden="true" />
+              Add student
+            </button>
+          </div>
+        )}
+      />
 
       {!loadingStudents && !studentsError ? (
         <section className="sa-students-summary" aria-label="Current registry summary">
@@ -1286,19 +1314,19 @@ function Students() {
             <small>Current search and filters</small>
           </div>
           <div className="sa-students-summary-item">
-            <span>Active on page</span>
+            <span>Active</span>
             <strong>{visibleStatusCounts.active}</strong>
-            <small>Active access state</small>
+            <small>Access enabled · on this page</small>
           </div>
           <div className="sa-students-summary-item is-pending">
-            <span>Pending on page</span>
+            <span>Pending</span>
             <strong>{visibleStatusCounts.pending}</strong>
-            <small>Awaiting administrative review</small>
+            <small>Awaiting review · on this page</small>
           </div>
           <div className="sa-students-summary-item is-disabled">
-            <span>Disabled on page</span>
+            <span>Disabled</span>
             <strong>{visibleStatusCounts.disabled}</strong>
-            <small>Restricted access state</small>
+            <small>Restricted · on this page</small>
           </div>
         </section>
       ) : null}
@@ -1306,19 +1334,14 @@ function Students() {
       <section className="sa-students-registry" aria-labelledby="student-registry-heading">
         <div className="sa-students-registry-head">
           <div>
-            <p className="sa-students-eyebrow">Directory / 01</p>
+            <p className="sa-students-eyebrow">Student directory</p>
             <h2 id="student-registry-heading">Student records</h2>
           </div>
-          <p>
-            {loadingStudents
-              ? "Loading the administrative register"
-              : `Page ${page} of ${totalPages}`}
-          </p>
         </div>
 
         <div className="sa-students-toolbar">
           <label className="sa-students-search">
-            <span>Search records</span>
+            <span>Search students</span>
             <div>
               <Search size={17} aria-hidden="true" />
               <input
@@ -1348,8 +1371,29 @@ function Students() {
             </select>
           </label>
 
-          <label className="sa-students-control">
-            <span>Order</span>
+        </div>
+
+        <div className="sa-students-status-filter" aria-label="Filter by student status">
+          <div className="sa-students-status-options">
+            <div>
+              {statusOptions.map((option) => (
+                <button
+                  key={option.value}
+                  className={statusFilter === option.value ? "is-active" : ""}
+                  type="button"
+                  aria-pressed={statusFilter === option.value}
+                  onClick={() => {
+                    setStatusFilter(option.value);
+                    setPage(1);
+                  }}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <label className="sa-students-sort">
+            <span>Sort</span>
             <select
               value={sortBy}
               onChange={(event) => {
@@ -1364,26 +1408,6 @@ function Students() {
               ))}
             </select>
           </label>
-        </div>
-
-        <div className="sa-students-status-filter" aria-label="Filter by student status">
-          <span>Status</span>
-          <div>
-            {statusOptions.map((option) => (
-              <button
-                key={option.value}
-                className={statusFilter === option.value ? "is-active" : ""}
-                type="button"
-                aria-pressed={statusFilter === option.value}
-                onClick={() => {
-                  setStatusFilter(option.value);
-                  setPage(1);
-                }}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
         </div>
 
         {loadingStudents ? (
@@ -1418,20 +1442,7 @@ function Students() {
           </div>
         ) : (
           <>
-            <div className="sa-students-table-wrap">
-              <table className="sa-students-table">
-                <caption className="sr-only">Student registry records</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Index</th>
-                    <th scope="col">Student</th>
-                    <th scope="col">Academic record</th>
-                    <th scope="col">Membership</th>
-                    <th scope="col">Access state</th>
-                    <th scope="col">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
+            <div className="sa-students-records" role="list" aria-label="Student records">
                   {students.map((student, index) => {
                     const studentOrganizations = getStudentOrganizations(student);
                     const studentStatus = student.status || "pending";
@@ -1440,11 +1451,12 @@ function Students() {
                       .join(" ") || "Unnamed Student";
 
                     return (
-                      <tr key={student.id} className={`is-${studentStatus}`}>
-                        <td className="sa-students-index" data-label="Index">
+                      <article key={student.id} className={`sa-students-record is-${studentStatus}`} role="listitem">
+                        <div className="sa-students-desktop-record">
+                        <span className="sa-students-index" aria-hidden="true">
                           {String((page - 1) * PAGE_SIZE + index + 1).padStart(2, "0")}
-                        </td>
-                        <td className="sa-students-identity" data-label="Student">
+                        </span>
+                        <div className="sa-students-identity">
                           <div className="sa-students-identity-content">
                             <StudentAvatar
                               student={{
@@ -1456,23 +1468,20 @@ function Students() {
                             />
                             <div>
                               <strong>{studentName}</strong>
-                              <span className="sa-students-number">
-                                Student no. {student.student_number || "Not recorded"}
+                              <span className="sa-students-identity-meta">
+                                {student.student_number || "Student ID not recorded"}
+                                <span aria-hidden="true"> · </span>
+                                {student.program || "Program not recorded"}
+                                <span aria-hidden="true"> · </span>
+                                {student.year_level ? `Year ${student.year_level}` : "Year not recorded"}
                               </span>
                               {student.email ? <small>{student.email}</small> : null}
                             </div>
                           </div>
-                        </td>
-                        <td className="sa-students-academic" data-label="Academic record">
-                          <div className="sa-students-academic-content">
-                            <strong>{student.program || "Program not recorded"}</strong>
-                            <span>
-                              {student.year_level ? `Year ${student.year_level}` : "Year not recorded"}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="sa-students-membership" data-label="Membership">
+                        </div>
+                        <div className="sa-students-membership">
                           {studentOrganizations.length > 0 ? (
+                            <>
                             <div className="sa-students-membership-list">
                               <div className="sa-students-org-marks" aria-hidden="true">
                                 {studentOrganizations.slice(0, 3).map((organization) => (
@@ -1492,11 +1501,12 @@ function Students() {
                                 </span>
                               </div>
                             </div>
+                            </>
                           ) : (
                             <span className="sa-students-unassigned">No organization</span>
                           )}
-                        </td>
-                        <td className="sa-students-state" data-label="Access state">
+                        </div>
+                        <div className="sa-students-state">
                           <div className="sa-students-state-content">
                             <span className={`sa-students-state-mark is-${studentStatus}`} aria-hidden="true" />
                             <div>
@@ -1510,8 +1520,8 @@ function Students() {
                               </span>
                             </div>
                           </div>
-                        </td>
-                        <td className="sa-students-actions" data-label="Actions">
+                        </div>
+                        <div className="sa-students-actions">
                           <div className="sa-students-action-list">
                             <button
                               onClick={() => openEditForm(student)}
@@ -1520,6 +1530,15 @@ function Students() {
                             >
                               <Pencil size={15} aria-hidden="true" />
                               Edit
+                            </button>
+                            <button
+                              onClick={() => handleUnenroll(student)}
+                              type="button"
+                              disabled={Boolean(unenrollingStudentId)}
+                              aria-label={`Unenroll ${studentName} from the current term`}
+                            >
+                              <UserX size={15} aria-hidden="true" />
+                              Unenroll
                             </button>
                             <button
                               onClick={() => handleDelete(student.id)}
@@ -1531,17 +1550,56 @@ function Students() {
                               Delete
                             </button>
                           </div>
-                        </td>
-                      </tr>
+                        </div>
+                        </div>
+                        <div className="sa-students-mobile-record">
+                          <span className="sa-students-index" aria-hidden="true">
+                            {String((page - 1) * PAGE_SIZE + index + 1).padStart(2, "0")}
+                          </span>
+                          <StudentAvatar
+                            student={{
+                              ...student,
+                              photo_url: studentPhotos[String(student.id)] || "",
+                            }}
+                            className="sa-students-avatar"
+                            loading="lazy"
+                          />
+                          <div className="sa-students-mobile-content">
+                            <strong>{studentName}</strong>
+                            <span className="sa-students-identity-meta">
+                              {student.student_number || "Student ID not recorded"}
+                              <span aria-hidden="true"> · </span>
+                              {student.program || "Program not recorded"}
+                              <span aria-hidden="true"> · </span>
+                              {student.year_level ? `Year ${student.year_level}` : "Year not recorded"}
+                              <span aria-hidden="true"> · </span>
+                              <span className="sa-students-mobile-status">
+                                <span className={`sa-students-state-mark is-${studentStatus}`} aria-hidden="true" />
+                                <strong>{studentStatus}</strong>
+                              </span>
+                            </span>
+                            <span className="sa-students-mobile-email" title={student.email || "Email not recorded"}>
+                              {student.email || "Email not recorded"}
+                            </span>
+                          </div>
+                          <div className="sa-students-mobile-actions-slot">
+                            <StudentMobileActions
+                              student={student}
+                              studentName={studentName}
+                              onEdit={() => openEditForm(student)}
+                              onDelete={() => handleDelete(student.id)}
+                              onUnenroll={() => handleUnenroll(student)}
+                            />
+                          </div>
+                        </div>
+                      </article>
                     );
                   })}
-                </tbody>
-              </table>
             </div>
 
             <nav className="sa-students-pager" aria-label="Student directory pagination">
               <p>
-                Showing {pageStart}-{pageEnd} of {totalStudents} students
+                Showing {pageStart}-{pageEnd} students
               </p>
               <div>
                 <button
@@ -1551,6 +1609,7 @@ function Students() {
                 >
                   Previous
                 </button>
+                <span className="sa-students-page-count">Page {page} of {totalPages}</span>
                 <span aria-current="page">{String(page).padStart(2, "0")}</span>
                 <button
                   type="button"
@@ -1783,52 +1842,6 @@ function Students() {
                         }
                         className="text-sm text-[#5a5548]"
                       />
-                    </div>
-                  </div>
-
-                  {/* SPECIFIC ORGANIZATION */}
-                  <div className="mt-6">
-                    <label className="field-label">
-                      Specific Organization
-                    </label>
-
-                    <select
-                      value={
-                        form.organization_id
-                      }
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          organization_id:
-                            e.target.value,
-                        })
-                      }
-                      className="field-shell w-full"
-                    >
-                      <option value="">
-                        No additional organization
-                      </option>
-
-                      {organizations.map((org) => (
-                          <option
-                            key={org.id}
-                            value={org.id}
-                          >
-                            {org.name}
-                          </option>
-                        ))}
-                    </select>
-
-                    <div className="mt-3 rounded-xl bg-blue-50 p-3 text-xs leading-5 text-blue-700">
-                      Departmental organizations are synced from their covered
-                      programs. Non-departmental organizations require an
-                      explicit membership assignment.
-                      <br />
-                      <strong>
-                        Specific Organization:
-                      </strong>{" "}
-                      Optional additional
-                      membership.
                     </div>
                   </div>
 

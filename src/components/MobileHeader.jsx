@@ -54,7 +54,7 @@ function MobileHeader({ user, onMenuClick, homePath = "/" }) {
         </button>
 
         <div className="mobile-header-actions">
-          {user && isMobileViewport ? <NotificationCenter user={user} /> : null}
+          {user && isMobileViewport ? <NotificationCenter user={user} placement="mobile" /> : null}
 
           {user ? (
             <button

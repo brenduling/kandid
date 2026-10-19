@@ -377,6 +377,90 @@
 .sa-remaining-dialog select,
 .sa-remaining-dialog textarea { box-shadow: none !important; }
 
+.sa-officers .sa-officer-incoming {
+  margin: 1.5rem 0 2rem;
+  border-top: 2px solid var(--sa-ink, #202127);
+  border-bottom: 1px solid var(--sa-rule-strong, #cfc9bf);
+  padding: 1.2rem 0 1.4rem;
+}
+.sa-officers .sa-officer-incoming-heading,
+.sa-officers .sa-officer-incoming-source {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1.25rem;
+}
+.sa-officers .sa-officer-incoming-heading h2 { margin: 0.2rem 0; font: 700 1.45rem/1.1 Georgia, serif; }
+.sa-officers .sa-officer-incoming-heading .surface-copy { max-width: 38rem; margin: 0.35rem 0 0; }
+.sa-officers .sa-officer-incoming-heading > * { min-width: 0; }
+.sa-officers .sa-officer-incoming-heading > :last-child { width: min(100%, 22rem); }
+.sa-officers .sa-officer-incoming-source {
+  align-items: center;
+  border-top: 1px solid var(--sa-rule, #ddd7cd);
+  margin-top: 1rem;
+  padding: 1rem 0 0.7rem;
+}
+.sa-officers .sa-officer-incoming-source > div:first-child { display: grid; gap: 0.25rem; }
+.sa-officers .sa-officer-incoming-source > div:first-child span,
+.sa-officers .sa-officer-incoming-register-head { color: var(--sa-muted, #74767d); font-size: 0.66rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+.sa-officers .sa-officer-incoming-source > div:first-child strong { font: 700 1.2rem/1.2 Georgia, serif; }
+.sa-officers .sa-officer-incoming-actions { display: flex; flex-wrap: wrap; gap: 0.55rem; }
+.sa-officers .sa-officer-incoming-actions button { display: inline-flex; align-items: center; gap: 0.45rem; }
+.sa-officers .sa-officer-incoming-register { border-top: 1px solid var(--sa-rule-strong, #cfc9bf); }
+.sa-officers .sa-officer-incoming-register-head,
+.sa-officers .sa-officer-incoming-register-row {
+  display: grid;
+  grid-template-columns: 2.2rem minmax(10rem, 1fr) minmax(12rem, 1.4fr) 7rem 5rem;
+  align-items: center;
+  gap: 0.8rem;
+}
+.sa-officers .sa-officer-incoming-register-head { min-height: 2rem; padding: 0.25rem 0.6rem; }
+.sa-officers .sa-officer-incoming-register-head span:first-child { grid-column: 2; }
+.sa-officers .sa-officer-incoming-register-row { min-height: 3.8rem; border-top: 1px solid var(--sa-rule, #ddd7cd); padding: 0.55rem 0.6rem; }
+.sa-officers .sa-officer-incoming-index { color: #e94c2e; font-size: 0.72rem; font-weight: 850; }
+.sa-officers .sa-officer-incoming-register-row > strong { font-size: 0.9rem; }
+.sa-officers .sa-officer-incoming-register-row > span:nth-of-type(2) { display: grid; gap: 0.15rem; font-weight: 650; }
+.sa-officers .sa-officer-incoming-register-row small { color: var(--sa-muted, #74767d); font-size: 0.7rem; font-weight: 500; }
+.sa-officers .sa-officer-incoming-register-row > span:nth-of-type(3) { color: #62656c; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; }
+.sa-officers .text-action-danger { justify-self: end; border: 0; border-bottom: 1px solid transparent; background: transparent; color: #a63a28; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; cursor: pointer; }
+.sa-officers .text-action-danger:hover,
+.sa-officers .text-action-danger:focus-visible { border-bottom-color: currentColor; }
+.sa-officers .sa-officer-incoming-unresolved { display: grid; gap: 0.4rem; border-top: 1px solid var(--sa-rule, #ddd7cd); padding: 0.8rem 0.6rem 0.2rem; }
+.sa-officers .sa-officer-incoming-unresolved strong { color: #65676d; font-size: 0.72rem; text-transform: uppercase; }
+.sa-officers .sa-officer-incoming-unresolved span,
+.sa-officers .sa-officer-incoming-empty,
+.sa-officers .sa-officer-incoming-error { color: #65676d; font-size: 0.82rem; }
+.sa-officers .sa-officer-incoming-error { color: #a63a28; }
+
+.sa-officers .sa-officer-context {
+  display: grid;
+  grid-template-columns: minmax(13rem, 1fr) minmax(15rem, 22rem) auto;
+  align-items: end;
+  gap: 1rem 1.25rem;
+  border-top: 2px solid var(--sa-ink, #202127);
+  border-bottom: 1px solid var(--sa-rule-strong, #cfc9bf);
+  padding: 0.85rem 0 1rem;
+}
+.sa-officers .sa-officer-context > div:first-child { display: grid; min-width: 0; gap: 0.25rem; }
+.sa-officers .sa-officer-context > div:first-child strong { overflow-wrap: anywhere; font: 700 1.1rem/1.2 Georgia, serif; }
+.sa-officers .sa-officer-context > div:first-child > span { color: var(--sa-muted, #74767d); font-size: 0.82rem; }
+.sa-officers .sa-officer-context .primary-btn { min-height: 2.65rem; white-space: nowrap; }
+.sa-officers .sa-officer-incoming-row-actions { display: flex; justify-content: flex-end; gap: 0.75rem; }
+.sa-officers .sa-officer-incoming-row-actions .text-action { min-height: 2rem; }
+.sa-officers .sa-officer-incoming-row-actions .text-action-danger { justify-self: auto; }
+.sa-officers .sa-officer-incoming-empty { margin: 0.75rem 0 0; }
+.sa-officers .sa-officer-history { margin-top: 2rem; }
+.sa-officers .sa-officer-history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-top: 2px solid var(--sa-ink, #202127);
+  padding: 0.75rem 0 0.25rem;
+}
+.sa-officers .sa-officer-history-head > .surface-title { margin: 0; }
+.sa-officers .sa-officer-history-head .text-action { flex: 0 0 auto; }
+
 @media (max-width: 1023px) {
   .sa-remaining-page .page-head { grid-template-columns: minmax(0, 1fr); }
   .sa-remaining-page .page-head > :last-child { justify-self: start; }
@@ -405,6 +489,19 @@
   .sa-masterlist-review table { min-width: 57.5rem; }
   .sa-remaining-page .toolbar-row { align-items: stretch; }
   .sa-remaining-page .toolbar-row > * { width: 100%; }
+  .sa-officers .sa-officer-incoming-heading,
+  .sa-officers .sa-officer-incoming-source { align-items: stretch; flex-direction: column; }
+  .sa-officers .sa-officer-history-head { align-items: flex-start; flex-direction: column; }
+  .sa-officers .sa-officer-context { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
+  .sa-officers .sa-officer-context .primary-btn { width: 100%; }
+  .sa-officers .sa-officer-incoming-actions { display: grid; grid-template-columns: 1fr; }
+  .sa-officers .sa-officer-incoming-actions button { justify-content: center; }
+  .sa-officers .sa-officer-incoming-register-head { display: none; }
+  .sa-officers .sa-officer-incoming-register-row { grid-template-columns: 2rem minmax(0, 1fr) auto; row-gap: 0.35rem; }
+  .sa-officers .sa-officer-incoming-register-row > strong { grid-column: 2; }
+  .sa-officers .sa-officer-incoming-register-row > span:nth-of-type(2) { grid-column: 2; }
+  .sa-officers .sa-officer-incoming-register-row > span:nth-of-type(3) { grid-column: 3; grid-row: 1; }
+  .sa-officers .sa-officer-incoming-register-row .sa-officer-incoming-row-actions { grid-column: 2 / 4; grid-row: 3; justify-content: flex-start; }
 }
 
 @media (max-width: 430px) {

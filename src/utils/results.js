@@ -1,4 +1,5 @@
-import { sortVotesByPositionOrder } from "./positionOrder";
+import { sortVotesByPositionOrder } from "./positionOrder.js";
+import { getElectionPhase } from "./electionLifecycle.js";
 
 export const RESULT_VISIBILITY_MODES = {
   REALTIME: "realtime",
@@ -10,6 +11,16 @@ export function normalizeResultVisibilityMode(value) {
   if (value === RESULT_VISIBILITY_MODES.REALTIME) return RESULT_VISIBILITY_MODES.REALTIME;
   if (value === RESULT_VISIBILITY_MODES.MANUAL) return RESULT_VISIBILITY_MODES.MANUAL;
   return RESULT_VISIBILITY_MODES.AFTER_CLOSE;
+}
+
+export function requiresManualResultPublication(election, now = new Date()) {
+  return Boolean(
+    election &&
+      getElectionPhase(election, now) === "closed" &&
+      normalizeResultVisibilityMode(election.student_result_visibility) ===
+        RESULT_VISIBILITY_MODES.MANUAL &&
+      !election.results_released_at,
+  );
 }
 
 export function resultVisibilityLabel(value, releasedAt) {
@@ -43,6 +54,18 @@ export function isMissingResultReleaseColumn(error) {
 }
 
 export function getResultVerificationSummary(votes = []) {
+  const aggregate = votes.find((vote) => vote?._aggregate_summary);
+  if (aggregate) {
+    const totalVoteEntries = Number(aggregate.totalVoteEntries || 0);
+    const missingHash = Number(aggregate.missingHashCount || 0);
+    const duplicateVoteIds = 0;
+    return {
+      totalVoteEntries,
+      missingHash,
+      duplicateVoteIds,
+      verified: totalVoteEntries > 0 && missingHash === 0,
+    };
+  }
   const totalVoteEntries = votes.length;
   const missingHash = votes.filter((vote) => !vote.vote_hash).length;
   const duplicateVoteIds = totalVoteEntries - new Set(votes.map((vote) => vote.id)).size;
@@ -139,7 +162,7 @@ export function buildGroupedResults(votes = [], candidates = []) {
     grouped[positionId].candidates[candidate.id] = candidateProfile(candidate);
   });
 
-  sortVotesByPositionOrder(votes).forEach((vote) => {
+  sortVotesByPositionOrder(votes.filter((vote) => !vote?._aggregate_summary)).forEach((vote) => {
     const candidateRecord = candidateDirectory.get(String(vote.candidate_id));
 
     if (!grouped[vote.position_id]) {
@@ -152,8 +175,9 @@ export function buildGroupedResults(votes = [], candidates = []) {
       };
     }
 
+    const aggregateCount = Math.max(0, Number(vote.aggregate_count || 1));
     if (vote.is_abstain) {
-      grouped[vote.position_id].abstain += 1;
+      grouped[vote.position_id].abstain += aggregateCount;
       return;
     }
 
@@ -168,10 +192,22 @@ export function buildGroupedResults(votes = [], candidates = []) {
     }
 
     const candidate = grouped[vote.position_id].candidates[candidateId];
-    candidate.votes += 1;
-    incrementDemographic(candidate, "program", vote.students?.program);
-    incrementDemographic(candidate, "year_level", yearLevelLabel(vote.students?.year_level));
-    incrementDemographic(candidate, "organization", vote.elections?.organizations?.name);
+    candidate.votes += aggregateCount;
+    if (vote.aggregate_count != null) {
+      for (const [key, counts] of Object.entries({
+        program: vote.program_counts,
+        year_level: vote.year_level_counts,
+        organization: vote.organization_counts,
+      })) {
+        Object.entries(counts || {}).forEach(([label, count]) => {
+          candidate.demographics[key][label] = (candidate.demographics[key][label] || 0) + Number(count || 0);
+        });
+      }
+    } else {
+      incrementDemographic(candidate, "program", vote.students?.program);
+      incrementDemographic(candidate, "year_level", yearLevelLabel(vote.students?.year_level));
+      incrementDemographic(candidate, "organization", vote.elections?.organizations?.name);
+    }
   });
 
   return grouped;
@@ -190,6 +226,52 @@ export function buildElectionAnalytics(votes = [], election = null, candidates =
     programMetadata.set(key, typeof program === "string" ? { label: program } : program);
   });
   const groupedResults = buildGroupedResults(votes, candidates);
+  const aggregateSummary = votes.find((vote) => vote?._aggregate_summary);
+  if (aggregateSummary) {
+    const totalUniqueVoters = Number(aggregateSummary.totalUniqueVoters || 0);
+    const asItems = (counts = {}) => Object.entries(counts)
+      .map(([label, count]) => ({
+        label,
+        count: Number(count || 0),
+        percentage: totalUniqueVoters > 0
+          ? ((Number(count || 0) / totalUniqueVoters) * 100).toFixed(1)
+          : "0.0",
+      }))
+      .sort((a, b) => b.count - a.count);
+    const mergeExpected = (items, expected = []) => {
+      const map = new Map(items.map((item) => [String(item.label).toUpperCase(), item]));
+      expected.forEach((entry) => {
+        const label = String(typeof entry === "string" ? entry : entry?.label || entry?.code || entry?.name || "").trim();
+        if (label && !map.has(label.toUpperCase())) map.set(label.toUpperCase(), { label, count: 0, percentage: "0.0" });
+      });
+      return [...map.values()];
+    };
+    const allocationItems = asItems(aggregateSummary.allocationItems || {});
+    const programItems = mergeExpected(asItems(aggregateSummary.programItems || {}), expectedPrograms)
+      .sort((a, b) => String(a.label).localeCompare(String(b.label)));
+    const yearLevelItems = mergeExpected(asItems(aggregateSummary.yearLevelItems || {}), expectedYearLevels.map(yearLevelLabel))
+      .sort((a, b) => Number(String(a.label).match(/\d+/)?.[0] || 0) - Number(String(b.label).match(/\d+/)?.[0] || 0));
+    const organizationItems = asItems(aggregateSummary.organizationItems || {});
+    const allocationMode = aggregateSummary.allocationMode === "program" ? "program" : "year_level";
+    return {
+      groupedResults,
+      totalVoteEntries: Number(aggregateSummary.totalVoteEntries || 0),
+      totalUniqueVoters,
+      totalAbstains: Number(aggregateSummary.totalAbstains || 0),
+      allocationMode,
+      allocationLabel: allocationMode === "program" ? "Program Allocation" : "Year Level Allocation",
+      allocationItems,
+      programItems,
+      yearLevelItems,
+      organizationItems,
+      resultDimensions: {
+        programs: expectedPrograms,
+        yearLevels: expectedYearLevels.map(yearLevelLabel),
+        programMetadata: [...programMetadata.values()],
+      },
+      organizationName: election?.organizations?.name || "Organization",
+    };
+  }
   const uniqueVoters = new Map();
   let abstainCount = 0;
 

@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
-import { Eye, EyeOff, ImagePlus, Save } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Eye, EyeOff, ImagePlus, Save, X } from "lucide-react";
+import "./Profile.css";
+import PopupOverlay from "../../components/PopupOverlay";
 import { KandidButtonLoader, KandidInlineLoader } from "../../components/KandidLoader";
 import {
   StudentSkeletonGroup,
@@ -11,18 +13,17 @@ import { getStoredUser, isSupabaseAdminAuthMode } from "../../utils/auth";
 import { readFileAsDataUrl } from "../../utils/files";
 import { promptKandidInstall, usePWAInstallState } from "../../utils/pwaInstall";
 import { usePrompt } from "../../context/PromptContext";
+import { toBoardFacingError } from "../../utils/boardFeedback";
 import { supabase } from "../../lib/supabaseClient";
 import {
   getPasswordChecks,
   isPasswordValid,
 } from "../../utils/password";
 import {
-  clearOrganizationAccessCache,
-  ensureProgram,
   getOrganizationCatalog,
-  getPrograms,
-  syncStudentsForOrganizationCoverage,
 } from "../../utils/organizationAccess";
+import { organizationMembershipScopeLabel } from "../../utils/organizationMembershipScope";
+import SuperAdminPageHeader from "../../components/SuperAdminPageHeader";
 
 function MembershipLogo({ organization }) {
   const [failed, setFailed] = useState(false);
@@ -57,6 +58,25 @@ function passwordChangeMessage(error) {
   return error?.message || "We could not change your password. Please try again.";
 }
 
+function passwordUpdateErrorMessage(error) {
+  const message = `${error?.code || ""} ${error?.message || ""}`.toLowerCase();
+  if (message.includes("weak") || message.includes("password")) {
+    if (message.includes("current password") || message.includes("current_password")) {
+      return "Your current password could not be verified. Check it and try again.";
+    }
+    if (message.includes("weak") || message.includes("length") || message.includes("character")) {
+      return "Supabase Auth rejected the new password. Review the requirements and try a different password.";
+    }
+  }
+  if (message.includes("reauth") || message.includes("nonce")) {
+    return "Your secure session needs verification. Sign out and sign in again, then retry the password change.";
+  }
+  if (message.includes("session") || Number(error?.status) === 401) {
+    return "Your session has expired. Sign in again before changing your password.";
+  }
+  return "We could not update your password. Please try again.";
+}
+
 function ProfilePage() {
   const prompt = usePrompt();
   const [user, setUser] = useState(getStoredUser());
@@ -64,13 +84,19 @@ function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const pwaInstall = usePWAInstallState();
-  const [programs, setPrograms] = useState([]);
   const [boardOrganization, setBoardOrganization] = useState(null);
-  const [selectedProgramIds, setSelectedProgramIds] = useState([]);
-  const [newProgram, setNewProgram] = useState("");
-  const [coverageSaving, setCoverageSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [passwordSubmitting, setPasswordSubmitting] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
+  const passwordSubmitRef = useRef(false);
   const [form, setForm] = useState({
     full_name: "",
     first_name: "",
@@ -91,7 +117,7 @@ function ProfilePage() {
       if (!active) return;
 
       if (error) {
-        setErrorMessage(error.message || "Failed to load profile.");
+        setErrorMessage(toBoardFacingError(error.message, "Failed to load profile."));
         setLoading(false);
         return;
       }
@@ -108,22 +134,13 @@ function ProfilePage() {
       });
 
       if (data?.role === "electoral_board" && data?.organization_id) {
-        const [programData, organizations] = await Promise.all([
-          getPrograms(),
-          getOrganizationCatalog(),
-        ]);
+        const organizations = await getOrganizationCatalog();
         const organization = organizations.find(
           (item) => String(item.id) === String(data.organization_id),
         );
 
         if (active) {
-          setPrograms(programData || []);
           setBoardOrganization(organization || null);
-          setSelectedProgramIds(
-            (organization?.organization_programs || [])
-              .map((link) => String(link.program_id))
-              .filter(Boolean),
-          );
         }
       }
 
@@ -170,6 +187,11 @@ function ProfilePage() {
             photo_url: form.photo_url || null,
             ...(form.password ? { password: form.password } : {}),
           }
+        : user?.role === "electoral_board"
+          ? {
+              email: form.email || null,
+              photo_url: form.photo_url || null,
+            }
         : {
             full_name: form.full_name,
             email: form.email || null,
@@ -177,11 +199,15 @@ function ProfilePage() {
             ...(form.password ? { password: form.password } : {}),
           };
 
-    const { data, error } = await updateCurrentUserProfile(payload);
+    const { data, error, emailChangePending } = await updateCurrentUserProfile(payload);
 
     if (error) {
       setErrorMessage(
-        form.password ? passwordChangeMessage(error) : error.message || "Failed to save profile.",
+        form.password
+          ? passwordChangeMessage(error)
+          : isBoard
+            ? toBoardFacingError(error.message, "Failed to save profile.")
+            : error.message || "Failed to save profile.",
       );
       setSaving(false);
       return;
@@ -190,117 +216,80 @@ function ProfilePage() {
     setUser(data);
     setForm((current) => ({ ...current, password: "", confirmPassword: "" }));
     setSaving(false);
-    prompt.success("Profile updated successfully.");
+    prompt.success(emailChangePending
+      ? "Profile photo updated. Confirm the email change using the verification message from Supabase."
+      : "Profile updated successfully.");
+  }
+
+  function resetPasswordDialog() {
+    if (passwordSubmitting) return;
+    setPasswordDialogOpen(false);
+    setPasswordError("");
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmNewPassword("");
+    setShowCurrentPassword(false);
+    setShowNewPassword(false);
+    setShowConfirmNewPassword(false);
+  }
+
+  async function handlePasswordChange(event) {
+    event.preventDefault();
+    if (passwordSubmitRef.current) return;
+
+    setPasswordError("");
+    if (!secureAdminProfile) {
+      setPasswordError("Password changes require a signed-in Supabase Auth Board account.");
+      return;
+    }
+    if (!currentPassword) {
+      setPasswordError("Enter your current password to continue.");
+      return;
+    }
+    if (!isPasswordValid(newPassword)) {
+      setPasswordError("Choose a new password that meets every requirement shown below.");
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setPasswordError("The new password and confirmation do not match.");
+      return;
+    }
+
+    passwordSubmitRef.current = true;
+    setPasswordSubmitting(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+        current_password: currentPassword,
+      });
+
+      if (error) {
+        setPasswordError(passwordUpdateErrorMessage(error));
+        return;
+      }
+
+      setPasswordDialogOpen(false);
+      setPasswordError("");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+      setShowCurrentPassword(false);
+      setShowNewPassword(false);
+      setShowConfirmNewPassword(false);
+      prompt.success("Password updated successfully.");
+    } catch {
+      setPasswordError("We could not update your password. Check your connection and try again.");
+    } finally {
+      passwordSubmitRef.current = false;
+      setPasswordSubmitting(false);
+    }
   }
 
   async function handleInstallApp() {
     await promptKandidInstall();
   }
 
-  function toggleProgram(programId) {
-    setSelectedProgramIds((previous) =>
-      previous.includes(String(programId))
-        ? previous.filter((id) => id !== String(programId))
-        : [...previous, String(programId)],
-    );
-  }
-
-  async function handleAddProgram() {
-    const { data, error } = await ensureProgram(newProgram);
-
-    if (error) {
-      prompt.error(
-        error.message ||
-          "Program could not be added. Apply the organization sync migration first.",
-      );
-      return;
-    }
-
-    if (!data) return;
-
-    setPrograms((previous) => {
-      const exists = previous.some((program) => String(program.id) === String(data.id));
-      return exists
-        ? previous
-        : [...previous, data].sort((a, b) =>
-            String(a.code || a.name).localeCompare(String(b.code || b.name)),
-          );
-    });
-    setSelectedProgramIds((previous) =>
-      previous.includes(String(data.id)) ? previous : [...previous, String(data.id)],
-    );
-    setNewProgram("");
-  }
-
-  async function handleSaveCoverage() {
-    if (!boardOrganization?.id) return;
-
-    if (
-      boardOrganization.organization_type === "departmental" &&
-      programs.length > 0 &&
-      selectedProgramIds.length === 0
-    ) {
-      prompt.error("Select at least one covered program for this departmental organization.");
-      return;
-    }
-
-    setCoverageSaving(true);
-
-    const { error: deleteError } = await supabase
-      .from("organization_programs")
-      .delete()
-      .eq("organization_id", boardOrganization.id);
-
-    if (deleteError) {
-      setCoverageSaving(false);
-      prompt.error(
-        deleteError.message ||
-          "Program coverage could not be saved. Apply the organization sync migration first.",
-      );
-      return;
-    }
-
-    if (
-      boardOrganization.organization_type === "departmental" &&
-      selectedProgramIds.length > 0
-    ) {
-      const rows = selectedProgramIds.map((programId) => ({
-        organization_id: boardOrganization.id,
-        program_id: Number(programId),
-      }));
-
-      const { error: insertError } = await supabase
-        .from("organization_programs")
-        .insert(rows);
-
-      if (insertError) {
-        setCoverageSaving(false);
-        prompt.error(insertError.message || "Program coverage could not be saved.");
-        return;
-      }
-    }
-
-    clearOrganizationAccessCache();
-    const { error: syncError } = await syncStudentsForOrganizationCoverage(
-      boardOrganization.id,
-    );
-
-    setCoverageSaving(false);
-
-    if (syncError) {
-      prompt.error(syncError.message || "Coverage saved, but students could not be synced.");
-      return;
-    }
-
-    const organizations = await getOrganizationCatalog();
-    const organization = organizations.find(
-      (item) => String(item.id) === String(boardOrganization.id),
-    );
-    setBoardOrganization(organization || boardOrganization);
-    prompt.success("Program coverage saved and matching students synced.");
-  }
-
-  const studentMemberships = user?.student_organizations || [];
+  const studentMemberships = user?.current_organization_memberships || [];
   const studentOrganizations =
     studentMemberships.map((item) => item.organizations).filter(Boolean) || [];
   const secureAdminProfile =
@@ -309,6 +298,12 @@ function ProfilePage() {
 
   const isStudent = user?.role === "student";
   const isBoard = user?.role === "electoral_board";
+  const isSuperAdmin = user?.role === "super_admin";
+  const boardOrganizationName =
+    boardOrganization?.name ||
+    user?.organization_name ||
+    user?.organizations?.name ||
+    "your assigned organization";
   const displayName = isStudent
     ? [user?.first_name, user?.last_name].filter(Boolean).join(" ").trim() || "Student"
     : user?.full_name || "User";
@@ -318,30 +313,75 @@ function ProfilePage() {
   const passwordEntered = Boolean(form.password);
   const passwordChecks = getPasswordChecks(form.password);
   const passwordsMatch = passwordEntered && form.confirmPassword === form.password;
-  const passwordIncomplete = passwordEntered && !isPasswordValid(form.password);
   const canSubmitPassword =
     !passwordEntered || (isPasswordValid(form.password) && passwordsMatch);
 
   return (
-    <div className="student-settings-desktop">
-      <header className="student-settings-opening">
-        <div className="student-settings-opening-copy">
-          <span className="student-settings-kicker">
-            {isStudent ? "Your Account" : "My Profile"}
-          </span>
-          <h1>
-            {isStudent ? "Settings that belong to you." : "Personal account details."}
-          </h1>
-          <p>
-            {isStudent
-              ? "Your profile, account access, and Kandid on this device."
-              : "Review your account information, update your profile photo, and keep your contact details current."}
+    <div className={`student-settings-desktop${isBoard ? " board-profile-page" : ""}`}>
+      {isBoard ? (
+        <header className="board-students-masthead board-profile-masthead">
+          <div className="board-students-context">
+            <span className="board-students-eyebrow">
+              Electoral Board / {boardOrganizationName}
+            </span>
+            <span className="board-students-context-rule" aria-hidden="true" />
+          </div>
+          <div className="board-students-baseline">
+            <h1 className="page-title board-students-title">Profile</h1>
+          </div>
+          <p className="board-students-standfirst">
+            Manage your Board account details and profile photo.
           </p>
-        </div>
-      </header>
+        </header>
+      ) : isSuperAdmin ? (
+        <SuperAdminPageHeader
+          section="Access management"
+          title="Profile"
+          description="Review your Super Admin account details and profile photo."
+        />
+      ) : (
+        <header className="student-settings-opening">
+          <div className="student-settings-opening-copy">
+            <span className="student-settings-kicker">
+              {isStudent ? "Your Account" : "My Profile"}
+            </span>
+            <h1>
+              {isStudent ? "Settings that belong to you." : "Personal account details."}
+            </h1>
+            <p>
+              {isStudent
+                ? "Your profile, account access, and Kandid on this device."
+                : "Review your account information, update your profile photo, and keep your contact details current."}
+            </p>
+          </div>
+        </header>
+      )}
 
       {loading ? (
-        isStudent ? (
+        isBoard ? (
+          <div className="board-profile-loading" role="status" aria-label="Loading Board profile" aria-busy="true">
+            <span className="sr-only">Loading Board profile</span>
+            <section className="board-profile-loading-identity" aria-hidden="true">
+              <span className="board-profile-skeleton is-avatar" />
+              <span className="board-profile-loading-copy">
+                <span className="board-profile-skeleton is-short" />
+                <span className="board-profile-skeleton is-heading" />
+                <span className="board-profile-skeleton is-medium" />
+              </span>
+            </section>
+            <section className="board-profile-loading-section" aria-hidden="true">
+              <span className="board-profile-skeleton is-label" />
+              <span className="board-profile-skeleton is-section-title" />
+              <span className="board-profile-skeleton is-field" />
+              <span className="board-profile-skeleton is-field" />
+            </section>
+            <section className="board-profile-loading-section" aria-hidden="true">
+              <span className="board-profile-skeleton is-label" />
+              <span className="board-profile-skeleton is-section-title" />
+              <span className="board-profile-skeleton is-medium" />
+            </section>
+          </div>
+        ) : isStudent ? (
           <StudentSkeletonGroup
             label="Loading your settings"
             className="student-settings-skeleton"
@@ -388,30 +428,66 @@ function ProfilePage() {
           {/* ====================================================
               PROFILE IDENTITY
               ==================================================== */}
-          <section className="student-settings-section">
-            <div className="student-settings-identity">
-              {isStudent ? (
-                <StudentAvatar
-                  student={{ ...user, photo_url: form.photo_url }}
-                  className="student-settings-photo-img"
-                  loading="eager"
-                />
-              ) : form.photo_url ? (
-                <img
-                  src={form.photo_url}
-                  alt="Profile"
-                  className="student-settings-photo-img"
-                />
-              ) : (
-                <div className="student-settings-photo-fallback">
-                  {isStudent
-                    ? user?.first_name?.[0] || "S"
-                    : user?.full_name?.[0] || "A"}
+          <section className={`student-settings-section${isBoard ? " board-profile-identity-section" : ""}`}>
+            <div className={`student-settings-identity${isBoard ? " board-profile-identity" : ""}`}>
+              {isBoard ? (
+                <div className="board-profile-avatar-group">
+                  {form.photo_url ? (
+                    <img
+                      src={form.photo_url}
+                      alt="Profile"
+                      className="student-settings-photo-img"
+                    />
+                  ) : (
+                    <div className="student-settings-photo-fallback">
+                      {user?.full_name?.[0] || "A"}
+                    </div>
+                  )}
+                  <label className="student-settings-photo-action board-profile-photo-action">
+                    <ImagePlus size={15} />
+                    Change photo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(event) => handlePhotoUpload(event.target.files?.[0])}
+                      className="hidden"
+                    />
+                  </label>
                 </div>
+              ) : (
+                <>
+                  {isStudent ? (
+                    <StudentAvatar
+                      student={{ ...user, photo_url: form.photo_url }}
+                      className="student-settings-photo-img"
+                      loading="eager"
+                    />
+                  ) : form.photo_url ? (
+                    <img
+                      src={form.photo_url}
+                      alt="Profile"
+                      className="student-settings-photo-img"
+                    />
+                  ) : (
+                    <div className="student-settings-photo-fallback">
+                      {user?.full_name?.[0] || "A"}
+                    </div>
+                  )}
+                  <label className="student-settings-photo-action">
+                    <ImagePlus size={16} />
+                    Choose Image
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(event) => handlePhotoUpload(event.target.files?.[0])}
+                      className="hidden"
+                    />
+                  </label>
+                </>
               )}
 
-              <div className="student-settings-identity-copy">
-                <span className="student-settings-eyebrow">Profile</span>
+              <div className={`student-settings-identity-copy${isBoard ? " board-profile-identity-copy" : ""}`}>
+                <span className="student-settings-eyebrow">{isBoard ? "Account holder" : "Profile"}</span>
                 <h2>{displayName}</h2>
                 {isStudent ? (
                   <>
@@ -422,34 +498,27 @@ function ProfilePage() {
                         .join(" · ") || "Not set"}
                     </p>
                   </>
+                ) : isBoard ? (
+                  <p>Electoral Board · {boardOrganizationName}</p>
                 ) : (
                   <p>{user?.role?.replaceAll("_", " ") || "System account"}</p>
                 )}
               </div>
 
-              <label className="student-settings-photo-action">
-                <ImagePlus size={16} />
-                Choose Image
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(event) => handlePhotoUpload(event.target.files?.[0])}
-                  className="hidden"
-                />
-              </label>
             </div>
           </section>
 
           {/* ====================================================
               ACCOUNT
               ==================================================== */}
-          <section className="student-settings-section">
-            <div className="student-settings-section-head">
-              <h2>Account</h2>
+          <section className={`student-settings-section${isBoard ? " board-profile-account-section" : ""}`}>
+            <div className={`student-settings-section-head${isBoard ? " board-profile-account-head" : ""}`}>
+              {isBoard ? <span className="board-profile-section-kicker">Account details</span> : null}
+              <h2>{isBoard ? "Your information" : "Account"}</h2>
             </div>
 
-            <form onSubmit={handleSubmit} className="student-settings-form">
-              <div className="student-settings-field">
+            <form onSubmit={handleSubmit} className={`student-settings-form${isBoard ? " board-profile-form" : ""}`}>
+              <div className={`student-settings-field${isBoard ? " board-profile-field" : ""}${isBoard && secureAdminProfile ? " board-profile-managed-field" : ""}`}>
                 <label>Email address</label>
                 <input
                   type="email"
@@ -465,14 +534,28 @@ function ProfilePage() {
                 />
                 {secureAdminProfile ? (
                   <p className="student-settings-field-note">
-                    Admin email changes are handled through secure account management.
+                    {isBoard
+                      ? "This email is managed through secure account management."
+                      : "Admin email changes are handled through secure account management."}
                   </p>
                 ) : null}
               </div>
 
-              {!isStudent ? (
-                <div className="student-settings-field">
-                  <label>Full Name</label>
+              {isBoard ? (
+                <div className="student-settings-field board-profile-field board-profile-managed-field">
+                  <label>Full name</label>
+                  <input
+                    value={form.full_name}
+                    readOnly
+                    className="student-settings-input is-readonly"
+                  />
+                  <p className="student-settings-field-note">
+                    Managed by the system administrator.
+                  </p>
+                </div>
+              ) : !isStudent ? (
+                <div className={`student-settings-field${isBoard ? " board-profile-field" : ""}`}>
+                  <label>{isBoard ? "Full name" : "Full Name"}</label>
                   <input
                     value={form.full_name}
                     onChange={(event) =>
@@ -486,7 +569,7 @@ function ProfilePage() {
                 </div>
               ) : null}
 
-              {!isStudent ? (
+              {!isStudent && !isBoard ? (
                 <div className="student-settings-field">
                   <label>Profile Photo URL</label>
                   <input
@@ -503,13 +586,35 @@ function ProfilePage() {
                 </div>
               ) : null}
 
-              {!secureAdminProfile ? (
+              {isBoard ? (
+                <details className="board-profile-photo-url">
+                  <summary>Use an image URL instead</summary>
+                  <div className="student-settings-field board-profile-field">
+                    <label htmlFor="board-profile-photo-url">Profile image URL</label>
+                    <input
+                      id="board-profile-photo-url"
+                      type="text"
+                      value={form.photo_url}
+                      onChange={(event) =>
+                        setForm((current) => ({ ...current, photo_url: event.target.value }))
+                      }
+                      className="student-settings-input"
+                      placeholder="https://example.com/photo.jpg"
+                    />
+                    <p className="student-settings-field-note">Save your profile to apply the image.</p>
+                  </div>
+                </details>
+              ) : null}
+
+              {!secureAdminProfile && !isBoard ? (
                 <div className="student-settings-password-stack">
                   <div className="student-settings-field">
                     <label>New Password</label>
                     <div className="student-settings-password-field">
                       <input
+                        id="profile-new-password"
                         type={showPassword ? "text" : "password"}
+                        data-password-policy="true"
                         value={form.password}
                         onChange={(event) =>
                           setForm((current) => ({
@@ -556,7 +661,10 @@ function ProfilePage() {
                       <label>Confirm New Password</label>
                       <div className="student-settings-password-field">
                         <input
+                          id="profile-confirm-new-password"
                           type={showConfirmPassword ? "text" : "password"}
+                          data-match-field="#profile-new-password"
+                          data-match-message="Confirm password must match your new password."
                           value={form.confirmPassword}
                           onChange={(event) =>
                             setForm((current) => ({
@@ -619,6 +727,37 @@ function ProfilePage() {
               </div>
             </form>
           </section>
+
+          {isBoard ? (
+            <section className="student-settings-section board-profile-security-section">
+              <div className="student-settings-section-head board-profile-security-head">
+                <span className="board-profile-section-kicker">Security</span>
+                <h2>Password</h2>
+              </div>
+              {secureAdminProfile ? (
+                <div className="board-profile-security-row">
+                  <p>Update the password you use to access your Electoral Board account.</p>
+                  <button
+                    type="button"
+                    className="board-profile-change-password"
+                    onClick={() => {
+                      setPasswordError("");
+                      setCurrentPassword("");
+                      setNewPassword("");
+                      setConfirmNewPassword("");
+                      setPasswordDialogOpen(true);
+                    }}
+                  >
+                    Change password
+                  </button>
+                </div>
+              ) : (
+                <p className="student-settings-section-note">
+                  This account uses legacy sign-in, which cannot safely change a password from Profile. Ask a Kandid administrator to move it to Supabase Auth.
+                </p>
+              )}
+            </section>
+          ) : null}
 
           {/* ====================================================
               YOUR STUDENT RECORD
@@ -700,79 +839,48 @@ function ProfilePage() {
               BOARD — COVERED PROGRAMS
               ==================================================== */}
           {isBoard && boardOrganization ? (
-            <section className="student-settings-section">
-              <div className="student-settings-section-head">
-                <h2>Covered Programs</h2>
+            <section className="student-settings-section board-profile-organization-section">
+              <div className="student-settings-section-head board-profile-organization-head">
+                <span className="board-profile-section-kicker">Organization settings · {boardOrganization.name}</span>
+                <h2>{boardOrganization.membership_scope === "program" ? "Covered Programs" : "Membership Scope"}</h2>
               </div>
               <p className="student-settings-section-note">
-                Manage which programs this organization covers and sync matching students.
+                Organization membership scope is managed by the system administrator.
               </p>
-              <div className="mt-3">
-                {boardOrganization.organization_type === "non_departmental" ? (
+              <div className="mt-3 board-profile-coverage-controls">
+                {boardOrganization.membership_scope === "institution" ? (
                   <p className="text-sm font-semibold text-[#1d262f]">
-                    This non-departmental organization is open across programs.
+                    {organizationMembershipScopeLabel("institution")} applies across the institution; program coverage is not applicable.
                   </p>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <input
-                        value={newProgram}
-                        onChange={(event) => setNewProgram(event.target.value)}
-                        className="field-shell w-full"
-                        placeholder="Add program code"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleAddProgram}
-                        disabled={!newProgram.trim()}
-                        className="secondary-btn justify-center disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Add Program
-                      </button>
-                    </div>
-
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {programs.length === 0 ? (
-                        <div className="rounded-2xl border border-gray-200 bg-white p-4 text-sm text-gray-500">
-                          No programs found yet. Apply the organization sync migration or add one above.
-                        </div>
-                      ) : (
-                        programs.map((program) => {
-                          const checked = selectedProgramIds.includes(String(program.id));
-
-                          return (
-                            <label
-                              key={program.id}
-                              className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3 text-sm transition ${
-                                checked
-                                  ? "border-[#d35a25] bg-[rgba(211,90,37,0.08)] text-[#1d262f]"
-                                  : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
-                              }`}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={() => toggleProgram(program.id)}
-                                className="h-4 w-4"
-                              />
-                              <span className="font-bold">
-                                {program.code || program.name}
-                              </span>
-                            </label>
-                          );
-                        })
-                      )}
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={handleSaveCoverage}
-                      disabled={coverageSaving}
-                      className="primary-btn w-full justify-center disabled:cursor-not-allowed disabled:opacity-70"
-                    >
-                      {coverageSaving ? "Syncing Students..." : "Save Covered Programs"}
-                    </button>
+                ) : boardOrganization.membership_scope === "manual" ? (
+                  <p className="text-sm font-semibold text-[#1d262f]">
+                    {organizationMembershipScopeLabel("manual")} across programs.
+                  </p>
+                ) : boardOrganization.membership_scope === "program" ? (
+                  <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold text-[#1d262f]">
+                    {(boardOrganization.organization_programs || [])
+                      .map((link) => link.programs)
+                      .filter(Boolean)
+                      .sort((left, right) =>
+                        String(left.code || left.name).localeCompare(
+                          String(right.code || right.name),
+                        ),
+                      )
+                      .map((program) => (
+                        <span key={program.id}>
+                          {program.code || program.name}
+                        </span>
+                      ))}
+                    {(boardOrganization.organization_programs || []).filter(
+                      (link) => link.programs,
+                    ).length === 0 ? (
+                      <span className="text-sm font-normal text-gray-500">
+                        No covered programs are assigned.
+                      </span>
+                    ) : null}
                   </div>
+                ) : (
+                  <p className="text-sm text-gray-600">Membership scope is not available.</p>
                 )}
               </div>
             </section>
@@ -815,6 +923,143 @@ function ProfilePage() {
           </section>
         </div>
       )}
+      {isBoard && passwordDialogOpen ? (
+        <PopupOverlay>
+          <section
+            className="board-profile-password-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="board-profile-password-title"
+          >
+            <header className="board-profile-password-header">
+              <div>
+                <span>Security</span>
+                <h2 id="board-profile-password-title">Change password</h2>
+                <p>Update the password you use to access your Electoral Board account.</p>
+              </div>
+              <button
+                type="button"
+                className="board-profile-password-close"
+                onClick={resetPasswordDialog}
+                disabled={passwordSubmitting}
+                aria-label="Close change password"
+              >
+                <X size={19} aria-hidden="true" />
+              </button>
+            </header>
+
+            <form className="board-profile-password-form" onSubmit={handlePasswordChange}>
+              <div className="board-profile-password-fields">
+                <PasswordField
+                  id="board-current-password"
+                  label="Current password"
+                  value={currentPassword}
+                  onChange={setCurrentPassword}
+                  visible={showCurrentPassword}
+                  onToggle={() => setShowCurrentPassword((value) => !value)}
+                  autoComplete="current-password"
+                  disabled={passwordSubmitting}
+                />
+                <PasswordField
+                  id="board-new-password"
+                  label="New password"
+                  value={newPassword}
+                  onChange={setNewPassword}
+                  visible={showNewPassword}
+                  onToggle={() => setShowNewPassword((value) => !value)}
+                  passwordPolicy
+                  autoComplete="new-password"
+                  disabled={passwordSubmitting}
+                />
+                <PasswordField
+                  id="board-confirm-new-password"
+                  label="Confirm new password"
+                  value={confirmNewPassword}
+                  onChange={setConfirmNewPassword}
+                  visible={showConfirmNewPassword}
+                  onToggle={() => setShowConfirmNewPassword((value) => !value)}
+                  matchField="#board-new-password"
+                  matchMessage="Confirm password must match your new password."
+                  autoComplete="new-password"
+                  disabled={passwordSubmitting}
+                />
+              </div>
+
+              <div className="board-profile-password-rules" aria-live="polite">
+                <span>New password requirements</span>
+                <ul>
+                  {getPasswordChecks(newPassword).map((check) => (
+                    <li key={check.id} className={check.met ? "is-met" : ""}>
+                      <i aria-hidden="true">{check.met ? "✓" : "○"}</i>{check.label}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {confirmNewPassword ? (
+                <p
+                  className={`board-profile-password-match ${newPassword === confirmNewPassword ? "is-match" : "is-mismatch"}`}
+                  aria-live="polite"
+                >
+                  {newPassword === confirmNewPassword
+                    ? "New passwords match."
+                    : "New passwords do not match."}
+                </p>
+              ) : null}
+
+              {passwordError ? <p className="board-profile-password-error" role="alert">{passwordError}</p> : null}
+
+              <footer className="board-profile-password-actions">
+                <button
+                  type="button"
+                  className="board-profile-password-cancel"
+                  onClick={resetPasswordDialog}
+                  disabled={passwordSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="board-profile-password-submit"
+                  disabled={passwordSubmitting || !currentPassword || !isPasswordValid(newPassword) || newPassword !== confirmNewPassword}
+                >
+                  {passwordSubmitting ? <KandidButtonLoader label="Updating password..." /> : "Update password"}
+                </button>
+              </footer>
+            </form>
+          </section>
+        </PopupOverlay>
+      ) : null}
+    </div>
+  );
+}
+
+function PasswordField({ id, label, value, onChange, visible, onToggle, autoComplete, disabled, passwordPolicy = false, matchField = "", matchMessage = "" }) {
+  return (
+    <div className="board-profile-password-field">
+      <label htmlFor={id}>{label}</label>
+      <div>
+        <input
+          id={id}
+          type={visible ? "text" : "password"}
+          data-password-policy={passwordPolicy ? "true" : undefined}
+          data-match-field={matchField || undefined}
+          data-match-message={matchMessage || undefined}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          autoComplete={autoComplete}
+          required
+          disabled={disabled}
+        />
+        <button
+          type="button"
+          onClick={onToggle}
+          disabled={disabled}
+          aria-label={visible ? `Hide ${label}` : `Show ${label}`}
+        >
+          {visible ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}
+        </button>
+      </div>
     </div>
   );
 }

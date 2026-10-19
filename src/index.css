@@ -177,6 +177,232 @@
   }
 }
 
+/* Board Students mobile roster: use the same compact identity grid as the
+   Super Admin directory while keeping Board membership actions organization-scoped. */
+.kandid-app-theme .board-student-desktop-record { display: contents; }
+.kandid-app-theme .board-student-mobile-record { display: none; }
+
+@media (max-width: 760px) {
+  .kandid-app-theme .board-student-record {
+    display: block;
+    padding: 0;
+  }
+
+  .kandid-app-theme .board-student-desktop-record { display: none; }
+
+  .kandid-app-theme .board-student-mobile-record {
+    display: grid;
+    grid-template-columns: 1.35rem 2.05rem minmax(0, 1fr) 1.25rem;
+    align-items: start;
+    column-gap: 0.58rem;
+    row-gap: 0.12rem;
+    min-width: 0;
+    padding: 0.56rem 0.9rem 0.62rem 0;
+  }
+
+  .kandid-app-theme .board-student-mobile-index {
+    grid-column: 1;
+    grid-row: 1;
+    padding-top: 0.06rem;
+    color: var(--kandid-app-orange);
+    font-family: "Source Serif 4", Georgia, serif;
+    font-size: 0.78rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.35;
+  }
+
+  .kandid-app-theme .board-student-mobile-avatar {
+    display: block;
+    grid-column: 2;
+    grid-row: 1;
+    width: 2.05rem;
+    height: 2.05rem;
+    align-self: start;
+  }
+
+  .kandid-app-theme .board-student-mobile-content {
+    display: grid;
+    grid-column: 3;
+    grid-row: 1;
+    min-width: 0;
+    gap: 0.12rem;
+    align-content: start;
+  }
+
+  .kandid-app-theme .board-student-mobile-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: var(--kandid-app-ink);
+    font-size: 0.84rem;
+    font-weight: 800;
+    line-height: 1.28;
+  }
+
+  .kandid-app-theme .board-student-mobile-meta {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: var(--kandid-app-ink-3);
+    font-size: 0.7rem;
+    font-weight: 580;
+    line-height: 1.35;
+  }
+
+  .kandid-app-theme .board-student-mobile-membership {
+    display: inline;
+    white-space: nowrap;
+    font-weight: 700;
+  }
+
+  .kandid-app-theme .board-student-mobile-membership.is-active { color: #047857; }
+  .kandid-app-theme .board-student-mobile-membership.is-inactive { color: #a1550a; }
+  .kandid-app-theme .board-student-mobile-membership.is-removed { color: var(--kandid-app-muted); }
+
+  .kandid-app-theme .board-student-mobile-membership-mark {
+    display: inline-block;
+    width: 0.34rem;
+    height: 0.34rem;
+    margin: 0 0.28rem 0.05rem 0;
+    background: currentColor;
+    vertical-align: middle;
+  }
+
+  .kandid-app-theme .board-student-mobile-membership.is-removed .board-student-mobile-membership-mark {
+    border: 1px solid currentColor;
+    background: transparent;
+  }
+
+  .kandid-app-theme .board-student-mobile-email {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: var(--kandid-app-muted);
+    font-size: 0.68rem;
+    font-weight: 500;
+    line-height: 1.32;
+  }
+
+  .kandid-app-theme .board-student-mobile-account.is-pending { color: #a1550a; }
+  .kandid-app-theme .board-student-mobile-account.is-disabled { color: #9f1239; }
+
+  .kandid-app-theme .board-student-mobile-reason {
+    overflow-wrap: anywhere;
+    color: var(--kandid-app-muted);
+    font-size: 0.66rem;
+    line-height: 1.3;
+  }
+
+  .kandid-app-theme .board-student-mobile-actions-slot {
+    position: relative;
+    grid-column: 4;
+    grid-row: 1;
+    width: 1.25rem;
+    height: 0;
+  }
+
+  .kandid-app-theme .board-student-mobile-actions {
+    display: block;
+    position: relative;
+    width: 100%;
+    height: 0;
+  }
+
+  .kandid-app-theme .board-student-mobile-actions-trigger {
+    position: absolute;
+    top: -0.28rem;
+    right: -0.625rem;
+    display: flex;
+    width: 2.5rem;
+    height: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    background: transparent;
+    color: var(--kandid-app-ink-3);
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .kandid-app-theme .board-student-mobile-actions-trigger:hover { color: var(--kandid-app-orange); }
+
+  .kandid-app-theme .board-student-mobile-actions-trigger:focus-visible,
+  .kandid-app-theme .board-student-mobile-actions-menu button:focus-visible {
+    outline: 2px solid var(--kandid-app-orange);
+    outline-offset: 2px;
+  }
+
+  .kandid-app-theme .board-student-mobile-actions-menu {
+    position: absolute;
+    z-index: 20;
+    right: 0;
+    bottom: calc(100% + 0.25rem);
+    display: grid;
+    width: max-content;
+    min-width: 10.5rem;
+    border-top: 2px solid var(--kandid-app-orange);
+    border-bottom: 1px solid var(--kandid-app-border-strong);
+    background: var(--kandid-app-paper);
+    padding: 0.2rem 0.7rem;
+  }
+
+  .kandid-app-theme .board-student-mobile-actions-menu button {
+    min-height: 2.65rem;
+    border: 0;
+    border-bottom: 1px solid var(--kandid-app-border);
+    background: transparent;
+    color: var(--kandid-app-ink);
+    cursor: pointer;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-align: left;
+  }
+
+  .kandid-app-theme .board-student-mobile-actions-menu button:last-child {
+    border-bottom: 0;
+  }
+
+  .kandid-app-theme .board-student-mobile-actions-menu button:last-child:not(:first-child) { color: #9f2d25; }
+
+  .kandid-app-theme .board-student-mobile-actions-menu button:hover { color: var(--kandid-app-orange); }
+
+  .kandid-app-theme .board-student-record-actions,
+  .kandid-app-theme .board-student-record .board-student-action-group,
+  .kandid-app-theme .board-student-record-action,
+  .kandid-app-theme .board-student-reason {
+    display: none;
+  }
+
+  .kandid-app-theme .board-students-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .kandid-app-theme .board-students-action {
+    min-width: 0;
+    padding-inline: 0.35rem;
+  }
+
+  @media (max-width: 430px) {
+    .kandid-app-theme .board-student-mobile-record {
+      grid-template-columns: 1.2rem 1.9rem minmax(0, 1fr) 1.25rem;
+      column-gap: 0.5rem;
+      padding-right: 0.82rem;
+    }
+
+    .kandid-app-theme .board-student-mobile-avatar {
+      width: 1.9rem;
+      height: 1.9rem;
+    }
+
+    .kandid-app-theme .board-student-mobile-name { font-size: 0.82rem; }
+    .kandid-app-theme .board-student-mobile-meta { font-size: 0.68rem; }
+  }
+
+  @media (max-width: 360px) {
+    .kandid-app-theme .board-students-actions { grid-template-columns: minmax(0, 1fr); }
+  }
+}
+
 :root {
   color-scheme: dark;
   --bg-base: #050608;
@@ -2693,6 +2919,49 @@ a:active {
   }
 }
 
+.board-notifications-skeleton {
+  display: grid;
+  padding: 0 1.35rem;
+}
+
+.board-notification-skeleton-row {
+  display: grid;
+  grid-template-columns: 1rem minmax(0, 1fr);
+  gap: 1rem;
+  min-height: 6rem;
+  align-items: center;
+  border-bottom: 1px solid #e3ded5;
+}
+
+.board-notification-skeleton-marker,
+.board-notification-skeleton-line {
+  display: block;
+  background: #e8e3db;
+  animation: board-notification-pulse 1.35s ease-in-out infinite alternate;
+}
+
+.board-notification-skeleton-marker { width: 0.7rem; height: 0.7rem; }
+.board-notification-skeleton-copy { display: grid; gap: 0.55rem; }
+.board-notification-skeleton-line { height: 0.65rem; }
+.board-notification-skeleton-line.is-title { width: min(18rem, 62%); height: 0.9rem; }
+.board-notification-skeleton-line.is-body { width: min(34rem, 86%); }
+.board-notification-skeleton-line.is-date { width: min(9rem, 34%); height: 0.5rem; }
+
+@keyframes board-notification-pulse {
+  from { opacity: 0.58; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .board-notification-skeleton-marker,
+  .board-notification-skeleton-line { animation: none; }
+}
+
+@media (max-width: 640px) {
+  .board-notifications-skeleton { padding-inline: 0.7rem; }
+  .board-notification-skeleton-row { min-height: 5.25rem; gap: 0.7rem; }
+}
+
 @media (max-width: 340px) {
   .student-explore-grid {
     grid-template-columns: 1fr;
@@ -4619,7 +4888,7 @@ a:active {
   top: 0.12rem;
   left: 0.6rem;
   color: var(--kandid-primary, #ef4e23);
-  content: "↓";
+  content: "â†“";
 }
 
 .receipt-detail-records {
@@ -8900,13 +9169,6 @@ textarea:focus {
 
 .kandid-app-theme .board-elections-title {
   max-width: 48rem;
-  margin: 0 !important;
-  color: var(--kandid-app-ink) !important;
-  font-family: "Source Serif 4", Georgia, serif !important;
-  font-size: clamp(2.45rem, 4.25vw, 4.7rem) !important;
-  font-weight: 700 !important;
-  letter-spacing: 0 !important;
-  line-height: 0.95 !important;
 }
 
 .kandid-app-theme .board-elections-opening .page-subtitle {
@@ -9157,13 +9419,6 @@ textarea:focus {
 
 .kandid-app-theme .board-positions-title {
   max-width: 48rem;
-  margin: 0 !important;
-  color: var(--kandid-app-ink) !important;
-  font-family: "Source Serif 4", Georgia, serif !important;
-  font-size: clamp(2.45rem, 4.25vw, 4.7rem) !important;
-  font-weight: 700 !important;
-  letter-spacing: 0 !important;
-  line-height: 0.95 !important;
 }
 
 .kandid-app-theme .board-positions-opening .page-subtitle {
@@ -9816,61 +10071,99 @@ textarea:focus {
 
 .kandid-app-theme .board-students-desktop {
   display: grid;
-  gap: clamp(1.15rem, 1.8vw, 1.6rem);
+  gap: clamp(1.7rem, 2.8vw, 2.6rem);
   min-width: 0;
 }
 
-.kandid-app-theme .board-students-opening {
-  align-items: flex-end !important;
-  border: 1px solid var(--kandid-app-border) !important;
-  border-width: 1px 0 2px !important;
-  border-radius: 0 !important;
-  background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.94), rgba(252, 251, 248, 0.78)),
-    repeating-linear-gradient(
-      90deg,
-      rgba(16, 17, 20, 0.032) 0,
-      rgba(16, 17, 20, 0.032) 1px,
-      transparent 1px,
-      transparent 2.8rem
-    ) !important;
-  padding: clamp(1.2rem, 1.8vw, 1.65rem) 0 !important;
-  box-shadow: none !important;
-}
+/* --- Masthead ------------------------------------------------------------
+   The header sits directly on the workspace background. There is no
+   container, no capsule eyebrow and no dotted corner: the shared
+   .page-head card (index.css:5807), its ::after dot graphic
+   (index.css:5815) and the peach .page-kicker capsule (index.css:486,
+   5836) are all deliberately left off this page. Hierarchy comes from
+   whitespace, one hairline under the board context, and a single strong
+   registration rule that closes the masthead and hands off to the
+   register below. --------------------------------------------------------- */
 
-.kandid-app-theme .board-students-opening-copy {
+.kandid-app-theme .board-students-masthead {
   display: grid;
   min-width: 0;
-  gap: 0.46rem;
+  gap: 0.5rem;
+  border-bottom: 2px solid var(--kandid-app-ink);
+  padding: 0 0 clamp(1rem, 1.7vw, 1.5rem);
 }
 
-.kandid-app-theme .board-students-kicker,
-.kandid-app-theme .board-students-section-kicker {
-  color: var(--kandid-app-orange) !important;
-  font-size: 0.68rem !important;
-  font-weight: 850 !important;
-  letter-spacing: 0.12em !important;
-  line-height: 1.1;
+.kandid-app-theme .board-students-context {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.kandid-app-theme .board-students-eyebrow {
+  flex: 0 0 auto;
+  color: var(--kandid-app-orange);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  line-height: 1;
   text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.kandid-app-theme .board-students-context-rule {
+  flex: 1 1 auto;
+  min-width: 1.5rem;
+  height: 1px;
+  background: var(--kandid-app-border);
+}
+
+.kandid-app-theme .board-students-baseline {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem 1.5rem;
+}
+
+/* --- Board page titles ---------------------------------------------------
+   One hierarchy for every Electoral Board page title, benchmarked on the
+   Dashboard's "Election operations": Source Serif 4, weight 700, sentence
+   case, clamp(2.35rem, 3.6vw, 3.2rem), line-height 1. Previously several
+   pages carried a much larger display treatment (up to 4.7rem, and 5.2rem
+   uppercase on Students) and the remaining pages fell back to the generic
+   Inter token scale, so no two Board titles matched.
+
+   Scoped to .board-theme: the Student and Super Admin portals are
+   untouched. Page-specific .board-*-title rules only set max-width now.
+
+   The shell wrapper carries .board-theme and .kandid-app-theme on the same
+   element, so this is a compound selector rather than a descendant pair. It
+   also needs the extra class to outrank the later generic .page-title token
+   rules (index.css:13452, 15243, 20598) that would otherwise win the tie. */
+
+.kandid-app-theme.board-theme .page-title {
+  max-width: 48rem;
+  color: var(--kandid-app-ink) !important;
+  font-family: "Source Serif 4", Georgia, serif !important;
+  font-size: clamp(2.35rem, 3.6vw, 3.2rem) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+  line-height: 1 !important;
+  text-transform: none !important;
 }
 
 .kandid-app-theme .board-students-title {
   max-width: 48rem;
-  margin: 0 !important;
-  color: var(--kandid-app-ink) !important;
-  font-family: "Source Serif 4", Georgia, serif !important;
-  font-size: clamp(2.45rem, 4.25vw, 4.7rem) !important;
-  font-weight: 700 !important;
-  letter-spacing: 0 !important;
-  line-height: 0.95 !important;
 }
 
-.kandid-app-theme .board-students-opening .page-subtitle {
-  max-width: 46rem;
-  margin: 0 !important;
-  color: var(--kandid-app-ink-3) !important;
-  font-size: clamp(0.94rem, 1.05vw, 1.05rem) !important;
-  font-weight: 620 !important;
+.kandid-app-theme .board-students-standfirst {
+  max-width: 44rem;
+  margin: 0;
+  color: var(--kandid-app-ink-3);
+  font-size: 0.94rem;
+  font-weight: 600;
   line-height: 1.5;
 }
 
@@ -9878,16 +10171,58 @@ textarea:focus {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
-  gap: 0.65rem;
+  gap: 0.5rem;
+  margin-left: auto;
 }
 
-.kandid-app-theme .board-students-create,
-.kandid-app-theme .board-students-secondary-action {
-  min-height: 2.7rem !important;
-  border-radius: var(--kandid-radius-sm) !important;
-  box-shadow: none !important;
+/* Editorial, not SaaS: sharp corners, flat surface, no drop shadow. The
+   legacy .primary-btn / .secondary-btn classes carry !important radius and
+   box-shadow rules (index.css:508, 5860, 5877) so these are scoped fresh. */
+
+.kandid-app-theme .board-students-action {
+  display: inline-flex;
+  min-height: 2.45rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: 1px solid var(--kandid-app-ink);
+  border-radius: 0;
+  padding: 0 1.05rem;
+  background: transparent;
+  color: var(--kandid-app-ink);
+  font-family: inherit;
+  font-size: 0.71rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-decoration: none;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
 }
+
+.kandid-app-theme .board-students-action.is-import:hover {
+  background: var(--kandid-app-ink);
+  color: var(--kandid-app-paper);
+}
+
+.kandid-app-theme .board-students-action.is-create {
+  border-color: var(--kandid-app-orange);
+  background: var(--kandid-app-orange);
+  color: #ffffff;
+}
+
+.kandid-app-theme .board-students-action.is-create:hover {
+  border-color: #d93f1d;
+  background: #d93f1d;
+  color: #ffffff;
+}
+
+.kandid-app-theme .board-students-action:focus-visible {
+  outline: 2px solid var(--kandid-app-orange);
+  outline-offset: 2px;
+}
+
 
 .kandid-app-theme .board-students-summary {
   display: grid;
@@ -9955,12 +10290,17 @@ textarea:focus {
   line-height: 1.08;
 }
 
+/* The masthead already closes with a 2px registration rule, so the register
+   adds only its closing hairline. The two sections read as one document
+   rather than a card followed by an unrelated panel. */
+
 .kandid-app-theme .board-students-register {
   display: grid;
   min-width: 0;
   gap: 0;
-  border: 1px solid var(--kandid-app-border);
-  border-width: 2px 0 0;
+  border: 0;
+  border-bottom: 1px solid var(--kandid-app-border);
+  padding-bottom: 0.35rem;
 }
 
 .kandid-app-theme .board-students-section-head {
@@ -9969,8 +10309,19 @@ textarea:focus {
   align-items: flex-end;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1rem 0;
+  padding: 0 0 0.8rem;
 }
+
+.kandid-app-theme .board-students-section-kicker {
+  margin: 0;
+  color: var(--kandid-app-orange);
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
 
 .kandid-app-theme .board-students-section-head h2 {
   margin: 0.25rem 0 0 !important;
@@ -9999,29 +10350,38 @@ textarea:focus {
 .kandid-app-theme .board-students-view-toggle {
   display: inline-flex;
   width: max-content;
-  border: 1px solid var(--kandid-app-border);
-  background: var(--kandid-app-paper);
+  gap: 1rem;
+  border: 0;
+  background: transparent;
 }
 
 .kandid-app-theme .board-students-view-toggle button {
   min-height: 2.45rem;
-  border-right: 1px solid var(--kandid-app-border);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
   color: var(--kandid-app-muted);
   font-size: 0.72rem;
   font-weight: 850;
   letter-spacing: 0.09em;
   line-height: 1.1;
-  padding: 0.45rem 0.85rem;
+  padding: 0.45rem 0.15rem;
   text-transform: uppercase;
-}
-
-.kandid-app-theme .board-students-view-toggle button:last-child {
-  border-right: 0;
+  cursor: pointer;
 }
 
 .kandid-app-theme .board-students-view-toggle button.is-active {
-  background: var(--kandid-app-orange);
-  color: #fff;
+  border-bottom-color: var(--kandid-app-orange);
+  color: var(--kandid-app-ink);
+}
+
+.kandid-app-theme .board-students-view-toggle button:hover {
+  color: var(--kandid-app-orange);
+}
+
+.kandid-app-theme .board-students-view-toggle button:focus-visible {
+  outline: 2px solid var(--kandid-app-orange);
+  outline-offset: 2px;
 }
 
 .kandid-app-theme .board-students-search.search-shell {
@@ -10186,317 +10546,6 @@ textarea:focus {
   padding: 0.85rem 0;
 }
 
-.kandid-app-theme .board-officers-desktop {
-  display: grid;
-  gap: clamp(1.15rem, 1.8vw, 1.6rem);
-  min-width: 0;
-}
-
-.kandid-app-theme .board-officers-opening {
-  align-items: flex-end !important;
-  border: 1px solid var(--kandid-app-border) !important;
-  border-width: 1px 0 2px !important;
-  border-radius: 0 !important;
-  background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.94), rgba(252, 251, 248, 0.78)),
-    repeating-linear-gradient(
-      0deg,
-      rgba(16, 17, 20, 0.034) 0,
-      rgba(16, 17, 20, 0.034) 1px,
-      transparent 1px,
-      transparent 2.45rem
-    ) !important;
-  padding: clamp(1.2rem, 1.8vw, 1.65rem) 0 !important;
-  box-shadow: none !important;
-}
-
-.kandid-app-theme .board-officers-opening-copy {
-  display: grid;
-  min-width: 0;
-  gap: 0.46rem;
-}
-
-.kandid-app-theme .board-officers-kicker,
-.kandid-app-theme .board-officers-section-kicker {
-  color: var(--kandid-app-orange) !important;
-  font-size: 0.68rem !important;
-  font-weight: 850 !important;
-  letter-spacing: 0.12em !important;
-  line-height: 1.1;
-  text-transform: uppercase;
-}
-
-.kandid-app-theme .board-officers-title {
-  max-width: 48rem;
-  margin: 0 !important;
-  color: var(--kandid-app-ink) !important;
-  font-family: "Source Serif 4", Georgia, serif !important;
-  font-size: clamp(2.45rem, 4.25vw, 4.7rem) !important;
-  font-weight: 700 !important;
-  letter-spacing: 0 !important;
-  line-height: 0.95 !important;
-}
-
-.kandid-app-theme .board-officers-opening .page-subtitle {
-  max-width: 46rem;
-  margin: 0 !important;
-  color: var(--kandid-app-ink-3) !important;
-  font-size: clamp(0.94rem, 1.05vw, 1.05rem) !important;
-  font-weight: 620 !important;
-  line-height: 1.5;
-}
-
-.kandid-app-theme .board-officers-create {
-  min-height: 2.7rem !important;
-  border-radius: var(--kandid-radius-sm) !important;
-  box-shadow: none !important;
-}
-
-.kandid-app-theme .board-officers-summary {
-  display: grid;
-  grid-template-columns: minmax(13rem, 0.7fr) minmax(0, 1.6fr);
-  border: 1px solid var(--kandid-app-border);
-  border-width: 2px 0 1px;
-  background: var(--kandid-app-paper);
-}
-
-.kandid-app-theme .board-officers-summary-main,
-.kandid-app-theme .board-officers-ledger > div {
-  min-width: 0;
-  padding: 1rem;
-}
-
-.kandid-app-theme .board-officers-summary-main {
-  display: grid;
-  align-content: start;
-  gap: 0.4rem;
-  border-right: 1px solid var(--kandid-app-border);
-}
-
-.kandid-app-theme .board-officers-summary-main strong {
-  color: var(--kandid-app-ink);
-  font-family: "Source Serif 4", Georgia, serif;
-  font-size: clamp(3rem, 4.8vw, 4.5rem);
-  font-weight: 700;
-  letter-spacing: 0;
-  line-height: 0.9;
-}
-
-.kandid-app-theme .board-officers-summary-main span,
-.kandid-app-theme .board-officers-ledger span,
-.kandid-app-theme .board-officers-section-head > span {
-  color: var(--kandid-app-muted);
-  font-size: 0.72rem;
-  font-weight: 850;
-  letter-spacing: 0.08em;
-  line-height: 1.25;
-  text-transform: uppercase;
-}
-
-.kandid-app-theme .board-officers-ledger {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.kandid-app-theme .board-officers-ledger > div {
-  display: grid;
-  align-content: space-between;
-  min-height: 8.15rem;
-  border-right: 1px solid var(--kandid-app-border);
-}
-
-.kandid-app-theme .board-officers-ledger > div:last-child {
-  border-right: 0;
-}
-
-.kandid-app-theme .board-officers-ledger strong {
-  overflow-wrap: anywhere;
-  color: var(--kandid-app-ink);
-  font-size: clamp(1.1rem, 1.55vw, 1.55rem);
-  font-weight: 850;
-  letter-spacing: 0;
-  line-height: 1.08;
-}
-
-.kandid-app-theme .board-officers-roster {
-  display: grid;
-  min-width: 0;
-  gap: 0;
-  border: 1px solid var(--kandid-app-border);
-  border-width: 1px 0 0;
-}
-
-.kandid-app-theme .board-officers-roster.is-history {
-  border-top-color: rgba(16, 17, 20, 0.5);
-}
-
-.kandid-app-theme .board-officers-section-head {
-  display: flex;
-  min-width: 0;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem 0;
-}
-
-.kandid-app-theme .board-officers-section-head h2 {
-  margin: 0.25rem 0 0 !important;
-  color: var(--kandid-app-ink) !important;
-  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
-  font-size: clamp(1.35rem, 1.9vw, 1.95rem) !important;
-  font-weight: 850 !important;
-  letter-spacing: 0 !important;
-  line-height: 1.08;
-}
-
-.kandid-app-theme .board-officers-section-head > span {
-  text-align: right;
-}
-
-.kandid-app-theme .board-officers-list {
-  display: grid;
-  gap: 1px;
-  overflow: hidden;
-  border: 1px solid var(--kandid-app-border);
-  border-width: 1px 0;
-  background: var(--kandid-app-border);
-}
-
-.kandid-app-theme .board-officer-record {
-  display: grid;
-  grid-template-columns: minmax(9rem, 0.72fr) minmax(16rem, 1.25fr) minmax(10rem, 0.72fr) auto;
-  gap: 1px;
-  align-items: stretch;
-  min-width: 0;
-  background: var(--kandid-app-border);
-}
-
-.kandid-app-theme .board-officers-roster.is-history .board-officer-record {
-  opacity: 0.92;
-}
-
-.kandid-app-theme .board-officer-office,
-.kandid-app-theme .board-officer-person,
-.kandid-app-theme .board-officer-period,
-.kandid-app-theme .board-officer-actions {
-  min-width: 0;
-  background: var(--kandid-app-paper);
-  padding: 1rem;
-}
-
-.kandid-app-theme .board-officer-office,
-.kandid-app-theme .board-officer-period {
-  display: grid;
-  align-content: center;
-  gap: 0.35rem;
-}
-
-.kandid-app-theme .board-officer-office span,
-.kandid-app-theme .board-officer-period span {
-  color: var(--kandid-app-muted);
-  font-size: 0.68rem;
-  font-weight: 850;
-  letter-spacing: 0.09em;
-  line-height: 1.25;
-  text-transform: uppercase;
-}
-
-.kandid-app-theme .board-officer-office strong {
-  color: var(--kandid-app-ink);
-  font-size: clamp(1.1rem, 1.55vw, 1.55rem);
-  font-weight: 850;
-  letter-spacing: 0;
-  line-height: 1.08;
-}
-
-.kandid-app-theme .board-officer-person {
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-}
-
-.kandid-app-theme .board-officer-avatar {
-  display: inline-grid;
-  width: 3.4rem;
-  height: 3.4rem;
-  flex: 0 0 3.4rem;
-  overflow: hidden;
-  place-items: center;
-  border: 1px solid rgba(244, 81, 44, 0.22);
-  border-radius: var(--kandid-radius-sm);
-  background: rgba(244, 81, 44, 0.08);
-  color: var(--kandid-app-orange);
-  font-family: "Source Serif 4", Georgia, serif;
-  font-size: 1.24rem;
-  font-weight: 700;
-}
-
-.kandid-app-theme .board-officer-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.kandid-app-theme .board-officer-person h3 {
-  margin: 0 !important;
-  color: var(--kandid-app-ink) !important;
-  font-size: 1rem !important;
-  font-weight: 850 !important;
-  letter-spacing: 0 !important;
-  line-height: 1.2;
-}
-
-.kandid-app-theme .board-officer-person p,
-.kandid-app-theme .board-officer-period strong {
-  margin: 0.25rem 0 0;
-  color: var(--kandid-app-ink-3);
-  font-size: 0.78rem;
-  font-weight: 720;
-  letter-spacing: 0.02em;
-  line-height: 1.35;
-}
-
-.kandid-app-theme .board-officer-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.5rem;
-}
-
-.kandid-app-theme .board-officer-state {
-  display: inline-flex;
-  min-height: 1.85rem;
-  align-items: center;
-  border: 1px solid rgba(244, 81, 44, 0.18);
-  border-radius: 999px;
-  background: rgba(244, 81, 44, 0.08);
-  color: #c2410c;
-  font-size: 0.68rem;
-  font-weight: 850;
-  letter-spacing: 0.07em;
-  padding: 0.25rem 0.65rem;
-  text-transform: uppercase;
-}
-
-.kandid-app-theme .board-officer-state.is-previous {
-  border-color: var(--kandid-app-border);
-  background: var(--kandid-app-paper-soft);
-  color: var(--kandid-app-muted);
-}
-
-.kandid-app-theme .board-officers-empty,
-.kandid-app-theme .board-officers-state {
-  border: 1px solid var(--kandid-app-border) !important;
-  border-width: 1px 0 !important;
-  border-radius: 0 !important;
-  background: var(--kandid-app-paper-soft) !important;
-  box-shadow: none !important;
-  color: var(--kandid-app-muted);
-  font-size: 0.92rem;
-  font-weight: 720;
-  line-height: 1.45;
-  padding: 1rem 0;
-}
 
 @media (max-width: 1180px) {
   .kandid-app-theme .board-elections-grid {
@@ -10543,18 +10592,6 @@ textarea:focus {
     grid-column: 1 / -1;
   }
 
-  .kandid-app-theme .board-officers-summary {
-    grid-template-columns: minmax(12rem, 0.62fr) minmax(0, 1.38fr);
-  }
-
-  .kandid-app-theme .board-officer-record {
-    grid-template-columns: minmax(8rem, 0.7fr) minmax(16rem, 1.3fr) minmax(10rem, 0.72fr);
-  }
-
-  .kandid-app-theme .board-officer-actions {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
-  }
 }
 
 @media (max-width: 760px) {
@@ -10629,355 +10666,6 @@ textarea:focus {
   .kandid-app-theme .board-students-actions {
     justify-content: flex-start;
   }
-
-  .kandid-app-theme .board-officers-summary,
-  .kandid-app-theme .board-officers-ledger,
-  .kandid-app-theme .board-officer-record {
-    grid-template-columns: 1fr;
-  }
-
-  .kandid-app-theme .board-officers-summary-main,
-  .kandid-app-theme .board-officers-ledger > div {
-    border-right: 0;
-    border-bottom: 1px solid var(--kandid-app-border);
-  }
-
-  .kandid-app-theme .board-officers-section-head {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-}
-
-.kandid-app-theme .board-dashboard-desktop {
-  display: grid;
-  gap: clamp(1.25rem, 2vw, 1.75rem);
-  min-width: 0;
-}
-
-.kandid-app-theme .board-dashboard-opening {
-  align-items: flex-end !important;
-  border: 1px solid var(--kandid-app-border) !important;
-  border-width: 1px 0 2px !important;
-  border-radius: 0 !important;
-  background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.9), rgba(252, 251, 248, 0.74)),
-    repeating-linear-gradient(
-      90deg,
-      rgba(16, 17, 20, 0.035) 0,
-      rgba(16, 17, 20, 0.035) 1px,
-      transparent 1px,
-      transparent 3.5rem
-    ) !important;
-  padding: clamp(1.15rem, 1.7vw, 1.55rem) 0 !important;
-  box-shadow: none !important;
-}
-
-.kandid-app-theme .board-dashboard-opening-copy {
-  display: grid;
-  min-width: 0;
-  gap: 0.42rem;
-}
-
-.kandid-app-theme .board-dashboard-kicker,
-.kandid-app-theme .board-dashboard-section-kicker,
-.kandid-app-theme .board-dashboard-panel-kicker {
-  color: var(--kandid-app-orange) !important;
-  font-size: 0.68rem !important;
-  font-weight: 850 !important;
-  letter-spacing: 0.12em !important;
-  line-height: 1.1;
-  text-transform: uppercase;
-}
-
-.kandid-app-theme .board-dashboard-title {
-  max-width: 50rem;
-  margin: 0 !important;
-  color: var(--kandid-app-ink) !important;
-  font-family: "Source Serif 4", Georgia, serif !important;
-  font-size: clamp(2.35rem, 4.2vw, 4.6rem) !important;
-  font-weight: 700 !important;
-  letter-spacing: 0 !important;
-  line-height: 0.95 !important;
-}
-
-.kandid-app-theme .board-dashboard-title .page-title-accent {
-  display: block;
-  color: var(--kandid-app-ink) !important;
-}
-
-.kandid-app-theme .board-dashboard-opening .page-subtitle {
-  max-width: 48rem;
-  margin: 0 !important;
-  color: var(--kandid-app-ink-3) !important;
-  font-size: clamp(0.94rem, 1.1vw, 1.05rem) !important;
-  font-weight: 620 !important;
-  line-height: 1.5;
-}
-
-.kandid-app-theme .board-dashboard-refresh {
-  min-height: 2.65rem !important;
-  border-radius: var(--kandid-radius-sm) !important;
-  box-shadow: none !important;
-}
-
-.kandid-app-theme .board-dashboard-loading {
-  display: grid;
-  min-height: 14rem;
-  align-content: center;
-  gap: 0.85rem;
-  margin-top: 2rem;
-  border-block: 1px solid var(--kandid-app-border);
-  padding-block: 1.5rem;
-}
-
-.kandid-app-theme .board-dashboard-loading p {
-  margin: 0;
-  color: var(--kandid-app-orange);
-  font-size: 0.72rem;
-  font-weight: 850;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.kandid-app-theme .board-dashboard-loading strong {
-  color: var(--kandid-app-ink);
-  font-family: "Source Serif 4", Georgia, serif;
-  font-size: clamp(1.65rem, 2.7vw, 2.45rem);
-  line-height: 1.05;
-}
-
-.kandid-app-theme .board-dashboard-metrics {
-  display: grid !important;
-  gap: 1px !important;
-  overflow: hidden;
-  border: 1px solid var(--kandid-app-border);
-  background: var(--kandid-app-border);
-}
-
-.kandid-app-theme .board-dashboard-metric {
-  min-height: 9.5rem !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: var(--kandid-app-paper) !important;
-  padding: 1rem !important;
-  box-shadow: none !important;
-}
-
-.kandid-app-theme .board-dashboard-metric-inner {
-  display: flex;
-  min-width: 0;
-  height: 100%;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.9rem;
-}
-
-.kandid-app-theme .board-dashboard-metric-label {
-  margin: 0;
-  color: var(--kandid-app-muted) !important;
-  font-size: 0.72rem;
-  font-weight: 850;
-  letter-spacing: 0.08em;
-  line-height: 1.2;
-  text-transform: uppercase;
-}
-
-.kandid-app-theme .board-dashboard-metric-value {
-  margin-top: 1rem !important;
-  color: var(--kandid-app-ink) !important;
-  font-family: "Source Serif 4", Georgia, serif;
-  font-size: clamp(2.9rem, 4.2vw, 4.15rem) !important;
-  font-weight: 700 !important;
-  letter-spacing: 0 !important;
-  line-height: 0.9 !important;
-}
-
-.kandid-app-theme .board-dashboard-metric-icon {
-  display: inline-grid;
-  width: 2.55rem;
-  height: 2.55rem;
-  flex: 0 0 2.55rem;
-  place-items: center;
-  border: 1px solid rgba(244, 81, 44, 0.22);
-  border-radius: var(--kandid-radius-sm) !important;
-  background: rgba(244, 81, 44, 0.08) !important;
-  color: var(--kandid-app-orange) !important;
-}
-
-.kandid-app-theme .board-dashboard-operation-grid,
-.kandid-app-theme .board-dashboard-graph-grid,
-.kandid-app-theme .board-dashboard-list-grid {
-  gap: clamp(1rem, 1.5vw, 1.35rem) !important;
-  margin-top: 0 !important;
-}
-
-.kandid-app-theme .board-dashboard-org-panel,
-.kandid-app-theme .board-dashboard-snapshot,
-.kandid-app-theme .board-dashboard-graph-card,
-.kandid-app-theme .board-dashboard-list-panel {
-  border: 1px solid var(--kandid-app-border) !important;
-  border-width: 2px 0 1px !important;
-  border-radius: 0 !important;
-  background: var(--kandid-app-paper) !important;
-  color: var(--kandid-app-ink) !important;
-  box-shadow: none !important;
-}
-
-.kandid-app-theme .board-dashboard-org-panel {
-  background: #111214 !important;
-  color: #ffffff !important;
-}
-
-.kandid-app-theme .board-dashboard-panel-head {
-  display: flex;
-  min-width: 0;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.kandid-app-theme .board-dashboard-panel-head h2,
-.kandid-app-theme .board-dashboard-panel-head h3,
-.kandid-app-theme .board-dashboard-list-head h3 {
-  margin: 0.35rem 0 0 !important;
-  color: inherit !important;
-  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
-  font-size: clamp(1.35rem, 1.9vw, 1.95rem) !important;
-  font-weight: 850 !important;
-  letter-spacing: 0 !important;
-  line-height: 1.05;
-}
-
-.kandid-app-theme .board-dashboard-org-panel .board-dashboard-panel-kicker {
-  color: rgba(255, 255, 255, 0.56) !important;
-}
-
-.kandid-app-theme .board-dashboard-panel-icon {
-  display: inline-grid;
-  width: 2.65rem;
-  height: 2.65rem;
-  flex: 0 0 2.65rem;
-  place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: var(--kandid-radius-sm);
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
-}
-
-.kandid-app-theme .board-dashboard-org-stack,
-.kandid-app-theme .board-dashboard-snapshot-list,
-.kandid-app-theme .board-dashboard-graph-stack {
-  display: grid;
-  gap: 0.9rem;
-  margin-top: 1.2rem;
-}
-
-.kandid-app-theme .board-dashboard-participation {
-  display: grid;
-  gap: 0.35rem;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-width: 1px 0;
-  padding: 0.9rem 0;
-}
-
-.kandid-app-theme .board-dashboard-participation p,
-.kandid-app-theme .board-dashboard-org-note {
-  margin: 0;
-  color: rgba(255, 255, 255, 0.58);
-  font-size: 0.76rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  line-height: 1.35;
-  text-transform: uppercase;
-}
-
-.kandid-app-theme .board-dashboard-participation strong {
-  color: #ffffff;
-  font-family: "Source Serif 4", Georgia, serif;
-  font-size: clamp(3rem, 5vw, 4.65rem);
-  font-weight: 700;
-  line-height: 0.9;
-}
-
-.kandid-app-theme .board-dashboard-participation strong span {
-  margin-left: 0.18rem;
-  color: rgba(255, 255, 255, 0.58);
-  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
-  font-size: 1rem;
-}
-
-.kandid-app-theme .board-dashboard-ledger {
-  display: grid;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
-}
-
-.kandid-app-theme .board-dashboard-ledger-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  padding: 0.72rem 0;
-}
-
-.kandid-app-theme .board-dashboard-ledger-row span {
-  color: rgba(255, 255, 255, 0.68);
-  font-size: 0.88rem;
-}
-
-.kandid-app-theme .board-dashboard-ledger-row strong {
-  color: #ffffff;
-  font-size: 0.92rem;
-  font-weight: 850;
-}
-
-.kandid-app-theme .board-dashboard-snapshot .info-row,
-.kandid-app-theme .board-dashboard-graph-card .graph-row {
-  border: 1px solid var(--kandid-app-border) !important;
-  border-width: 1px 0 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  padding: 0.85rem 0 !important;
-}
-
-.kandid-app-theme .board-dashboard-graph-card .chart-track {
-  height: 0.45rem;
-  border-radius: 999px;
-  background: #ebe6dd;
-}
-
-.kandid-app-theme .board-dashboard-graph-card .chart-fill,
-.kandid-app-theme .board-dashboard-graph-card .chart-fill-blue,
-.kandid-app-theme .board-dashboard-graph-card .chart-fill-gold,
-.kandid-app-theme .board-dashboard-graph-card .chart-fill-dark {
-  height: 100%;
-  border-radius: inherit;
-  background: var(--kandid-app-orange) !important;
-}
-
-.kandid-app-theme .board-dashboard-graph-card .chart-fill-blue,
-.kandid-app-theme .board-dashboard-graph-card .chart-fill-dark {
-  background: var(--kandid-app-ink) !important;
-}
-
-.kandid-app-theme .board-dashboard-graph-card .chart-fill-gold {
-  background: #8a6f2a !important;
-}
-
-.kandid-app-theme .board-dashboard-list-head {
-  padding: 1rem 0 !important;
-}
-
-.kandid-app-theme .board-dashboard-list-panel {
-  padding-inline: 1rem;
-}
-
-.kandid-app-theme .board-dashboard-list-panel > p {
-  padding-inline: 0 !important;
-}
-
-.kandid-app-theme .board-dashboard-list-panel > div:not(.board-dashboard-list-head) {
-  margin-inline: -1rem;
 }
 
 .kandid-app-theme .super-admin-dashboard-desktop {
@@ -11572,12 +11260,21 @@ textarea:focus {
 
 .kandid-app-theme .student-elections-desktop {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
   gap: clamp(1rem, 1.4vw, 1.4rem);
 }
 
+.kandid-app-theme .student-elections-desktop > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .kandid-app-theme .student-elections-opening {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   border-top: 2px solid var(--kandid-app-ink);
   border-bottom: 1px solid var(--kandid-app-border-strong);
@@ -11587,6 +11284,8 @@ textarea:focus {
 
 .kandid-app-theme .student-elections-opening-copy {
   display: grid;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
   gap: 0.45rem;
 }
@@ -11601,6 +11300,7 @@ textarea:focus {
 }
 
 .kandid-app-theme .student-elections-opening h1 {
+  min-width: 0;
   max-width: 49rem;
   margin: 0;
   color: var(--kandid-app-ink);
@@ -11609,6 +11309,8 @@ textarea:focus {
   font-weight: 700;
   letter-spacing: 0;
   line-height: 1;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
 }
 
 .kandid-app-theme .student-elections-opening-copy > p {
@@ -11626,7 +11328,7 @@ textarea:focus {
   }
 
   .kandid-app-theme .student-elections-opening {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) minmax(0, min(22rem, 42%));
     align-items: end;
     gap: clamp(1.5rem, 4vw, 4rem);
   }
@@ -11638,6 +11340,8 @@ textarea:focus {
 
 .student-elections-selector {
   position: relative;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
 }
 
@@ -11649,6 +11353,8 @@ textarea:focus {
 .student-elections-trigger {
   display: flex;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: 2.9rem;
   align-items: center;
   justify-content: space-between;
@@ -11664,6 +11370,8 @@ textarea:focus {
 
 .student-elections-trigger-copy {
   display: grid;
+  flex: 1 1 0%;
+  max-width: 100%;
   min-width: 0;
   gap: 0.18rem;
 }
@@ -11698,6 +11406,11 @@ textarea:focus {
   transition: transform 160ms ease;
 }
 
+.student-elections-trigger-copy > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .student-elections-trigger.is-open .student-elections-trigger-chevron {
   transform: rotate(180deg);
 }
@@ -11712,6 +11425,8 @@ textarea:focus {
   top: calc(100% + 0.2rem);
   left: 0;
   width: min(19.5rem, 100%);
+  max-width: 100%;
+  box-sizing: border-box;
   z-index: 40;
   max-height: min(22rem, 60vh);
   overflow: auto;
@@ -12296,7 +12011,7 @@ textarea:focus {
   }
 
   .kandid-app-theme .student-participation-schedule-details[open] > summary::after {
-    content: "−";
+    content: "âˆ’";
   }
 
   .kandid-app-theme .student-participation-schedule-details > summary:focus-visible {
@@ -19609,7 +19324,7 @@ body:has(.kandid-public-site) .kandid-pwa-install {
 
 .kandid-public-details[open] > summary::after,
 .kandid-public-disclosure[open] summary::after {
-  content: "−";
+  content: "âˆ’";
 }
 
 .kandid-public-details-body {
@@ -20386,6 +20101,29 @@ body:has(.kandid-public-site) .kandid-pwa-install {
   counter-reset: kandid-sidebar-group;
 }
 
+/* Board and Super Admin navigation rail: the shared rule above sets
+   `scrollbar-width: thin` plus a light thumb colour, which wins over
+   the earlier `scrollbar-width: none` declarations and renders a grey
+   scrollbar inside the dark rail. Re-hide it here, after that rule.
+
+   Only the track and thumb are hidden. `overflow-y: auto` from the
+   shared rule is untouched, so the rail stays scrollable by wheel,
+   trackpad, touch and keyboard. Scoped to .sidebar-nav-scroll, which
+   is used only by BoardLayout and SuperAdminLayout; the Student rail
+   (.student-sidebar-nav) is deliberately left unchanged. */
+
+.kandid-app-theme .sidebar-nav-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.kandid-app-theme .sidebar-nav-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+
 .kandid-app-theme .sidebar-group {
   display: grid;
   gap: 0.25rem;
@@ -20761,7 +20499,7 @@ body:has(.kandid-public-site) .kandid-pwa-install {
 }
 
 /* ============================================================
-   TOPBAR IDENTITY — student chip breathing room (shared shell untouched)
+   TOPBAR IDENTITY â€” student chip breathing room (shared shell untouched)
    ============================================================ */
 .kandid-app-theme .kandid-header .student-profile-chip {
   gap: 0.8rem !important;
@@ -22228,6 +21966,41 @@ body:has(.kandid-public-site) .kandid-pwa-install {
   font-weight: 800;
 }
 
+.kandid-app-theme .student-campaign-material-image {
+  display: grid;
+  justify-items: start;
+  gap: 0.35rem;
+  max-width: min(100%, 22rem);
+}
+
+.kandid-app-theme .student-campaign-material-image img {
+  display: block;
+  max-width: 100%;
+  max-height: 18rem;
+  border: 1px solid var(--kandid-app-border);
+  border-radius: 0.65rem;
+  object-fit: contain;
+}
+
+.kandid-app-theme .student-campaign-material-video {
+  display: block;
+  width: min(100%, 34rem);
+  max-height: 22rem;
+  border-radius: 0.65rem;
+  background: #111;
+}
+
+.kandid-app-theme .student-campaign-materials.is-empty {
+  grid-template-columns: 1fr;
+}
+
+.kandid-app-theme .student-campaign-materials.is-empty p:last-child {
+  margin: 0.35rem 0 0;
+  color: var(--kandid-app-muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
 .kandid-app-theme .student-campaign-material-unavailable {
   color: var(--kandid-app-muted);
   font-size: 0.7rem;
@@ -22397,7 +22170,201 @@ body:has(.kandid-public-site) .kandid-pwa-install {
   }
 }
 
+/* =========================================================
+   Phase 5.1H Student Campaign layout refinement
+   Presentation only — no markup, behavior, or data changes
+   ========================================================= */
+
+/* The shared reading-note grid reserves a 0.25rem marker column for its
+   orange rule. The schedule panel and schedule-error note carry no marker
+   span, so their content was auto-placed into that 4px column and wrapped
+   word by word. Give them a full-width two-track grid instead. */
+.kandid-app-theme .student-campaign-reading-note.student-campaign-voting,
+.kandid-app-theme .student-campaign-reading-note[role="alert"] {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem 1.75rem;
+  max-width: none;
+}
+
+/* Campaign status and schedule panel */
+.kandid-app-theme .student-campaign-reading-note.student-campaign-voting {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 22rem);
+  align-items: center;
+  margin-top: 1.5rem;
+  border-top: 2px solid var(--kandid-app-ink);
+  border-bottom: 1px solid var(--kandid-app-border-strong);
+  border-left: 0.22rem solid var(--kandid-app-orange);
+  background: var(--kandid-app-paper);
+  padding: 1.35rem 1.5rem;
+  color: var(--kandid-app-ink-3);
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+
+.kandid-app-theme .student-campaign-reading-note.student-campaign-voting > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.45rem;
+}
+
+.kandid-app-theme .student-campaign-reading-note.student-campaign-voting strong {
+  color: var(--kandid-app-ink);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.3rem;
+  font-weight: 750;
+  line-height: 1.15;
+}
+
+.kandid-app-theme .student-campaign-reading-note.student-campaign-voting p {
+  margin: 0;
+  color: var(--kandid-app-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1.6;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+/* The shared election action carries a legacy !important top margin
+   (dashboard context). Inside this panel the panel provides spacing,
+   so reset it narrowly and keep vertical centering honest. */
+.kandid-app-theme .student-campaign-reading-note.student-campaign-voting .student-election-action {
+  margin: 0 !important;
+  justify-self: end;
+}
+
+/* Schedule-error note keeps the same paper treatment without the status
+   headline. Contrast stays on ink/muted for readability. */
+.kandid-app-theme .student-campaign-reading-note[role="alert"] {
+  border-left: 0.22rem solid var(--k-danger);
+  background: var(--kandid-app-paper);
+  padding: 0.9rem 1.1rem;
+  color: var(--kandid-app-ink-3);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+/* Election title keeps an editorial measure without abandoning the
+   right side of the mast column on wide desktop. */
+.kandid-app-theme .student-campaign-mast h1 {
+  max-width: 26ch;
+}
+
+/* Rectilinear geometry per Kandid's structural default (radius 0).
+   Circular partylist logos and state marks remain semantic circles. */
+.kandid-app-theme .student-campaign-mast-cover,
+.kandid-app-theme .student-campaign-candidate,
+.kandid-app-theme .student-campaign-candidate-photo,
+.kandid-app-theme .student-campaign-candidate-toggle,
+.kandid-app-theme .student-campaign-state-action,
+.kandid-app-theme .student-campaign-material-image img,
+.kandid-app-theme .student-campaign-material-video {
+  border-radius: 0;
+}
+
+/* Candidate card breathing room */
+.kandid-app-theme .student-campaign-candidate-preview {
+  gap: 1.25rem;
+  padding: 1.2rem;
+}
+
+.kandid-app-theme .student-campaign-candidate-details {
+  padding: 1.5rem 1.6rem;
+}
+
+/* Wide desktop: status headline spans the panel, schedule lines split into
+   two scannable columns beneath it. */
+@media (min-width: 880px) {
+  .kandid-app-theme .student-campaign-reading-note.student-campaign-voting > div {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 2.25rem;
+    row-gap: 0.6rem;
+  }
+
+  .kandid-app-theme .student-campaign-reading-note.student-campaign-voting > div strong {
+    grid-column: 1 / -1;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid var(--kandid-app-border);
+  }
+}
+
+/* Tablet and mobile: stack the schedule panel and let actions take a
+   comfortable tap target without overflowing at 375px. */
+@media (max-width: 879px) {
+  .kandid-app-theme .student-campaign-reading-note.student-campaign-voting,
+  .kandid-app-theme .student-campaign-reading-note[role="alert"] {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.9rem;
+  }
+
+  .kandid-app-theme .student-campaign-reading-note.student-campaign-voting {
+    padding: 1.1rem 1.15rem;
+  }
+
+  .kandid-app-theme .student-campaign-reading-note.student-campaign-voting .student-election-action {
+    justify-self: start;
+  }
+}
+
+/* Interactive controls on this page follow the rectilinear default (radius 0).
+   The shared strong/outline buttons carry legacy !important radii, so the
+   override must also be !important and stays scoped to the campaign page. */
+.kandid-app-theme .student-campaign-page-v2 .student-election-action,
+.kandid-app-theme .student-campaign-page-v2 .student-outline-btn {
+  border-radius: 0 !important;
+}
+
+/* The shared strong action carries a large floating shadow; flat on the
+   newsprint panel. Other properties of the shared button are preserved. */
+.kandid-app-theme .student-campaign-page-v2 .student-election-action {
+  box-shadow: none !important;
+}
+
+/* Candidate imagery renders flat: the shared image frame otherwise places a
+   floating soft shadow under photos and partylist marks. */
+.kandid-app-theme .student-campaign-candidate-photo,
+.kandid-app-theme .student-campaign-partylist-logo {
+  box-shadow: none;
+}
+
 @media (max-width: 640px) {
+  .kandid-app-theme .student-elections-opening {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .kandid-app-theme .student-elections-opening h1 {
+    line-height: 1.05;
+  }
+
+  .kandid-app-theme .student-elections-trigger-copy strong {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .student-results-body,
+  .student-results-body > *,
+  .student-results-body .results-chapter,
+  .student-results-body .results-chapter-record {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .kandid-app-theme .student-elections-desktop > .flex.items-center {
+    flex-wrap: wrap;
+  }
+
+  .kandid-app-theme .student-elections-desktop > .flex.items-center > .flex-1 {
+    min-width: min(100%, 12rem);
+  }
+
+  .student-results-body .results-chapter-head,
+  .student-results-body .candidate-result-row {
+    min-width: 0;
+    max-width: 100%;
+  }
+
   .student-results-body > * + * {
     margin-top: 0.8rem;
   }
@@ -22423,17 +22390,22 @@ body:has(.kandid-public-site) .kandid-pwa-install {
   }
 
   .student-summary-rail > div {
+    min-width: 0;
     padding-top: 0.45rem;
+    overflow-wrap: anywhere;
   }
 
   .student-summary-rail > div > p:first-child {
     font-size: 0.6rem;
     letter-spacing: 0.12em;
+    overflow-wrap: anywhere;
   }
 
   .student-summary-rail > div > h2 {
     margin-top: 0.1rem;
     font-size: 1.55rem;
+    line-height: 1.1;
+    overflow-wrap: anywhere;
   }
 
   .student-summary-rail > div > p:last-child {
@@ -22595,7 +22567,108 @@ body:has(.kandid-public-site) .kandid-pwa-install {
 }
 
 /* ============================================================
-   Student Officers — editorial composition (desktop first)
+   Student Results — release states and refresh controls
+   ============================================================ */
+
+.kandid-app-theme .student-results-state {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 0.55rem;
+  min-width: 0;
+  max-width: 100%;
+  padding: 1.1rem 1rem 1.15rem;
+}
+
+.kandid-app-theme .student-results-state-kicker {
+  color: var(--kandid-app-orange);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .student-results-state-title {
+  margin: 0;
+  color: var(--kandid-app-ink);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.kandid-app-theme .student-results-state-body {
+  max-width: 46rem;
+  margin: 0;
+  color: var(--kandid-app-ink-3);
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.kandid-app-theme .student-results-state-meta {
+  margin: 0;
+  color: var(--kandid-app-ink-2, rgba(15, 23, 42, 0.5));
+  font-size: 0.66rem;
+  font-weight: 820;
+  letter-spacing: 0.07em;
+  line-height: 1.4;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.kandid-app-theme .student-results-refresh {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 2.2rem;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--kandid-app-ink-2, rgba(15, 23, 42, 0.5));
+  border-radius: 0;
+  background: transparent;
+  padding: 0.35rem 0.7rem;
+  color: var(--kandid-app-ink, #111827);
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.kandid-app-theme .student-results-refresh:hover:not(:disabled) {
+  background: rgba(15, 23, 42, 0.05);
+}
+
+.kandid-app-theme .student-results-refresh:focus-visible {
+  outline: 2px solid rgba(239, 78, 35, 0.45);
+  outline-offset: 0.15rem;
+}
+
+.kandid-app-theme .student-results-refresh:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+@media (max-width: 380px) {
+  .student-summary-rail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .kandid-app-theme .student-results-state {
+    padding: 1rem 0.85rem 1.05rem;
+  }
+
+  .kandid-app-theme .student-results-state-title {
+    font-size: 1.2rem;
+  }
+}
+
+/* ============================================================
+   Student Officers â€” editorial composition (desktop first)
    ============================================================ */
 
 .kandid-app-theme .student-officers-desktop {
@@ -23659,7 +23732,7 @@ body:has(.kandid-public-site) .kandid-pwa-install {
   font-weight: 800;
 }
 
-/* Student Receipt — desktop receipts register */
+/* Student Receipt â€” desktop receipts register */
 .kandid-app-theme .student-receipts-desktop .student-receipts-register-head {
   background: var(--kandid-app-paper);
   padding: 0.5rem 1.1rem 0.45rem;
@@ -23804,7 +23877,7 @@ body:has(.kandid-public-site) .kandid-pwa-install {
   font-weight: 800;
 }
 
-/* Student Receipt — mobile summary metadata row */
+/* Student Receipt â€” mobile summary metadata row */
 @media (max-width: 640px) {
   .kandid-app-theme .student-receipts-desktop .student-receipt-meta {
     display: grid;
@@ -24343,7 +24416,7 @@ body:has(.kandid-public-site) .kandid-pwa-install {
 }
 
 /* ============================================================
-   Student Ballot Verification — continuous journey
+   Student Ballot Verification â€” continuous journey
    ============================================================ */
 .kandid-app-theme .student-verification-journey {
   margin: 0;
@@ -25512,6 +25585,8 @@ body:has(.kandid-public-site) .kandid-pwa-install {
 /* Student Login: an editorial entrance to the Student Portal. */
 .kandid-auth-screen.kandid-auth-screen--student {
   background: #f8f6f1;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  overflow-x: clip;
 }
 
 .kandid-auth-screen.kandid-auth-screen--student::before,
@@ -25541,7 +25616,12 @@ body:has(.kandid-public-site) .kandid-pwa-install {
 
 .kandid-auth-screen.kandid-auth-screen--student .kandid-auth-identity h1 {
   margin-top: 0.9rem;
+  max-width: 9ch;
   color: #1a1a17;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(3.35rem, 5.5vw, 5rem);
+  font-weight: 700;
+  line-height: 0.98;
 }
 
 .kandid-auth-screen.kandid-auth-screen--student .kandid-auth-identity > div:last-child > span {
@@ -25555,18 +25635,18 @@ body:has(.kandid-public-site) .kandid-pwa-install {
 
 /* The right half is a workspace, with the message and action in dialogue. */
 .kandid-auth-screen.kandid-auth-screen--student .kandid-auth-main {
-  display: flex;
+  display: grid;
   min-width: 0;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: stretch;
+  justify-items: center;
   background: #f8f6f1;
   padding: clamp(1.5rem, 3vw, 2.75rem) clamp(1.5rem, 4.5vw, 5rem);
 }
 
 .kandid-auth-screen.kandid-auth-screen--student .kandid-auth-back {
   width: fit-content;
-  align-self: flex-end;
+  justify-self: end;
   color: #625c53;
   font-size: 0.82rem;
   font-weight: 650;
@@ -25577,16 +25657,13 @@ body:has(.kandid-public-site) .kandid-pwa-install {
 }
 
 .kandid-auth-screen.kandid-auth-screen--student .kandid-auth-card {
-  display: grid;
-  width: min(100%, 58rem) !important;
-  max-width: 58rem;
+  display: block;
+  width: min(100%, 34rem) !important;
+  max-width: 34rem;
   min-width: 0;
-  flex: 1;
-  grid-template-columns: minmax(0, 0.72fr) minmax(18rem, 1fr);
-  align-content: center;
-  align-items: start;
-  gap: clamp(1.5rem, 2.4vw, 2.5rem);
+  min-height: 0;
   align-self: center;
+  justify-self: center;
   border: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
@@ -25595,22 +25672,7 @@ body:has(.kandid-public-site) .kandid-pwa-install {
 }
 
 .kandid-auth-screen.kandid-auth-screen--student .kandid-auth-card-head {
-  min-width: 0;
-  padding-top: 0.1rem;
-}
-
-.kandid-auth-screen.kandid-auth-screen--student .kandid-auth-card-head > span,
-.kandid-auth-screen.kandid-auth-screen--student .kandid-auth-card-head p {
   display: none;
-}
-
-.kandid-auth-screen.kandid-auth-screen--student .kandid-auth-card-head h2 {
-  margin: 0;
-  color: #1a1a17;
-  font-family: "Source Serif 4", Georgia, serif;
-  font-size: clamp(2.6rem, 3.4vw, 3.8rem);
-  font-weight: 700;
-  line-height: 1;
 }
 
 .kandid-auth-screen.kandid-auth-screen--student .student-auth-card {
@@ -25624,7 +25686,7 @@ body:has(.kandid-public-site) .kandid-pwa-install {
 }
 
 .kandid-auth-screen.kandid-auth-screen--student .student-auth-card form {
-  border-top: 2px solid #25221e;
+  border-top: 1px solid #25221e;
   padding-top: 1.15rem;
 }
 
@@ -25652,6 +25714,15 @@ body:has(.kandid-public-site) .kandid-pwa-install {
   font-weight: 700 !important;
   letter-spacing: 0 !important;
   text-transform: none;
+}
+
+.kandid-auth-screen.kandid-auth-screen--student .student-auth-card label > small {
+  display: block;
+  margin-top: 0.1rem;
+  color: #a9322a;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .kandid-auth-screen.kandid-auth-screen--student .student-auth-card input {
@@ -25741,15 +25812,27 @@ body:has(.kandid-public-site) .kandid-pwa-install {
 }
 
 .kandid-auth-screen.kandid-auth-screen--student .student-login-new-account {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.3rem 0.5rem;
-  margin-top: 1.55rem;
+  display: grid;
+  justify-items: start;
+  gap: 0.35rem;
+  margin-top: 1.35rem;
   border-top: 1px solid #d8d0c3;
   padding-top: 1rem;
   color: #625c53;
   font-size: 0.89rem;
+}
+
+.kandid-auth-screen.kandid-auth-screen--student .student-login-new-account small {
+  color: #777166;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.kandid-auth-screen.kandid-auth-screen--student .student-login-migration-note {
+  margin: 0;
+  color: #302d29;
+  font-size: 0.89rem;
+  line-height: 1.5;
 }
 
 .kandid-auth-screen.kandid-auth-screen--student .student-auth-setup-link {
@@ -25766,6 +25849,23 @@ body:has(.kandid-public-site) .kandid-pwa-install {
   font-size: inherit;
   font-weight: 750;
   text-align: left;
+}
+
+.kandid-auth-screen.kandid-auth-screen--student .student-captcha,
+.kandid-auth-screen.kandid-auth-screen--student .student-captcha-warning {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+}
+
+.kandid-auth-screen.kandid-auth-screen--student .student-captcha-warning {
+  border-left: 2px solid #a9322a;
+  background: #fdf7f6;
+  padding: 0.65rem 0.75rem;
+  color: #7e2722;
+  font-size: 0.82rem;
+  line-height: 1.45;
 }
 
 .kandid-auth-screen.kandid-auth-screen--student .student-auth-setup-link:hover {
@@ -25824,10 +25924,8 @@ body:has(.kandid-public-site) .kandid-pwa-install {
 }
 
 @media (max-width: 1199px) {
-  .kandid-auth-screen.kandid-auth-screen--student .kandid-auth-card {
-    max-width: 34rem;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 1.8rem;
+  .kandid-auth-screen.kandid-auth-screen--student {
+    grid-template-columns: minmax(17rem, 0.85fr) minmax(0, 1.15fr);
   }
 }
 
@@ -25884,7 +25982,6 @@ body:has(.kandid-public-site) .kandid-pwa-install {
   }
 
   .kandid-auth-screen.kandid-auth-screen--student .kandid-auth-card {
-    gap: 0;
     padding-top: 1rem !important;
   }
 
@@ -25896,4 +25993,2331 @@ body:has(.kandid-public-site) .kandid-pwa-install {
     margin-top: 1.05rem;
     gap: 1rem;
   }
+}
+
+/* ==========================================================================
+   Board / Students â€” editorial registry register
+
+   Page-scoped only (.board-students-*). Inherits the existing Board
+   workspace opening, orange kicker and serif page title rather than
+   restating them, and follows the Officers register pattern: hairline
+   rules, square geometry, no card-per-student.
+
+   Desktop is a four-column management register
+   (Student / Academic information / Status / Actions). At 760px each
+   record collapses into a stacked editorial entry so nothing is
+   squeezed and no horizontal scrolling appears.
+
+   Presentation only: queries, scoping, term logic, status values,
+   row actions and confirmation behaviour are untouched.
+   ========================================================================== */
+
+.kandid-app-theme .board-students-register {
+  /* Column template is declared in src/pages/board/Students.css, which
+     loads after this file. Only the column gap is set here. */
+  --board-students-gap: clamp(0.9rem, 1.4vw, 1.35rem);
+}
+
+/* --- control strip: integrated with the register, not a floating card --- */
+
+.kandid-app-theme .board-students-toolbar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.85rem var(--board-students-gap);
+  align-items: center;
+  border: 0;
+  border-top: 1px solid var(--kandid-app-border);
+  padding: 0.8rem 0;
+}
+
+.kandid-app-theme .board-students-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(11rem, 15rem);
+  gap: 0.85rem;
+  align-items: end;
+  min-width: 0;
+}
+
+.kandid-app-theme .board-students-search.search-shell {
+  width: 100% !important;
+  min-width: 0;
+  min-height: 2.45rem;
+  margin: 0 !important;
+  gap: 0.6rem;
+  border: 1px solid var(--kandid-app-border) !important;
+  border-radius: 0 !important;
+  background: var(--kandid-app-paper) !important;
+  box-shadow: none !important;
+  color: var(--kandid-app-ink) !important;
+  padding: 0.4rem 0.7rem !important;
+}
+
+.kandid-app-theme .board-students-search.search-shell:focus-within {
+  border-color: var(--kandid-app-orange) !important;
+}
+
+.kandid-app-theme .board-students-search.search-shell svg {
+  flex: 0 0 auto;
+  color: var(--kandid-app-muted);
+}
+
+.kandid-app-theme .board-students-search.search-shell input {
+  color: var(--kandid-app-ink);
+  font-size: 0.86rem;
+  font-weight: 680;
+}
+
+.kandid-app-theme .board-students-sort-field {
+  display: grid;
+  gap: 0.32rem;
+  min-width: 0;
+}
+
+.kandid-app-theme .board-students-sort-field > span {
+  color: var(--kandid-app-muted);
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-students-sort {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.45rem;
+  border: 1px solid var(--kandid-app-border-strong) !important;
+  border-radius: 0 !important;
+  background: var(--kandid-app-paper) !important;
+  box-shadow: none !important;
+  padding: 0.4rem 0.7rem !important;
+  font-size: 0.78rem !important;
+}
+
+.kandid-app-theme .board-students-sort:focus-visible {
+  outline: 2px solid var(--kandid-app-orange);
+  outline-offset: 2px;
+}
+
+/* --- register head: column relationship, hairline only --- */
+
+.kandid-app-theme .board-students-register-head {
+  display: grid;
+  grid-template-columns: var(--board-students-columns);
+  gap: var(--board-students-gap);
+  align-items: end;
+  border-bottom: 2px solid var(--kandid-app-ink);
+  padding: 0.15rem 0 0.55rem;
+}
+
+.kandid-app-theme .board-students-register-head span {
+  color: var(--kandid-app-muted);
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-students-head-actions {
+  text-align: right;
+}
+
+/* --- records --- */
+
+.kandid-app-theme .board-students-list {
+  display: grid;
+  min-width: 0;
+}
+
+.kandid-app-theme .board-student-record {
+  display: grid;
+  grid-template-columns: var(--board-students-columns);
+  gap: var(--board-students-gap);
+  align-items: start;
+  min-width: 0;
+  border-bottom: 1px solid var(--kandid-app-border);
+  background: var(--kandid-app-paper);
+  padding: 0.95rem 0;
+  transition: background-color 140ms ease;
+}
+
+.kandid-app-theme .board-student-record:hover {
+  background: rgba(255, 244, 237, 0.5);
+}
+
+.kandid-app-theme .board-student-record:last-child {
+  border-bottom: 0;
+}
+
+/* Student identity: the strongest element in the row.
+
+   The old initials/avatar box is gone. Identity is carried by
+   typography alone, led by a quiet editorial row number, so the
+   register reads as a printed roster rather than a user list. */
+
+.kandid-app-theme .board-student-person {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 0.85rem;
+}
+
+/* Row index: subordinate to the name, aligned on a fixed measure so the
+   numerals form a clean column down the register. */
+.kandid-app-theme .board-student-index {
+  flex: 0 0 1.9rem;
+  min-width: 1.9rem;
+  color: var(--kandid-app-muted);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  text-align: right;
+}
+
+.kandid-app-theme .board-student-person-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.1rem;
+}
+
+.kandid-app-theme .board-student-person-copy h3 {
+  margin: 0 !important;
+  overflow-wrap: anywhere;
+  color: var(--kandid-app-ink) !important;
+  font-size: 1rem !important;
+  font-weight: 850 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.2;
+}
+
+.kandid-app-theme .board-student-number {
+  margin: 0;
+  color: var(--kandid-app-ink-3) !important;
+  font-size: 0.78rem;
+  font-weight: 720;
+  letter-spacing: 0.02em;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+}
+
+.kandid-app-theme .board-student-email {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--kandid-app-muted);
+  font-size: 0.74rem;
+  font-weight: 550;
+  line-height: 1.3;
+}
+
+/* Academic information */
+
+.kandid-app-theme .board-student-academic {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 0.3rem;
+}
+
+.kandid-app-theme .board-student-academic-main {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+}
+
+.kandid-app-theme .board-student-academic-main > span {
+  color: var(--kandid-app-muted);
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-student-academic-main > strong {
+  overflow-wrap: anywhere;
+  color: var(--kandid-app-ink);
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.2;
+}
+
+.kandid-app-theme .board-student-academic-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  color: var(--kandid-app-ink-3);
+  font-size: 0.76rem;
+  font-weight: 680;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+
+.kandid-app-theme .board-student-meta-divider {
+  width: 1px;
+  height: 0.7rem;
+  background: var(--kandid-app-border);
+}
+
+/* Status reads as quiet register metadata, not a status component.
+   Two lines, no per-row ACCOUNT / MEMBERSHIP heading, no colour squares:
+     Pending setup
+     Member · Active
+   Line one carries the account standing, line two the quieter
+   organisation membership. Together they match the two-line density of the
+   academic column ("BSIT" / "Year 1 · Added 9/9/2026") so Status stops
+   being the loudest cell in the row. */
+
+.kandid-app-theme .board-student-standing {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 0.24rem;
+}
+
+.kandid-app-theme .board-student-account {
+  overflow-wrap: anywhere;
+  color: var(--kandid-app-ink-3);
+  font-size: 0.8rem;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.kandid-app-theme .board-student-membership-line {
+  overflow-wrap: anywhere;
+  color: var(--kandid-app-muted);
+  font-size: 0.73rem;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.kandid-app-theme .board-student-membership-state {
+  font-weight: 700;
+}
+
+/* Restrained semantic colour only. A settled account is plain neutral text,
+   which is enough to communicate it; pending carries the one warm note.
+   Removed and inactive membership stay calm rather than alarming. */
+
+.kandid-app-theme .board-student-account.is-active {
+  color: var(--kandid-app-ink-3);
+}
+
+/* Two readings of the same account state. The full wording is the approved
+   desktop presentation; the compact wording is display copy for the mobile
+   index. Exactly one is displayed at any width, and display:none also removes
+   the other from the accessibility tree, so assistive technology always reads
+   the wording that is actually on screen. */
+.kandid-app-theme .board-student-account-full {
+  display: inline;
+}
+
+.kandid-app-theme .board-student-account-compact {
+  display: none;
+}
+
+.kandid-app-theme .board-student-account.is-pending {
+  color: #a1550a;
+}
+
+.kandid-app-theme .board-student-account.is-disabled {
+  color: #9f1239;
+}
+
+.kandid-app-theme .board-student-membership-state.is-active {
+  color: #047857;
+}
+
+.kandid-app-theme .board-student-membership-state.is-inactive {
+  color: #a1550a;
+}
+
+.kandid-app-theme .board-student-membership-state.is-removed {
+  color: var(--kandid-app-muted);
+}
+
+
+/* Row actions: concise and quiet, destructive still clearly separated. */
+
+.kandid-app-theme .board-student-record-actions {
+  display: grid;
+  justify-items: end;
+  align-content: start;
+  gap: 0.4rem;
+  min-width: 0;
+  text-align: right;
+}
+
+/* Edit stays neutral, Remove stays consequential. The action group layout
+   itself is owned by src/pages/board/Students.css. */
+
+.kandid-app-theme .board-student-record-action {
+  display: inline-flex;
+  min-width: 2.75rem;
+  min-height: 2.5rem !important;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-bottom: 1px solid var(--kandid-app-border-strong);
+  border-radius: 0 !important;
+  background: transparent;
+  color: var(--kandid-app-ink);
+  cursor: pointer;
+  font-size: 0.68rem !important;
+  font-weight: 850 !important;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  padding: 0.4rem 0.25rem !important;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.kandid-app-theme .board-student-record-action.is-remove {
+  border-bottom-color: rgba(190, 18, 60, 0.5);
+  color: #be123c;
+}
+
+.kandid-app-theme .board-student-record-action.is-restore {
+  border-bottom-color: var(--kandid-app-orange);
+  color: var(--kandid-app-orange);
+}
+
+.kandid-app-theme .board-student-record-action.is-quiet {
+  border-bottom-color: var(--kandid-app-border-strong);
+  color: var(--kandid-app-ink-3);
+}
+
+.kandid-app-theme .board-student-record-action:hover:not(:disabled) {
+  border-bottom-color: currentColor;
+}
+
+.kandid-app-theme .board-student-record-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.kandid-app-theme .board-student-record-action:focus-visible {
+  outline: 2px solid var(--kandid-app-orange);
+  outline-offset: 2px;
+}
+
+.kandid-app-theme .board-student-reason {
+  max-width: 12rem;
+  margin: 0;
+  color: var(--kandid-app-muted);
+  font-size: 0.7rem;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+/* --- pagination: restrained, no orange pill --- */
+
+.kandid-app-theme .board-students-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem var(--board-students-gap);
+  border: 0;
+  border-top: 1px solid var(--kandid-app-border);
+  background: transparent;
+  color: var(--kandid-app-muted);
+  padding: 0.85rem 0 0;
+}
+
+.kandid-app-theme .board-students-pagination-count {
+  margin: 0;
+  color: var(--kandid-app-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.kandid-app-theme .board-students-pagination-count strong {
+  color: var(--kandid-app-ink);
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+}
+
+.kandid-app-theme .board-students-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.kandid-app-theme .board-students-page-indicator {
+  color: var(--kandid-app-ink);
+  font-size: 0.7rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* --- register context (term + count) --- */
+
+.kandid-app-theme .board-students-register-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 0.45rem 0.9rem;
+  text-align: right;
+}
+
+.kandid-app-theme .board-students-register-term {
+  border-right: 1px solid var(--kandid-app-border);
+  padding-right: 0.9rem;
+  color: var(--kandid-app-muted);
+  font-size: 0.67rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Count reads as a register total, not a metric card. */
+
+.kandid-app-theme .board-students-register-count {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  color: var(--kandid-app-muted);
+  font-size: 0.67rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.kandid-app-theme .board-students-register-count strong {
+  color: var(--kandid-app-ink);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.55rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- loading / empty / error: register structure stays readable --- */
+
+.kandid-app-theme .board-students-skeleton {
+  display: grid;
+  min-width: 0;
+}
+
+.kandid-app-theme .board-student-record.is-skeleton {
+  pointer-events: none;
+}
+
+.kandid-app-theme .board-students-skeleton-note {
+  padding: 0.9rem 0 0.2rem;
+  color: var(--kandid-app-orange);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-student-skeleton-cell {
+  display: grid;
+  align-content: center;
+  gap: 0.42rem;
+  min-width: 0;
+}
+
+.kandid-app-theme .board-student-skeleton-cell.is-identity {
+  grid-template-columns: 1.9rem minmax(0, 1fr);
+  align-items: center;
+}
+
+.kandid-app-theme .board-student-skeleton-cell.is-actions {
+  justify-items: end;
+}
+
+.kandid-app-theme .board-student-skeleton-bar {
+  display: block;
+  height: 0.62rem;
+  background: var(--kandid-app-paper-soft);
+}
+
+.kandid-app-theme .board-student-skeleton-bar.is-index {
+  width: 1.9rem;
+  height: 0.72rem;
+}
+
+.kandid-app-theme .board-student-skeleton-bar.is-name {
+  width: min(100%, 11rem);
+  height: 0.78rem;
+}
+
+.kandid-app-theme .board-student-skeleton-bar.is-medium {
+  width: min(100%, 9rem);
+}
+
+.kandid-app-theme .board-student-skeleton-bar.is-short {
+  width: min(100%, 5.5rem);
+  height: 0.5rem;
+}
+
+.kandid-app-theme .board-student-skeleton-bar.is-action {
+  width: 4.6rem;
+  height: 2.5rem;
+}
+
+.kandid-app-theme .board-students-state {
+  display: grid;
+  justify-items: start;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--kandid-app-border);
+  padding: 2.6rem 0 2.8rem;
+  text-align: left;
+}
+
+.kandid-app-theme .board-students-state-kicker {
+  margin: 0;
+  color: var(--kandid-app-orange);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .board-students-state h3 {
+  margin: 0 !important;
+  color: var(--kandid-app-ink) !important;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(1.4rem, 2.1vw, 1.9rem) !important;
+  font-weight: 700;
+  letter-spacing: 0 !important;
+  line-height: 1.1;
+}
+
+.kandid-app-theme .board-students-state-copy {
+  max-width: 34rem;
+  margin: 0;
+  color: var(--kandid-app-ink-3);
+  font-size: 0.9rem;
+  font-weight: 620;
+  line-height: 1.55;
+}
+
+.kandid-app-theme .board-students-state.is-error .board-students-state-kicker {
+  color: #be123c;
+}
+
+.kandid-app-theme .board-students-state-action {
+  min-height: 2.35rem !important;
+  margin-top: 0.35rem;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+/* --- Tablet --- */
+
+@media (max-width: 1024px) {
+  .kandid-app-theme .board-students-head-actions {
+    display: none;
+  }
+
+  .kandid-app-theme .board-student-record-actions {
+    grid-column: 1 / -1;
+    justify-items: start;
+    justify-content: start;
+    text-align: left;
+  }
+
+  .kandid-app-theme .board-student-reason {
+    max-width: none;
+  }
+}
+
+/* --- Mobile: stacked editorial record, no horizontal scrolling --- */
+
+@media (max-width: 760px) {
+  .kandid-app-theme .board-students-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .kandid-app-theme .board-students-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .kandid-app-theme .board-students-register-head {
+    display: none;
+  }
+
+  /* Mobile is a student index, not a compressed record. A browsing Board member
+     needs identity, account standing and actions; academic and registration
+     metadata is inspected rather than browsed, so PROGRAM, year, the Added date
+     and the membership line are held back here and remain in the record. The
+     approved desktop four-column grid above is untouched. */
+  .kandid-app-theme .board-student-record {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 0.4rem 0.75rem;
+    border-bottom: 1px solid var(--kandid-app-border);
+    padding: 0.7rem 0 0.35rem;
+  }
+
+  .kandid-app-theme .board-student-person {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  /* Account standing attaches to the name line on the right, not to its own row. */
+  .kandid-app-theme .board-student-standing {
+    display: block;
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    align-self: start;
+    padding-top: 0.1rem;
+  }
+
+  /* Secondary academic and registration metadata leaves the browse surface. */
+  .kandid-app-theme .board-student-academic,
+  .kandid-app-theme .board-student-membership-line {
+    display: none;
+  }
+
+  /* Identity: the name keeps its own line, and Student ID plus email share one
+     quieter metadata line. The interpunct is generated only when an email is
+     actually present, so a student without one never shows a dangling separator. */
+  .kandid-app-theme .board-student-person-copy {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.1rem 0.4rem;
+  }
+
+  .kandid-app-theme .board-student-person-copy h3 {
+    flex: 1 0 100%;
+    font-size: 1.02rem !important;
+  }
+
+  .kandid-app-theme .board-student-index {
+    flex: 0 0 1.5rem;
+    min-width: 1.5rem;
+    font-size: 0.85rem;
+  }
+
+  .kandid-app-theme .board-student-number,
+  .kandid-app-theme .board-student-email {
+    font-size: 0.74rem;
+    font-weight: 600;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
+  .kandid-app-theme .board-student-email:not(:empty)::before {
+    content: "·";
+    margin-right: 0.4rem;
+    color: var(--kandid-app-muted);
+    font-weight: 500;
+  }
+
+  /* Account standing reads as a small register marker beside the name, not as a
+     badge: one tiny dot in the established semantic colour with the word left in
+     ink. No capsule, no fill, no border, no brackets, no radius. */
+  .kandid-app-theme .board-student-account-full {
+    display: none;
+  }
+
+  .kandid-app-theme .board-student-account-compact {
+    display: inline;
+    color: var(--kandid-app-ink-3);
+    font-size: 0.62rem;
+    font-weight: 800;
+    line-height: 1.4;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .kandid-app-theme .board-student-account-compact::before {
+    content: "\2022";
+    margin-right: 0.28rem;
+    color: var(--kandid-app-ink-3);
+  }
+
+  /* Reuse the register's existing semantic colours: the pending amber and the
+     disabled rose from .board-student-account, the active green already used by
+     .board-student-membership-state.is-active. */
+  .kandid-app-theme .board-student-account.is-pending .board-student-account-compact::before {
+    color: #a1550a;
+  }
+
+  .kandid-app-theme .board-student-account.is-active .board-student-account-compact::before {
+    color: #047857;
+  }
+
+  .kandid-app-theme .board-student-account.is-disabled .board-student-account-compact::before {
+    color: #9f1239;
+  }
+
+  /* Edit and Remove are routine operations, so they stay explicit and tappable:
+     no kebab menu, no swipe, no long press, no details step. They sit together
+     as one compact group toward the lower right of the entry rather than being
+     split across the row, and they remain two separate buttons. Only they are
+     interactive, so blank row space can never Remove or Edit. */
+  .kandid-app-theme .board-student-record-actions {
+    display: flex;
+    grid-column: 1 / -1;
+    min-width: 0;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.3rem 0.65rem;
+    border-top: 0;
+    padding-top: 0;
+    text-align: left;
+  }
+
+  /* The group is content-width and keeps the gap its own stylesheet already
+     defines, so the two actions read as one unit instead of being spread. */
+  .kandid-app-theme .board-student-record .board-student-action-group {
+    width: auto;
+    gap: 0.65rem;
+  }
+
+  .kandid-app-theme .board-student-record-action.is-restore {
+    margin-left: auto;
+  }
+
+  /* Comfortable touch target without turning the action into its own section.
+     !important is required only to defeat the verified legacy !important on
+     .board-student-record-action (index.css:26042), and only at mobile width. */
+  .kandid-app-theme .board-student-record-action {
+    min-height: 2.75rem !important;
+  }
+
+  /* A removal reason belongs on its own line under the actions. */
+  .kandid-app-theme .board-student-reason {
+    order: 3;
+    max-width: none;
+    flex: 1 0 100%;
+    text-align: left;
+  }
+
+
+  .kandid-app-theme .board-students-register-meta {
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .kandid-app-theme .board-students-pagination {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .kandid-app-theme .board-students-pagination-controls {
+    justify-content: space-between;
+  }
+
+  /* Masthead stacks: title first, then actions on their own baseline.
+     The context rule stays as the hairline under the board context. */
+  .kandid-app-theme .board-students-baseline {
+    display: grid;
+    justify-content: stretch;
+    gap: 0.9rem;
+  }
+
+  .kandid-app-theme .board-students-actions {
+    width: 100%;
+    min-width: 0;
+    margin-left: 0;
+  }
+
+
+  .kandid-app-theme .board-students-action {
+    flex: 1 1 0;
+    min-width: 0;
+    padding-inline: 0.35rem;
+  }
+
+  .kandid-app-theme .board-students-section-head {
+    display: grid;
+    justify-content: stretch;
+    gap: 0.6rem;
+  }
+
+  .kandid-app-theme .board-students-register-meta {
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .kandid-app-theme .board-students-register-term {
+    border-right: 0;
+    padding-right: 0;
+  }
+
+
+}
+.kandid-toast-viewport.is-board-feedback {
+  top: max(1rem, env(safe-area-inset-top));
+  right: clamp(1rem, 2vw, 1.5rem);
+  bottom: auto;
+  width: min(29rem, calc(100vw - 2rem));
+  max-height: min(42dvh, 22rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.kandid-toast-viewport.is-board-feedback .kandid-toast {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.65rem;
+  border: 0;
+  border-top: 2px solid #181818;
+  border-bottom: 1px solid #d7d1c7;
+  border-radius: 0;
+  background: #f8f6f1;
+  padding: 0.75rem 0.8rem;
+  box-shadow: 0 5px 18px rgba(24, 20, 16, 0.12);
+}
+
+.kandid-toast-viewport.is-board-feedback .kandid-toast::before {
+  inset: 0 auto 0 0;
+  width: 2px;
+}
+
+.kandid-toast-viewport.is-board-feedback .kandid-toast-icon {
+  width: 1.45rem;
+  height: 1.45rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.kandid-toast-viewport.is-board-feedback .kandid-toast-title {
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 0.98rem;
+  font-weight: 700;
+}
+
+.kandid-toast-viewport.is-board-feedback .kandid-toast-message {
+  color: #514d46;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.kandid-toast-viewport.is-board-feedback .kandid-toast-close {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0;
+}
+
+.kandid-toast-viewport.is-board-feedback .kandid-toast-close:focus-visible {
+  outline: 2px solid #f4512c;
+  outline-offset: 1px;
+}
+
+.kandid-toast-viewport.is-board-feedback .kandid-toast-success::before { background: #47704c; }
+.kandid-toast-viewport.is-board-feedback .kandid-toast-success .kandid-toast-icon { color: #47704c; }
+.kandid-toast-viewport.is-board-feedback .kandid-toast-error::before { background: #9e3429; }
+.kandid-toast-viewport.is-board-feedback .kandid-toast-error .kandid-toast-icon { color: #9e3429; }
+.kandid-toast-viewport.is-board-feedback .kandid-toast-warning::before { background: #ad7620; }
+.kandid-toast-viewport.is-board-feedback .kandid-toast-warning .kandid-toast-icon { color: #ad7620; }
+
+.kandid-progressive-field-error {
+  display: block;
+  width: 100%;
+  margin-top: 0.28rem;
+  color: #a9322a;
+  font-size: 0.76rem;
+  font-weight: 650;
+  line-height: 1.4;
+  text-align: left;
+}
+
+input[aria-invalid="true"],
+select[aria-invalid="true"],
+textarea[aria-invalid="true"],
+[data-validation-field="true"][aria-invalid="true"] {
+  border-color: #a9322a;
+  box-shadow: 0 0 0 1px rgba(169, 50, 42, 0.13);
+}
+
+@media (max-width: 640px) {
+  .kandid-toast-viewport.is-board-feedback {
+    top: max(4.2rem, calc(env(safe-area-inset-top) + 3.65rem));
+    right: 0.65rem;
+    width: calc(100vw - 1.3rem);
+    max-height: min(38dvh, 19rem);
+  }
+}
+
+/* Notifications: personal editorial activity sheet */
+.kandid-app-theme .notifications-page {
+  display: grid;
+  gap: 1.65rem;
+  width: min(100%, 72rem);
+  margin-inline: auto;
+}
+
+.kandid-app-theme .notifications-page-header {
+  display: grid;
+  gap: 0.55rem;
+  border-bottom: 2px solid var(--kandid-app-ink, #171717);
+  padding-bottom: 1.15rem;
+}
+
+.kandid-app-theme .notifications-page-context {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  color: var(--kandid-app-orange, #ef4e23);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .notifications-page-context-rule {
+  height: 1px;
+  flex: 1;
+  background: var(--kandid-app-border, #d9d5cf);
+}
+
+.kandid-app-theme .notifications-page-title-row {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1.25rem;
+}
+
+.kandid-app-theme .notifications-page-title-row .page-title {
+  margin: 0;
+}
+
+.kandid-app-theme .notifications-page-description {
+  margin: 0;
+  color: var(--kandid-app-muted, #6d6a65);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.kandid-app-theme .notifications-page-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+.kandid-app-theme .notifications-unread-count {
+  color: var(--kandid-app-muted, #6d6a65);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.kandid-app-theme .notifications-mark-all {
+  min-height: 2.4rem;
+  border: 0;
+  border-bottom: 1px solid var(--kandid-app-ink, #171717);
+  background: transparent;
+  padding: 0.2rem 0;
+  color: var(--kandid-app-ink, #171717);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .notifications-mark-all:hover:not(:disabled),
+.kandid-app-theme .notifications-mark-all:focus-visible {
+  border-color: var(--kandid-app-orange, #ef4e23);
+  color: var(--kandid-app-orange, #ef4e23);
+}
+
+.kandid-app-theme .notifications-mark-all:disabled {
+  color: var(--kandid-app-muted, #6d6a65);
+  opacity: 0.58;
+}
+
+.kandid-app-theme .notifications-page .notifications-list-panel {
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.kandid-app-theme .notifications-page .notifications-list {
+  display: grid;
+}
+
+.kandid-app-theme .notifications-page .notification-page-row {
+  position: relative;
+  display: block;
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--kandid-app-border, #d9d5cf);
+  background: transparent;
+  padding: 1.05rem 0.75rem 1.1rem;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 140ms ease;
+}
+
+.kandid-app-theme .notifications-page .notification-page-row:first-child {
+  border-top: 1px solid var(--kandid-app-border, #d9d5cf);
+}
+
+.kandid-app-theme .notifications-page .notification-page-row:hover,
+.kandid-app-theme .notifications-page .notification-page-row:focus-visible {
+  background: rgba(22, 20, 18, 0.035);
+}
+
+.kandid-app-theme .notifications-page .notification-page-row:focus-visible {
+  outline: 2px solid var(--kandid-app-orange, #ef4e23);
+  outline-offset: 2px;
+}
+
+.kandid-app-theme .notifications-page .notification-page-row.is-unread::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--kandid-app-orange, #ef4e23);
+  content: "";
+}
+
+.kandid-app-theme .notifications-page .notification-page-row-copy {
+  display: grid;
+  gap: 0.38rem;
+  min-width: 0;
+}
+
+.kandid-app-theme .notifications-page .notification-page-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 1rem;
+}
+
+.kandid-app-theme .notifications-page .notification-page-context,
+.kandid-app-theme .notifications-page .notification-page-row-meta time {
+  color: var(--kandid-app-muted, #6d6a65);
+  font-size: 0.63rem;
+  font-style: normal;
+  font-weight: 750;
+  letter-spacing: 0.11em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .notifications-page .notification-page-row.tone-warning .notification-page-context {
+  color: var(--kandid-app-orange, #ef4e23);
+}
+
+.kandid-app-theme .notifications-page .notification-page-row-copy strong {
+  color: var(--kandid-app-ink, #171717);
+  font-size: 1.02rem;
+  font-weight: 720;
+  line-height: 1.32;
+}
+
+.kandid-app-theme .notifications-page .notification-page-row.is-unread .notification-page-row-copy strong {
+  font-weight: 820;
+}
+
+.kandid-app-theme .notifications-page .notification-page-row-copy small {
+  color: var(--kandid-app-muted, #6d6a65);
+  font-size: 0.87rem;
+  line-height: 1.52;
+}
+
+.kandid-app-theme .notifications-page .notification-page-row.is-read .notification-page-row-copy small {
+  color: var(--kandid-app-ink-3, #4e4b46);
+}
+
+.kandid-app-theme .notifications-page .notification-page-action {
+  margin-top: 0.2rem;
+  color: var(--kandid-app-ink, #171717);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme .notifications-page .notification-page-row.is-unread .notification-page-action,
+.kandid-app-theme .notifications-page .notification-page-row:hover .notification-page-action {
+  color: var(--kandid-app-orange, #ef4e23);
+}
+
+.kandid-app-theme .notifications-page .notifications-empty-state {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 0.45rem;
+  min-height: 0;
+  border: 0;
+  border: 0;
+  background: transparent;
+  padding: 0.15rem 0.75rem 1.5rem;
+  text-align: left;
+}
+
+.kandid-app-theme .notifications-empty-state h2 {
+  margin: 0;
+  color: var(--kandid-app-ink, #171717);
+  font-family: var(--kandid-display-font, Georgia, serif);
+  font-size: 1.45rem;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.kandid-app-theme .notifications-empty-state > p:last-child {
+  margin: 0;
+  color: var(--kandid-app-muted, #6d6a65);
+  font-size: 0.87rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .kandid-app-theme .notifications-page {
+    gap: 1.1rem;
+  }
+
+  .kandid-app-theme .notifications-page-header {
+    gap: 0.45rem;
+    padding-bottom: 0.9rem;
+  }
+
+  .kandid-app-theme .notifications-page-title-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  .kandid-app-theme .notifications-page-actions {
+    width: 100%;
+    justify-content: space-between;
+    gap: 0.7rem;
+  }
+
+  .kandid-app-theme .notifications-mark-all {
+    min-height: 2.2rem;
+  }
+
+  .kandid-app-theme .notifications-page .notification-page-row {
+    padding: 0.95rem 0.65rem 1rem;
+  }
+
+  .kandid-app-theme .notifications-page .notification-page-row-meta {
+    justify-content: flex-start;
+    gap: 0.25rem 0.75rem;
+  }
+
+  .kandid-app-theme .notifications-page .notification-page-row-copy strong {
+    font-size: 0.98rem;
+  }
+
+  .kandid-app-theme .notifications-page .notification-page-row-copy small {
+    font-size: 0.83rem;
+  }
+}
+
+/* Super Admin public entrance: system scope in the Board landing's ruled-paper rhythm. */
+.kandid-entry-admin {
+  --entry-max: min(100%, 100rem);
+  --entry-section-gap: clamp(1.4rem, 2vw, 2rem);
+  padding-block: clamp(0.8rem, 1.4vw, 1.2rem) 1.5rem;
+}
+
+.kandid-entry-admin .kandid-entry-header,
+.kandid-entry-admin .kandid-entry-shell,
+.kandid-entry-admin .kandid-entry-content,
+.kandid-entry-admin .kandid-entry-footer {
+  width: min(100%, 90vw, 100rem);
+  max-width: 100rem;
+  margin-inline: auto;
+}
+
+.kandid-entry-admin .kandid-entry-header {
+  min-height: 3.6rem;
+  border-bottom: 2px solid #17181c;
+  padding-bottom: 0.65rem;
+}
+
+.kandid-entry-admin .kandid-entry-brand {
+  color: #f4512c;
+}
+
+.kandid-entry-admin .kandid-entry-descriptor {
+  margin-left: auto;
+  margin-right: clamp(1rem, 2vw, 2rem);
+  color: #68665f;
+}
+
+.kandid-entry-admin .kandid-entry-header-action {
+  min-height: 2.4rem;
+  border: 0;
+  border-bottom: 1px solid #f4512c;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.5rem 0.15rem 0.35rem;
+  color: #17181c;
+}
+
+.kandid-entry-admin .kandid-entry-shell {
+  grid-template-columns: minmax(0, 1.04fr) minmax(20rem, 0.96fr);
+  align-items: center;
+  gap: clamp(2rem, 5vw, 5rem);
+  min-height: 0;
+  padding-block: clamp(1.3rem, 2.3vw, 2.2rem) clamp(1rem, 1.6vw, 1.5rem);
+}
+
+.kandid-entry-admin .kandid-entry-intro {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: clamp(0.65rem, 1vw, 0.9rem);
+  max-width: 52rem;
+}
+
+.kandid-entry-admin .kandid-entry-intro::after {
+  display: none;
+}
+
+.kandid-entry-admin .kandid-entry-kicker {
+  color: #68665f;
+}
+
+.kandid-entry-admin .kandid-entry-kicker span::before {
+  background: #f4512c;
+}
+
+.kandid-entry-admin h1 {
+  display: grid;
+  max-width: none;
+  margin: 0;
+  font-size: clamp(3.35rem, 4.65vw, 5.3rem);
+  line-height: 0.94;
+  letter-spacing: -0.035em;
+}
+
+.kandid-entry-admin h1 span:first-child {
+  max-width: none;
+}
+
+.kandid-entry-admin h1 span:last-child {
+  color: #f4512c;
+}
+
+.kandid-entry-admin .kandid-entry-copy {
+  max-width: 37rem;
+  margin-top: 0.15rem;
+  font-size: clamp(0.95rem, 1.15vw, 1.08rem);
+  line-height: 1.5;
+}
+
+.kandid-entry-admin .kandid-entry-primary {
+  margin-top: 0.4rem;
+}
+
+.kandid-entry-admin .kandid-entry-primary-action {
+  min-height: 2.9rem;
+  border-radius: 0;
+  background: #f4512c;
+  padding-inline: 1.1rem;
+}
+
+.kandid-entry-admin .kandid-entry-system-scope {
+  width: 100%;
+  max-width: none;
+  align-self: center;
+  border: 0;
+  border-top: 2px solid #17181c;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0.75rem 0 0;
+}
+
+.kandid-entry-admin .kandid-entry-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.2rem;
+}
+
+.kandid-entry-admin .kandid-entry-panel-head span {
+  color: #f4512c;
+}
+
+.kandid-entry-admin .kandid-entry-panel-head h2 {
+  margin: 0;
+  font-family: var(--k-font-editorial, Georgia, serif);
+  font-size: clamp(1.25rem, 1.8vw, 1.7rem);
+  font-weight: 650;
+}
+
+.kandid-entry-admin .kandid-entry-scope-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.kandid-entry-admin .kandid-entry-scope-list li {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr);
+  gap: 0.5rem;
+  border-bottom: 1px solid rgba(23, 24, 28, 0.22);
+  padding: clamp(0.7rem, 1.2vw, 1rem) 0;
+}
+
+.kandid-entry-admin .kandid-entry-scope-list li:last-child {
+  border-bottom: 0;
+}
+
+.kandid-entry-admin .kandid-entry-scope-index,
+.kandid-entry-admin .kandid-entry-workspace-list article > span {
+  color: #f4512c;
+  font-family: var(--k-font-interface, Inter, sans-serif);
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+}
+
+.kandid-entry-admin .kandid-entry-scope-list li > div {
+  display: grid;
+  gap: 0.22rem;
+}
+
+.kandid-entry-admin .kandid-entry-scope-list strong {
+  font-family: var(--k-font-editorial, Georgia, serif);
+  font-size: clamp(1.15rem, 1.6vw, 1.45rem);
+  line-height: 1.1;
+}
+
+.kandid-entry-admin .kandid-entry-scope-list p {
+  max-width: 32rem;
+  margin: 0;
+  color: #68665f;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.kandid-entry-admin .kandid-entry-content {
+  display: block;
+  margin-top: 0;
+}
+
+.kandid-entry-admin .kandid-entry-workspace {
+  grid-template-columns: minmax(13rem, 0.28fr) minmax(0, 0.72fr);
+  align-items: start;
+  gap: clamp(1.5rem, 3.5vw, 3.5rem);
+  border-top: 2px solid #17181c;
+  padding-top: clamp(1rem, 1.6vw, 1.45rem);
+}
+
+.kandid-entry-admin .kandid-entry-workspace::before {
+  display: none;
+}
+
+.kandid-entry-admin .kandid-entry-workspace .kandid-entry-section-head {
+  gap: 0.4rem;
+}
+
+.kandid-entry-admin .kandid-entry-workspace .kandid-entry-section-head span {
+  color: #f4512c;
+}
+
+.kandid-entry-admin .kandid-entry-workspace .kandid-entry-section-head h2 {
+  max-width: 13ch;
+  font-size: clamp(1.65rem, 2.4vw, 2.4rem);
+  line-height: 1.02;
+}
+
+.kandid-entry-admin .kandid-entry-workspace-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(0.9rem, 1.5vw, 1.5rem);
+}
+
+.kandid-entry-admin .kandid-entry-workspace-list article {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 0.38rem;
+  min-width: 0;
+  border-top: 1px solid rgba(23, 24, 28, 0.28);
+  padding-top: 0.55rem;
+}
+
+.kandid-entry-admin .kandid-entry-workspace-list strong {
+  font-family: var(--k-font-interface, Inter, sans-serif);
+  font-size: 0.93rem;
+  font-weight: 800;
+}
+
+.kandid-entry-admin .kandid-entry-workspace-list p {
+  margin: 0;
+  color: #68665f;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.kandid-entry-admin .kandid-entry-footer {
+  border-top: 1px solid rgba(23, 24, 28, 0.2);
+  padding-top: 0.7rem;
+}
+
+@media (min-width: 1400px) {
+  .kandid-entry-admin .kandid-entry-header,
+  .kandid-entry-admin .kandid-entry-shell,
+  .kandid-entry-admin .kandid-entry-content,
+  .kandid-entry-admin .kandid-entry-footer {
+    width: min(100%, 90vw, 100rem);
+  }
+}
+
+@media (max-width: 900px) {
+  .kandid-entry-admin .kandid-entry-header,
+  .kandid-entry-admin .kandid-entry-shell,
+  .kandid-entry-admin .kandid-entry-content,
+  .kandid-entry-admin .kandid-entry-footer {
+    width: 100%;
+  }
+
+  .kandid-entry-admin .kandid-entry-shell {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+    padding-top: 1.4rem;
+  }
+
+  .kandid-entry-admin .kandid-entry-system-scope {
+    max-width: none;
+  }
+
+  .kandid-entry-admin .kandid-entry-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+  }
+
+  .kandid-entry-admin .kandid-entry-workspace-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .kandid-entry-admin {
+    --entry-section-gap: 1.8rem;
+    padding-top: 0.75rem;
+  }
+
+  .kandid-entry-admin .kandid-entry-header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 0.75rem;
+  }
+
+  .kandid-entry-admin .kandid-entry-descriptor {
+    display: none;
+  }
+
+  .kandid-entry-admin .kandid-entry-header-action {
+    margin-left: auto;
+  }
+
+  .kandid-entry-admin .kandid-entry-shell {
+    gap: 1.2rem;
+    padding-block: 1.2rem 0.5rem;
+  }
+
+  .kandid-entry-admin h1 {
+    font-size: clamp(2.75rem, 11vw, 4.1rem);
+  }
+
+  .kandid-entry-admin .kandid-entry-copy {
+    font-size: 0.92rem;
+  }
+
+  .kandid-entry-admin .kandid-entry-primary-action {
+    width: 100%;
+  }
+
+  .kandid-entry-admin .kandid-entry-primary {
+    width: 100%;
+  }
+
+  .kandid-entry-admin .kandid-entry-panel-head {
+    display: grid;
+    gap: 0.25rem;
+  }
+
+  .kandid-entry-admin .kandid-entry-scope-list li {
+    grid-template-columns: 2rem minmax(0, 1fr);
+  }
+
+  .kandid-entry-admin .kandid-entry-workspace-list {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+
+  .kandid-entry-admin .kandid-entry-workspace-list article {
+    grid-template-columns: 2rem minmax(0, 1fr);
+    column-gap: 0.5rem;
+  }
+
+  .kandid-entry-admin .kandid-entry-workspace-list article > span {
+    grid-row: span 2;
+  }
+
+  .kandid-entry-admin .kandid-entry-workspace-list p {
+    grid-column: 2;
+  }
+}
+
+/* Super Admin public landing: the Board portal's editorial layout with system-level content. */
+.admin-public-site {
+  --admin-ink: #17181c;
+  --admin-muted: #68665f;
+  --admin-rule: #bbb5aa;
+  --admin-orange: var(--k-brand, #f4512c);
+  --admin-top: clamp(0.85rem, 1.8vw, 1.25rem);
+  display: grid;
+  gap: clamp(2.6rem, 4vw, 4rem);
+  min-height: 100dvh;
+  overflow-x: clip;
+  padding: var(--admin-top) clamp(1rem, 3vw, 2.5rem) 1.4rem;
+  background:
+    linear-gradient(90deg, rgba(16, 17, 20, 0.018) 1px, transparent 1px) 0 0 / clamp(5rem, 13vw, 12rem) 100%,
+    var(--k-paper-100, #f8f6f1);
+  color: var(--admin-ink);
+}
+
+body:has(.admin-public-site) .kandid-pwa-install {
+  display: none;
+}
+
+.admin-public-canvas {
+  width: min(100%, 78rem);
+  min-width: 0;
+  margin-inline: auto;
+}
+
+.admin-public-first-view {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: clamp(1.5rem, 2.6vw, 2.5rem);
+  min-width: 0;
+}
+
+.admin-public-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  border-bottom: 2px solid var(--admin-ink);
+  padding-bottom: 0.8rem;
+}
+
+.admin-public-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--admin-orange);
+  font-family: var(--k-font-interface, Inter, sans-serif);
+  font-size: 0.92rem;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.admin-public-brand img {
+  width: 2.2rem;
+  height: 2.2rem;
+  object-fit: contain;
+}
+
+.admin-public-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem clamp(0.75rem, 1.8vw, 1.5rem);
+}
+
+.admin-public-nav a {
+  display: inline-flex;
+  min-height: 2.5rem;
+  align-items: center;
+  border-bottom: 1px solid currentColor;
+  padding: 0.4rem 0.15rem 0.3rem;
+  color: var(--admin-ink);
+  font-family: var(--k-font-interface, Inter, sans-serif);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-decoration: none;
+  transition: color 160ms ease, border-color 160ms ease;
+}
+
+.admin-public-nav a:last-child {
+  gap: 0.45rem;
+  margin-left: 0.25rem;
+  border-bottom-color: var(--admin-orange);
+  font-weight: 900;
+}
+
+.admin-public-nav a:last-child::after {
+  color: var(--admin-orange);
+  content: "\2192";
+  font-size: 1rem;
+  line-height: 1;
+  transition: transform 160ms ease;
+}
+
+.admin-public-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
+  align-items: center;
+  gap: clamp(2rem, 5vw, 5rem);
+  padding-block: clamp(1.2rem, 2.4vw, 2.3rem) clamp(1.5rem, 3vw, 2.8rem);
+}
+
+.admin-public-hero-copy {
+  display: grid;
+  justify-items: start;
+  gap: clamp(0.7rem, 1.2vw, 1rem);
+  min-width: 0;
+}
+
+.admin-public-eyebrow {
+  margin: 0;
+  color: var(--admin-muted);
+  font-family: var(--k-font-interface, Inter, sans-serif);
+  font-size: 0.7rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-public-hero h1,
+.admin-public-site h2 {
+  margin: 0;
+  color: var(--admin-ink);
+  font-family: var(--k-font-editorial, Georgia, serif);
+  font-weight: 700;
+}
+
+.admin-public-hero h1 {
+  max-width: 12ch;
+  font-size: clamp(4.2rem, 8.1vw, 8.3rem);
+  line-height: 0.89;
+  letter-spacing: -0.035em;
+}
+
+.admin-public-hero-deck {
+  max-width: 100%;
+  margin: 0.3rem 0 0;
+  font-family: var(--k-font-editorial, Georgia, serif);
+  font-size: clamp(1.45rem, 2.5vw, 2.45rem);
+  font-weight: 700;
+  line-height: 1.08;
+}
+
+.admin-public-hero-line {
+  max-width: 31rem;
+  margin: 0;
+  font-family: var(--k-font-interface, Inter, sans-serif);
+  font-size: clamp(0.92rem, 1.2vw, 1.05rem);
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.admin-public-login {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 2.8rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  border: 1px solid var(--admin-orange);
+  border-radius: 0;
+  background: var(--admin-orange);
+  padding: 0.55rem 1.1rem;
+  color: #fff;
+  font-family: var(--k-font-interface, Inter, sans-serif);
+  font-size: 0.88rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-decoration: none;
+  transition: background-color 180ms ease, border-color 180ms ease;
+}
+
+.admin-public-hero .admin-public-login {
+  margin-top: 0.55rem;
+}
+
+.admin-public-login svg {
+  flex: 0 0 auto;
+  transition: transform 180ms ease;
+}
+
+.admin-public-scene {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1.28;
+  min-width: 0;
+}
+
+.admin-public-index-sheet {
+  position: absolute;
+  top: 4%;
+  right: 2%;
+  z-index: 1;
+  width: 70%;
+  height: 88%;
+  border: 2px solid var(--admin-ink);
+  background: var(--k-paper-100, #f8f6f1);
+  padding: clamp(1rem, 2vw, 1.8rem);
+}
+
+.admin-public-index-sheet::before {
+  position: absolute;
+  z-index: -1;
+  top: 0.55rem;
+  right: -0.65rem;
+  bottom: -0.65rem;
+  left: 0.55rem;
+  border: 2px solid var(--admin-ink);
+  background: #e8e3d9;
+  content: "";
+}
+
+.admin-public-sheet-kicker {
+  display: block;
+  border-bottom: 1px solid var(--admin-rule);
+  padding-bottom: 0.65rem;
+  color: var(--admin-muted);
+  font-family: var(--k-font-interface, Inter, sans-serif);
+  font-size: 0.62rem;
+  font-weight: 850;
+  letter-spacing: 0.07em;
+}
+
+.admin-public-index-sheet > strong {
+  display: block;
+  margin-top: 0.9rem;
+  font-family: var(--k-font-editorial, Georgia, serif);
+  font-size: clamp(1.35rem, 2.1vw, 2rem);
+}
+
+.admin-public-index-sheet ol {
+  display: grid;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-public-index-sheet li {
+  display: grid;
+  grid-template-columns: 2rem 5.6rem minmax(1rem, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+  min-height: clamp(2.5rem, 4vw, 3.3rem);
+  border-top: 1px solid var(--admin-rule);
+  font-family: var(--k-font-interface, Inter, sans-serif);
+}
+
+.admin-public-index-sheet li > span {
+  color: var(--admin-orange);
+  font-size: 0.65rem;
+  font-weight: 850;
+}
+
+.admin-public-index-sheet li b {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+
+.admin-public-index-sheet li i {
+  height: 1px;
+  background: var(--admin-ink);
+  opacity: 0.45;
+}
+
+.admin-public-scene-mascot {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  width: min(44%, 17rem);
+  height: auto;
+}
+
+.admin-public-workflow,
+.admin-public-responsibilities,
+.admin-public-checkpoint {
+  display: grid;
+  gap: clamp(1.5rem, 2.6vw, 2.5rem);
+  border-top: 2px solid var(--admin-ink);
+  padding-top: clamp(1.4rem, 2.5vw, 2rem);
+}
+
+.admin-public-section-heading {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.admin-public-section-heading h2 {
+  max-width: 18ch;
+  font-size: clamp(2.3rem, 4vw, 4rem);
+  line-height: 1;
+}
+
+.admin-public-workflow-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: clamp(1rem, 2.5vw, 2.8rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-public-workflow-list li {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  align-content: start;
+  gap: 0.45rem;
+  min-width: 0;
+  border-top: 1px solid var(--admin-rule);
+  padding-top: 0.65rem;
+}
+
+.admin-public-workflow-list li::before {
+  position: absolute;
+  top: -0.2rem;
+  left: 0;
+  width: 0.4rem;
+  height: 0.4rem;
+  background: var(--admin-orange);
+  content: "";
+}
+
+.admin-public-step-number {
+  color: var(--admin-orange);
+  font-family: var(--k-font-interface, Inter, sans-serif);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
+.admin-public-workflow-list strong,
+.admin-public-responsibility-list strong {
+  font-family: var(--k-font-interface, Inter, sans-serif);
+  font-size: clamp(1rem, 1.4vw, 1.2rem);
+  font-weight: 850;
+}
+
+.admin-public-workflow-list p,
+.admin-public-responsibility-list p,
+.admin-public-checkpoint p {
+  max-width: 18rem;
+  margin: 0;
+  color: var(--admin-muted);
+  font-family: var(--k-font-interface, Inter, sans-serif);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.admin-public-responsibilities {
+  grid-template-columns: minmax(0, 0.4fr) minmax(0, 0.6fr);
+  gap: clamp(2rem, 5vw, 5rem);
+}
+
+.admin-public-responsibility-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(1rem, 2vw, 2rem);
+  align-items: start;
+}
+
+.admin-public-responsibility-list article {
+  display: grid;
+  gap: 0.55rem;
+  border-top: 1px solid var(--admin-rule);
+  padding-top: 0.7rem;
+}
+
+.admin-public-checkpoint {
+  grid-template-columns: minmax(0, 1fr) minmax(12rem, 0.45fr);
+  align-items: center;
+  gap: clamp(2rem, 5vw, 5rem);
+  border-top-width: 1px;
+}
+
+.admin-public-checkpoint > div:first-child {
+  display: grid;
+  justify-items: start;
+  gap: 0.75rem;
+}
+
+.admin-public-checkpoint h2 {
+  max-width: 18ch;
+  font-size: clamp(2rem, 3.3vw, 3.3rem);
+  line-height: 1.02;
+}
+
+.admin-public-checkpoint p:last-child {
+  max-width: 35rem;
+}
+
+.admin-public-checkpoint-scene {
+  position: relative;
+  justify-self: center;
+  width: min(100%, 18rem);
+  aspect-ratio: 1.2;
+}
+
+.admin-public-checkpoint-scene > svg {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  width: 65%;
+  height: auto;
+}
+
+.admin-public-index-tabs {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  display: grid;
+  gap: 0.25rem;
+  width: 48%;
+}
+
+.admin-public-index-tabs span {
+  border-bottom: 1px solid var(--admin-ink);
+  border-left: 0.35rem solid var(--admin-orange);
+  background: var(--k-paper-100, #f8f6f1);
+  padding: 0.38rem 0.5rem;
+  font-family: var(--k-font-interface, Inter, sans-serif);
+  font-size: 0.63rem;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+}
+
+.admin-public-checkpoint-sheet {
+  position: absolute;
+  right: 4%;
+  bottom: 4%;
+  display: grid;
+  gap: 0.65rem;
+  width: 54%;
+  height: 55%;
+  border: 1px solid var(--admin-ink);
+  background: var(--k-paper-100, #f8f6f1);
+  padding: 0.9rem;
+}
+
+.admin-public-checkpoint-sheet i {
+  display: block;
+  border-bottom: 1px solid var(--admin-ink);
+}
+
+.admin-public-closing {
+  display: grid;
+  gap: 1.25rem;
+  border-top: 2px solid var(--admin-ink);
+  padding-top: clamp(1.4rem, 2.5vw, 2rem);
+}
+
+.admin-public-closing h2 {
+  font-size: clamp(2.7rem, 5.5vw, 5.5rem);
+  line-height: 0.98;
+}
+
+.admin-public-closing-action {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.admin-public-closing-action > svg {
+  width: 4.5rem;
+  height: auto;
+}
+
+.admin-public-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  border-top: 1px solid var(--admin-rule);
+  padding-top: 1.2rem;
+  color: var(--admin-muted);
+  font-family: var(--k-font-interface, Inter, sans-serif);
+  font-size: 0.75rem;
+}
+
+.admin-public-footer strong {
+  color: var(--admin-orange);
+  font-weight: 900;
+}
+
+.admin-public-site a:focus-visible {
+  outline: 2px solid var(--admin-orange);
+  outline-offset: 4px;
+}
+
+@media (hover: hover) {
+  .admin-public-nav a:hover {
+    color: var(--admin-orange);
+    border-bottom-color: var(--admin-orange);
+  }
+
+  .admin-public-nav a:last-child:hover::after,
+  .admin-public-login:hover svg {
+    transform: translateX(3px);
+  }
+
+  .admin-public-login:hover {
+    border-color: #df431f;
+    background: #df431f;
+  }
+}
+
+@media (min-width: 1400px) {
+  .admin-public-canvas {
+    width: min(100%, 90vw, 100rem);
+  }
+}
+
+@media (min-width: 901px) {
+  .admin-public-first-view {
+    min-height: calc(100svh - var(--admin-top));
+  }
+}
+
+@media (max-width: 900px) {
+  .admin-public-hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.2rem;
+  }
+
+  .admin-public-hero-scene {
+    width: min(100%, 34rem);
+    justify-self: center;
+  }
+
+  .admin-public-workflow-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .admin-public-responsibilities,
+  .admin-public-checkpoint {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-public-site {
+    gap: 2.6rem;
+    padding-inline: 1rem;
+  }
+
+  .admin-public-first-view {
+    gap: 1.25rem;
+  }
+
+  .admin-public-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.2rem;
+  }
+
+  .admin-public-brand {
+    min-height: 2.75rem;
+  }
+
+  .admin-public-nav {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .admin-public-nav a {
+    min-height: 2.75rem;
+    justify-content: space-between;
+    border-bottom-color: var(--admin-rule);
+    padding: 0.45rem 0.15rem;
+  }
+
+  .admin-public-nav a:not(:last-child)::after {
+    color: var(--admin-muted);
+    content: "\2192";
+    font-size: 0.95rem;
+  }
+
+  .admin-public-nav a:last-child {
+    margin-left: 0;
+    border-bottom-color: var(--admin-orange);
+  }
+
+  .admin-public-hero {
+    gap: 0.9rem;
+    padding-block: 0.5rem 0;
+  }
+
+  .admin-public-hero h1 {
+    font-size: clamp(3.65rem, 15vw, 5.4rem);
+  }
+
+  .admin-public-hero-deck {
+    font-size: clamp(1.4rem, 6vw, 1.95rem);
+  }
+
+  .admin-public-hero-line {
+    font-size: 0.93rem;
+  }
+
+  .admin-public-hero .admin-public-login {
+    width: 100%;
+  }
+
+  .admin-public-hero-scene {
+    width: min(100%, 23rem);
+  }
+
+  .admin-public-index-sheet {
+    padding: 0.85rem;
+  }
+
+  .admin-public-index-sheet li {
+    grid-template-columns: 1.4rem 4.8rem minmax(0, 1fr);
+    min-height: 2.2rem;
+    gap: 0.35rem;
+  }
+
+  .admin-public-index-sheet li b {
+    font-size: 0.62rem;
+  }
+
+  .admin-public-section-heading h2 {
+    font-size: clamp(2.15rem, 9vw, 2.8rem);
+  }
+
+  .admin-public-workflow-list {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    border-left: 1px solid var(--admin-rule);
+    padding-left: 0.8rem;
+  }
+
+  .admin-public-workflow-list li {
+    grid-template-columns: 2.3rem minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    gap: 0.1rem 0.5rem;
+    min-height: 4.3rem;
+    border-top: 0;
+    padding: 0.35rem 0 0.8rem;
+  }
+
+  .admin-public-workflow-list li::before {
+    top: 0.8rem;
+    left: -1rem;
+  }
+
+  .admin-public-step-number {
+    grid-row: 1 / 3;
+    padding-top: 0.2rem;
+  }
+
+  .admin-public-workflow-list strong,
+  .admin-public-workflow-list p {
+    grid-column: 2;
+  }
+
+  .admin-public-responsibility-list {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.9rem;
+  }
+
+  .admin-public-responsibility-list article {
+    gap: 0.25rem;
+  }
+
+  .admin-public-checkpoint-scene {
+    width: min(100%, 15rem);
+    justify-self: end;
+  }
+
+  .admin-public-closing h2 {
+    font-size: clamp(2.45rem, 10vw, 3.3rem);
+  }
+
+  .admin-public-closing-action > svg {
+    width: 3.7rem;
+  }
+
+  .admin-public-footer {
+    display: grid;
+    gap: 0.4rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-public-nav a,
+  .admin-public-nav a:last-child::after,
+  .admin-public-login,
+  .admin-public-login svg {
+    transition: none;
+  }
+}
+
+/* Final mobile overrides follow the legacy Board roster rules above. */
+@media (max-width: 760px) {
+  .kandid-app-theme .board-student-record { display: block; padding: 0; }
+  .kandid-app-theme .board-student-desktop-record { display: none; }
+  .kandid-app-theme .board-student-mobile-record { display: grid; }
+  .kandid-app-theme .board-student-mobile-actions { display: block; }
+  .kandid-app-theme .board-student-record-actions,
+  .kandid-app-theme .board-student-record .board-student-action-group,
+  .kandid-app-theme .board-student-record-action,
+  .kandid-app-theme .board-student-reason { display: none; }
+
+  .kandid-app-theme .board-students-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .kandid-app-theme .board-students-action {
+    min-width: 0;
+    padding-inline: 0.35rem;
+  }
+
+  .kandid-app-theme .board-students-action.is-create { grid-column: 1; grid-row: 1; }
+  .kandid-app-theme .board-students-action.is-import { grid-column: 2; grid-row: 1; }
+}
+
+@media (max-width: 360px) {
+  .kandid-app-theme .board-students-actions { grid-template-columns: minmax(0, 1fr); }
+  .kandid-app-theme .board-students-action.is-create { grid-column: 1; grid-row: 1; }
+  .kandid-app-theme .board-students-action.is-import { grid-column: 1; grid-row: 2; }
 }

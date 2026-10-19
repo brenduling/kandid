@@ -1,9 +1,9 @@
 import { supabase } from "../lib/supabaseClient";
 import { canStudentViewResults, getElectionPhase } from "./elections";
 import { isMissingResultReleaseColumn } from "./results";
-import { getEligibleStudentOrganizationIds } from "./organizationAccess";
+import { getStudentDashboardMemberships } from "./organizationAccess";
+import { callVoteAccess } from "./voteAccess";
 import { listAdminUsers } from "./adminUsers";
-import { isSupabaseAdminAuthMode } from "./auth";
 
 function toNotification({
   id,
@@ -45,44 +45,32 @@ export function markNotificationRead(user, notificationId) {
   localStorage.setItem(getReadStorageKey(user), JSON.stringify([...items]));
 }
 
-function studentCredentials(user) {
-  let storedUser = null;
-  try {
-    storedUser = JSON.parse(localStorage.getItem("user") || "null");
-  } catch {
-    // Ignore malformed local session data and fall back to the provided user.
-  }
-
-  return {
-    student_number: user?.student_number || storedUser?.student_number || "",
-    password: user?.password || storedUser?.password || "",
-  };
-}
-
-async function fetchPersistentStudentNotifications(user) {
-  const credentials = studentCredentials(user);
-  if (!credentials.student_number || !credentials.password) return [];
-
+async function fetchPersistentStudentNotifications() {
   const { data, error } = await supabase.functions.invoke("student-notifications", {
     body: {
       action: "list",
-      ...credentials,
       limit: 20,
     },
   });
 
   if (error) {
-    console.warn("Persistent student notifications are unavailable:", error.message);
-    return [];
+    throw new Error("Notification service unavailable. Please try again.");
   }
-
-  return (data?.data?.notifications || []).map((notification) =>
+  if (!Array.isArray(data?.data?.notifications)) throw new Error("Notification service unavailable. Please try again.");
+  const rows = data.data.notifications;
+  if (rows.length > 20 || new Set(rows.map(row => row?.id)).size !== rows.length || rows.some(row =>
+    !Number.isSafeInteger(row?.id) || row.id <= 0 || typeof row.title !== "string" || typeof row.message !== "string" ||
+    typeof row.is_read !== "boolean" || !Number.isFinite(Date.parse(row.created_at)))) {
+    throw new Error("Notification service unavailable. Please try again.");
+  }
+  return data.data.notifications.map((notification) =>
     toNotification({
       id: `stored:${notification.id}`,
       storedId: notification.id,
       title: notification.title,
       body: notification.message,
-      href: notification.metadata?.href || "/student/notifications",
+      href: typeof notification.metadata?.href === "string" && notification.metadata.href.startsWith("/student/") && !notification.metadata.href.includes("\\")
+        ? notification.metadata.href : "/student/notifications",
       timestamp: notification.created_at,
       tone: notification.type === "organization_restored" ? "success" : "warning",
       isRead: Boolean(notification.is_read),
@@ -90,27 +78,21 @@ async function fetchPersistentStudentNotifications(user) {
   );
 }
 
-export async function markStoredNotificationRead(user, notificationId) {
+export async function markStoredNotificationRead(_user, notificationId) {
   const storedId = String(notificationId || "").startsWith("stored:")
     ? String(notificationId).slice("stored:".length)
     : notificationId;
   const numericId = Number(storedId);
-  if (!Number.isInteger(numericId) || numericId <= 0) return { error: null };
+  if (!Number.isSafeInteger(numericId) || numericId <= 0) return { error: new Error("Notification read state could not be saved.") };
 
-  const credentials = studentCredentials(user);
-  if (!credentials.student_number || !credentials.password) {
-    return { error: new Error("Student credentials are required.") };
-  }
-
-  const { error } = await supabase.functions.invoke("student-notifications", {
+  const { data, error } = await supabase.functions.invoke("student-notifications", {
     body: {
       action: "mark_read",
-      ...credentials,
       notification_id: numericId,
     },
   });
 
-  return { error: error || null };
+  return { error: error || (data?.data?.notification_id !== numericId ? new Error("Notification read state could not be saved.") : null) };
 }
 
 export function markAllNotificationsRead(user, notifications) {
@@ -121,23 +103,11 @@ export function markAllNotificationsRead(user, notifications) {
 }
 
 async function buildStudentNotifications(user) {
-  const [organizationIds, persistentNotifications] = await Promise.all([
-    getEligibleStudentOrganizationIds(user),
-    fetchPersistentStudentNotifications(user),
+  const [current, persistentNotifications] = await Promise.all([
+    getStudentDashboardMemberships(user),
+    fetchPersistentStudentNotifications(),
   ]);
-
-  if (organizationIds.length === 0) {
-    return [
-      ...persistentNotifications,
-      toNotification({
-        id: "student-org-none",
-        title: "No organization linked yet",
-        body: "Ask your election team to assign your organization before voting opens.",
-        href: "/student/profile",
-        tone: "warning",
-      }),
-    ];
-  }
+  const organizationIds = current.memberships.map(row => Number(row.organization_id));
 
   const fetchElections = (includeReleaseColumn = true) =>
     supabase
@@ -174,12 +144,11 @@ async function buildStudentNotifications(user) {
       .neq("status", "archived")
       .order("start_date", { ascending: true });
 
-  let [{ data: elections, error: electionsError }, { data: votes }] = await Promise.all([
-    fetchElections(),
-    supabase
-      .from("votes")
-      .select("election_id, vote_timestamp")
-      .eq("student_id", user.id),
+  let [{ data: elections, error: electionsError }, voteStatus] = await Promise.all([
+    organizationIds.length
+      ? fetchElections()
+      : Promise.resolve({ data: [], error: null }),
+    callVoteAccess("student_voted_elections"),
   ]);
 
   if (isMissingResultReleaseColumn(electionsError)) {
@@ -188,9 +157,11 @@ async function buildStudentNotifications(user) {
       ...election,
       results_released_at: null,
     }));
+    electionsError = fallback.error;
   }
+  if (electionsError || voteStatus.error) throw new Error("Notification service unavailable. Please try again.");
 
-  const votedElectionIds = new Set((votes || []).map((vote) => vote.election_id));
+  const votedElectionIds = new Set((voteStatus.data?.election_ids || []).map(Number));
   const items = [];
 
   for (const election of elections || []) {
@@ -210,7 +181,7 @@ async function buildStudentNotifications(user) {
       );
     }
 
-    if (phase === "voting" && !votedElectionIds.has(election.id)) {
+    if (phase === "voting" && !votedElectionIds.has(Number(election.id))) {
       items.push(
         toNotification({
           id: `student-vote-${election.id}`,
@@ -236,14 +207,14 @@ async function buildStudentNotifications(user) {
     }
   }
 
-  if ((votes || []).length > 0) {
+  if (!voteStatus.error && votedElectionIds.size > 0) {
     items.push(
       toNotification({
         id: "student-receipt",
         title: "Your vote receipt is ready",
         body: "You can review your submitted ballot records and verification hashes anytime.",
         href: "/student/receipt",
-        timestamp: votes[0]?.vote_timestamp,
+        timestamp: voteStatus.data?.latest_vote_at?.[String([...votedElectionIds][0])] || null,
       }),
     );
   }
@@ -291,29 +262,13 @@ async function buildBoardNotifications(user) {
     }
   }
 
-  if (items.length === 0) {
-    items.push(
-      toNotification({
-        id: "board-empty",
-        title: "No urgent board alerts",
-        body: "Your current organization does not have an active campaign or voting window right now.",
-        href: "/board/dashboard",
-      }),
-    );
-  }
-
   return items;
 }
 
 async function buildSuperAdminNotifications() {
-  const disabledAdminsRequest = isSupabaseAdminAuthMode()
-    ? listAdminUsers().then(({ data, error }) => ({
-        count: error ? 0 : (data || []).filter((admin) => admin.status === "disabled").length,
-      }))
-    : supabase
-        .from("admin_users")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "disabled");
+  const disabledAdminsRequest = listAdminUsers().then(({ data, error }) => ({
+    count: error ? 0 : (data || []).filter((admin) => admin.status === "disabled").length,
+  }));
 
   const [{ count: pendingStudents }, { count: liveElections }, { count: disabledAdmins }] =
     await Promise.all([
@@ -352,7 +307,7 @@ async function buildSuperAdminNotifications() {
   ];
 }
 
-export async function fetchNotificationsForUser(user) {
+async function loadNotificationsForUser(user) {
   if (!user?.role) {
     return [];
   }
@@ -384,4 +339,19 @@ export async function fetchNotificationsForUser(user) {
   }
 
   return nextItems;
+}
+
+// The desktop/mobile bell and page may mount together. Share only concurrent
+// reads for the same account; do not cache failures or another user's results.
+const notificationRequests = new Map();
+export function fetchNotificationsForUser(user) {
+  if (!user?.id || !user?.role) return Promise.resolve([]);
+  const key = JSON.stringify([user.id, user.role, user.organization_id, user.program]);
+  if (!notificationRequests.has(key)) {
+    const request = loadNotificationsForUser(user).finally(() => {
+      if (notificationRequests.get(key) === request) notificationRequests.delete(key);
+    });
+    notificationRequests.set(key, request);
+  }
+  return notificationRequests.get(key);
 }

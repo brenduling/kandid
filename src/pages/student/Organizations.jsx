@@ -12,8 +12,9 @@ import {
 import { supabase } from "../../lib/supabaseClient";
 import {
   getStudentOrganizationDirectory,
-  selectActiveMemberships,
+  getCurrentOrganizationMemberCount,
 } from "../../utils/organizationAccess";
+import { adaptOfficerDirectoryRows } from "../../utils/officerDirectory";
 import "./Organizations.css";
 
 const ORGANIZATION_FILTERS = [
@@ -33,26 +34,31 @@ function StudentOrganizations() {
   const [organizationMemberCount, setOrganizationMemberCount] = useState(0);
   const [organizationMemberCountError, setOrganizationMemberCountError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [retryCount, setRetryCount] = useState(0);
   const [detailLoading, setDetailLoading] = useState(false);
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
+  const studentId = user?.id;
 
   useEffect(() => {
     let active = true;
 
     async function loadOrganizations() {
-      if (!user?.id) {
+      if (!studentId) {
         setLoading(false);
+        setLoadError("Your account could not be verified.");
         return;
       }
 
       setLoading(true);
+      setLoadError("");
 
       const {
         memberOrganizations,
         otherOrganizations,
         memberIds: activeMemberIds,
-      } = await getStudentOrganizationDirectory(user);
+      } = await getStudentOrganizationDirectory({ id: studentId });
 
       const rows = [...memberOrganizations, ...otherOrganizations];
       const uniqueRows = Array.from(
@@ -88,12 +94,16 @@ function StudentOrganizations() {
       );
     }
 
-    loadOrganizations();
+    loadOrganizations().catch(() => {
+      if (!active) return;
+      setLoading(false);
+      setLoadError("Organizations unavailable");
+    });
 
     return () => {
       active = false;
     };
-  }, [user?.id]);
+  }, [studentId, retryCount]);
 
   const filteredOrganizations = useMemo(() => {
     if (filter === "all") return organizations;
@@ -165,19 +175,11 @@ function StudentOrganizations() {
     const [
       { data: officers, error: officersError },
       { data: elections, error: electionsError },
-      { data: memberships, error: countError },
+      { data: memberCountData, error: countError },
     ] = await Promise.all([
       supabase
-        .from("officers")
-        .select(`
-          *,
-          students (
-            first_name,
-            last_name,
-            student_number,
-            photo_url
-          )
-        `)
+        .from("officer_directory")
+        .select("id, organization_id, organization_name, officer_name, position_title, term_label, term_start, term_end, leadership_academic_year, status, is_current, display_order, photo_url, first_name, last_name")
         .eq("organization_id", organization.id)
         .order("is_current", { ascending: false })
         .order("display_order", { ascending: true }),
@@ -188,23 +190,23 @@ function StudentOrganizations() {
         .neq("status", "draft")
         .neq("status", "archived")
         .order("start_date", { ascending: false }),
-      selectActiveMemberships(
-        "organization_id",
-        [["organization_id", organization.id]],
-      ),
+      getCurrentOrganizationMemberCount(organization.id, { studentView: true }),
     ]);
 
     if (officersError) console.error("Failed to load organization officers:", officersError);
     if (electionsError) console.error("Failed to load organization elections:", electionsError);
     if (countError) console.error("Failed to load organization member count:", countError);
 
-    setOrganizationOfficers(officers || []);
+    setOrganizationOfficers(adaptOfficerDirectoryRows(officers || []));
     setOrganizationElections(elections || []);
-    setOrganizationMemberCount(countError ? 0 : (memberships || []).length);
+    setOrganizationMemberCount(countError ? 0 : memberCountData.count);
     setOrganizationMemberCountError(countError ? "Member count unavailable" : "");
     setDetailLoading(false);
   }
 
+  if (loadError) {
+    return <section role="alert"><h2>{loadError}</h2><button type="button" className="student-solid-btn" onClick={() => setRetryCount(value => value + 1)}>Try again</button></section>;
+  }
   if (selectedOrganization) {
     return (
       <StudentOrganizationDetail

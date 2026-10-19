@@ -7,6 +7,7 @@ function AuthLayout({
   roleLabel,
   title,
   copy,
+  identityTitle = "Wait, you can count on me.",
   backTo = "/",
   screenClassName = "",
   children,
@@ -96,7 +97,7 @@ function AuthLayout({
         </div>
         <div>
           <p>{roleLabel}</p>
-          <h1>Wait, you can count on me.</h1>
+          <h1>{identityTitle}</h1>
           <span>{copy}</span>
         </div>
       </section>

@@ -1,28 +1,38 @@
-import { supabase } from "../lib/supabaseClient";
+import { guardedSupabaseFetch, supabase } from "../lib/supabaseClient";
+import { callVoteAccess } from "./voteAccess";
+import { READ_ONLY_DASHBOARD_MODE } from "./localProductionReadOnly";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_KEY;
 
-export async function hasStudentVotedInElection(studentId, electionId) {
-  const { data, error } = await supabase
-    .from("votes")
-    .select("id")
-    .eq("student_id", studentId)
-    .eq("election_id", Number(electionId))
-    .limit(1);
+export async function hasStudentVotedInElection(_studentId, electionId, client = supabase) {
+  const { data, error } = await callVoteAccess("student_has_voted", {
+    election_id: Number(electionId),
+  }, client);
 
   if (error) {
     return { hasVoted: false, error };
   }
 
-  return { hasVoted: (data || []).length > 0, error: null };
+  return { hasVoted: Boolean(data?.has_voted), error: null };
 }
 
 export async function submitBallot({
   electionId,
   selectedVotes,
   accessToken,
+  accessCode,
+  location,
 }) {
+  // Keep this direct-fetch path behind both explicit local production safeguards.
+  if (import.meta.env.MODE === READ_ONLY_DASHBOARD_MODE || import.meta.env.MODE === "development") {
+    return {
+      error: new Error("Ballot submission is disabled until the production backend is approved for activation."),
+      alreadyVoted: false,
+      submittedAt: null,
+    };
+  }
+
   try {
     let studentAccessToken = accessToken;
 
@@ -43,7 +53,7 @@ export async function submitBallot({
       studentAccessToken = session.access_token;
     }
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/submit-vote`, {
+    const response = await guardedSupabaseFetch(`${supabaseUrl}/functions/v1/submit-vote`, {
       method: "POST",
       headers: {
         apikey: supabaseAnonKey,
@@ -53,6 +63,8 @@ export async function submitBallot({
       body: JSON.stringify({
         election_id: Number(electionId),
         selected_votes: selectedVotes,
+        access_code: String(accessCode || "").trim().toUpperCase(),
+        location,
       }),
     });
 

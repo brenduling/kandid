@@ -1,0 +1,696 @@
+/* Electoral Board Profile presentation. Shared Profile behavior and the
+   Student/Super Admin presentation continue to use the existing styles. */
+.kandid-app-theme.board-theme .board-profile-page {
+  gap: clamp(1.5rem, 2.4vw, 2.25rem);
+}
+
+.kandid-app-theme.board-theme .board-profile-masthead {
+  gap: 0.55rem;
+}
+
+.kandid-app-theme.board-theme .board-profile-page .student-settings-body {
+  width: 100%;
+  max-width: 70rem;
+}
+
+.kandid-app-theme.board-theme .board-profile-identity-section {
+  padding-block: clamp(1.1rem, 1.8vw, 1.6rem);
+}
+
+.kandid-app-theme.board-theme .board-profile-identity {
+  align-items: center;
+  gap: clamp(1rem, 2vw, 1.75rem);
+}
+
+.kandid-app-theme.board-theme .board-profile-avatar-group {
+  display: grid;
+  flex: 0 0 auto;
+  justify-items: start;
+  gap: 0.55rem;
+}
+
+.kandid-app-theme.board-theme .board-profile-avatar-group .student-settings-photo-img,
+.kandid-app-theme.board-theme .board-profile-avatar-group .student-settings-photo-fallback {
+  width: 5.25rem;
+  height: 5.25rem;
+}
+
+.kandid-app-theme.board-theme .board-profile-photo-action {
+  min-height: 2rem;
+  margin: 0;
+  border-color: transparent;
+  padding: 0.2rem 0;
+  color: var(--kandid-app-orange);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme.board-theme .board-profile-photo-action:hover,
+.kandid-app-theme.board-theme .board-profile-photo-action:focus-visible {
+  border-color: transparent;
+  color: var(--kandid-app-ink);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.kandid-app-theme.board-theme .board-profile-identity-copy {
+  gap: 0.2rem;
+}
+
+.kandid-app-theme.board-theme .board-profile-identity-copy h2 {
+  font-size: clamp(1.7rem, 2.5vw, 2.15rem);
+}
+
+.kandid-app-theme.board-theme .board-profile-identity-copy p {
+  color: var(--kandid-app-ink-3);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.kandid-app-theme.board-theme .board-profile-account-section,
+.kandid-app-theme.board-theme .board-profile-organization-section {
+  padding-block: clamp(1.2rem, 2vw, 1.8rem);
+}
+
+.kandid-app-theme.board-theme .board-profile-security-head {
+  display: grid;
+  justify-content: start;
+  gap: 0.25rem;
+  padding-bottom: 0.65rem;
+}
+
+.kandid-app-theme.board-theme .board-profile-security-head h2 {
+  color: var(--kandid-app-ink);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(1.3rem, 1.8vw, 1.65rem);
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.15;
+}
+
+.kandid-app-theme.board-theme .board-profile-security-row {
+  display: flex;
+  max-width: 54rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.kandid-app-theme.board-theme .board-profile-security-row p {
+  margin: 0;
+  color: var(--kandid-app-ink-3);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.kandid-app-theme.board-theme .board-profile-change-password {
+  flex: 0 0 auto;
+  min-height: 2.5rem;
+  border: 0;
+  border-bottom: 1px solid var(--kandid-app-orange);
+  border-radius: 0;
+  padding: 0.35rem 0.15rem;
+  background: transparent;
+  color: var(--kandid-app-ink);
+  font: inherit;
+  font-size: 0.69rem;
+  font-weight: 850;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.kandid-app-theme.board-theme .board-profile-change-password:hover,
+.kandid-app-theme.board-theme .board-profile-change-password:focus-visible {
+  color: var(--kandid-app-orange);
+}
+
+.kandid-app-theme.board-theme .board-profile-change-password:focus-visible {
+  outline: 2px solid var(--kandid-app-orange);
+  outline-offset: 3px;
+}
+
+.kandid-app-theme.board-theme .board-profile-account-head,
+.kandid-app-theme.board-theme .board-profile-organization-head {
+  display: grid;
+  justify-content: start;
+  gap: 0.25rem;
+  padding-bottom: 0.65rem;
+}
+
+.kandid-app-theme.board-theme .board-profile-section-kicker {
+  color: var(--kandid-app-orange);
+  font-size: 0.62rem;
+  font-weight: 850;
+  letter-spacing: 0.13em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.kandid-app-theme.board-theme .board-profile-account-head h2,
+.kandid-app-theme.board-theme .board-profile-organization-head h2 {
+  color: var(--kandid-app-ink);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(1.3rem, 1.8vw, 1.65rem);
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.15;
+}
+
+.kandid-app-theme.board-theme .board-profile-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.1rem 1.35rem;
+  max-width: 54rem;
+  margin-top: 0.8rem;
+}
+
+.kandid-app-theme.board-theme .board-profile-field {
+  gap: 0.4rem;
+}
+
+.kandid-app-theme.board-theme .board-profile-field label {
+  color: var(--kandid-app-ink-3);
+  font-size: 0.65rem;
+  letter-spacing: 0.09em;
+}
+
+.kandid-app-theme.board-theme .board-profile-field .student-settings-input {
+  min-height: 2.75rem;
+  border: 1px solid var(--kandid-app-border-strong);
+  padding: 0.55rem 0.7rem;
+  background: var(--kandid-app-paper);
+  font-size: 0.9rem;
+}
+
+.kandid-app-theme.board-theme .board-profile-field .student-settings-input:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--kandid-app-orange) 28%, transparent);
+  outline-offset: 1px;
+  border-color: var(--kandid-app-orange);
+}
+
+.kandid-app-theme.board-theme .board-profile-managed-field .student-settings-input {
+  border-color: var(--kandid-app-border);
+  background: color-mix(in srgb, var(--kandid-app-paper) 84%, var(--kandid-app-border) 16%);
+  color: var(--kandid-app-ink-3);
+  cursor: not-allowed;
+}
+
+.kandid-app-theme.board-theme .board-profile-managed-field .student-settings-field-note {
+  font-size: 0.68rem;
+  font-weight: 500;
+}
+
+.kandid-app-theme.board-theme .board-profile-photo-url {
+  grid-column: 1 / -1;
+  align-self: start;
+  border-top: 1px solid var(--kandid-app-border);
+  padding-top: 0.65rem;
+}
+
+.kandid-app-theme.board-theme .board-profile-photo-url summary {
+  width: fit-content;
+  color: var(--kandid-app-ink-3);
+  font-size: 0.7rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.kandid-app-theme.board-theme .board-profile-photo-url[open] .board-profile-field {
+  max-width: 34rem;
+  margin-top: 0.8rem;
+}
+
+.kandid-app-theme.board-theme .board-profile-form .student-settings-actions {
+  margin-top: 0.15rem;
+}
+
+.kandid-app-theme.board-theme .board-profile-organization-section .student-settings-section-note {
+  max-width: 46rem;
+}
+
+.kandid-app-theme.board-theme .board-profile-coverage-controls .field-shell {
+  min-height: 2.7rem;
+  border-radius: 0 !important;
+  border-color: var(--kandid-app-border-strong) !important;
+  box-shadow: none !important;
+  background: var(--kandid-app-paper) !important;
+}
+
+.kandid-app-theme.board-theme .board-profile-coverage-controls .secondary-btn,
+.kandid-app-theme.board-theme .board-profile-coverage-controls .primary-btn {
+  min-height: 2.65rem;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.kandid-app-theme.board-theme .board-profile-coverage-controls .grid label {
+  min-height: 2.7rem;
+  border-width: 0 0 1px !important;
+  border-color: var(--kandid-app-border-strong) !important;
+  border-radius: 0 !important;
+  padding-inline: 0.15rem !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--kandid-app-ink-2) !important;
+}
+
+.kandid-app-theme.board-theme .board-profile-coverage-controls input[type="checkbox"] {
+  accent-color: var(--kandid-app-orange);
+}
+
+.kandid-app-theme.board-theme .board-profile-coverage-controls > .grid > div {
+  border-radius: 0 !important;
+  border-width: 0 0 1px !important;
+  border-color: var(--kandid-app-border-strong) !important;
+  padding-inline: 0 !important;
+  background: transparent !important;
+}
+
+@media (max-width: 700px) {
+  .kandid-app-theme.board-theme .board-profile-masthead .board-students-context {
+    align-items: flex-start;
+  }
+
+  .kandid-app-theme.board-theme .board-profile-masthead .board-students-eyebrow {
+    white-space: normal;
+    line-height: 1.35;
+  }
+
+  .kandid-app-theme.board-theme .board-profile-page .student-settings-body {
+    max-width: none;
+  }
+
+  .kandid-app-theme.board-theme .board-profile-identity {
+    align-items: flex-start;
+    gap: 0.9rem;
+  }
+
+  .kandid-app-theme.board-theme .board-profile-avatar-group .student-settings-photo-img,
+  .kandid-app-theme.board-theme .board-profile-avatar-group .student-settings-photo-fallback {
+    width: 4.5rem;
+    height: 4.5rem;
+  }
+
+  .kandid-app-theme.board-theme .board-profile-identity-copy h2 {
+    font-size: clamp(1.45rem, 6vw, 1.8rem);
+    overflow-wrap: anywhere;
+  }
+
+  .kandid-app-theme.board-theme .board-profile-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .kandid-app-theme.board-theme .board-profile-coverage-controls .flex.flex-col {
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 380px) {
+  .kandid-app-theme.board-theme .board-profile-identity {
+    flex-wrap: wrap;
+  }
+
+  .kandid-app-theme.board-theme .board-profile-identity-copy {
+    flex: 1 1 10rem;
+  }
+}
+
+/* The modal is portaled to document.body, so keep its selectors independent
+   of the Board theme wrapper while retaining the same registration-dialog
+   geometry and typography. */
+.modal-overlay .board-profile-password-dialog {
+  display: grid;
+  width: min(34rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  border: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+  border-top: 3px solid var(--kandid-app-ink, #171717);
+  border-radius: 0;
+  background: var(--kandid-app-paper, #f8f6f1);
+  color: var(--kandid-app-ink, #171717);
+  box-shadow: 0 14px 32px rgba(22, 20, 17, 0.18);
+}
+
+.board-profile-password-header {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+  padding: 1.2rem 1.35rem 1rem;
+}
+
+.board-profile-password-header > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.38rem;
+}
+
+.board-profile-password-header > div > span {
+  color: var(--kandid-app-orange, #ef4e23);
+  font-size: 0.63rem;
+  font-weight: 850;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.board-profile-password-header h2 {
+  margin: 0;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(1.85rem, 5vw, 2.45rem);
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.board-profile-password-header p {
+  max-width: 27rem;
+  margin: 0.1rem 0 0;
+  color: var(--kandid-app-ink-3, #514d46);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.modal-overlay .board-profile-password-close {
+  display: grid;
+  flex: 0 0 auto;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border: 0;
+  border-bottom: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+  border-radius: 0;
+  background: transparent;
+  color: var(--kandid-app-ink, #171717);
+  cursor: pointer;
+}
+
+.modal-overlay .board-profile-password-close:hover:not(:disabled),
+.modal-overlay .board-profile-password-close:focus-visible {
+  border-color: var(--kandid-app-orange, #ef4e23);
+  color: var(--kandid-app-orange, #ef4e23);
+}
+
+.modal-overlay .board-profile-password-close:focus-visible {
+  outline: 2px solid var(--kandid-app-orange, #ef4e23);
+  outline-offset: 2px;
+}
+
+.board-profile-password-form {
+  display: grid;
+  min-width: 0;
+  gap: 1rem;
+  padding: 1.1rem 1.35rem 1.25rem;
+}
+
+.board-profile-password-fields {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.board-profile-password-field {
+  display: grid;
+  min-width: 0;
+  gap: 0.4rem;
+}
+
+.board-profile-password-field > label {
+  color: var(--kandid-app-ink-3, #514d46);
+  font-size: 0.65rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.board-profile-password-field > div {
+  display: flex;
+  min-width: 0;
+  align-items: stretch;
+  border: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.board-profile-password-field > div:focus-within {
+  border-color: var(--kandid-app-orange, #ef4e23);
+  outline: 2px solid rgba(239, 78, 35, 0.16);
+  outline-offset: 1px;
+}
+
+.board-profile-password-field input {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.85rem;
+  border: 0;
+  border-radius: 0;
+  padding: 0.65rem 0.75rem;
+  background: transparent;
+  color: var(--kandid-app-ink, #171717);
+  font: inherit;
+  font-size: 0.86rem;
+  outline: none;
+}
+
+.board-profile-password-field input:focus-visible {
+  outline: none;
+}
+
+.modal-overlay .board-profile-password-field button {
+  display: grid;
+  flex: 0 0 2.8rem;
+  place-items: center;
+  border: 0;
+  border-left: 1px solid var(--kandid-app-border, #e1ddd5);
+  border-radius: 0;
+  background: transparent;
+  color: var(--kandid-app-ink-3, #514d46);
+  cursor: pointer;
+}
+
+.modal-overlay .board-profile-password-field button:hover:not(:disabled),
+.modal-overlay .board-profile-password-field button:focus-visible {
+  color: var(--kandid-app-orange, #ef4e23);
+}
+
+.board-profile-password-field button:focus-visible {
+  outline: 2px solid var(--kandid-app-orange, #ef4e23);
+  outline-offset: -2px;
+}
+
+.board-profile-password-rules {
+  display: grid;
+  gap: 0.55rem;
+  border-top: 1px solid var(--kandid-app-border, #e1ddd5);
+  padding-top: 0.7rem;
+}
+
+.board-profile-password-rules > span {
+  color: var(--kandid-app-muted, #69645c);
+  font-size: 0.6rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.board-profile-password-rules ul {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem 0.8rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.board-profile-password-rules li {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 0.4rem;
+  color: var(--kandid-app-muted, #69645c);
+  font-size: 0.72rem;
+}
+
+.board-profile-password-rules li i {
+  color: var(--kandid-app-border-strong, #9c968b);
+  font-size: 0.8rem;
+  font-style: normal;
+}
+
+.board-profile-password-rules li.is-met {
+  color: var(--kandid-app-ink, #171717);
+  font-weight: 700;
+}
+
+.board-profile-password-rules li.is-met i {
+  color: #28734b;
+}
+
+.board-profile-password-match,
+.board-profile-password-error {
+  margin: 0;
+  border-left: 2px solid var(--kandid-app-border-strong, #cfc9bf);
+  padding: 0.15rem 0 0.15rem 0.7rem;
+  color: var(--kandid-app-muted, #69645c);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.board-profile-password-match.is-match {
+  border-color: #28734b;
+  color: #28734b;
+}
+
+.board-profile-password-match.is-mismatch,
+.board-profile-password-error {
+  border-color: #a13228;
+  color: #8b2b23;
+}
+
+.board-profile-password-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-top: 1px solid var(--kandid-app-border, #e1ddd5);
+  padding-top: 0.9rem;
+}
+
+.modal-overlay .board-profile-password-cancel,
+.modal-overlay .board-profile-password-submit {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border-radius: 0;
+  padding: 0.6rem 1rem;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.modal-overlay .board-profile-password-cancel {
+  border: 0;
+  border-bottom: 1px solid var(--kandid-app-border-strong, #cfc9bf);
+  background: transparent;
+  color: var(--kandid-app-ink, #171717);
+}
+
+.modal-overlay .board-profile-password-submit {
+  min-width: 10rem;
+  border: 1px solid var(--kandid-app-orange, #ef4e23);
+  background: var(--kandid-app-orange, #ef4e23);
+  color: #fff;
+}
+
+.modal-overlay .board-profile-password-submit:hover:not(:disabled) {
+  border-color: var(--kandid-app-ink, #171717);
+  background: var(--kandid-app-ink, #171717);
+}
+
+.modal-overlay .board-profile-password-cancel:focus-visible,
+.modal-overlay .board-profile-password-submit:focus-visible {
+  outline: 2px solid var(--kandid-app-orange, #ef4e23);
+  outline-offset: 3px;
+}
+
+.modal-overlay .board-profile-password-cancel:disabled,
+.modal-overlay .board-profile-password-submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (max-width: 540px) {
+  .kandid-app-theme.board-theme .board-profile-security-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .board-profile-password-header,
+  .board-profile-password-form {
+    padding-inline: 1rem;
+  }
+
+  .board-profile-password-rules ul {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .board-profile-password-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .modal-overlay .board-profile-password-cancel,
+  .modal-overlay .board-profile-password-submit {
+    width: 100%;
+  }
+}
+
+.board-profile-loading {
+  display: grid;
+  gap: 1.4rem;
+  padding-top: 1.35rem;
+}
+
+.board-profile-loading-identity {
+  display: grid;
+  grid-template-columns: 5.25rem minmax(0, 1fr);
+  align-items: center;
+  gap: 1.15rem;
+  padding: 0 0 1.35rem;
+  border-bottom: 1px solid var(--kandid-app-rule, #d9d3ca);
+}
+
+.board-profile-loading-copy,
+.board-profile-loading-section {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.board-profile-loading-section {
+  padding: 0 0 1.35rem;
+  border-bottom: 1px solid var(--kandid-app-rule, #d9d3ca);
+}
+
+.board-profile-skeleton {
+  display: block;
+  height: 0.78rem;
+  background: #e8e3db;
+  animation: board-profile-pulse 1.35s ease-in-out infinite alternate;
+}
+
+.board-profile-skeleton.is-avatar {
+  width: 5rem;
+  height: 5rem;
+  background: #e8e3db;
+}
+
+.board-profile-skeleton.is-short { width: 24%; height: 0.55rem; }
+.board-profile-skeleton.is-heading { width: min(22rem, 72%); height: 1.5rem; }
+.board-profile-skeleton.is-medium { width: min(24rem, 62%); }
+.board-profile-skeleton.is-label { width: 8rem; height: 0.55rem; }
+.board-profile-skeleton.is-section-title { width: 12rem; height: 1.1rem; margin-bottom: 0.2rem; }
+.board-profile-skeleton.is-field { width: min(42rem, 100%); height: 2.8rem; }
+
+@keyframes board-profile-pulse {
+  from { opacity: 0.58; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .board-profile-skeleton { animation: none; }
+}
+
+@media (max-width: 640px) {
+  .board-profile-loading { padding-top: 0.9rem; }
+  .board-profile-loading-identity { grid-template-columns: 3.75rem minmax(0, 1fr); gap: 0.85rem; }
+  .board-profile-skeleton.is-avatar { width: 3.65rem; height: 3.65rem; }
+  .board-profile-skeleton.is-heading { width: 82%; height: 1.2rem; }
+  .board-profile-skeleton.is-medium { width: 88%; }
+}

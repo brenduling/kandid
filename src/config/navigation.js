@@ -83,6 +83,7 @@ export const boardMenuGroups = [
       { name: "Kiosk Voting", path: "/board/kiosk", icon: MonitorSmartphone },
       { name: "Results", path: "/board/results", icon: ClipboardList },
       { name: "Reports", path: "/board/reports", icon: ScrollText },
+      { name: "Audit Trail", path: "/board/audit-trail", icon: ShieldCheck },
     ],
   },
   {

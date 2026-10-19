@@ -1,4 +1,3 @@
-import React from "react";
 import { NavLink } from "react-router-dom";
 import { LogOut } from "lucide-react";
 
@@ -9,6 +8,22 @@ function MobileNav({ primaryItems, onLogout }) {
     <nav className="mobile-nav glass-panel-strong fixed inset-x-3 bottom-3 z-40 flex items-center justify-around rounded-[30px] px-2 py-2 shadow-[0_20px_40px_rgba(7,17,16,0.18)] lg:hidden">
       {primaryItems.map((item) => {
         const Icon = item.icon;
+
+        if (item.readonlyUnavailable) {
+          return (
+            <button
+              key={item.path}
+              type="button"
+              disabled
+              aria-disabled="true"
+              aria-label={`${item.name}, unavailable in read-only production inspection`}
+              className="mobile-nav-item opacity-50"
+            >
+              <Icon size={18} />
+              <span className="truncate">{item.name}</span>
+            </button>
+          );
+        }
 
         return (
           <NavLink

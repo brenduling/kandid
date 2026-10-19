@@ -6,6 +6,8 @@ import {
 } from "../../components/student/StudentSkeleton";
 import { supabase } from "../../lib/supabaseClient";
 import { getEligibleStudentOrganizationIds } from "../../utils/organizationAccess";
+import { adaptOfficerDirectoryRows } from "../../utils/officerDirectory";
+import { formatOfficerPositionTitle, formatOfficerServicePeriod, formatOfficerTermLabel, sortOfficerRoster } from "../../utils/officerLeadership";
 
 function StudentOfficers() {
   const [officers, setOfficers] = useState([]);
@@ -31,19 +33,8 @@ function StudentOfficers() {
       }
 
       const { data } = await supabase
-        .from("officers")
-        .select(`
-          *,
-          organizations (
-            name
-          ),
-          students (
-            first_name,
-            last_name,
-            student_number,
-            photo_url
-          )
-        `)
+        .from("officer_directory")
+        .select("id, organization_id, organization_name, officer_name, position_title, term_label, term_start, term_end, academic_term_id, leadership_academic_year, service_started_at, service_ended_at, status, is_current, display_order, photo_url, first_name, last_name")
         .in("organization_id", organizationIds)
         .order("is_current", { ascending: false })
         .order("organization_id", { ascending: true })
@@ -52,7 +43,7 @@ function StudentOfficers() {
 
       if (!active) return;
 
-      setOfficers(data || []);
+      setOfficers(adaptOfficerDirectoryRows(data || []));
       setLoading(false);
     }
 
@@ -64,7 +55,7 @@ function StudentOfficers() {
   }, [user.id]);
 
   const visibleOfficers = useMemo(() => {
-    return officers.filter((officer) => {
+    return sortOfficerRoster(officers.filter((officer) => {
       if (filter === "current" && !officer.is_current) return false;
       if (filter === "previous" && officer.is_current) return false;
 
@@ -74,10 +65,10 @@ function StudentOfficers() {
 
       const haystack = `${fullName} ${officer.position_title || ""} ${
         officer.organizations?.name || ""
-      } ${officer.term_label || ""}`.toLowerCase();
+      } ${formatOfficerTermLabel(officer) || ""}`.toLowerCase();
 
       return haystack.includes(search.toLowerCase());
-    });
+    }));
   }, [filter, officers, search]);
 
   return (
@@ -204,16 +195,16 @@ function StudentOfficers() {
                     <dl className="student-officer-meta">
                       <div>
                         <dt>Position</dt>
-                        <dd>{officer.position_title || "—"}</dd>
+                        <dd>{formatOfficerPositionTitle(officer.position_title) || "—"}</dd>
                       </div>
-                      <div>
+                      {formatOfficerTermLabel(officer) && <div>
                         <dt>Term</dt>
-                        <dd>{officer.term_label || "Not specified"}</dd>
-                      </div>
-                      <div>
-                        <dt>ID</dt>
-                        <dd>{officer.students?.student_number || "—"}</dd>
-                      </div>
+                        <dd>{formatOfficerTermLabel(officer)}</dd>
+                      </div>}
+                      {!officer.is_current && formatOfficerServicePeriod(officer) && <div>
+                        <dt>Service</dt>
+                        <dd>{formatOfficerServicePeriod(officer)}</dd>
+                      </div>}
                     </dl>
                   </div>
 

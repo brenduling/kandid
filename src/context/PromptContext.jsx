@@ -1,18 +1,25 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { useLocation } from "react-router-dom";
 import {
   AlertTriangle,
   CheckCircle2,
   Info,
   XCircle,
-  HelpCircle,
   X,
   AlertCircle,
 } from "lucide-react";
+import { toBoardFacingError } from "../utils/boardFeedback";
 
 const PromptContext = createContext(null);
 
 export function PromptProvider({ children }) {
+  const location = useLocation();
+  // The fullscreen kiosk keeps its own notification and dialog presentation.
+  const isBoardPortal =
+    (location.pathname === "/board" || location.pathname.startsWith("/board/")) &&
+    location.pathname !== "/board/kiosk";
+  const prefersReducedMotion = useReducedMotion();
   const [modal, setModal] = useState(null);
   const [toasts, setToasts] = useState([]);
   const [promptInputValue, setPromptInputValue] = useState("");
@@ -73,11 +80,11 @@ export function PromptProvider({ children }) {
         cancelText: opts.cancelText || "Cancel",
         showCancel: opts.showCancel !== false,
         eyebrow: opts.eyebrow,
-        variant: opts.variant,
+        variant: opts.variant || (isBoardPortal ? "editorial" : undefined),
         resolve,
       });
     });
-  }, []);
+  }, [isBoardPortal]);
 
   const alert = useCallback((options) => {
     return new Promise((resolve) => {
@@ -86,13 +93,16 @@ export function PromptProvider({ children }) {
         id: Date.now(),
         type: opts.type || "info", // 'info' | 'error' | 'warning' | 'success'
         title: opts.title || (opts.type === "error" ? "Notice" : opts.type === "success" ? "Success" : "Information"),
-        message: opts.message || "",
+        message: opts.type === "error" && isBoardPortal
+          ? toBoardFacingError(opts.message)
+          : opts.message || "",
         confirmText: opts.confirmText || "OK",
         showCancel: false,
+        variant: isBoardPortal ? "editorial" : undefined,
         resolve: () => resolve(),
       });
     });
-  }, []);
+  }, [isBoardPortal]);
 
   const prompt = useCallback((options) => {
     return new Promise((resolve) => {
@@ -108,10 +118,11 @@ export function PromptProvider({ children }) {
         cancelText: opts.cancelText || "Cancel",
         showCancel: true,
         isPromptInput: true,
+        variant: isBoardPortal ? "editorial" : undefined,
         resolve,
       });
     });
-  }, []);
+  }, [isBoardPortal]);
 
   // Toast system
   const removeToast = useCallback((id) => {
@@ -124,19 +135,21 @@ export function PromptProvider({ children }) {
     const newToast = {
       id,
       title: opts.title,
-      message: opts.message,
+      message: opts.type === "error" && isBoardPortal
+        ? toBoardFacingError(opts.message)
+        : opts.message,
       type: opts.type || "info", // 'success' | 'error' | 'info' | 'warning'
-      duration: opts.duration || 4000,
+      duration: opts.duration ?? (opts.type === "error" ? 7000 : opts.type === "warning" ? 6000 : 4000),
     };
 
-    setToasts((prev) => [...prev, newToast]);
+    setToasts((prev) => [...prev, newToast].slice(-3));
 
     if (newToast.duration > 0) {
       setTimeout(() => {
         removeToast(id);
       }, newToast.duration);
     }
-  }, [removeToast]);
+  }, [isBoardPortal, removeToast]);
 
   const success = useCallback((message, title = "Success") => {
     toast({ message, title, type: "success" });
@@ -251,6 +264,8 @@ export function PromptProvider({ children }) {
               transition={{ duration: 0.2, ease: "easeOut" }}
               role="dialog"
               aria-modal="true"
+              aria-labelledby="kandid-prompt-title"
+              aria-describedby="kandid-prompt-description"
               className={`config-modal relative z-10 w-full max-w-md overflow-hidden border ${isEditorialConfirm ? "kandid-confirm-editorial" : ""} ${currentStyles?.accentColor || "border-orange-200"}`}
             >
               {isEditorialConfirm ? null : (
@@ -267,10 +282,10 @@ export function PromptProvider({ children }) {
 
                 <div className="min-w-0 flex-1">
                   <p className="config-eyebrow">{modal.eyebrow || currentStyles?.eyebrow}</p>
-                  <h3 className="config-title">
+                  <h3 className="config-title" id="kandid-prompt-title">
                     {modal.title}
                   </h3>
-                  <p className="config-description">
+                  <p className="config-description" id="kandid-prompt-description">
                     {modal.message}
                   </p>
                 </div>
@@ -326,15 +341,15 @@ export function PromptProvider({ children }) {
       </AnimatePresence>
 
       {/* Floating Toasts */}
-      <div className="kandid-toast-viewport">
+      <div className={`kandid-toast-viewport${isBoardPortal ? " is-board-feedback" : ""}`}>
         <AnimatePresence>
           {toasts.map((t) => (
             <motion.div
               key={t.id}
-              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              initial={prefersReducedMotion ? false : { opacity: 0, y: isBoardPortal ? -8 : 20, scale: isBoardPortal ? 1 : 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, x: 40, scale: 0.95 }}
-              transition={{ duration: 0.2 }}
+              exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, x: 40, scale: 0.95 }}
+              transition={{ duration: prefersReducedMotion ? 0 : 0.2 }}
               className={`kandid-toast kandid-toast-${t.type || "info"}`}
               role={t.type === "error" ? "alert" : "status"}
               aria-live={t.type === "error" ? "assertive" : "polite"}
@@ -368,6 +383,7 @@ export function PromptProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function usePrompt() {
   const context = useContext(PromptContext);
   if (!context) {

@@ -1,0 +1,911 @@
+/* Board Kiosk Voting: focused bond-paper workflow, scoped to the Board route. */
+.board-kiosk-terminal {
+  --board-kiosk-paper: #f8f6f1;
+  --board-kiosk-white: #fffefa;
+  --board-kiosk-ink: #171719;
+  --board-kiosk-muted: #62636a;
+  --board-kiosk-rule: #d8d2c8;
+  --board-kiosk-orange: #f4512c;
+
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: var(--board-kiosk-paper);
+  color: var(--board-kiosk-ink);
+}
+
+.board-kiosk-terminal .kiosk-terminal-header {
+  width: min(calc(100% - 4rem), 100rem);
+  flex: 0 0 auto;
+  min-height: 5rem;
+  border: 0;
+  border-bottom: 2px solid var(--board-kiosk-ink);
+  margin-inline: auto;
+  background: transparent;
+  padding: 0.85rem clamp(1.1rem, 4vw, 4rem);
+  backdrop-filter: none;
+}
+
+.board-kiosk-terminal .kiosk-terminal-header > div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.board-kiosk-terminal .kiosk-brand {
+  display: block;
+  width: max-content;
+  min-height: 0;
+  border: 0;
+  border-radius: 0 !important;
+  background: transparent;
+  padding: 0;
+  color: var(--board-kiosk-orange);
+  font-size: 0.67rem;
+  font-weight: 850;
+  letter-spacing: 0.15em;
+}
+
+.board-kiosk-terminal .kiosk-terminal-header strong {
+  color: var(--board-kiosk-ink);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.board-kiosk-terminal .kiosk-exit {
+  min-height: 2.65rem;
+  border: 0;
+  border-radius: 0 !important;
+  border-bottom: 1px solid var(--board-kiosk-rule);
+  background: transparent;
+  padding: 0 0.25rem;
+  color: var(--board-kiosk-muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.board-kiosk-terminal .kiosk-exit:hover {
+  border-bottom-color: var(--board-kiosk-orange);
+  color: var(--board-kiosk-ink);
+}
+
+.board-kiosk-terminal :is(button, input):focus-visible {
+  outline: 2px solid var(--board-kiosk-orange);
+  outline-offset: 3px;
+}
+
+.board-kiosk-terminal .kiosk-entry-state,
+.board-kiosk-terminal .kiosk-selection {
+  width: min(calc(100% - 4rem), 90rem);
+  margin: clamp(1.75rem, 5vh, 3.5rem) auto;
+  border: 0;
+  border-radius: 0 !important;
+  background: transparent;
+  box-shadow: none;
+}
+
+.board-kiosk-terminal .kiosk-entry-state {
+  min-height: 0;
+  align-content: center;
+  justify-items: start;
+  gap: 0.7rem;
+  border-top: 2px solid var(--board-kiosk-ink);
+  padding: clamp(1.5rem, 4vw, 2.5rem) 0;
+  text-align: left;
+}
+
+.board-kiosk-terminal .kiosk-empty-state {
+  display: grid;
+  min-height: calc(100dvh - 5rem);
+  flex: 1 0 auto;
+  grid-template-columns: minmax(0, 1.05fr) minmax(20rem, 0.95fr);
+  align-items: center;
+  gap: clamp(2rem, 7vw, 8rem);
+  border: 0;
+  margin: 0 auto;
+  padding-block: clamp(2rem, 5vh, 4rem);
+}
+
+.board-kiosk-terminal .kiosk-empty-copy {
+  display: grid;
+  justify-items: start;
+  gap: 0.8rem;
+  max-width: 42rem;
+}
+
+.board-kiosk-terminal .kiosk-empty-copy h1 {
+  max-width: 12ch;
+  font-size: clamp(2.4rem, 4.7vw, 4.5rem);
+  line-height: 1.02;
+}
+
+.board-kiosk-terminal .kiosk-empty-copy p {
+  max-width: 35rem;
+  margin: 0.25rem 0 0.8rem;
+  font-size: clamp(1rem, 1.35vw, 1.18rem);
+}
+
+.board-kiosk-terminal .kiosk-empty-copy .secondary-btn {
+  width: auto;
+  min-width: 8.5rem;
+  padding-inline: 1rem;
+}
+
+.board-kiosk-terminal .kiosk-empty-mascot {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+}
+
+.board-kiosk-terminal .kiosk-empty-mascot svg {
+  display: block;
+  width: clamp(17rem, 27vw, 28rem);
+  max-width: 100%;
+  height: auto;
+}
+
+.board-kiosk-terminal .kiosk-entry-state > svg {
+  width: 1.65rem;
+  height: 1.65rem;
+  color: var(--board-kiosk-orange);
+}
+
+.board-kiosk-terminal .kiosk-empty-eyebrow {
+  color: var(--board-kiosk-orange);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.board-kiosk-terminal .kiosk-entry-state h1,
+.board-kiosk-terminal .kiosk-selection-head h1,
+.board-kiosk-terminal .kiosk-election-panel h1 {
+  margin: 0;
+  color: var(--board-kiosk-ink);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.8rem, 3.2vw, 2.65rem);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+}
+
+.board-kiosk-terminal .kiosk-entry-state p,
+.board-kiosk-terminal .kiosk-selection-head p {
+  max-width: 43rem;
+  margin: 0.1rem 0 0.5rem;
+  color: var(--board-kiosk-muted);
+  font-size: 0.98rem;
+  font-weight: 500;
+  line-height: 1.55;
+}
+
+.board-kiosk-terminal .kiosk-selection {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0;
+}
+
+.board-kiosk-terminal .kiosk-selection-head {
+  align-items: center;
+  gap: 1.5rem;
+  padding-bottom: 0.85rem;
+}
+
+.board-kiosk-terminal .kiosk-selection-head > div {
+  min-width: 0;
+  gap: 0.4rem;
+}
+
+.board-kiosk-terminal .kiosk-selection-head > .secondary-btn {
+  flex: 0 0 auto;
+  min-height: 2.5rem;
+  width: auto;
+  padding: 0 0.7rem;
+}
+
+.board-kiosk-terminal .kiosk-session-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  border-top: 1px solid var(--board-kiosk-ink);
+}
+
+.board-kiosk-terminal .kiosk-session-card {
+  display: grid;
+  min-height: 6.5rem;
+  grid-template-columns: 6rem minmax(0, 1fr) minmax(13rem, auto);
+  align-items: center;
+  gap: 1.1rem;
+  border: 0;
+  border-bottom: 1px solid var(--board-kiosk-rule);
+  border-radius: 0 !important;
+  background: transparent;
+  padding: 0.85rem 0;
+  box-shadow: none;
+  transition: background-color 140ms ease;
+}
+
+.board-kiosk-terminal .kiosk-session-card:hover,
+.board-kiosk-terminal .kiosk-session-card:focus-visible {
+  border-color: var(--board-kiosk-rule);
+  background: rgba(255, 254, 250, 0.7);
+  box-shadow: none;
+  transform: none;
+}
+
+.board-kiosk-terminal .kiosk-session-cover {
+  width: 6rem;
+  height: 4rem;
+  aspect-ratio: auto;
+  border-radius: 0 !important;
+}
+
+.board-kiosk-terminal .kiosk-session-meta {
+  min-width: 0;
+  gap: 0.7rem;
+}
+
+.board-kiosk-terminal .kiosk-session-logo,
+.board-kiosk-terminal .kiosk-panel-logo,
+.board-kiosk-terminal .kiosk-login-logo {
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 1px solid var(--board-kiosk-rule);
+  border-radius: 0 !important;
+  background: var(--board-kiosk-white);
+  box-shadow: none;
+}
+
+.board-kiosk-terminal .kiosk-session-meta span {
+  display: block;
+  width: max-content;
+  border-radius: 0 !important;
+  background: transparent;
+  padding: 0;
+  color: var(--board-kiosk-orange);
+  font-size: 0.64rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+}
+
+.board-kiosk-terminal .kiosk-session-meta strong {
+  margin-top: 0.2rem;
+  color: var(--board-kiosk-ink);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.28rem;
+  font-weight: 700;
+}
+
+.board-kiosk-terminal .kiosk-session-meta em {
+  color: var(--board-kiosk-muted);
+  font-size: 0.83rem;
+  font-weight: 600;
+}
+
+.board-kiosk-terminal .kiosk-session-window {
+  justify-content: flex-end;
+  border: 0;
+  padding: 0;
+  color: var(--board-kiosk-muted);
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.board-kiosk-terminal .kiosk-session-window svg {
+  color: var(--board-kiosk-orange);
+}
+
+.board-kiosk-terminal .kiosk-shell {
+  width: min(calc(100% - 4rem), 100rem);
+  min-height: 0;
+  flex: 1 0 auto;
+  grid-template-columns: minmax(15rem, 21rem) minmax(0, 1fr);
+  gap: clamp(1.5rem, 4vw, 3.5rem);
+  margin: 0 auto;
+}
+
+.board-kiosk-terminal .kiosk-election-panel {
+  overflow: visible;
+  border: 0;
+  border-right: 1px solid var(--board-kiosk-rule);
+  background: transparent;
+  padding: 2rem 1.5rem 2rem 0;
+}
+
+.board-kiosk-terminal .kiosk-panel-cover {
+  margin-bottom: 1.2rem;
+}
+
+.board-kiosk-terminal .kiosk-panel-cover .election-cover {
+  max-height: 10rem;
+  border-radius: 0 !important;
+}
+
+.board-kiosk-terminal .secure-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 0;
+  border-radius: 0 !important;
+  background: transparent;
+  padding: 0;
+  color: var(--board-kiosk-orange);
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.board-kiosk-terminal .kiosk-election-panel h1 {
+  margin-top: 0.65rem;
+  overflow-wrap: anywhere;
+  font-size: clamp(1.6rem, 2.4vw, 2.1rem);
+}
+
+.board-kiosk-terminal .kiosk-election-panel > p {
+  margin-top: 0.45rem;
+  color: var(--board-kiosk-muted);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.board-kiosk-terminal .kiosk-change-session,
+.board-kiosk-terminal .kiosk-subtle-action {
+  min-height: 2.6rem;
+  border: 0;
+  border-radius: 0 !important;
+  border-bottom: 1px solid var(--board-kiosk-rule);
+  background: transparent;
+  color: var(--board-kiosk-muted);
+  font-size: 0.73rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.board-kiosk-terminal .kiosk-change-session {
+  width: auto;
+  margin-top: 0.8rem;
+  padding: 0 0.2rem;
+}
+
+.board-kiosk-terminal .kiosk-change-session:hover,
+.board-kiosk-terminal .kiosk-subtle-action:hover {
+  border-bottom-color: var(--board-kiosk-orange);
+  color: var(--board-kiosk-ink);
+}
+
+.board-kiosk-terminal .kiosk-window,
+.board-kiosk-terminal .kiosk-progress {
+  gap: 0.4rem;
+  border: 0;
+  border-radius: 0 !important;
+  border-top: 1px solid var(--board-kiosk-rule);
+  margin-top: 1.2rem;
+  background: transparent;
+  padding: 0.8rem 0 0;
+}
+
+.board-kiosk-terminal .kiosk-window span,
+.board-kiosk-terminal .kiosk-progress span {
+  color: var(--board-kiosk-muted);
+  font-size: 0.63rem;
+  letter-spacing: 0.11em;
+}
+
+.board-kiosk-terminal .kiosk-window strong,
+.board-kiosk-terminal .kiosk-progress strong {
+  color: var(--board-kiosk-ink);
+  font-size: 0.83rem;
+  font-weight: 650;
+}
+
+.board-kiosk-terminal .kiosk-window em {
+  border-radius: 0 !important;
+  background: transparent;
+  padding: 0;
+  color: var(--board-kiosk-orange);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+}
+
+.board-kiosk-terminal .kiosk-workspace {
+  min-width: 0;
+  overflow: visible;
+  padding: 2rem 0 3rem;
+}
+
+.board-kiosk-terminal .kiosk-login,
+.board-kiosk-terminal .kiosk-state,
+.board-kiosk-terminal .kiosk-review,
+.board-kiosk-terminal .kiosk-ballot,
+.board-kiosk-terminal .kiosk-access {
+  width: min(100%, 48rem);
+  border: 0;
+  border-radius: 0 !important;
+  background: transparent;
+  box-shadow: none;
+}
+
+.board-kiosk-terminal .kiosk-login {
+  max-width: 32rem;
+  gap: 1.05rem;
+  border-top: 2px solid var(--board-kiosk-ink);
+  margin: clamp(0rem, 5vh, 3rem) auto;
+  padding: 1.4rem 0 0;
+}
+
+.board-kiosk-terminal .kiosk-login-title {
+  justify-items: start;
+  gap: 0.4rem;
+  padding-bottom: 0.65rem;
+  text-align: left;
+}
+
+.board-kiosk-terminal .kiosk-login-title .kiosk-login-logo {
+  display: none;
+}
+
+.board-kiosk-terminal .kiosk-login-title p,
+.board-kiosk-terminal .kiosk-review .chart-eyebrow,
+.board-kiosk-terminal .kiosk-ballot-head .chart-eyebrow {
+  margin: 0;
+  color: var(--board-kiosk-orange);
+  font-size: 0.67rem;
+  font-weight: 850;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.board-kiosk-terminal .kiosk-login-title p {
+  color: var(--board-kiosk-muted);
+  font-size: 0.88rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.5;
+  text-transform: none;
+}
+
+.board-kiosk-terminal .kiosk-login-title span {
+  color: var(--board-kiosk-muted);
+  font-size: 0.76rem;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.board-kiosk-terminal .kiosk-login-title h2,
+.board-kiosk-terminal .kiosk-state h2,
+.board-kiosk-terminal .kiosk-review h2,
+.board-kiosk-terminal .kiosk-ballot-head h2,
+.board-kiosk-terminal .kiosk-access-head h2 {
+  margin: 0;
+  color: var(--board-kiosk-ink);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.65rem, 2.8vw, 2.2rem);
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.board-kiosk-terminal .kiosk-login-title span,
+.board-kiosk-terminal .kiosk-state p {
+  color: var(--board-kiosk-muted);
+  font-size: 0.87rem;
+  font-weight: 550;
+  line-height: 1.5;
+}
+
+.board-kiosk-terminal .kiosk-login label {
+  gap: 0.35rem;
+}
+
+.board-kiosk-terminal .kiosk-login label > span {
+  color: var(--board-kiosk-muted);
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+}
+
+.board-kiosk-terminal .kiosk-login input,
+.board-kiosk-terminal .kiosk-password {
+  min-height: 3.2rem;
+  border: 1px solid var(--board-kiosk-rule);
+  border-radius: 0 !important;
+  background: var(--board-kiosk-white);
+  box-shadow: none;
+}
+
+.board-kiosk-terminal .kiosk-login input {
+  padding: 0 0.8rem;
+  color: var(--board-kiosk-ink);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.board-kiosk-terminal .kiosk-login input:focus,
+.board-kiosk-terminal .kiosk-password:focus-within {
+  border-color: var(--board-kiosk-orange);
+  box-shadow: none;
+}
+
+.board-kiosk-terminal .kiosk-password input {
+  min-height: 0;
+  border: 0;
+  background: transparent;
+}
+
+.board-kiosk-terminal .kiosk-password button {
+  min-height: 3rem;
+  width: 3rem;
+  color: var(--board-kiosk-muted);
+  cursor: pointer;
+}
+
+.board-kiosk-terminal .primary-btn,
+.board-kiosk-terminal .secondary-btn {
+  min-height: 2.9rem;
+  justify-content: center;
+  gap: 0.45rem;
+  border-radius: 0 !important;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.board-kiosk-terminal .primary-btn {
+  border: 1px solid var(--board-kiosk-orange);
+  background: var(--board-kiosk-orange);
+  color: #fff;
+}
+
+.board-kiosk-terminal .primary-btn:hover:not(:disabled) {
+  border-color: #d94120;
+  background: #d94120;
+}
+
+.board-kiosk-terminal .secondary-btn {
+  border: 1px solid var(--board-kiosk-rule);
+  background: transparent;
+  color: var(--board-kiosk-ink);
+}
+
+.board-kiosk-terminal .secondary-btn:hover:not(:disabled) {
+  border-color: var(--board-kiosk-ink);
+  background: transparent;
+}
+
+.board-kiosk-terminal .kiosk-state {
+  min-height: 11rem;
+  align-content: center;
+  justify-items: start;
+  gap: 0.75rem;
+  border-top: 2px solid var(--board-kiosk-ink);
+  padding: 1.5rem 0;
+  text-align: left;
+}
+
+.board-kiosk-terminal .kiosk-state > svg {
+  width: 1.7rem;
+  height: 1.7rem;
+  color: var(--board-kiosk-orange);
+}
+
+.board-kiosk-terminal .kiosk-review,
+.board-kiosk-terminal .kiosk-ballot,
+.board-kiosk-terminal .kiosk-access {
+  margin: 0 auto;
+  padding: 0;
+}
+
+.board-kiosk-terminal .kiosk-access-head {
+  display: grid;
+  justify-items: start;
+  gap: 0.65rem;
+}
+
+.board-kiosk-terminal .kiosk-access-head p {
+  max-width: 38rem;
+  margin: 0;
+  color: var(--board-kiosk-muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.board-kiosk-terminal .kiosk-review > h2,
+.board-kiosk-terminal .kiosk-ballot-head,
+.board-kiosk-terminal .kiosk-access-head {
+  border-bottom: 1px solid var(--board-kiosk-rule);
+  padding-bottom: 1rem;
+}
+
+.board-kiosk-terminal .kiosk-ballot-head {
+  align-items: end;
+}
+
+.board-kiosk-terminal .kiosk-position {
+  border: 0;
+  border-bottom: 1px solid var(--board-kiosk-rule);
+  border-radius: 0 !important;
+  background: transparent;
+  padding: 1.1rem 0;
+  box-shadow: none;
+}
+
+.board-kiosk-terminal .kiosk-choice-list .ballot-choice {
+  border-radius: 0 !important;
+  box-shadow: none;
+}
+
+.board-kiosk-terminal .kiosk-choice-list .ballot-choice:focus-visible {
+  outline: 2px solid var(--board-kiosk-orange);
+  outline-offset: 2px;
+}
+
+.board-kiosk-terminal .kiosk-review-list > div,
+.board-kiosk-terminal .kiosk-receipt > div {
+  border-bottom: 1px solid var(--board-kiosk-rule);
+  border-radius: 0 !important;
+  background: transparent;
+  padding: 0.8rem 0;
+}
+
+.board-kiosk-terminal .kiosk-actions,
+.board-kiosk-terminal .kiosk-success-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  border: 0;
+  border-radius: 0 !important;
+  background: transparent;
+  padding: 1rem 0 0;
+}
+
+.board-kiosk-terminal .kiosk-feedback {
+  border-left: 2px solid var(--board-kiosk-orange);
+  border-radius: 0 !important;
+  background: transparent;
+  padding: 0.5rem 0.75rem;
+}
+
+.board-kiosk-terminal .kiosk-feedback.success {
+  border-left-color: #21845b;
+  color: #176742;
+}
+
+.board-kiosk-terminal .kiosk-feedback.error {
+  border-left-color: #b94125;
+  color: #92341f;
+}
+
+@media (max-width: 900px) {
+  .board-kiosk-terminal .kiosk-empty-state {
+    min-height: calc(100dvh - 4.4rem);
+    grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.9fr);
+    gap: 2rem;
+  }
+
+  .board-kiosk-terminal .kiosk-shell {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .board-kiosk-terminal .kiosk-election-panel {
+    border-right: 0;
+    border-bottom: 1px solid var(--board-kiosk-rule);
+    padding: 1.3rem 0;
+  }
+
+  .board-kiosk-terminal .kiosk-panel-cover {
+    display: none;
+  }
+
+  .board-kiosk-terminal .kiosk-window,
+  .board-kiosk-terminal .kiosk-progress {
+    display: none;
+  }
+
+  .board-kiosk-terminal .kiosk-workspace {
+    padding: 1.5rem 0 2rem;
+  }
+
+  .board-kiosk-terminal .kiosk-login {
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 700px) {
+  .board-kiosk-terminal .kiosk-empty-state {
+    min-height: 0;
+    flex: 1 0 auto;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: center;
+    gap: clamp(0.55rem, 1.5vh, 0.9rem);
+    padding-block: clamp(0.8rem, 3vh, 1.4rem);
+  }
+
+  .board-kiosk-terminal .kiosk-empty-copy {
+    gap: 0.65rem;
+  }
+
+  .board-kiosk-terminal .kiosk-empty-copy h1 {
+    max-width: 18ch;
+    font-size: clamp(1.8rem, 8vw, 2.35rem);
+    line-height: 1.04;
+  }
+
+  .board-kiosk-terminal .kiosk-empty-copy p {
+    font-size: 1rem;
+  }
+
+  .board-kiosk-terminal .kiosk-empty-mascot {
+    justify-items: start;
+  }
+
+  .board-kiosk-terminal .kiosk-empty-mascot svg {
+    width: min(13rem, 38vw, 27dvh);
+  }
+}
+
+@media (max-width: 600px) {
+  .board-kiosk-terminal .kiosk-terminal-header {
+    width: calc(100% - 2rem);
+    min-height: 4.4rem;
+    align-items: center;
+    flex-direction: row;
+    padding: 0.65rem 1rem;
+  }
+
+  .board-kiosk-terminal .kiosk-terminal-header strong {
+    font-size: 1.05rem;
+  }
+
+  .board-kiosk-terminal .kiosk-exit {
+    width: auto;
+    min-height: 2.4rem;
+    justify-content: center;
+    gap: 0.3rem;
+    font-size: 0.65rem;
+  }
+
+  .board-kiosk-terminal .kiosk-entry-state,
+  .board-kiosk-terminal .kiosk-selection {
+    width: calc(100% - 2rem);
+    margin: 1.4rem auto;
+  }
+
+  .board-kiosk-terminal .kiosk-empty-state {
+    min-height: 0;
+    flex: 1 0 auto;
+    grid-template-columns: minmax(0, 1fr) minmax(7rem, 0.5fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    align-content: stretch;
+    margin-block: 0;
+  }
+
+  .board-kiosk-terminal .kiosk-empty-copy {
+    grid-column: 1 / -1;
+  }
+
+  .board-kiosk-terminal .kiosk-empty-mascot svg {
+    width: min(12rem, 38vw, 27dvh);
+  }
+
+  .board-kiosk-terminal .kiosk-empty-mascot {
+    grid-column: 2;
+    grid-row: 2;
+    justify-items: end;
+    justify-self: end;
+    align-self: end;
+    padding-right: clamp(0.5rem, 3vw, 1rem);
+    padding-bottom: clamp(0.25rem, 1.5vh, 0.75rem);
+  }
+
+  .board-kiosk-terminal .kiosk-entry-state {
+    min-height: 0;
+    padding: 1.35rem 0;
+  }
+
+  .board-kiosk-terminal .kiosk-entry-state h1,
+  .board-kiosk-terminal .kiosk-selection-head h1 {
+    font-size: 1.8rem;
+  }
+
+  .board-kiosk-terminal .kiosk-selection-head {
+    align-items: flex-start;
+    flex-direction: row;
+    gap: 0.75rem;
+  }
+
+  .board-kiosk-terminal .kiosk-selection-head > .secondary-btn {
+    width: auto;
+    min-width: 0;
+    min-height: 2.25rem;
+    padding-inline: 0.45rem;
+    font-size: 0.63rem;
+  }
+
+  .board-kiosk-terminal .kiosk-session-card {
+    min-height: 5.75rem;
+    grid-template-columns: 4.25rem minmax(0, 1fr);
+    gap: 0.7rem;
+    padding: 0.75rem 0;
+  }
+
+  .board-kiosk-terminal .kiosk-session-cover {
+    width: 4.25rem;
+    height: 3rem;
+  }
+
+  .board-kiosk-terminal .kiosk-session-logo {
+    display: none;
+  }
+
+  .board-kiosk-terminal .kiosk-session-meta strong {
+    font-size: 1.08rem;
+  }
+
+  .board-kiosk-terminal .kiosk-session-window {
+    grid-column: 2;
+    justify-content: flex-start;
+    margin-top: -0.35rem;
+    font-size: 0.72rem;
+  }
+
+  .board-kiosk-terminal .kiosk-session-meta {
+    gap: 0;
+  }
+
+  .board-kiosk-terminal .kiosk-shell {
+    width: calc(100% - 2rem);
+  }
+
+  .board-kiosk-terminal .kiosk-election-panel {
+    padding: 1rem 0;
+  }
+
+  .board-kiosk-terminal .kiosk-election-panel h1 {
+    font-size: 1.45rem;
+  }
+
+  .board-kiosk-terminal .kiosk-workspace {
+    padding: 1.15rem 0 2rem;
+  }
+
+  .board-kiosk-terminal .kiosk-login {
+    gap: 0.9rem;
+    padding-top: 1rem;
+  }
+
+  .board-kiosk-terminal .kiosk-login-title h2,
+  .board-kiosk-terminal .kiosk-state h2,
+  .board-kiosk-terminal .kiosk-review h2,
+  .board-kiosk-terminal .kiosk-ballot-head h2,
+  .board-kiosk-terminal .kiosk-access-head h2 {
+    font-size: 1.65rem;
+  }
+
+  .board-kiosk-terminal .kiosk-actions,
+  .board-kiosk-terminal .kiosk-success-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .board-kiosk-terminal .kiosk-actions .primary-btn,
+  .board-kiosk-terminal .kiosk-actions .secondary-btn,
+  .board-kiosk-terminal .kiosk-success-actions .primary-btn,
+  .board-kiosk-terminal .kiosk-success-actions .secondary-btn {
+    width: 100%;
+  }
+}

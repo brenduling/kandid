@@ -10,6 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
+import SuperAdminPageHeader from "../../components/SuperAdminPageHeader";
 import OrganizationSelect from "../../components/OrganizationSelect";
 import { usePrompt } from "../../context/PromptContext";
 import { logAuditEvent } from "../../utils/auditLog";
@@ -294,31 +295,17 @@ function UsersRoles() {
 
   return (
     <div className="sa-remaining-page sa-users-roles">
-      <div className="page-head">
-        <div>
-          <p className="sa-remaining-breadcrumb"><span>Kandid</span><span>/</span><span>Super Admin</span></p>
-          <div className="page-kicker">Access Control</div>
-          <h1 className="page-title">
-            Users and
-            <span className="page-title-accent"> board access</span>
-          </h1>
-          <p className="page-subtitle">
-            Register electoral board accounts for specific organizations and keep
-            super admin access separate from organization-level operations.
-          </p>
-        </div>
-
-        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-          <button onClick={() => openCreate("electoral_board")} className="primary-btn">
-            <ShieldCheck size={18} />
-            Add Electoral Board Access
-          </button>
-          <button onClick={() => openCreate("super_admin")} className="secondary-btn">
-            <UserCog size={18} />
-            Add Super Admin
-          </button>
-        </div>
-      </div>
+      <SuperAdminPageHeader
+        section="Access management"
+        title="Electoral Board Access"
+        description="Manage Board accounts by organization and keep Super Admin access separate."
+        actions={(
+          <>
+            <button onClick={() => openCreate("electoral_board")} className="primary-btn"><ShieldCheck size={18} />Add Electoral Board Access</button>
+            <button onClick={() => openCreate("super_admin")} className="secondary-btn"><UserCog size={18} />Add Super Admin</button>
+          </>
+        )}
+      />
 
       <div className="section-grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
         <div className="metric-card lift-card">
@@ -644,8 +631,10 @@ function UsersRoles() {
 
               {form.role === "electoral_board" ? (
                 <OrganizationSelect
+                  id="sa-board-user-organization"
                   label="Assigned Organization"
                   organizations={organizations}
+                  required
                   value={form.organization_id}
                   onChange={(organizationId) =>
                     setForm({ ...form, organization_id: organizationId })

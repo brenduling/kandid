@@ -1,260 +1,378 @@
-import { useEffect, useState } from "react";
-import "./BoardRemainingPages.css";
-import { Download, FileText, Vote, Users, BarChart3 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, Download, RefreshCw } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { usePrompt } from "../../context/PromptContext";
+import { toBoardFacingError } from "../../utils/boardFeedback";
+import { formatTurnoutPercentage, turnoutAvailabilityLabel, turnoutMetricValue } from "../../utils/electionTurnout";
+import {
+  buildBoardReportCsv,
+  buildVotingSummaryRows,
+  boardVotingSummaryCsvColumns,
+  electionReportFilename,
+  formatElectionPeriod,
+  getBoardOrganizationName,
+  getReportRecordCount,
+} from "../../utils/boardReports";
+import "./Reports.css";
+
+const REPORT_DEFINITIONS = [
+  {
+    key: "election_report",
+    title: "Election Report",
+    description: "Election details and schedule for this record.",
+    columns: [
+      "election_id", "title", "organization_id", "campaign_start", "campaign_end",
+      "start_date", "end_date", "status", "location_label", "created_at",
+    ],
+  },
+  {
+    key: "position_report",
+    title: "Position Report",
+    description: "Ballot positions and selection limits for this election.",
+    columns: ["position_id", "election_id", "position_name", "max_votes"],
+  },
+  {
+    key: "candidate_report",
+    title: "Candidate Report",
+    description: "Candidate roster with flattened student and position details.",
+    columns: [
+      "candidate_id", "position_name", "student_id", "candidate_name", "student_number",
+      "partylist_id", "partylist_name", "platform", "photo", "campaign_status", "created_at",
+    ],
+  },
+  {
+    key: "voting_summary",
+    title: "Voting Summary",
+    description: "Candidate vote totals, abstentions, and ballot-count availability.",
+    columns: boardVotingSummaryCsvColumns,
+  },
+];
+
+function readBoardUser() {
+  try {
+    return JSON.parse(localStorage.getItem("user") || "null");
+  } catch {
+    return null;
+  }
+}
+
+function ElectionRegisterRow({ election, onSelect }) {
+  const statusLabel = election.status
+    ? String(election.status).replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase())
+    : "Status unavailable";
+
+  return (
+    <button
+      type="button"
+      className="board-reports-election-row"
+      onClick={() => onSelect(election.id)}
+    >
+      <span className="board-reports-election-identity">
+        <span className="board-reports-election-name">{election.title || "Untitled Election"}</span>
+        <span className="board-reports-election-meta">
+          <span>Voting</span>
+          <span className="board-reports-meta-separator" aria-hidden="true">·</span>
+          <span>{formatElectionPeriod(election)}</span>
+          <span className="board-reports-meta-separator" aria-hidden="true">·</span>
+          <span className="board-reports-election-status">Status: {statusLabel}</span>
+        </span>
+      </span>
+    </button>
+  );
+}
 
 function BoardReports() {
   const prompt = usePrompt();
+  const user = readBoardUser();
+  const organizationName = getBoardOrganizationName(user);
   const [elections, setElections] = useState([]);
-  const [positions, setPositions] = useState([]);
-  const [candidates, setCandidates] = useState([]);
-  const [votes, setVotes] = useState([]);
-
-  const user = JSON.parse(localStorage.getItem("user"));
-  const orgId = user?.organization_id;
-  const orgName = user?.organizations?.name || "organization";
+  const [electionsLoading, setElectionsLoading] = useState(true);
+  const [electionsError, setElectionsError] = useState("");
+  const [electionsRetry, setElectionsRetry] = useState(0);
+  const [selectedElectionId, setSelectedElectionId] = useState("");
+  const [reportPackage, setReportPackage] = useState(null);
+  const [packageLoading, setPackageLoading] = useState(false);
+  const [packageError, setPackageError] = useState("");
+  const [packageRetry, setPackageRetry] = useState(0);
 
   useEffect(() => {
-    fetchReportData();
-  }, [orgId]);
+    let current = true;
+    supabase.rpc("kandid_list_board_report_elections")
+      .then(({ data, error }) => {
+        if (!current) return;
+        if (error) throw error;
+        const rows = Array.isArray(data?.elections) ? data.elections : [];
+        setElections(rows);
+      })
+      .catch((error) => {
+        if (!current) return;
+        setElectionsError(toBoardFacingError(error?.message, "Unable to load the election register."));
+      })
+      .finally(() => {
+        if (current) setElectionsLoading(false);
+      });
 
-  async function fetchReportData() {
-    if (!orgId) return;
+    return () => {
+      current = false;
+    };
+  }, [electionsRetry]);
 
-    const { data: electionData, error: electionError } = await supabase
-      .from("elections")
-      .select("id, title, organization_id, campaign_start, campaign_end, start_date, end_date, status, location_label, created_at")
-      .eq("organization_id", orgId);
+  useEffect(() => {
+    if (!selectedElectionId) return undefined;
 
-    if (electionError) {
-      console.error("Failed to load board report elections:", electionError);
-      return;
+    let current = true;
+
+    const electionId = Number(selectedElectionId);
+    if (!Number.isInteger(electionId) || electionId <= 0) {
+      Promise.resolve().then(() => {
+        if (current) setPackageError("The selected election is unavailable.");
+        if (current) setPackageLoading(false);
+      });
+      return undefined;
     }
 
-    const electionIds = electionData?.map((election) => election.id) || [];
+    supabase.rpc("kandid_get_board_election_report_package", {
+      p_election_id: electionId,
+    })
+      .then(({ data, error }) => {
+        if (!current) return;
+        if (error) throw error;
+        if (!data || typeof data !== "object") {
+          throw new Error("The selected election report package was empty.");
+        }
+        setReportPackage(data);
+      })
+      .catch((error) => {
+        if (!current) return;
+        setPackageError(toBoardFacingError(error?.message, "Unable to load reports for this election."));
+      })
+      .finally(() => {
+        if (current) setPackageLoading(false);
+      });
 
-    setElections(electionData || []);
-    setPositions([]);
-    setCandidates([]);
-    setVotes([]);
+    return () => {
+      current = false;
+    };
+  }, [selectedElectionId, packageRetry]);
 
-    if (electionIds.length === 0) return;
+  const selectedElection = useMemo(
+    () => elections.find((election) => String(election.id) === String(selectedElectionId)),
+    [elections, selectedElectionId],
+  );
+  const packageElection = reportPackage?.election_report;
+  const selectedTitle = packageElection?.title || selectedElection?.title || "Selected election";
+  const votingSummary = reportPackage?.voting_summary;
 
-    const [
-      { data: positionData, error: positionError },
-      { data: voteData, error: voteError },
-    ] = await Promise.all([
-      supabase
-        .from("positions")
-        .select("id, name, election_id, max_votes")
-        .in("election_id", electionIds),
-      supabase
-        .from("votes")
-        .select("id, election_id, position_id, candidate_id, student_id, vote_hash, blockchain_tx_id, vote_timestamp")
-        .in("election_id", electionIds),
-    ]);
-
-    if (positionError) {
-      console.error("Failed to load board report positions:", positionError);
-    }
-
-    if (voteError) {
-      console.error("Failed to load board report votes:", voteError);
-    }
-
-    const positionIds = positionData?.map((position) => position.id) || [];
-
-    setPositions(positionData || []);
-    setVotes(voteData || []);
-
-    if (positionIds.length > 0) {
-      const { data: candidateData, error: candidateError } = await supabase
-        .from("candidates")
-        .select(`
-          id,
-          position_id,
-          student_id,
-          partylist_id,
-          platform,
-          photo,
-          campaign_status,
-          created_at,
-          students (
-            first_name,
-            last_name,
-            student_number
-          ),
-          positions (
-            name
-          )
-        `)
-        .in("position_id", positionIds);
-
-      if (candidateError) {
-        console.error("Failed to load board report candidates:", candidateError);
-      }
-
-      setCandidates(candidateData || []);
-    }
+  function selectElection(electionId) {
+    setSelectedElectionId(String(electionId || ""));
+    setReportPackage(null);
+    setPackageError("");
+    setPackageLoading(Boolean(electionId));
   }
 
-  function downloadCSV(filename, rows) {
-    if (!rows.length) {
-      prompt.info("No data to export.");
-      return;
+  function retryElectionRegister() {
+    setElectionsLoading(true);
+    setElectionsError("");
+    setElectionsRetry((value) => value + 1);
+  }
+
+  function retryReportPackage() {
+    setReportPackage(null);
+    setPackageError("");
+    setPackageLoading(true);
+    setPackageRetry((value) => value + 1);
+  }
+
+  function exportReport(definition) {
+    if (!reportPackage) return;
+    const dataset = reportPackage[definition.key];
+    let rows;
+    if (definition.key === "election_report") {
+      rows = dataset && typeof dataset === "object" ? [dataset] : [];
+    } else if (definition.key === "voting_summary") {
+      rows = buildVotingSummaryRows(dataset);
+    } else {
+      rows = Array.isArray(dataset) ? dataset : [];
     }
 
-    const headers = Object.keys(rows[0]);
-
-    const csv = [
-      headers.join(","),
-      ...rows.map((row) =>
-        headers
-          .map((field) => {
-            const value = row[field] ?? "";
-            return `"${String(value).replaceAll('"', '""')}"`;
-          })
-          .join(",")
-      ),
-    ].join("\n");
-
-    const blob = new Blob([csv], {
-      type: "text/csv;charset=utf-8;",
-    });
-
+    const csv = buildBoardReportCsv(rows, definition.columns);
+    const filename = electionReportFilename(organizationName, selectedTitle, definition.title);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-
     link.href = url;
     link.download = filename;
     link.click();
-
     URL.revokeObjectURL(url);
+    if (rows.length === 0) {
+      prompt.info("This report has no records; the downloaded CSV contains its column headers only.");
+    }
   }
 
-  const reports = [
-    {
-      title: "Election Report",
-      description: "Export elections handled by your organization.",
-      icon: Vote,
-      action: () =>
-        downloadCSV(`${orgName}-elections.csv`, elections),
-    },
-    {
-      title: "Position Report",
-      description: "Export positions created under your elections.",
-      icon: FileText,
-      action: () =>
-        downloadCSV(`${orgName}-positions.csv`, positions),
-    },
-    {
-      title: "Candidate Report",
-      description: "Export candidate records and assigned positions.",
-      icon: Users,
-      action: () =>
-        downloadCSV(`${orgName}-candidates.csv`, candidates),
-    },
-    {
-      title: "Vote Report",
-      description: "Export vote records for your organization elections.",
-      icon: BarChart3,
-      action: () =>
-        downloadCSV(`${orgName}-votes.csv`, votes),
-    },
-  ];
-
-  const uniqueVoters = new Set(votes.map((vote) => vote.student_id)).size;
+  const reportRecordCounts = useMemo(() => {
+    if (!reportPackage) return {};
+    return Object.fromEntries(REPORT_DEFINITIONS.map((definition) => [
+      definition.key,
+      getReportRecordCount(reportPackage, definition.key),
+    ]));
+  }, [reportPackage]);
 
   return (
-    <div className="board-remaining-page board-reports">
-      <div className="page-head">
-        <div>
-          <p className="board-remaining-breadcrumb"><span>Kandid</span><span>/</span><span>Electoral Board</span></p>
-          <div className="page-kicker">Records Export</div>
-          <h1 className="page-title">Board reports</h1>
-          <p className="page-subtitle">
-          Export election records for your assigned organization.
-          </p>
+    <main className="board-reports-page">
+      <header className="board-reports-masthead">
+        <div className="board-reports-context">
+          <span className="board-reports-eyebrow">Electoral Board / {organizationName}</span>
+          <span className="board-reports-context-rule" aria-hidden="true" />
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 gap-4 mt-8 sm:grid-cols-2 xl:grid-cols-4 xl:gap-6">
-        <div className="metric-card">
-          <div className="flex items-start justify-between gap-3">
-            <p className="field-label">Elections</p>
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[rgba(255,90,31,0.1)] text-[#ff5a1f]">
-              <Vote size={18} />
-            </span>
+        <div className="board-reports-baseline">
+          <h1 className="page-title board-reports-title">Reports</h1>
+        </div>
+
+        <p className="board-reports-standfirst">Export election records for {organizationName}.</p>
+      </header>
+
+      {!selectedElectionId ? (
+        <section className="board-reports-selector" aria-labelledby="board-reports-select-title">
+          <div className="board-reports-section-head">
+            <div>
+              <p className="board-reports-section-kicker">Election context</p>
+              <h2 id="board-reports-select-title">Select an election</h2>
+            </div>
+            {!electionsLoading && !electionsError ? (
+              <span className="board-reports-count">{elections.length} election{elections.length === 1 ? "" : "s"}</span>
+            ) : null}
           </div>
-          <h2 className="mt-6 text-4xl font-black leading-none">{elections.length}</h2>
-        </div>
 
-        <div className="metric-card">
-          <div className="flex items-start justify-between gap-3">
-            <p className="field-label">Positions</p>
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[rgba(255,90,31,0.1)] text-[#ff5a1f]">
-              <FileText size={18} />
-            </span>
-          </div>
-          <h2 className="mt-6 text-4xl font-black leading-none">{positions.length}</h2>
-        </div>
-
-        <div className="metric-card">
-          <div className="flex items-start justify-between gap-3">
-            <p className="field-label">Candidates</p>
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[rgba(255,90,31,0.1)] text-[#ff5a1f]">
-              <Users size={18} />
-            </span>
-          </div>
-          <h2 className="mt-6 text-4xl font-black leading-none">{candidates.length}</h2>
-        </div>
-
-        <div className="metric-card">
-          <div className="flex items-start justify-between gap-3">
-            <p className="field-label">Unique Voters</p>
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[rgba(255,90,31,0.1)] text-[#ff5a1f]">
-              <BarChart3 size={18} />
-            </span>
-          </div>
-          <h2 className="mt-6 text-4xl font-black leading-none">{uniqueVoters}</h2>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 mt-8 xl:grid-cols-2 xl:gap-6">
-        {reports.map((report) => {
-          const Icon = report.icon;
-
-          return (
-            <div
-              key={report.title}
-              className="entity-card lift-card flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div className="flex gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[rgba(255,90,31,0.1)] text-[#ff5a1f]">
-                  <Icon size={22} />
+          {electionsLoading ? (
+            <div className="board-reports-register-skeleton" role="status" aria-label="Loading election register" aria-busy="true">
+              {[0, 1, 2, 3].map((row) => (
+                <div className="board-reports-election-skeleton" key={row}>
+                  <span className="is-name" />
+                  <span className="is-meta" />
                 </div>
+              ))}
+            </div>
+          ) : electionsError ? (
+            <div className="board-reports-state board-reports-error" role="alert">
+              <p>{electionsError}</p>
+              <button type="button" onClick={retryElectionRegister} className="board-reports-text-action">
+                <RefreshCw size={14} aria-hidden="true" /> Retry
+              </button>
+            </div>
+          ) : elections.length === 0 ? (
+            <p className="board-reports-state">No elections are available for this Board organization.</p>
+          ) : (
+            <>
+              <div className="board-reports-election-list">
+                {elections.map((election) => (
+                  <ElectionRegisterRow key={election.id} election={election} onSelect={selectElection} />
+                ))}
+              </div>
+            </>
+          )}
+        </section>
+      ) : (
+        <div className="board-reports-workspace">
+          <section className="board-reports-selected" aria-labelledby="board-reports-selected-title">
+            <div className="board-reports-selected-copy">
+              <p className="board-reports-section-kicker">Reports for</p>
+              <h2 id="board-reports-selected-title">{selectedTitle}</h2>
+              <p className="board-reports-selected-meta">
+                {selectedElection?.status || packageElection?.status || "Election report context"}
+                {selectedElection ? ` · ${formatElectionPeriod(selectedElection)}` : ""}
+              </p>
+            </div>
+            <button type="button" onClick={() => selectElection("")} className="board-reports-back">
+              <ArrowLeft size={15} aria-hidden="true" /> Change election
+            </button>
+          </section>
 
+          {packageLoading ? (
+            <div className="board-reports-package-skeleton" role="status" aria-label={`Loading reports for ${selectedTitle}`} aria-busy="true">
+              {[0, 1, 2, 3].map((row) => (
+                <div className="board-reports-package-skeleton-row" key={row}>
+                  <span className="is-title" />
+                  <span className="is-copy" />
+                  <span className="is-action" />
+                </div>
+              ))}
+            </div>
+          ) : packageError ? (
+            <div className="board-reports-state board-reports-error" role="alert">
+              <p>{packageError}</p>
+              <button type="button" onClick={retryReportPackage} className="board-reports-text-action">
+                <RefreshCw size={14} aria-hidden="true" /> Retry report package
+              </button>
+              <button type="button" onClick={() => selectElection("")} className="board-reports-text-action">
+                Choose another election
+              </button>
+            </div>
+          ) : reportPackage ? (
+            <section className="board-reports-available" aria-labelledby="board-reports-available-title">
+              <div className="board-reports-section-head board-reports-available-head">
                 <div>
-                  <h3 className="font-black text-lg">{report.title}</h3>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {report.description}
-                  </p>
+                  <p className="board-reports-section-kicker">Available reports</p>
+                  <h3 id="board-reports-available-title">Reports for {selectedTitle}</h3>
                 </div>
               </div>
 
-              <button
-                onClick={report.action}
-                className="primary-btn w-full sm:w-auto"
-              >
-                <Download size={16} />
-                Export
-              </button>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+              {votingSummary ? (
+                <>
+                  <dl className="board-reports-turnout" aria-label="Election voter turnout">
+                    <div><dt>Eligible Voters</dt><dd>{turnoutMetricValue(votingSummary, "eligible_voters")}</dd></div>
+                    <div><dt>Voters Participated</dt><dd>{turnoutMetricValue(votingSummary, "participated_voters")}</dd></div>
+                    <div>
+                      <dt>Voter Turnout</dt>
+                      <dd>{formatTurnoutPercentage(votingSummary)}</dd>
+                      <small>{turnoutAvailabilityLabel(votingSummary)}</small>
+                    </div>
+                  </dl>
+                  <div className="board-reports-ballot-note" aria-live="polite">
+                    {votingSummary.ballot_count_availability === "legacy_unavailable" ? (
+                      <span>Ballot count unavailable for legacy vote records.</span>
+                    ) : votingSummary.ballot_count_availability === "mixed_ballot_and_legacy" ? (
+                      <span>
+                        {votingSummary.authoritative_ballot_count} recorded ballots; legacy vote rows also exist and are not included in that count.
+                      </span>
+                    ) : (
+                      <span>{votingSummary.authoritative_ballot_count} recorded ballots.</span>
+                    )}
+                  </div>
+                </>
+              ) : null}
+
+              <div className="board-reports-report-list">
+                {REPORT_DEFINITIONS.map((report, index) => {
+                  const count = reportRecordCounts[report.key] ?? 0;
+                  return (
+                    <article className="board-reports-report-row" key={report.key}>
+                      <span className="board-reports-report-index" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+                      <div className="board-reports-report-copy">
+                        <h4>{report.title}</h4>
+                        <p>{report.description}</p>
+                        {count === 0 ? (
+                          <span className="board-reports-zero-note">No records · CSV will contain headers only</span>
+                        ) : (
+                          <span className="board-reports-record-count">{count} record{count === 1 ? "" : "s"}</span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        className="board-reports-export"
+                        onClick={() => exportReport(report)}
+                      >
+                        <Download size={14} aria-hidden="true" /> Export CSV
+                      </button>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
+        </div>
+      )}
+    </main>
   );
 }
 

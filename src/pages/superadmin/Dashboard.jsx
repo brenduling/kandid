@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -13,65 +13,44 @@ import {
 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { fetchAuditLogs } from "../../utils/auditLog";
-import { fetchAuthoritativeNow, getElectionPhase } from "../../utils/elections";
+import { getElectionPhase } from "../../utils/elections";
+import { requiresManualResultPublication } from "../../utils/results";
+import { useElectionClock } from "../../utils/useElectionClock";
+import { callVoteAccess } from "../../utils/voteAccess";
+import {
+  buildElectionPulse,
+  countOperationalElections,
+  fetchAllStudentPrograms,
+  summarizeStudentPrograms,
+} from "../../utils/superAdminDashboard";
+import SuperAdminPageHeader from "../../components/SuperAdminPageHeader";
 import "./Dashboard.css";
 
 const EMPTY_STATS = {
   organizations: 0,
   students: 0,
-  activeElections: 0,
   votes: 0,
   pendingReview: 0,
 };
 
-const EMPTY_ELECTION_PULSE = [
-  { id: "draft", label: "Draft", count: 0 },
-  { id: "upcoming", label: "Upcoming", count: 0 },
-  { id: "campaigning", label: "Campaigning", count: 0 },
-  { id: "voting", label: "Voting", count: 0 },
-  { id: "awaiting-results", label: "Awaiting results", count: 0 },
-  { id: "published", label: "Results published", count: 0 },
-  { id: "archived", label: "Archived", count: 0 },
-  { id: "other", label: "Other status", count: 0 },
-];
-
-function buildElectionPulse(elections, now) {
-  const counts = Object.fromEntries(EMPTY_ELECTION_PULSE.map((item) => [item.id, 0]));
-
-  elections.forEach((election) => {
-    const status = String(election.status || "draft").toLowerCase();
-    const phase = getElectionPhase(election, now);
-
-    if (status === "archived" || phase === "archived") {
-      counts.archived += 1;
-    } else if (election.results_released_at) {
-      counts.published += 1;
-    } else if (phase === "draft") {
-      counts.draft += 1;
-    } else if (phase === "campaign") {
-      counts.campaigning += 1;
-    } else if (phase === "voting") {
-      counts.voting += 1;
-    } else if (phase === "closed") {
-      counts["awaiting-results"] += 1;
-    } else if (["campaign_upcoming", "scheduled", "waiting"].includes(phase)) {
-      counts.upcoming += 1;
-    } else {
-      counts.other += 1;
-    }
-  });
-
-  return EMPTY_ELECTION_PULSE.map((item) => ({ ...item, count: counts[item.id] }));
-}
-
 function Dashboard() {
   const [stats, setStats] = useState(EMPTY_STATS);
   const [programStats, setProgramStats] = useState([]);
-  const [electionPulse, setElectionPulse] = useState(EMPTY_ELECTION_PULSE);
+  const [elections, setElections] = useState([]);
+  const now = useElectionClock();
   const [recentActivities, setRecentActivities] = useState([]);
   const [activityUnavailable, setActivityUnavailable] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const electionPulse = useMemo(
+    () => buildElectionPulse(elections, now, getElectionPhase),
+    [elections, now],
+  );
+  const activeElectionCount = countOperationalElections(electionPulse);
+  const manualPublicationCount = useMemo(
+    () => elections.filter((election) => requiresManualResultPublication(election, now)).length,
+    [elections, now],
+  );
 
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
@@ -85,22 +64,20 @@ function Dashboard() {
         pendingResult,
         programsResult,
         electionsResult,
-        now,
       ] = await Promise.all([
         supabase.from("organizations").select("id", { count: "exact", head: true }),
         supabase.from("students").select("id", { count: "exact", head: true }),
-        supabase.from("votes").select("id", { count: "exact", head: true }),
+        callVoteAccess("super_admin_vote_count"),
         supabase
           .from("students")
           .select("id", { count: "exact", head: true })
           .eq("status", "pending"),
-        supabase.from("students").select("program"),
+        fetchAllStudentPrograms(supabase),
         supabase
           .from("elections")
           .select(
-            "id, status, campaign_start, campaign_end, start_date, end_date, results_released_at",
+            "id, status, campaign_start, campaign_end, start_date, end_date, student_result_visibility, results_released_at",
           ),
-        fetchAuthoritativeNow(),
       ]);
 
       const coreResults = [
@@ -116,37 +93,15 @@ function Dashboard() {
       }
 
       const elections = electionsResult.data || [];
-      const nextElectionPulse = buildElectionPulse(elections, now);
-
       setStats({
         organizations: organizationsResult.count ?? 0,
         students: studentsResult.count ?? 0,
-        activeElections: elections.filter((election) => election.status === "active").length,
-        votes: votesResult.count ?? 0,
+        votes: votesResult.data?.count ?? 0,
         pendingReview: pendingResult.count ?? 0,
       });
-      setElectionPulse(nextElectionPulse);
+      setElections(elections);
 
-      const programCounts = (programsResult.data || []).reduce((accumulator, student) => {
-        const key = String(student.program || "Unassigned").trim() || "Unassigned";
-        accumulator[key] = (accumulator[key] || 0) + 1;
-        return accumulator;
-      }, {});
-      const totalPrograms = Object.values(programCounts).reduce(
-        (sum, count) => sum + count,
-        0,
-      );
-
-      setProgramStats(
-        Object.entries(programCounts)
-          .map(([program, count]) => ({
-            program,
-            count,
-            share: totalPrograms > 0 ? Math.round((count / totalPrograms) * 100) : 0,
-          }))
-          .sort((left, right) => right.count - left.count || left.program.localeCompare(right.program))
-          .slice(0, 6),
-      );
+      setProgramStats(summarizeStudentPrograms(programsResult.data || []));
 
       const { data: auditActivities, error: auditError } = await fetchAuditLogs({ limit: 5 });
       setActivityUnavailable(Boolean(auditError));
@@ -171,13 +126,11 @@ function Dashboard() {
   const metrics = [
     { label: "Organizations", value: stats.organizations, detail: "Institutional workspaces", path: "/super-admin/organizations", icon: Building2 },
     { label: "Students", value: stats.students, detail: "Student records", path: "/super-admin/students", icon: Users },
-    { label: "Active elections", value: stats.activeElections, detail: "Status marked active", path: "/super-admin/elections", icon: BadgeCheck },
-    { label: "Votes recorded", value: stats.votes, detail: "Stored vote rows", path: "/super-admin/voting-monitor", icon: Vote },
+    { label: "Active elections", value: activeElectionCount, detail: "Currently campaigning or voting", path: "/super-admin/elections", icon: BadgeCheck },
+    { label: "Vote rows", value: stats.votes, detail: "Stored vote records", path: "/super-admin/voting-monitor", icon: Vote },
     { label: "Pending review", value: stats.pendingReview, detail: "Student records", path: "/super-admin/students", icon: ListChecks },
   ];
 
-  const awaitingResults =
-    electionPulse.find((item) => item.id === "awaiting-results")?.count || 0;
   const attentionItems = [
     stats.pendingReview > 0
       ? {
@@ -188,12 +141,12 @@ function Dashboard() {
           path: "/super-admin/students",
         }
       : null,
-    awaitingResults > 0
+    manualPublicationCount > 0
       ? {
-          id: "awaiting-results",
-          count: awaitingResults,
-          title: "Elections await result publication",
-          description: "Voting has closed and official results have not yet been released.",
+          id: "manual-publication",
+          count: manualPublicationCount,
+          title: "Results awaiting publication",
+          description: "These closed elections are configured for manual result publication.",
           path: "/super-admin/results",
         }
       : null,
@@ -202,27 +155,17 @@ function Dashboard() {
 
   return (
     <div className="sa-dashboard">
-      <header className="sa-dashboard-masthead">
-        <div className="sa-dashboard-masthead-copy">
-          <p className="sa-dashboard-brandline">
-            <span>Kandid</span><span aria-hidden="true">/</span>Super Admin
-          </p>
-          <p className="sa-dashboard-eyebrow">System overview</p>
-          <h1>Election Command Center</h1>
-          <p className="sa-dashboard-deck">
-            Monitor election operations, institutional records, and system activity across Kandid.
-          </p>
-        </div>
-
-        <div className="sa-dashboard-masthead-aside">
-          <p>Platform oversight</p>
-          <strong>Current records, one operational view.</strong>
+      <SuperAdminPageHeader
+        section="System overview"
+        title="Dashboard"
+        description="System records, election operations, and activity across Kandid."
+        actions={(
           <button type="button" onClick={fetchDashboardData} className="sa-dashboard-refresh" disabled={loading}>
             <RefreshCw size={15} aria-hidden="true" />
-            {loading ? "Refreshing" : "Refresh data"}
+            {loading ? "Refreshing" : "Refresh"}
           </button>
-        </div>
-      </header>
+        )}
+      />
 
       {loading ? (
         <section className="sa-dashboard-loading" role="status" aria-live="polite">
@@ -284,7 +227,7 @@ function Dashboard() {
             <section className="sa-dashboard-section sa-dashboard-attention" aria-labelledby="attention-title">
               <div className="sa-dashboard-section-heading"><p className="sa-dashboard-eyebrow">02 / System attention</p><h2 id="attention-title">What needs review</h2></div>
               {attentionItems.length === 0 ? (
-                <div className="sa-dashboard-attention-clear"><CheckCircle2 size={20} aria-hidden="true" /><div><strong>No immediate system actions need attention.</strong><p>Current review and result-release queues are clear.</p></div></div>
+                <div className="sa-dashboard-attention-clear"><CheckCircle2 size={20} aria-hidden="true" /><div><strong>No immediate system actions need attention.</strong><p>Current review and manual publication queues are clear.</p></div></div>
               ) : (
                 <div className="sa-dashboard-attention-list">
                   {attentionItems.map((item) => (

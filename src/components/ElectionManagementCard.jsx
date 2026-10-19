@@ -10,9 +10,10 @@ function ElectionManagementCard({
   statusLabel,
   actions,
   onClick,
+  now,
 }) {
   const owningOrganization = organization || election?.organizations;
-  const phase = getElectionPhase(election);
+  const phase = getElectionPhase(election, now);
   const Component = onClick ? "button" : "article";
 
   return (

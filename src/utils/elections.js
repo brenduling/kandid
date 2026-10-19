@@ -8,6 +8,9 @@ import {
   scheduleWallClockToFormValue,
 } from "./time";
 import { RESULT_VISIBILITY_MODES, normalizeResultVisibilityMode } from "./results";
+import { getElectionPhase } from "./electionLifecycle";
+
+export { getElectionPhase } from "./electionLifecycle";
 
 const SERVER_TIME_CACHE_MS = 5 * 60 * 1000;
 const SERVER_TIME_RPC_ENABLED =
@@ -132,62 +135,6 @@ export function validateElectionSchedule(form, { requireCampaign = true } = {}) 
   }
 
   return "";
-}
-
-export function getElectionPhase(election, now = new Date()) {
-  const campaignStart = election?.campaign_start
-    ? parseScheduleWallClock(election.campaign_start)
-    : null;
-  const campaignEnd = election?.campaign_end
-    ? parseScheduleWallClock(election.campaign_end)
-    : null;
-  const votingStart = election?.start_date ? parseScheduleWallClock(election.start_date) : null;
-  const votingEnd = election?.end_date ? parseScheduleWallClock(election.end_date) : null;
-  const status = election?.status || "draft";
-
-  if (status === "draft") return "draft";
-  if (status === "archived") return "archived";
-  if (status === "closed") return "closed";
-
-  if (
-    campaignStart &&
-    campaignEnd &&
-    now < campaignStart
-  ) {
-    return "campaign_upcoming";
-  }
-
-  if (
-    campaignStart &&
-    campaignEnd &&
-    now >= campaignStart &&
-    now < campaignEnd
-  ) {
-    return "campaign";
-  }
-
-  if (
-    campaignEnd &&
-    votingStart &&
-    now >= campaignEnd &&
-    now < votingStart
-  ) {
-    return "waiting";
-  }
-
-  if (votingStart && votingEnd && now >= votingStart && now < votingEnd) {
-    return "voting";
-  }
-
-  if (votingEnd && now >= votingEnd) {
-    return "closed";
-  }
-
-  if (status === "active" && votingStart && now < votingStart) {
-    return "scheduled";
-  }
-
-  return status;
 }
 
 export async function fetchAuthoritativeNow() {

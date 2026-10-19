@@ -10,6 +10,7 @@ import {
   getOrganizationTypeLabel,
 } from "./StudentOrganizationCard";
 import { formatLocalDate } from "../../utils/elections";
+import { formatOfficerTermLabel } from "../../utils/officerLeadership";
 import {
   StudentSkeletonGroup,
   StudentSkeletonLine,
@@ -63,7 +64,7 @@ function StudentOrganizationDetail({
               <div>
                 <span>Community</span>
                 <strong>
-                  {memberCountError ||
+                  {loading ? "Loading members..." : memberCountError ||
                     `${memberCount} active member${memberCount === 1 ? "" : "s"}`}
                 </strong>
               </div>
@@ -145,7 +146,7 @@ function StudentOrganizationDetail({
                       )}
                       <div>
                         <strong>{fullName || "Officer"}</strong>
-                        <p>{officer.term_label || "Current Term"}</p>
+                        <p>{formatOfficerTermLabel(officer) || "Current Term"}</p>
                       </div>
                     </div>
                   </div>

@@ -94,12 +94,7 @@ async function fetchMembershipDemographics(organizationId) {
   if (!organizationId) return [];
 
   const { data, error } = await selectActiveMemberships(
-    `
-      students (
-        program,
-        year_level
-      )
-    `,
+    `students (program, year_level)`,
     [["organization_id", organizationId]],
   );
 
@@ -111,7 +106,10 @@ async function fetchMembershipDemographics(organizationId) {
   return data || [];
 }
 
-export async function fetchResultDimensions(election) {
+// Results counts and demographics come from the authorized aggregate dataset.
+// Only use election rules/program coverage to seed optional empty chart labels;
+// legacy membership joins are neither needed nor authorized for these screens.
+export async function fetchResultDimensions(election, { includeMembershipDemographics = false } = {}) {
   if (!election?.id || !election?.organization_id) {
     return { programs: [], yearLevels: [] };
   }
@@ -119,7 +117,9 @@ export async function fetchResultDimensions(election) {
   const [programLinks, eligibilityRules, memberships] = await Promise.all([
     fetchOrganizationPrograms(election.organization_id),
     fetchEligibilityRules(election.id),
-    fetchMembershipDemographics(election.organization_id),
+    includeMembershipDemographics
+      ? fetchMembershipDemographics(election.organization_id)
+      : Promise.resolve([]),
   ]);
 
   const programs = new Map();

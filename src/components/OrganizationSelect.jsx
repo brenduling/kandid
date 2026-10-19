@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { OrganizationLogo } from "./KandidImage";
 
@@ -8,8 +8,12 @@ function OrganizationSelect({
   value,
   onChange,
   placeholder = "Select Organization",
+  id,
+  required = false,
+  disabled = false,
 }) {
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef(null);
   const selectedOrganization = useMemo(
     () => organizations.find((org) => String(org.id) === String(value)),
     [organizations, value],
@@ -24,13 +28,22 @@ function OrganizationSelect({
         }
       }}
     >
-      <label className="field-label">{label}</label>
+      <label className="field-label" htmlFor={id}>{label}</label>
       <button
+        ref={triggerRef}
+        id={id}
         type="button"
+        disabled={disabled}
         className="field-shell flex min-h-[3.75rem] w-full items-center justify-between gap-3 text-left"
         aria-haspopup="listbox"
         aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
+        aria-label={label}
+        aria-required={required || undefined}
+        data-validation-field="true"
+        data-validation-label={label}
+        data-validation-required={required ? "true" : "false"}
+        data-validation-value={value || ""}
+        onClick={() => { if (!disabled) setOpen((current) => !current); }}
       >
         <span className="flex min-w-0 items-center gap-3">
           {selectedOrganization ? (
@@ -65,6 +78,9 @@ function OrganizationSelect({
                   aria-selected={selected}
                   onClick={() => {
                     onChange(String(organization.id));
+                    requestAnimationFrame(() => {
+                      triggerRef.current?.dispatchEvent(new Event("change", { bubbles: true }));
+                    });
                     setOpen(false);
                   }}
                 >

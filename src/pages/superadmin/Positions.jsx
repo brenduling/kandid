@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Plus,
   Pencil,
@@ -14,19 +14,23 @@ import {
 import PopupOverlay from "../../components/PopupOverlay";
 import { DependencyRow, InlineKandidLoader } from "../../components/ConfigurationUI";
 import { supabase } from "../../lib/supabaseClient";
+import { createPositionSubmission, savePositionEdit, changePositionStatus, reorderPositions, deleteUnreferencedPosition, positionSaveError } from "../../utils/positionManagementContract";
+import { createCandidateSubmission, saveCandidateEdit, deleteCandidateSafely, disconnectCandidateSafely, loadCandidateManagementContext, mergeCandidatePartylists, candidateSaveError } from "../../utils/candidateManagementContract";
+import SuperAdminPageHeader from "../../components/SuperAdminPageHeader";
 import { usePrompt } from "../../context/PromptContext";
 import {
   attachProgramCoverage,
-  fetchEligibleStudentsForOrganization,
-  isOrganizationEligibleForStudent,
 } from "../../utils/organizationAccess";
+import { isStudentInTrustedEligibilityPool } from "../../utils/candidateEligibility";
 import { logAuditEvent } from "../../utils/auditLog";
-import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
 import {
   isMissingPositionOrderError,
   sortPositions,
 } from "../../utils/positionOrder";
 import { getElectionPhase, isMissingElectionCoverColumn } from "../../utils/elections";
+import { useElectionClock } from "../../utils/useElectionClock";
+import { getVoteDependencyCount } from "../../utils/voteAccess";
+import { loadAdminCandidates } from "../../utils/adminCandidates";
 import "./Positions.css";
 
 const emptyPositionForm = {
@@ -47,11 +51,7 @@ function isMissingPositionStatusError(error) {
   );
 }
 
-function isPositionOrderConflict(error) {
-  return /positions_election_display_order_unique|duplicate key/i.test(
-    error?.message || ""
-  );
-}
+
 
 function isPositionReorderSetupError(error) {
   return /reorder_election_positions|schema cache|function .*not.*exist/i.test(
@@ -59,8 +59,8 @@ function isPositionReorderSetupError(error) {
   );
 }
 
-function formatElectionPhase(election) {
-  const phase = String(getElectionPhase(election) || "scheduled");
+function formatElectionPhase(election, now) {
+  const phase = String(getElectionPhase(election, now) || "scheduled");
   return phase.charAt(0).toUpperCase() + phase.slice(1);
 }
 
@@ -71,6 +71,7 @@ function selectionLimitLabel(maxVotes) {
 
 function Positions() {
   const prompt = usePrompt();
+  const now = useElectionClock();
 
   const [positions, setPositions] = useState([]);
   const [elections, setElections] = useState([]);
@@ -78,6 +79,10 @@ function Positions() {
   const [partylists, setPartylists] = useState([]);
 
   const [formOpen, setFormOpen] = useState(false);
+  const [savingPosition, setSavingPosition] = useState(false);
+  const positionSaveInFlight = useRef(false);
+  const createSubmission = useRef(null);
+  const positionOperationInFlight = useRef(false);
   const [editingPosition, setEditingPosition] = useState(null);
   const [form, setForm] = useState(emptyPositionForm);
 
@@ -86,8 +91,12 @@ function Positions() {
   const [candidates, setCandidates] = useState([]);
   const [candidateLoading, setCandidateLoading] = useState(false);
   const [candidateEligibility, setCandidateEligibility] = useState({});
+  const [candidateEligibilityAvailable, setCandidateEligibilityAvailable] = useState(false);
   const [candidateForm, setCandidateForm] = useState(emptyCandidateForm);
   const [editingCandidate, setEditingCandidate] = useState(null);
+  const [savingCandidate, setSavingCandidate] = useState(false);
+  const candidateSaveInFlight = useRef(false);
+  const candidateSubmission = useRef(null);
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletePosition, setDeletePosition] = useState(null);
@@ -350,8 +359,9 @@ function Positions() {
   }
 
   function openCreateForm(electionId = "") {
+    createSubmission.current = createPositionSubmission(supabase);
     const election = elections.find((item) => String(item.id) === String(electionId));
-    if (election && ["closed", "archived", "done"].includes(String(getElectionPhase(election)).toLowerCase())) {
+    if (election && ["closed", "archived", "done"].includes(String(getElectionPhase(election, now)).toLowerCase())) {
       prompt.error("This election is closed. Position forms are no longer available.");
       return;
     }
@@ -385,6 +395,7 @@ function Positions() {
   }
 
   function closePositionForm() {
+    if (positionSaveInFlight.current) return;
     setFormOpen(false);
     setEditingPosition(null);
     setForm({ ...emptyPositionForm });
@@ -392,160 +403,55 @@ function Positions() {
 
   async function handleSubmit(event) {
     event.preventDefault();
-
-    const electionId = Number(form.election_id);
-    const name = form.name.trim();
-    const maxVotes = Number(form.max_votes);
-
-    if (!electionId) {
-      prompt.error("Please select an election.");
-      return;
-    }
-
-    const selectedFormElection = elections.find(
-      (election) => Number(election.id) === Number(electionId)
-    );
-    if (
-      selectedFormElection &&
-      ["closed", "archived", "done"].includes(String(getElectionPhase(selectedFormElection)).toLowerCase())
-    ) {
-      prompt.error("This election is closed. Position forms are no longer available.");
-      return;
-    }
-
-    if (!name) {
-      prompt.error("Position name is required.");
-      return;
-    }
-
-    if (!Number.isInteger(maxVotes) || maxVotes < 1) {
-      prompt.error("Max votes must be at least 1.");
-      return;
-    }
-
-    const payload = {
-      election_id: electionId,
-      name,
-      max_votes: maxVotes,
-      display_order: Number(form.display_order || getNextDisplayOrder(electionId)),
-    };
-
-    const creatingPosition = !editingPosition;
-    let savedPositionId = editingPosition?.id;
-
-    if (editingPosition) {
-      let { error } = await supabase
-        .from("positions")
-        .update({
-          name: payload.name,
-          max_votes: payload.max_votes,
-          display_order: payload.display_order,
-        })
-        .eq("id", editingPosition.id);
-
-      if (isMissingPositionOrderError(error)) {
-        const fallback = await supabase
-          .from("positions")
-          .update({
-            name: payload.name,
-            max_votes: payload.max_votes,
-          })
-          .eq("id", editingPosition.id);
-        error = fallback.error;
+    if (positionSaveInFlight.current) return;
+    positionSaveInFlight.current = true;
+    setSavingPosition(true);
+    try {
+      const parentId = Number(editingPosition?.election_id || form.election_id);
+      const values = { ...form, election_id: Number(form.election_id) };
+      const result = editingPosition
+        ? await savePositionEdit(supabase, editingPosition, values)
+        : await (createSubmission.current ||= createPositionSubmission(supabase))(values, parentId);
+      if (result.error) { prompt.error(positionSaveError(result.error)); return; }
+      if (!Number.isSafeInteger(result.data?.id) || result.data.id <= 0) { prompt.error('The saved position could not be confirmed. Refresh before retrying.'); return; }
+      if (result.unchanged) { prompt.info('No changes to save.'); return; }
+      const savedId = result.data.id;
+      const creating = !editingPosition;
+      setFormOpen(false);
+      await fetchPositions(parentId);
+      prompt.success(creating ? 'Position created.' : 'Position updated.');
+      if (creating) {
+        const addCandidateNow = await prompt.confirm({ title: 'Add Candidate Now?', message: values.name.trim() + ' was created. You can add a candidate now or finish setup later from Candidate Management.', type: 'success', confirmText: 'Add Candidate', cancelText: 'Done' });
+        if (addCandidateNow) await openCandidates({ ...values, id: savedId, status: "active" });
       }
-
-      if (error) {
-        prompt.error(
-          isPositionOrderConflict(error)
-            ? "Another position already uses that order in this election."
-            : error.message || "Failed to update position."
-        );
-        return;
-      }
-
-      prompt.success("Position updated.");
-    } else {
-      let { data, error } = await supabase
-        .from("positions")
-        .insert([payload])
-        .select("id")
-        .single();
-
-      if (isMissingPositionOrderError(error)) {
-        const fallback = await supabase
-          .from("positions")
-          .insert([{
-            election_id: payload.election_id,
-            name: payload.name,
-            max_votes: payload.max_votes,
-          }])
-          .select("id")
-          .single();
-        data = fallback.data;
-        error = fallback.error;
-      }
-
-      if (error) {
-        prompt.error(
-          isPositionOrderConflict(error)
-            ? "Another position already uses that order in this election."
-            : error.message || "Failed to create position."
-        );
-        return;
-      }
-
-      savedPositionId = data?.id;
-      prompt.success("Position created.");
-    }
-
-    closePositionForm();
-    await fetchPositions();
-
-    if (creatingPosition && savedPositionId) {
-      const addCandidateNow = await prompt.confirm({
-        title: "Add Candidate Now?",
-        message: `${name} was created. You can add a candidate now or finish setup later from Candidate Management.`,
-        type: "success",
-        confirmText: "Add Candidate",
-        cancelText: "Done",
-      });
-
-      if (addCandidateNow) {
-        await openCandidates({
-          ...payload,
-          id: savedPositionId,
-          status: "active",
-        });
-      }
-    }
+    } catch (error) { prompt.error(positionSaveError(error)); }
+    finally { positionSaveInFlight.current = false; setSavingPosition(false); }
   }
-
-  // ------------------------------------------------------------
-  // ELIGIBLE STUDENTS
-  // ------------------------------------------------------------
 
   async function fetchEligibleStudents(election) {
     setStudents([]);
+    setCandidateEligibilityAvailable(false);
 
     if (!election?.organization_id) {
       prompt.error(
         "This election has no organization assigned. No candidates can be added."
       );
-      return [];
+      return null;
     }
 
     try {
-      const eligible = await fetchEligibleStudentsForOrganization(
-        election.organization_id
-      );
+      const context = await loadCandidateManagementContext(supabase, election.id);
+      const eligible = context.eligible_students;
+      setPartylists((current) => mergeCandidatePartylists(current, context));
       setStudents(eligible);
+      setCandidateEligibilityAvailable(true);
       return eligible;
     } catch (error) {
       prompt.error(
-        error.message ||
+        candidateSaveError(error) ||
         "Failed to load organization-eligible students."
       );
-      return [];
+      return null;
     }
   }
 
@@ -556,87 +462,16 @@ function Positions() {
     );
   }
 
-  function isCandidateEligible(candidate, election) {
-    const student = candidate?.students;
-
-    if (!student) return false;
-
-    return isOrganizationEligibleForStudent(
-      election?.organizations,
-      student
-    );
-  }
-
-  async function verifyOtherOrganizationCandidate(candidate, election) {
-    if (!election?.organization_id || !candidate?.student_id) return false;
-
-    const directEligibility = isCandidateEligible(candidate, election);
-    if (directEligibility) return true;
-
-    const { data, error } = await supabase
-      .from("student_organizations")
-      .select("student_id")
-      .eq("organization_id", election.organization_id)
-      .eq("student_id", candidate.student_id)
-      .maybeSingle();
-
-    if (error) {
-      console.error(
-        "Failed to verify organization membership:",
-        error
-      );
-
-      return false;
-    }
-
-    return Boolean(data);
-  }
-
-  async function getCandidateEligibility(candidate, election) {
-    const basicEligibility = isCandidateEligible(
-      candidate,
-      election
-    );
-
-    if (basicEligibility) {
-      return basicEligibility;
-    }
-
-    return verifyOtherOrganizationCandidate(
-      candidate,
-      election
-    );
-  }
-
   // ------------------------------------------------------------
   // CANDIDATES
   // ------------------------------------------------------------
 
   async function fetchCandidates(positionId) {
     setCandidateLoading(true);
-
-    const { data, error } = await supabase
-      .from("candidates")
-      .select(`
-        id,
-        student_id,
-        position_id,
-        partylist_id,
-        students (
-          id,
-          student_number,
-          first_name,
-          last_name,
-          program,
-          year_level
-        ),
-        partylists (
-          id,
-          name
-        )
-      `)
-      .eq("position_id", positionId)
-      .order("id", { ascending: true });
+    const position = positions.find((item) => Number(item.id) === Number(positionId));
+    const { data: candidateRows, error } = position?.election_id
+      ? await loadAdminCandidates({ electionIds: [position.election_id] })
+      : { data: null, error: new Error("Election-scoped candidate access is unavailable.") };
 
     if (error) {
       prompt.error(error.message || "Failed to load candidates.");
@@ -644,12 +479,16 @@ function Positions() {
       return [];
     }
 
-    setCandidates(data || []);
+    const data = (candidateRows || [])
+      .filter((candidate) => Number(candidate.position_id) === Number(positionId))
+      .sort((left, right) => Number(left.id) - Number(right.id));
+    setCandidates(data);
     setCandidateLoading(false);
-    return data || [];
+    return data;
   }
 
   async function openCandidates(position) {
+    candidateSubmission.current = createCandidateSubmission(supabase);
     setSelectedPosition(position);
     setCandidateForm({ ...emptyCandidateForm });
     setEditingCandidate(null);
@@ -658,53 +497,55 @@ function Positions() {
 
     const election = getElectionForPosition(position);
 
-    const [loadedCandidates] = await Promise.all([
+    const [loadedCandidates, eligibleStudents] = await Promise.all([
       fetchCandidates(position.id),
       fetchEligibleStudents(election),
     ]);
 
     const eligibility = {};
 
-    for (const candidate of loadedCandidates || []) {
-      eligibility[candidate.id] =
-        await getCandidateEligibility(
-          candidate,
-          election
+    if (Array.isArray(eligibleStudents)) {
+      for (const candidate of loadedCandidates || []) {
+        eligibility[candidate.id] = isStudentInTrustedEligibilityPool(
+          eligibleStudents,
+          candidate.student_id,
         );
+      }
     }
 
     setCandidateEligibility(eligibility);
   }
 
   async function refreshCandidateEligibility(candidateList = candidates) {
-    const election = selectedPosition
-      ? getElectionForPosition(selectedPosition)
-      : null;
-
     const eligibility = {};
 
-    for (const candidate of candidateList || []) {
-      eligibility[candidate.id] =
-        await getCandidateEligibility(
-          candidate,
-          election
+    if (candidateEligibilityAvailable) {
+      for (const candidate of candidateList || []) {
+        eligibility[candidate.id] = isStudentInTrustedEligibilityPool(
+          students,
+          candidate.student_id,
         );
+      }
     }
 
     setCandidateEligibility(eligibility);
   }
 
   function closeCandidates() {
+    if (candidateSaveInFlight.current) return;
     setCandidateOpen(false);
     setSelectedPosition(null);
     setCandidates([]);
     setStudents([]);
     setCandidateEligibility({});
+    setCandidateEligibilityAvailable(false);
     setCandidateForm({ ...emptyCandidateForm });
     setEditingCandidate(null);
   }
 
   function startAddCandidate() {
+    if (candidateSaveInFlight.current) return;
+    candidateSubmission.current = createCandidateSubmission(supabase);
     setEditingCandidate(null);
     setCandidateForm({ ...emptyCandidateForm });
   }
@@ -719,284 +560,54 @@ function Positions() {
 
   async function handleCandidateSubmit(event) {
     event.preventDefault();
-
-    if (!selectedPosition) {
-      prompt.error("No position selected.");
-      return;
-    }
-
-    if (!candidateForm.student_id) {
-      prompt.error("Please select a student.");
-      return;
-    }
-
-    const election = getElectionForPosition(selectedPosition);
-
-    if (!election?.organization_id) {
-      prompt.error(
-        "This election has no organization. Candidate creation is blocked."
-      );
-      return;
-    }
-
-    // IMPORTANT:
-    // The student MUST exist in the eligible pool calculated
-    // specifically for this election's organization.
-    const eligibleStudent = students.find(
-      (student) =>
-        String(student.id) === String(candidateForm.student_id)
-    );
-
-    if (!eligibleStudent) {
-      prompt.error(
-        "This student is not eligible for this election's organization."
-      );
-      return;
-    }
-
-    if (!isOrganizationEligibleForStudent(election.organizations, eligibleStudent)) {
-      prompt.error(
-        "This student is not eligible for this election's organization."
-      );
-      return;
-    }
-
-    if (editingCandidate && candidateEligibility[editingCandidate.id] === false) {
-      prompt.error(
-        "This invalid candidate must be disconnected or deleted before editing."
-      );
-      return;
-    }
-
-    // Prevent duplicate student assignment to the same position.
-    const duplicate = candidates.find(
-      (candidate) =>
-        String(candidate.student_id) ===
-        String(candidateForm.student_id) &&
-        String(candidate.id) !==
-        String(editingCandidate?.id || "")
-    );
-
-    if (duplicate) {
-      prompt.error(
-        "This student is already a candidate for this position."
-      );
-      return;
-    }
-
-    const { data: electionPositions, error: positionLookupError } = await supabase
-      .from("positions")
-      .select("id, name")
-      .eq("election_id", selectedPosition.election_id);
-
-    if (positionLookupError) {
-      prompt.error(positionLookupError.message || "Failed to validate candidate assignment.");
-      return;
-    }
-
-    const electionPositionIds = (electionPositions || []).map((position) => position.id);
-
-    if (electionPositionIds.length > 0) {
-      const { data: electionCandidates, error: candidateLookupError } = await supabase
-        .from("candidates")
-        .select(`
-          id,
-          student_id,
-          position_id,
-          positions (
-            id,
-            name
-          )
-        `)
-        .eq("student_id", candidateForm.student_id)
-        .in("position_id", electionPositionIds);
-
-      if (candidateLookupError) {
-        prompt.error(candidateLookupError.message || "Failed to validate candidate assignment.");
-        return;
-      }
-
-      const duplicateElectionCandidate = (electionCandidates || []).find(
-        (candidate) => String(candidate.id) !== String(editingCandidate?.id || "")
-      );
-
-      if (duplicateElectionCandidate) {
-        prompt.error(
-          `This student is already a candidate for ${duplicateElectionCandidate.positions?.name || "another position"} in this election.`
-        );
-        return;
-      }
-    }
-
-    const payload = {
-      student_id: candidateForm.student_id,
-      position_id: selectedPosition.id,
-      partylist_id: candidateForm.partylist_id || null,
-    };
-
-    if (editingCandidate) {
-      const { error } = await supabase
-        .from("candidates")
-        .update({
-          student_id: payload.student_id,
-          position_id: payload.position_id,
-          partylist_id: payload.partylist_id,
-        })
-        .eq("id", editingCandidate.id);
-
-      if (error) {
-        prompt.error(error.message || "Failed to update candidate.");
-        return;
-      }
-
-      prompt.success("Candidate updated.");
-    } else {
-      const { error } = await supabase
-        .from("candidates")
-        .insert([payload]);
-
-      if (error) {
-        prompt.error(error.message || "Failed to add candidate.");
-        return;
-      }
-
-      prompt.success("Candidate added.");
-    }
-
-    setEditingCandidate(null);
-    setCandidateForm({ ...emptyCandidateForm });
-    const refreshed = await fetchCandidates(selectedPosition.id);
-    await refreshCandidateEligibility(refreshed);
+    if (!selectedPosition || candidateSaveInFlight.current) return;
+    candidateSaveInFlight.current = true; setSavingCandidate(true);
+    try {
+      const values = { ...editingCandidate, ...candidateForm, position_id: selectedPosition.id };
+      const result = editingCandidate
+        ? await saveCandidateEdit(supabase, editingCandidate, values, selectedPosition.election_id)
+        : await (candidateSubmission.current ||= createCandidateSubmission(supabase))(values, selectedPosition.election_id);
+      if (result.error) { prompt.error(candidateSaveError(result.error)); return; }
+      if (!Number.isInteger(result.data?.id) || result.data.id <= 0) { prompt.error("Candidate save was not confirmed. Refresh before retrying."); return; }
+      prompt.success(result.unchanged ? "No changes to save." : editingCandidate ? "Candidate updated." : "Candidate added.");
+      candidateSubmission.current = createCandidateSubmission(supabase);
+      setEditingCandidate(null); setCandidateForm({ ...emptyCandidateForm });
+      const refreshed = await fetchCandidates(selectedPosition.id); await refreshCandidateEligibility(refreshed);
+    } catch (error) { prompt.error(candidateSaveError(error)); }
+    finally { candidateSaveInFlight.current = false; setSavingCandidate(false); }
   }
 
   async function deleteCandidate(candidate) {
-    const studentName = [
-      candidate.students?.first_name,
-      candidate.students?.last_name,
-    ]
-      .filter(Boolean)
-      .join(" ");
-    const analysis = await analyzeDeleteDependencies("candidate", candidate);
-
-    if (analysis.blocked) {
-      await prompt.alert({
-        title: "Candidate Cannot Be Deleted",
-        message: dependencyMessage(studentName || "This candidate", analysis),
-        type: "warning",
-        confirmText: "Keep Candidate",
-      });
-      return;
-    }
-
-    const confirmed = await prompt.confirm({
-      title: "Delete Candidate?",
-      message:
-        `Delete ${studentName || "this candidate"}? The student record will not be deleted.`,
-      type: "danger",
-      confirmText: "Delete Candidate",
-    });
-
+    const parent = selectedPosition;
+    if (!parent) { prompt.error('Select the candidate position first.'); return; }
+    try { await loadCandidateManagementContext(supabase, parent.election_id); }
+    catch (error) { prompt.error(candidateSaveError(error)); return; }
+    const studentName = [candidate.students?.first_name, candidate.students?.last_name].filter(Boolean).join(' ') || 'this candidate';
+    const confirmed = await prompt.confirm({ title: 'Delete Candidate?', message: `Delete ${studentName}? The student record will not be deleted.`, type: 'danger', confirmText: 'Delete Candidate' });
     if (!confirmed) return;
-
-    const recheck = await analyzeDeleteDependencies("candidate", candidate);
-    if (recheck.blocked) {
-      prompt.error(dependencyMessage(studentName || "This candidate", recheck));
-      return;
-    }
-
-    const { error } = await supabase
-      .from("candidates")
-      .delete()
-      .eq("id", candidate.id);
-
-    if (error) {
-      prompt.error(error.message || "Failed to delete candidate.");
-      return;
-    }
-
-    prompt.success("Candidate deleted.");
-    const election = getElectionForPosition(selectedPosition);
-    await logAuditEvent({
-      action: "candidate_deleted",
-      entityType: "candidate",
-      entityId: candidate.id,
-      entityLabel: studentName || "Candidate",
-      organizationId: election?.organization_id,
-      organizationName: election?.organizations?.name,
-      status: "completed",
-    });
-    const refreshed = await fetchCandidates(selectedPosition.id);
-    await refreshCandidateEligibility(refreshed);
+    const result = await deleteCandidateSafely(supabase, candidate, parent.election_id);
+    if (result.error) { prompt.error(candidateSaveError(result.error)); return; }
+    prompt.success('Candidate deleted.');
+    const election = getElectionForPosition(parent);
+    await logAuditEvent({ action: 'candidate_deleted', entityType: 'candidate', entityId: candidate.id, entityLabel: studentName, organizationId: election?.organization_id, organizationName: election?.organizations?.name, status: 'completed' });
+    const refreshed = await fetchCandidates(parent.id); await refreshCandidateEligibility(refreshed);
   }
 
   async function disconnectCandidate(candidate) {
-    const studentName = [
-      candidate.students?.first_name,
-      candidate.students?.last_name,
-    ]
-      .filter(Boolean)
-      .join(" ");
-    const analysis = await analyzeDeleteDependencies("candidate", candidate);
-
-    if (analysis.blocked) {
-      await prompt.alert({
-        title: "Candidate Has Protected History",
-        message:
-          `${dependencyMessage(studentName || "This candidate", analysis)}\n\nKeep the candidate linked so receipts and results remain verifiable.`,
-        type: "warning",
-        confirmText: "Keep Linked",
-      });
-      return;
-    }
-
-    const confirmed = await prompt.confirm({
-      title: "Disconnect Candidate?",
-      message:
-        `Disconnect ${studentName || "this candidate"} from this position?`,
-      type: "danger",
-      confirmText: "Disconnect",
-    });
-
+    const parent = selectedPosition;
+    if (!parent) { prompt.error('Select the candidate position first.'); return; }
+    try { await loadCandidateManagementContext(supabase, parent.election_id); }
+    catch (error) { prompt.error(candidateSaveError(error)); return; }
+    const studentName = [candidate.students?.first_name, candidate.students?.last_name].filter(Boolean).join(' ') || 'this candidate';
+    const confirmed = await prompt.confirm({ title: 'Disconnect Candidate?', message: `Disconnect ${studentName} from this position? The student and candidate record will be retained.`, type: 'danger', confirmText: 'Disconnect' });
     if (!confirmed) return;
-
-    const recheck = await analyzeDeleteDependencies("candidate", candidate);
-    if (recheck.blocked) {
-      prompt.error(dependencyMessage(studentName || "This candidate", recheck));
-      return;
-    }
-
-    const { error } = await supabase
-      .from("candidates")
-      .update({ position_id: null })
-      .eq("id", candidate.id);
-
-    if (error) {
-      prompt.error(
-        error.message ||
-        "Failed to disconnect candidate."
-      );
-      return;
-    }
-
-    prompt.success("Candidate disconnected.");
-    const election = getElectionForPosition(selectedPosition);
-    await logAuditEvent({
-      action: "candidate_updated",
-      entityType: "candidate",
-      entityId: candidate.id,
-      entityLabel: studentName || "Candidate",
-      organizationId: election?.organization_id,
-      organizationName: election?.organizations?.name,
-      status: "completed",
-      metadata: { position_id: null, previous_position_id: selectedPosition?.id },
-    });
-    const refreshed = await fetchCandidates(selectedPosition.id);
-    await refreshCandidateEligibility(refreshed);
+    const result = await disconnectCandidateSafely(supabase, candidate, parent.election_id);
+    if (result.error) { prompt.error(candidateSaveError(result.error)); return; }
+    prompt.success('Candidate disconnected.');
+    const election = getElectionForPosition(parent);
+    await logAuditEvent({ action: 'candidate_updated', entityType: 'candidate', entityId: candidate.id, entityLabel: studentName, organizationId: election?.organization_id, organizationName: election?.organizations?.name, status: 'completed', metadata: { position_id: null, previous_position_id: parent.id } });
+    const refreshed = await fetchCandidates(parent.id); await refreshCandidateEligibility(refreshed);
   }
-
-  // ------------------------------------------------------------
-  // DELETE POSITION
-  // ------------------------------------------------------------
 
   async function openDeleteConfiguration(position) {
     const confirmed = await prompt.confirm({
@@ -1017,32 +628,11 @@ function Positions() {
     setDeleteOpen(true);
 
     const [{ data, error }, voteResult] = await Promise.all([
-      supabase
-        .from("candidates")
-        .select(`
-          id,
-          student_id,
-          position_id,
-          partylist_id,
-          students (
-            id,
-            student_number,
-            first_name,
-            last_name,
-            program,
-            year_level
-          ),
-          partylists (
-            id,
-            name
-          )
-        `)
-        .eq("position_id", position.id)
-        .order("id", { ascending: true }),
-      supabase
-        .from("votes")
-        .select("id", { count: "exact", head: true })
-        .eq("position_id", position.id),
+      loadAdminCandidates({ electionIds: [position.election_id] }).then((result) => ({
+        ...result,
+        data: (result.data || []).filter((candidate) => Number(candidate.position_id) === Number(position.id)),
+      })),
+      getVoteDependencyCount("position", position.id),
     ]);
 
     if (error) {
@@ -1054,8 +644,14 @@ function Positions() {
       return;
     }
 
+    if (voteResult.error) {
+      prompt.error("Vote dependencies could not be verified. The position cannot be deleted yet.");
+      closeDeleteConfiguration();
+      return;
+    }
+
     setDeleteCandidates(data || []);
-    setDeleteVoteCount(voteResult?.count || 0);
+    setDeleteVoteCount(voteResult.count);
     setDeleteLoading(false);
   }
 
@@ -1065,32 +661,11 @@ function Positions() {
     setDeleteLoading(true);
 
     const [{ data, error }, voteResult] = await Promise.all([
-      supabase
-        .from("candidates")
-        .select(`
-        id,
-        student_id,
-        position_id,
-        partylist_id,
-        students (
-          id,
-          student_number,
-          first_name,
-          last_name,
-          program,
-          year_level
-        ),
-        partylists (
-          id,
-          name
-        )
-      `)
-        .eq("position_id", deletePosition.id)
-        .order("id", { ascending: true }),
-      supabase
-        .from("votes")
-        .select("id", { count: "exact", head: true })
-        .eq("position_id", deletePosition.id),
+      loadAdminCandidates({ electionIds: [deletePosition.election_id] }).then((result) => ({
+        ...result,
+        data: (result.data || []).filter((candidate) => Number(candidate.position_id) === Number(deletePosition.id)),
+      })),
+      getVoteDependencyCount("position", deletePosition.id),
     ]);
 
     if (error) {
@@ -1099,8 +674,14 @@ function Positions() {
       return;
     }
 
+    if (voteResult.error) {
+      prompt.error("Vote dependencies could not be verified. The position cannot be deleted yet.");
+      setDeleteLoading(false);
+      return;
+    }
+
     setDeleteCandidates(data || []);
-    setDeleteVoteCount(voteResult?.count || 0);
+    setDeleteVoteCount(voteResult.count);
     setDeleteLoading(false);
   }
 
@@ -1127,10 +708,7 @@ function Positions() {
 
     setRetiringPosition(true);
 
-    const { error } = await supabase
-      .from("positions")
-      .update({ status: "retired" })
-      .eq("id", deletePosition.id);
+    const { error } = await changePositionStatus(supabase, deletePosition, "retired");
 
     if (error) {
       setRetiringPosition(false);
@@ -1165,125 +743,34 @@ function Positions() {
   }
 
   async function deleteLinkedCandidate(candidate) {
-    const studentName = [
-      candidate.students?.first_name,
-      candidate.students?.last_name,
-    ]
-      .filter(Boolean)
-      .join(" ");
-    const analysis = await analyzeDeleteDependencies("candidate", candidate);
-
-    if (analysis.blocked) {
-      await prompt.alert({
-        title: "Candidate Cannot Be Deleted",
-        message: dependencyMessage(studentName || "This candidate", analysis),
-        type: "warning",
-        confirmText: "Keep Candidate",
-      });
-      return;
-    }
-
-    const confirmed = await prompt.confirm({
-      title: "Delete Candidate?",
-      message:
-        "Delete the candidate record? The student will remain in the student directory.",
-      type: "danger",
-      confirmText: "Delete Candidate",
-    });
-
+    const parent = deletePosition;
+    if (!parent) { prompt.error('Select the candidate position first.'); return; }
+    try { await loadCandidateManagementContext(supabase, parent.election_id); }
+    catch (error) { prompt.error(candidateSaveError(error)); return; }
+    const studentName = [candidate.students?.first_name, candidate.students?.last_name].filter(Boolean).join(' ') || 'this candidate';
+    const confirmed = await prompt.confirm({ title: 'Delete Candidate?', message: `Delete ${studentName}? The student record will not be deleted.`, type: 'danger', confirmText: 'Delete Candidate' });
     if (!confirmed) return;
-
-    const recheck = await analyzeDeleteDependencies("candidate", candidate);
-    if (recheck.blocked) {
-      prompt.error(dependencyMessage(studentName || "This candidate", recheck));
-      return;
-    }
-
-    const { error } = await supabase
-      .from("candidates")
-      .delete()
-      .eq("id", candidate.id);
-
-    if (error) {
-      prompt.error(error.message || "Failed to delete candidate.");
-      return;
-    }
-
-    prompt.success("Candidate deleted.");
-    const election = getElectionForPosition(deletePosition);
-    await logAuditEvent({
-      action: "candidate_deleted",
-      entityType: "candidate",
-      entityId: candidate.id,
-      entityLabel: studentName || "Candidate",
-      organizationId: election?.organization_id,
-      organizationName: election?.organizations?.name,
-      status: "completed",
-    });
+    const result = await deleteCandidateSafely(supabase, candidate, parent.election_id);
+    if (result.error) { prompt.error(candidateSaveError(result.error)); return; }
+    prompt.success('Candidate deleted.');
+    const election = getElectionForPosition(parent);
+    await logAuditEvent({ action: 'candidate_deleted', entityType: 'candidate', entityId: candidate.id, entityLabel: studentName, organizationId: election?.organization_id, organizationName: election?.organizations?.name, status: 'completed' });
     await refreshDeleteCandidates();
   }
 
   async function disconnectLinkedCandidate(candidate) {
-    const studentName = [
-      candidate.students?.first_name,
-      candidate.students?.last_name,
-    ]
-      .filter(Boolean)
-      .join(" ");
-    const analysis = await analyzeDeleteDependencies("candidate", candidate);
-
-    if (analysis.blocked) {
-      await prompt.alert({
-        title: "Candidate Has Protected History",
-        message:
-          `${dependencyMessage(studentName || "This candidate", analysis)}\n\nKeep the candidate linked so receipts and results remain verifiable.`,
-        type: "warning",
-        confirmText: "Keep Linked",
-      });
-      return;
-    }
-
-    const confirmed = await prompt.confirm({
-      title: "Disconnect Candidate?",
-      message:
-        "Disconnect the candidate from this position without deleting the student.",
-      type: "danger",
-      confirmText: "Disconnect",
-    });
-
+    const parent = deletePosition;
+    if (!parent) { prompt.error('Select the candidate position first.'); return; }
+    try { await loadCandidateManagementContext(supabase, parent.election_id); }
+    catch (error) { prompt.error(candidateSaveError(error)); return; }
+    const studentName = [candidate.students?.first_name, candidate.students?.last_name].filter(Boolean).join(' ') || 'this candidate';
+    const confirmed = await prompt.confirm({ title: 'Disconnect Candidate?', message: `Disconnect ${studentName} from this position? The student and candidate record will be retained.`, type: 'danger', confirmText: 'Disconnect' });
     if (!confirmed) return;
-
-    const recheck = await analyzeDeleteDependencies("candidate", candidate);
-    if (recheck.blocked) {
-      prompt.error(dependencyMessage(studentName || "This candidate", recheck));
-      return;
-    }
-
-    const { error } = await supabase
-      .from("candidates")
-      .update({ position_id: null })
-      .eq("id", candidate.id);
-
-    if (error) {
-      prompt.error(
-        error.message ||
-        "Failed to disconnect candidate."
-      );
-      return;
-    }
-
-    prompt.success("Candidate disconnected.");
-    const election = getElectionForPosition(deletePosition);
-    await logAuditEvent({
-      action: "candidate_updated",
-      entityType: "candidate",
-      entityId: candidate.id,
-      entityLabel: studentName || "Candidate",
-      organizationId: election?.organization_id,
-      organizationName: election?.organizations?.name,
-      status: "completed",
-      metadata: { position_id: null, previous_position_id: deletePosition?.id },
-    });
+    const result = await disconnectCandidateSafely(supabase, candidate, parent.election_id);
+    if (result.error) { prompt.error(candidateSaveError(result.error)); return; }
+    prompt.success('Candidate disconnected.');
+    const election = getElectionForPosition(parent);
+    await logAuditEvent({ action: 'candidate_updated', entityType: 'candidate', entityId: candidate.id, entityLabel: studentName, organizationId: election?.organization_id, organizationName: election?.organizations?.name, status: 'completed', metadata: { position_id: null, previous_position_id: parent.id } });
     await refreshDeleteCandidates();
   }
 
@@ -1297,10 +784,7 @@ function Positions() {
       return;
     }
 
-    const { count: voteCount, error: voteCountError } = await supabase
-      .from("votes")
-      .select("id", { count: "exact", head: true })
-      .eq("position_id", deletePosition.id);
+    const { count: voteCount, error: voteCountError } = await getVoteDependencyCount("position", deletePosition.id);
 
     if (voteCountError) {
       prompt.error(
@@ -1328,13 +812,10 @@ function Positions() {
 
     if (!confirmed) return;
 
-    const { error } = await supabase
-      .from("positions")
-      .delete()
-      .eq("id", deletePosition.id);
+    const { error } = await deleteUnreferencedPosition(supabase, deletePosition);
 
     if (error) {
-      prompt.error(error.message || "Failed to delete position.");
+      prompt.error(positionSaveError(error));
       return;
     }
 
@@ -1406,11 +887,12 @@ function Positions() {
   const positionCountsByElection = positionCounts;
   const selectedElectionClosed = selectedElection
     ? ["closed", "archived", "done"].includes(
-        String(getElectionPhase(selectedElection)).toLowerCase()
+        String(getElectionPhase(selectedElection, now)).toLowerCase()
       )
     : false;
 
   async function movePosition(position, direction) {
+    if (positionOperationInFlight.current) return;
     if (!positionLifecycleReady) {
       prompt.error("Position sequencing requires the display order migration in Supabase.");
       return;
@@ -1431,17 +913,15 @@ function Positions() {
     const target = siblings[targetIndex];
     const currentOrder = Number(position.display_order || currentIndex + 1);
     const targetOrder = Number(target.display_order || targetIndex + 1);
-    const { error } = await supabase.rpc("reorder_election_positions", {
-      p_election_id: Number(position.election_id),
-      p_position_ids: [Number(position.id), Number(target.id)],
-      p_display_orders: [targetOrder, currentOrder],
-    });
+    positionOperationInFlight.current = true;
+    const { error } = await reorderPositions(supabase, Number(position.election_id), [Number(position.id), Number(target.id)], [targetOrder, currentOrder]);
+    positionOperationInFlight.current = false;
 
     if (error) {
       prompt.error(
         isMissingPositionOrderError(error) || isPositionReorderSetupError(error)
           ? "Position sequencing requires the display order migration in Supabase."
-          : error.message || "Failed to move position."
+          : positionSaveError(error)
       );
       return;
     }
@@ -1484,15 +964,12 @@ function Positions() {
 
   return (
     <div className="sa-positions">
-      <header className="sa-positions-masthead">
-        <div className="sa-positions-masthead-copy">
-          <p className="sa-positions-breadcrumb">Kandid / Super Admin</p>
-          <p className="sa-positions-eyebrow">Ballot Structure</p>
-          <h1>Positions</h1>
-          <p>Define the offices and voting limits that shape each election ballot.</p>
-        </div>
-
-        <aside className="sa-positions-masthead-aside">
+      <SuperAdminPageHeader
+        section="Election operations"
+        title="Positions"
+        description="Define the offices and voting limits that shape each election ballot."
+        actions={(
+          <>
           <span>Election register</span>
           <strong>{elections.length} election{elections.length === 1 ? "" : "s"}</strong>
           {!selectedElectionId ? (
@@ -1501,8 +978,9 @@ function Positions() {
               Add Position
             </button>
           ) : null}
-        </aside>
-      </header>
+          </>
+        )}
+      />
 
       {!positionLifecycleReady ? (
         <div className="sa-positions-notice">
@@ -1555,7 +1033,7 @@ function Positions() {
                     <small>{election.organizations?.name || "Organization not assigned"}</small>
                     <strong>{election.title}</strong>
                   </span>
-                  <span className="sa-ballot-selector-phase">{formatElectionPhase(election)}</span>
+                  <span className="sa-ballot-selector-phase">{formatElectionPhase(election, now)}</span>
                   <span className="sa-ballot-selector-count">
                     <strong>{positionCountsByElection[election.id] || 0}</strong>
                     position{positionCountsByElection[election.id] === 1 ? "" : "s"}
@@ -1582,7 +1060,7 @@ function Positions() {
           <section className="sa-ballot-context">
             <div className="sa-ballot-context-label">
               <span>Election</span>
-              <strong>{formatElectionPhase(selectedElection)}</strong>
+              <strong>{formatElectionPhase(selectedElection, now)}</strong>
             </div>
             <div className="sa-ballot-context-title">
               <p>{selectedElection.organizations?.name || "Organization not assigned"}</p>
@@ -1740,6 +1218,7 @@ function Positions() {
                 <span className="field-label">Election</span>
                 <select
                   required
+                  disabled={Boolean(editingPosition) || savingPosition}
                   value={form.election_id}
                   onChange={(e) =>
                     setForm({
@@ -1770,6 +1249,8 @@ function Positions() {
                 <input
                   required
                   value={form.name}
+                  id="sa-position-name"
+                  maxLength={100}
                   onChange={(e) =>
                     setForm({
                       ...form,
@@ -1790,6 +1271,7 @@ function Positions() {
                   min="1"
                   step="1"
                   value={form.max_votes}
+                  id="sa-position-max-votes"
                   onChange={(e) =>
                     setForm({
                       ...form,
@@ -1809,6 +1291,7 @@ function Positions() {
                   min="1"
                   step="1"
                   value={form.display_order}
+                  id="sa-position-order"
                   onChange={(e) =>
                     setForm({
                       ...form,
@@ -1823,7 +1306,7 @@ function Positions() {
 
               <footer className="position-form-actions">
                 <button type="button" onClick={closePositionForm} className="secondary-btn">Cancel</button>
-                <button type="submit" className="primary-btn">
+                <button type="submit" className="primary-btn" disabled={savingPosition}>
                   {editingPosition ? "Save Changes" : "Add Position"}
                 </button>
               </footer>
@@ -1870,10 +1353,7 @@ function Positions() {
                   </h3>
 
                   <p className="text-sm text-gray-500">
-                    {selectedElection?.organizations?.organization_type ===
-                    "non_departmental"
-                      ? "All students are eligible for this organization type."
-                      : "Eligible students come from this organization's covered programs and explicit memberships."}
+                    Students are listed by the trusted organization eligibility check.
                   </p>
                 </div>
 
@@ -1889,6 +1369,7 @@ function Positions() {
               </div>
 
               <form
+                id="sa-position-candidate-form"
                 onSubmit={handleCandidateSubmit}
                 className="mt-4 grid gap-4 md:grid-cols-[1fr_1fr_auto]"
               >
@@ -1897,6 +1378,8 @@ function Positions() {
 
                   <select
                     required
+                    id="sa-position-candidate-student"
+                    disabled={!!editingCandidate || savingCandidate}
                     value={candidateForm.student_id}
                     onChange={(e) =>
                       setCandidateForm({
@@ -1926,6 +1409,8 @@ function Positions() {
                   <label className="field-label">Partylist</label>
 
                   <select
+                    id="sa-position-candidate-partylist"
+                    disabled={savingCandidate}
                     value={candidateForm.partylist_id}
                     onChange={(e) =>
                       setCandidateForm({
@@ -1939,7 +1424,7 @@ function Positions() {
                       Independent / No Partylist
                     </option>
 
-                    {partylists.map((party) => (
+                    {partylists.filter(p => (p.election_id == null || Number(p.election_id) === Number(selectedPosition?.election_id)) && Number(p.organization_id) === Number(selectedPositionElection?.organization_id)).map((party) => (
                       <option key={party.id} value={party.id}>
                         {party.name}
                       </option>
@@ -1951,7 +1436,7 @@ function Positions() {
                   <button
                     type="submit"
                     className="primary-btn w-full"
-                    disabled={!students.length}
+                    disabled={!students.length || savingCandidate}
                   >
                     {editingCandidate ? "Save Changes" : "Add Candidate"}
                   </button>
@@ -1996,8 +1481,9 @@ function Positions() {
                       .filter(Boolean)
                       .join(" ");
 
-                    const eligible =
-                      candidateEligibility[candidate.id] === true;
+                    const eligibilityVerified =
+                      typeof candidateEligibility[candidate.id] === "boolean";
+                    const eligible = candidateEligibility[candidate.id] === true;
 
                     return (
                       <div
@@ -2016,7 +1502,7 @@ function Positions() {
                               "-"}
                           </p>
 
-                          {!eligible && (
+                          {eligibilityVerified && !eligible && (
                             <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2">
                               <p className="text-xs font-black uppercase tracking-[0.12em] text-red-700">
                                 Invalid Organization Eligibility
@@ -2046,7 +1532,7 @@ function Positions() {
                               {candidate.partylists?.name || "Independent"}
                             </span>
 
-                            {!eligible && (
+                            {eligibilityVerified && !eligible && (
                               <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-700">
                                 Invalid Candidate
                               </span>
@@ -2063,7 +1549,9 @@ function Positions() {
                             title={
                               eligible
                                 ? "Edit candidate"
-                                : "Invalid candidate: disconnect or delete first"
+                                : eligibilityVerified
+                                  ? "Invalid candidate: disconnect or delete first"
+                                  : "Current eligibility could not be verified"
                             }
                           >
                             <Pencil size={16} />

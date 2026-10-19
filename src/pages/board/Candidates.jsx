@@ -1,4 +1,5 @@
 import CandidateManagement from "../../components/CandidateManagement";
+import "./Candidates.css";
 
 function BoardCandidates() {
   return (

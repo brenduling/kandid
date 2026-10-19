@@ -393,6 +393,7 @@
 .modal-overlay .candidate-form-dialog textarea:focus { border-color: #ef4e23 !important; outline: none; }
 .candidate-form-materials { border: 0 !important; border-top: 1px solid #cfc9bf !important; background: transparent !important; padding: 1.2rem 0 0 !important; box-shadow: none !important; }
 .candidate-material-record { gap: 0.75rem; border: 0; border-bottom: 1px solid #e1ddd5; background: transparent; padding: 0 0 1rem; }
+.candidate-material-file { min-width: 0; }
 .candidate-material-download { border-top: 1px solid #e1ddd5; background: transparent; }
 .candidate-form-actions { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 1rem; border-top: 1px solid #cfc9bf; padding-top: 1rem; }
 .modal-overlay .candidate-form-actions .primary-btn,
@@ -492,3 +493,7 @@
   .sa-candidates button,
   .candidate-form-dialog button { transition: none !important; }
 }
+
+.candidate-campaign-status-text { font-weight: 800; }
+.candidate-campaign-status-text.is-published { color: #17633a; }
+.candidate-campaign-status-text.is-draft { color: #805512; }

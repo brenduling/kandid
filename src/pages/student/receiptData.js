@@ -1,8 +1,8 @@
 import { supabase } from "../../lib/supabaseClient";
 import {
-  isMissingPositionOrderError,
   sortVotesByPositionOrder,
 } from "../../utils/positionOrder";
+import { callVoteAccess } from "../../utils/voteAccess";
 import { formatAbsoluteTimestampAsManilaDateTime, parseUtcTimestamp } from "../../utils/time";
 
 export const BLOCKCHAIN_POLL_INTERVAL_MS = 4000;
@@ -62,9 +62,9 @@ export function getBlockchainStatusMeta(record) {
 
   if (status === "manual_review") {
     return {
-      label: "Verification completing",
+      label: "Verification needs review",
       className: "review",
-      detail: "Your vote remains recorded while Kandid completes its integrity verification.",
+      detail: "Your vote was recorded successfully, but its blockchain verification requires additional review.",
     };
   }
 
@@ -224,65 +224,13 @@ async function enrichVotesWithBallots(votes) {
 }
 
 export async function fetchStudentVotes(studentId) {
-  const withDisplayOrder = `
-      id,
-      student_id,
-      election_id,
-      position_id,
-      candidate_id,
-      is_abstain,
-      ballot_id,
-      vote_hash,
-      blockchain_anchor_status,
-      hash_version,
-      blockchain_network,
-      blockchain_block_number,
-      blockchain_anchored_at,
-      blockchain_tx_id,
-      vote_timestamp,
-      elections (
-        title,
-        organizations (
-          name,
-          description,
-          logo_url
-        )
-      ),
-      positions (
-        id,
-        name,
-        display_order
-      )
-    `;
-  const legacySelect = withDisplayOrder.replace(",\n        display_order", "");
-
-  const result = await supabase
-    .from("votes")
-    .select(withDisplayOrder)
-    .eq("student_id", studentId)
-    .order("vote_timestamp", { ascending: false });
-
-  if (!isMissingPositionOrderError(result.error)) {
-    if (result.error) return result;
-
-    return {
-      ...result,
-      data: await enrichVotesWithBallots(result.data),
-    };
-  }
-
-  const legacyResult = await supabase
-    .from("votes")
-    .select(legacySelect)
-    .eq("student_id", studentId)
-    .order("vote_timestamp", { ascending: false });
-
-  if (legacyResult.error) return legacyResult;
-
-  return {
-    ...legacyResult,
-    data: await enrichVotesWithBallots(legacyResult.data),
-  };
+  // The server derives the Student ID from the authenticated JWT. The legacy
+  // studentId parameter remains for call-site compatibility and is ignored.
+  void studentId;
+  const { data, error } = await callVoteAccess("student_receipts");
+  if (error) return { data: null, error };
+  const votes = data?.votes || [];
+  return { data: await enrichVotesWithBallots(votes), error: null };
 }
 
 export function normalizeReceiptVotes(votes) {

@@ -5,6 +5,7 @@ import { AlertTriangle, ArrowRight, FileText, FileUp } from "lucide-react";
 import { createMasterlistImport } from "../../utils/superAdminMasterlistImport";
 import { formatAcademicTerm, listAcademicTerms } from "../../utils/academicTerms";
 import { usePrompt } from "../../context/PromptContext";
+import SuperAdminPageHeader from "../../components/SuperAdminPageHeader";
 import "./CSVImport.css";
 
 function CSVImport() {
@@ -16,6 +17,7 @@ function CSVImport() {
   const [importing, setImporting] = useState(false);
   const [terms, setTerms] = useState([]);
   const [selectedTermId, setSelectedTermId] = useState("");
+  const [importScope, setImportScope] = useState("incremental");
   const [termLoading, setTermLoading] = useState(true);
   const [selectedFileName, setSelectedFileName] = useState("");
 
@@ -132,6 +134,7 @@ function CSVImport() {
       academicTermId: selectedTermId,
       fileName: selectedFileName || "masterlist.csv",
       rows: validRows,
+      importScope,
     });
 
     setImporting(false);
@@ -162,27 +165,12 @@ function CSVImport() {
 
   return (
     <div className="sa-csv-import">
-      <header className="sa-csv-import-masthead">
-        <div className="sa-csv-import-masthead-copy">
-          <p className="sa-csv-import-brandline">
-            <span>Kandid</span>
-            <span>/</span>
-            <span>Super Admin</span>
-          </p>
-          <p className="sa-csv-import-eyebrow">Data intake / 01</p>
-          <h1>CSV Import</h1>
-          <p className="sa-csv-import-deck">
-            Prepare and stage semester student records for administrative review
-            before they enter the registry.
-          </p>
-        </div>
-
-        <div className="sa-csv-import-masthead-aside">
-          <span>Record type</span>
-          <strong>Student masterlist</strong>
-          <small>Accepted format: .csv</small>
-        </div>
-      </header>
+      <SuperAdminPageHeader
+        section="Student records"
+        title="CSV Import"
+        description="Prepare student masterlists for administrative review before registry import."
+        actions={<><span>Record type</span><strong>Student masterlist</strong><small>Accepted format: .csv</small></>}
+      />
 
       <ol className="sa-csv-import-workflow" aria-label="CSV import workflow">
         {workflowPhases.map((phase, index) => {
@@ -237,6 +225,41 @@ function CSVImport() {
               <small>No open academic terms are available for staging.</small>
             ) : null}
           </label>
+
+          <fieldset className="sa-csv-import-term" disabled={importing}>
+            <legend>Import scope</legend>
+            <label className="flex items-start gap-2">
+              <input
+                type="radio"
+                name="masterlist-import-scope"
+                value="incremental"
+                checked={importScope === "incremental"}
+                onChange={() => setImportScope("incremental")}
+              />
+              <span>
+                <strong>Incremental (default)</strong>
+                <small>Update only Students included in this upload. Other enrollments and memberships remain unchanged.</small>
+              </span>
+            </label>
+            <label className="mt-3 flex items-start gap-2">
+              <input
+                type="radio"
+                name="masterlist-import-scope"
+                value="full_roster"
+                checked={importScope === "full_roster"}
+                onChange={() => setImportScope("full_roster")}
+              />
+              <span>
+                <strong>Complete full-term roster</strong>
+                <small>Use only when this file is the complete authoritative roster for the selected term.</small>
+              </span>
+            </label>
+            {importScope === "full_roster" ? (
+              <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                Students absent from a confirmed complete roster may lose current-term enrollment eligibility. The affected Students will be listed for Super Admin review before finalization.
+              </p>
+            ) : null}
+          </fieldset>
 
           <div className="sa-csv-import-schema" aria-label="CSV column requirements">
             <div>

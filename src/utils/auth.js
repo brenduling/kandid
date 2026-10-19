@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { clearSessionCache } from "./sessionCache";
-import { supabase } from "../lib/supabaseClient";
+import { guardedSupabaseFetch, supabase } from "../lib/supabaseClient";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_KEY;
@@ -18,34 +18,20 @@ const ADMIN_PROFILE_SELECT = `
   organizations (
     id,
     name,
-    logo_url
+    logo_url,
+    organization_type,
+    membership_scope
   )
 `;
 const LINK_ADMIN_IDENTITY_FUNCTION = "link-admin-identity";
 const LINK_STUDENT_IDENTITY_FUNCTION = "link-student-identity";
 const RESOLVE_STUDENT_LOGIN_FUNCTION = "resolve-student-login";
-const ADMIN_AUTH_MODE = import.meta.env.VITE_KANDID_ADMIN_AUTH_MODE === "supabase"
-  ? "supabase"
-  : "legacy";
+const STUDENT_PROFILE_FUNCTION = "student-profile";
+// Browser reads of admin_users.password are removed by the release security
+// contract. Administrator portals now always require a linked Supabase Auth session.
+const ADMIN_AUTH_MODE = "supabase";
 const ADMIN_PROFILE_CACHE_MS = 15 * 1000;
 const STUDENT_PROFILE_CACHE_MS = 15 * 1000;
-
-const STUDENT_PROFILE_SELECT = `
-  id,
-  auth_user_id,
-  student_number,
-  first_name,
-  last_name,
-  email,
-  photo_url,
-  program,
-  year_level,
-  precinct_code,
-  batch_code,
-  is_shs,
-  status,
-  created_at
-`;
 
 const GENERIC_STUDENT_LOGIN_ERROR = "We couldn't sign you in. Check your Student ID and password.";
 
@@ -55,6 +41,15 @@ let cachedAdminProfileAt = 0;
 let studentProfileRequest = null;
 let cachedStudentProfile = null;
 let cachedStudentProfileAt = 0;
+let studentSessionGeneration = 0;
+let isolatedStudentAuthClientSequence = 0;
+
+function invalidateStudentProfile() {
+  studentSessionGeneration += 1;
+  studentProfileRequest = null;
+  cachedStudentProfile = null;
+  cachedStudentProfileAt = 0;
+}
 
 export function getAdminAuthMode() {
   return ADMIN_AUTH_MODE;
@@ -102,9 +97,7 @@ export function clearStoredUser() {
   adminProfileRequest = null;
   cachedAdminProfile = null;
   cachedAdminProfileAt = 0;
-  studentProfileRequest = null;
-  cachedStudentProfile = null;
-  cachedStudentProfileAt = 0;
+  invalidateStudentProfile();
   window.dispatchEvent(new CustomEvent("kandid-user-updated", { detail: null }));
 }
 
@@ -209,67 +202,43 @@ export async function linkCurrentAdminIdentity() {
   return { data: result?.data || null, error };
 }
 
-export async function getCurrentStudentProfile({ force = false } = {}) {
-  if (!force && cachedStudentProfile && Date.now() - cachedStudentProfileAt < STUDENT_PROFILE_CACHE_MS) {
+export async function getCurrentStudentProfile({ force = false, retryAuthRecovery = true } = {}) {
+  const generation = studentSessionGeneration;
+  const { user, error } = await getCurrentAuthUser();
+  // Restoring a persisted Auth session can emit SIGNED_IN while getUser is
+  // pending. Revalidate once against the new generation instead of redirecting
+  // an authenticated deep link to Login. Never reuse the stale profile/JWT.
+  if (generation !== studentSessionGeneration && !error && user?.id && retryAuthRecovery) {
+    return getCurrentStudentProfile({ force: true, retryAuthRecovery: false });
+  }
+  if (generation !== studentSessionGeneration || error || !user?.id) {
+    return { data: null, user: null, error: error || new Error("No active Supabase Auth session.") };
+  }
+  if (!force && cachedStudentProfile?.user?.id === user.id && Date.now() - cachedStudentProfileAt < STUDENT_PROFILE_CACHE_MS) {
     return cachedStudentProfile;
   }
 
-  if (!force && studentProfileRequest) return studentProfileRequest;
-
-  studentProfileRequest = resolveCurrentStudentProfile().finally(() => {
-    studentProfileRequest = null;
+  if (studentProfileRequest?.userId === user.id && studentProfileRequest.generation === generation) return studentProfileRequest.promise;
+  const request = { userId: user.id, generation };
+  request.promise = resolveCurrentStudentProfile(user, generation).finally(() => {
+    if (studentProfileRequest === request) studentProfileRequest = null;
   });
-
-  return studentProfileRequest;
+  studentProfileRequest = request;
+  return request.promise;
 }
 
-async function resolveCurrentStudentProfile() {
-  const { user, error: userError } = await getCurrentAuthUser();
-
-  if (userError || !user?.id) {
-    return {
-      data: null,
-      user: null,
-      error: userError || new Error("No active Supabase Auth session."),
-    };
+async function resolveCurrentStudentProfile(user, generation) {
+  const result = await resolveStudentProfileForClient(supabase, user);
+  if (generation !== studentSessionGeneration) {
+    return { data: null, user: null, error: new Error("The Student session changed. Sign in again.") };
   }
-
-  const { data, error } = await supabase
-    .from("students")
-    .select(STUDENT_PROFILE_SELECT)
-    .eq("auth_user_id", user.id)
-    .maybeSingle();
-
-  if (error) return { data: null, user, error };
-  if (!data) {
-    return {
-      data: null,
-      user,
-      error: new Error("No linked KANDID student profile found for this account."),
-    };
+  if (result.error || !result.data) return { ...result, user };
+  if (result.data.status !== "active") {
+    return { data: null, user, error: new Error("This student account is not available for sign-in.") };
   }
-
-  if (data.auth_user_id !== user.id) {
-    return {
-      data: null,
-      user,
-      error: new Error("Student identity mapping could not be verified."),
-    };
-  }
-
-  if (data.status !== "active") {
-    return {
-      data: null,
-      user,
-      error: new Error("This student account is not available for sign-in."),
-    };
-  }
-
-  const studentProfile = { ...data, role: "student" };
-  const result = { data: studentProfile, user, error: null };
   cachedStudentProfile = result;
   cachedStudentProfileAt = Date.now();
-  return result;
+  return { ...result, user };
 }
 
 export async function requireStudentSession({ force = false } = {}) {
@@ -287,57 +256,131 @@ export async function requireStudentSession({ force = false } = {}) {
 
 export async function linkCurrentStudentIdentity({
   studentNumber,
-  legacyPassword,
   setupMode = false,
+  password,
 }) {
   const { data, error } = await supabase.functions.invoke(
     LINK_STUDENT_IDENTITY_FUNCTION,
     {
       body: {
         student_number: studentNumber,
-        legacy_password: legacyPassword,
         setup_mode: setupMode,
+        password,
       },
     },
   );
 
   if (error) return { data: null, error };
-  if (!data?.linked) {
+  if (data?.linked !== true || data.student?.status !== "active" ||
+      data.student?.student_number !== studentNumber || !data.student?.id) {
     return {
       data: null,
       error: new Error("Student identity could not be linked."),
     };
   }
 
-  return requireStudentSession({ force: true });
+  // The authenticated linker confirms the exact active Student mapping. Setup
+  // completion must not depend on a separate profile lookup or auto-login.
+  return { data: data.student, error: null };
 }
 
-export async function resolveStudentLogin(studentNumber) {
-  const { data, error } = await supabase.functions.invoke(
+export async function signOutStudentSetupSession() {
+  const { error } = await supabase.auth.signOut({ scope: "local" });
+  if (error) return { error };
+  clearStoredUser();
+  return { error: null };
+}
+
+async function setStudentPasswordSession(authClient, { studentNumber, password }) {
+  const { data, error } = await authClient.functions.invoke(
     RESOLVE_STUDENT_LOGIN_FUNCTION,
     {
       body: {
+        action: "login",
         student_number: studentNumber,
+        password,
       },
     },
   );
 
-  if (error) return { data: null, error };
-  return { data: data?.data || null, error: null };
+  const session = data?.data?.authenticated ? data.data.session : null;
+  if (error || !session?.access_token || !session?.refresh_token) {
+    return { data: null, error: error || new Error(GENERIC_STUDENT_LOGIN_ERROR) };
+  }
+  return authClient.auth.setSession({
+    access_token: session.access_token,
+    refresh_token: session.refresh_token,
+  });
+}
+
+export async function authenticateStudentByNumber(credentials) {
+  invalidateStudentProfile();
+  return setStudentPasswordSession(supabase, credentials);
+}
+
+export async function beginStudentAccessVerification({ studentNumber }) {
+  const { data, error } = await supabase.functions.invoke(RESOLVE_STUDENT_LOGIN_FUNCTION, {
+    body: { action: "begin_access", student_number: studentNumber },
+  });
+  if (error || data?.data?.verification_requested !== true) {
+    return { data: null, error: error || new Error("Verification could not be requested.") };
+  }
+  return { data: { verification_requested: true, retry_after_seconds: data.data.retry_after_seconds || 60 }, error: null };
+}
+
+export async function inspectStudentSetup({ studentNumber }) {
+  const { data, error } = await supabase.functions.invoke(RESOLVE_STUDENT_LOGIN_FUNCTION, {
+    body: { action: "inspect_setup", student_number: studentNumber },
+  });
+  const details = data?.data?.student_details;
+  if (error || data?.data?.verification_required !== true || details?.student_number !== studentNumber || details?.details_verified !== false) {
+    return { data: null, error: error || new Error("The Student ID check could not be completed. Try again.") };
+  }
+  // Pre-OTP responses never carry personal details, even from a malformed API.
+  return { data: { student_number: studentNumber, details_verified: false }, error: null };
+}
+
+export async function verifyStudentAccessCode({ studentNumber, code }) {
+  const { data, error } = await supabase.functions.invoke(RESOLVE_STUDENT_LOGIN_FUNCTION, {
+    body: {
+      action: "verify_access",
+      student_number: studentNumber,
+      verification_code: code,
+    },
+  });
+  const session = data?.data?.authenticated ? data.data.session : null;
+  if (error || !session?.access_token || !session?.refresh_token) {
+    return { data: null, error: error || Object.assign(new Error("Verification could not be completed."), { status: 401 }) };
+  }
+  const result = await supabase.auth.setSession({
+    access_token: session.access_token,
+    refresh_token: session.refresh_token,
+  });
+  if (result.error || !result.data?.session) return result;
+  const { data: identity, error: identityError } = await supabase.auth.getUser();
+  if (identityError || !identity?.user?.email_confirmed_at) {
+    return { data: null, error: identityError || Object.assign(new Error("Verified identity required."), { status: 401 }) };
+  }
+  const details = data?.data?.student_details;
+  return { ...result, data: { ...result.data, student_details: details?.details_verified === true && details.student_number === studentNumber ? details : null } };
 }
 
 function createIsolatedStudentAuthClient() {
   return createClient(supabaseUrl, supabaseAnonKey, {
+    global: { fetch: guardedSupabaseFetch },
     auth: {
       persistSession: false,
       autoRefreshToken: false,
       detectSessionInUrl: false,
+      storageKey: `kandid-isolated-kiosk-${++isolatedStudentAuthClientSequence}`,
     },
   });
 }
 
-async function resolveStudentProfileForClient(authClient) {
-  const { data: userResult, error: userError } = await authClient.auth.getUser();
+async function resolveStudentProfileForClient(authClient, verifiedUser) {
+  const { data: userResult, error: userError } = verifiedUser
+    ? { data: { user: verifiedUser }, error: null }
+    : await authClient.auth.getUser();
   const user = userResult?.user || null;
 
   if (userError || !user?.id) {
@@ -348,54 +391,27 @@ async function resolveStudentProfileForClient(authClient) {
     };
   }
 
-  const { data, error } = await authClient
-    .from("students")
-    .select(STUDENT_PROFILE_SELECT)
-    .eq("auth_user_id", user.id)
-    .maybeSingle();
-
-  if (error) return { data: null, user, error };
-  if (!data || data.auth_user_id !== user.id) {
+  const { data: profileResponse, error } = await authClient.functions.invoke(STUDENT_PROFILE_FUNCTION, {
+    body: { action: "profile" },
+  });
+  const data = profileResponse?.data;
+  if (error || !data || data.status !== "active") {
     return {
       data: null,
       user,
-      error: new Error(GENERIC_STUDENT_LOGIN_ERROR),
+      error: Object.assign(new Error("Your sign-in succeeded, but your Student profile could not be verified. Try again or contact the Electoral Board."), {
+        code: Number(error?.context?.status || error?.status) === 403 ? "STUDENT_PROFILE_FORBIDDEN" : "STUDENT_PROFILE_UNAVAILABLE", cause: error,
+      }),
     };
   }
-
-  if (data.status !== "active") {
-    return {
-      data: null,
-      user,
-      error: new Error("This student account is not available for sign-in."),
-    };
-  }
-
   return { data: { ...data, role: "student" }, user, error: null };
 }
 
 export async function authenticateStudentForKiosk({ studentNumber, password }) {
   const normalizedStudentNumber = String(studentNumber || "").trim();
-  const { data: loginData, error: resolveError } = await resolveStudentLogin(normalizedStudentNumber);
-
-  if (resolveError || !loginData?.login_email) {
-    return { data: null, error: new Error(GENERIC_STUDENT_LOGIN_ERROR) };
-  }
-
-  if (loginData.setup_required) {
-    return {
-      data: null,
-      error: new Error("This student still needs to complete account setup."),
-    };
-  }
-
-  if (!loginData.login_available) {
-    return { data: null, error: new Error(GENERIC_STUDENT_LOGIN_ERROR) };
-  }
-
   const kioskClient = createIsolatedStudentAuthClient();
-  const { data: authData, error: signInError } = await kioskClient.auth.signInWithPassword({
-    email: loginData.login_email,
+  const { data: authData, error: signInError } = await setStudentPasswordSession(kioskClient, {
+    studentNumber: normalizedStudentNumber,
     password,
   });
 
@@ -435,9 +451,18 @@ export async function signOutAdminSession() {
 }
 
 export async function signOutStudentSession() {
-  await supabase.auth.signOut();
+  const { error } = await supabase.auth.signOut({ scope: "local" });
+  if (error) return { error };
   clearStoredUser();
+  return { error: null };
 }
+
+// A late profile response must never restore a cache after logout or a switch
+// of Auth identity. This callback performs no async Auth calls.
+supabase.auth.onAuthStateChange?.((event) => {
+  if (event === "SIGNED_OUT") clearStoredUser();
+  else if (event === "SIGNED_IN") invalidateStudentProfile();
+});
 
 export function getDefaultRouteForUser(user) {
   if (!user) return "/";

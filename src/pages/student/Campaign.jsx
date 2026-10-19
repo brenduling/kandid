@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   CalendarDays,
@@ -12,6 +12,11 @@ import ElectionCover from "../../components/ElectionCover";
 import KandidImage from "../../components/KandidImage";
 import { supabase } from "../../lib/supabaseClient";
 import { formatLocalDateTime } from "../../utils/elections";
+import { getElectionPhase, getCampaignWindowPhase } from "../../utils/electionLifecycle";
+import { useElectionClock } from "../../utils/useElectionClock";
+import { studentElectionFailure } from "../../utils/studentElectionAccess";
+import StudentBallotAction from "../../components/student/StudentBallotAction";
+import { resolveCampaignMaterialUrl, inferCampaignMaterialInputType, parseCampaignMaterialReference } from "../../utils/campaignMaterials";
 
 const INITIAL_VIEW = {
   kind: "LOADING",
@@ -38,10 +43,65 @@ function safeMaterialUrl(value) {
 
   try {
     const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:" ? url.href : "";
+    return url.protocol === "https:" ? url.href : "";
   } catch {
     return "";
   }
+}
+
+function CampaignMaterialLink({ material, label }) {
+  const source = material?.url;
+  const kind = material?.type === "media"
+    ? inferCampaignMaterialInputType(material)
+    : material?.type || "link";
+  const [resolution, setResolution] = useState({ source: null, url: "", failed: false });
+  useEffect(() => {
+    let active = true;
+    resolveCampaignMaterialUrl(supabase, source)
+      .then((url) => { if (active) setResolution({ source, url, failed: false }); })
+      .catch(() => { if (active) setResolution({ source, url: "", failed: true }); });
+    return () => { active = false; };
+  }, [source]);
+
+  const matchesSource = resolution.source === source;
+  const url = matchesSource ? resolution.url : "";
+  const failed = matchesSource && resolution.failed;
+
+  if (!url) return (
+    <span className="student-campaign-material-unavailable">
+      {failed ? "Unavailable" : "Preparing secure link…"}
+    </span>
+  );
+  if (kind === "image") {
+    return (
+      <a className="student-campaign-material-image" href={url} target="_blank" rel="noopener noreferrer">
+        <img src={url} alt={label} loading="lazy" />
+        <span>Open full-size image</span>
+      </a>
+    );
+  }
+  if (kind === "video") {
+    const extension = parseCampaignMaterialReference(source)?.extension || source.split(/[?#]/, 1)[0].split(".").pop()?.toLowerCase();
+    const videoType = extension === "webm" ? "video/webm" : "video/mp4";
+    return (
+      <video className="student-campaign-material-video" controls preload="metadata" aria-label={label}>
+        <source src={url} type={videoType} />
+        Your browser cannot play this campaign video. <a href={url}>Open the video</a>.
+      </video>
+    );
+  }
+  if (kind === "document") {
+    return (
+      <a href={url} target="_blank" rel="noopener noreferrer" download>
+        <FileText size={15} /> View or download PDF
+      </a>
+    );
+  }
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer">
+      <ExternalLink size={15} /> Open campaign link
+    </a>
+  );
 }
 
 function CampaignState({ eyebrow, title, copy, action, loading = false }) {
@@ -123,7 +183,7 @@ function CandidateDetails({ candidate, positionName }) {
             {materials.map((material, index) => {
               const url = safeMaterialUrl(material?.url);
               const label = cleanText(material?.label) || `Campaign material ${index + 1}`;
-              const downloadable = material?.downloadable === true;
+              const kind = material?.type === "media" ? inferCampaignMaterialInputType(material) : material?.type || "link";
 
               return (
                 <li key={`${material?.url || "material"}-${index}`}>
@@ -131,19 +191,11 @@ function CandidateDetails({ candidate, positionName }) {
                     <FileText size={16} aria-hidden="true" />
                     <span>
                       <strong>{label}</strong>
-                      <small>{cleanText(material?.type) || "link"}</small>
+                      <small>{kind}</small>
                     </span>
                   </span>
-                  {url ? (
-                    <a
-                      href={url}
-                      target="_blank"
-                      rel="noreferrer"
-                      download={downloadable || undefined}
-                    >
-                      <ExternalLink size={15} />
-                      Open material
-                    </a>
+                  {url || material?.url?.startsWith("storage://campaign-materials/") ? (
+                    <CampaignMaterialLink material={material} label={label} />
                   ) : (
                     <span className="student-campaign-material-unavailable">
                       Unavailable
@@ -154,7 +206,14 @@ function CandidateDetails({ candidate, positionName }) {
             })}
           </ul>
         </section>
-      ) : null}
+      ) : (
+        <section className="student-campaign-materials is-empty">
+          <div>
+            <p className="student-campaign-detail-label">Campaign materials</p>
+            <p>No campaign materials have been shared yet.</p>
+          </div>
+        </section>
+      )}
 
       <p className="student-campaign-detail-context">
         Running for {positionName} as {cleanText(candidate.partylist?.name) || "Independent"}.
@@ -207,6 +266,26 @@ function StudentCampaign() {
   const [view, setView] = useState(INITIAL_VIEW);
   const [expandedCandidateId, setExpandedCandidateId] = useState(null);
   const [requestKey, setRequestKey] = useState(0);
+  const now = useElectionClock();
+  const observedWindow = useRef(null);
+  const windowPhase = view.schedule ? getCampaignWindowPhase(view.schedule, now) : null;
+  useEffect(() => {
+    if (!windowPhase) return;
+    const previous = observedWindow.current;
+    observedWindow.current = { electionId, windowPhase };
+    if (previous?.electionId === electionId && previous.windowPhase !== windowPhase) {
+      // Reauthorize at the schedule boundary instead of retaining a stale roster.
+      Promise.resolve().then(() => setRequestKey(value => value + 1));
+    }
+  }, [windowPhase, electionId]);
+
+  // Returning to the campaign page rechecks the published-only contract so a
+  // newly confirmed election roster is not left behind an old empty view.
+  useEffect(() => {
+    const refresh = () => { if (document.visibilityState === "visible") setRequestKey(key => key + 1); };
+    window.addEventListener("focus", refresh);
+    return () => window.removeEventListener("focus", refresh);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -215,15 +294,25 @@ function StudentCampaign() {
       setView(INITIAL_VIEW);
       setExpandedCandidateId(null);
 
-      const { data, error } = await supabase.rpc("get_student_campaign", {
-        p_election_id: electionId,
-      });
+      try {
+      const id = Number(electionId);
+      if (!Number.isInteger(id) || id < 1 || id > 2147483647) {
+        if (active) setView({ kind: "UNAVAILABLE", reason: "ELECTION_NOT_AVAILABLE", data: null });
+        return;
+      }
+      const { data: auth, error: authError } = await supabase.auth.getUser();
+      if (authError || !auth?.user) {
+        if (active) setView({ ...studentElectionFailure(authError, authError ? undefined : 401), data: null });
+        return;
+      }
+      const { data, error, status: httpStatus } = await supabase.rpc("kandid_get_student_published_campaign", {
+        p_election_id: id,
+      }).retry(false);
 
       if (!active) return;
 
       if (error) {
-        console.error("Failed to load Student Campaign:", error);
-        setView({ kind: "ERROR", reason: null, data: null });
+        setView({ ...studentElectionFailure(error, httpStatus), data: null });
         return;
       }
 
@@ -233,12 +322,38 @@ function StudentCampaign() {
         setView({ kind: "ERROR", reason: null, data: null });
         return;
       }
+      if (["AVAILABLE", "EMPTY"].includes(status) &&
+          (Number(data.data?.election?.id) !== id || !Array.isArray(data.data?.positions) ||
+            !Array.isArray(data.data?.candidates) ||
+            (status === "AVAILABLE" && data.data.candidates.length === 0) ||
+            (status === "EMPTY" && data.data.candidates.length !== 0))) {
+        setView({ kind: "ERROR", reason: "INVALID_RESPONSE", data: null });
+        return;
+      }
 
+      // The published-only RPC remains the sole source of candidate data. Read
+      // public schedule metadata only after it confirms this student's access.
+      let schedule = null;
+      let scheduleError = false;
+      if (["AVAILABLE", "EMPTY"].includes(status) ||
+          ["CAMPAIGN_NOT_STARTED", "CAMPAIGN_ENDED", "CAMPAIGN_SCHEDULE_MISSING"].includes(data?.reason)) {
+        const response = await supabase.from("elections")
+          .select("id,title,status,campaign_start,campaign_end,start_date,end_date")
+          .eq("id", id).single().retry(false);
+        schedule = !response.error && Number(response.data?.id) === id ? response.data : null;
+        scheduleError = !schedule;
+      }
+      if (!active) return;
       setView({
         kind: status,
         reason: data?.reason || null,
         data: data?.data || null,
+        schedule,
+        scheduleError,
       });
+      } catch (error) {
+        if (active) setView({ ...studentElectionFailure(error), data: null });
+      }
     }
 
     loadCampaign();
@@ -258,6 +373,23 @@ function StudentCampaign() {
       Back to elections
     </button>
   );
+
+  const phase = view.schedule ? getElectionPhase(view.schedule, now) : null;
+  const schedulePanel = view.schedule ? (
+    <section className="student-campaign-reading-note student-campaign-voting" aria-label="Election schedule">
+      <div>
+        <strong>{phase === "campaign" ? "Campaign Ongoing" : phase === "waiting" ? "Waiting for Voting" : phase === "voting" ? "Voting Open" : phase === "closed" ? "Voting Closed" : "Upcoming Election"}</strong>
+        <p>{view.schedule.title} · Voting: {formatLocalDateTime(view.schedule.start_date)} to {formatLocalDateTime(view.schedule.end_date)} (Asia/Manila)</p>
+        <p>Campaign: {formatLocalDateTime(view.schedule.campaign_start)} to {formatLocalDateTime(view.schedule.campaign_end)}</p>
+      </div>
+      {phase === "voting" ? <StudentBallotAction electionId={Number(electionId)} /> : null}
+    </section>
+  ) : view.scheduleError ? (
+    <div className="student-campaign-reading-note" role="alert">
+      Voting schedule unavailable.
+      <button type="button" className="student-outline-btn" onClick={() => setRequestKey(value => value + 1)}>Retry</button>
+    </div>
+  ) : null;
 
   if (view.kind === "LOADING") {
     return (
@@ -280,7 +412,7 @@ function StudentCampaign() {
         <CampaignState
           eyebrow="Campaign unavailable"
           title="We couldn't load the campaign right now."
-          copy="Please try again in a moment."
+          copy={view.message || "Please try again in a moment."}
           action={(
             <button
               type="button"
@@ -318,12 +450,15 @@ function StudentCampaign() {
           eyebrow="Student access"
           title={unauthorizedCopy.title}
           copy={unauthorizedCopy.copy}
+          action={view.reason === "AUTHENTICATION_REQUIRED" ? (
+            <button type="button" className="student-campaign-state-action" onClick={() => navigate("/student-login")}>Sign in</button>
+          ) : null}
         />
       </div>
     );
   }
 
-  if (view.kind === "UNAVAILABLE") {
+  if (view.kind === "UNAVAILABLE" || (view.kind === "AVAILABLE" && windowPhase && windowPhase !== "ongoing")) {
     const unavailableCopy = {
       CAMPAIGN_NOT_STARTED: {
         title: "Campaign isn't open yet.",
@@ -339,9 +474,9 @@ function StudentCampaign() {
       },
       ELECTION_NOT_AVAILABLE: {
         title: "This campaign isn't available.",
-        copy: "Use the Elections page to view campaigns available to you.",
+        copy: "This election may be unavailable or you may not be eligible. Use Elections to view the campaigns available to your account.",
       },
-    }[view.reason] || {
+    }[view.reason || (windowPhase === "upcoming" ? "CAMPAIGN_NOT_STARTED" : "CAMPAIGN_ENDED")] || {
       title: "This campaign isn't available.",
       copy: "Use the Elections page to continue.",
     };
@@ -349,6 +484,7 @@ function StudentCampaign() {
     return (
       <div className="student-campaign-page-v2">
         {backButton}
+        {schedulePanel}
         <CampaignState
           eyebrow="Campaign"
           title={unavailableCopy.title}
@@ -362,10 +498,11 @@ function StudentCampaign() {
     return (
       <div className="student-campaign-page-v2">
         {backButton}
+        {schedulePanel}
         <CampaignState
           eyebrow={view.data?.election?.title || "Campaign"}
-          title="Nothing to introduce just yet."
-          copy="Candidates will appear here when campaign information is available."
+          title="No published campaigns yet."
+          copy="Candidates will appear here after the Board publishes their campaigns."
         />
       </div>
     );
@@ -401,6 +538,8 @@ function StudentCampaign() {
         </div>
         <ElectionCover election={election} compact className="student-campaign-mast-cover" />
       </header>
+
+      {schedulePanel}
 
       <div className="student-campaign-reading-note">
         <span aria-hidden="true" />

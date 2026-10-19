@@ -1,12 +1,8 @@
-import {
-  ArrowRight,
-  BadgeCheck,
-  Building2,
-  ShieldCheck,
-} from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Link, Navigate } from "react-router-dom";
 import logo from "../assets/kandidlogo.png";
 import { KandidHeroScene, KandidMascot } from "../components/KandidMascot";
+import BoardLanding from "./BoardLanding";
 import { getDefaultRouteForUser, getStoredUser } from "../utils/auth";
 
 const roleAccess = {
@@ -16,68 +12,23 @@ const roleAccess = {
 };
 
 const landingConfig = {
-  board: {
-    routePath: "/board-portal",
-    audience: "Electoral Board",
-    eyebrow: "Kandid",
-    eyebrowDetail: "Electoral Board",
-    title: "Run the election with Kandid.",
-    lead: "Prepare. Organize. Monitor. Complete.",
-    loginLabel: "Board Login",
-    loginPath: "/eb-login",
-    headerLabel: "Election Operations",
-    deskTitle: "Kandid election desk",
-    deskItems: ["Prepare", "Organize", "Monitor", "Complete"],
-    sections: [
-      {
-        type: "steps",
-        kicker: "Operational overview",
-        title: "From preparation to results",
-        items: [
-          ["01", "Prepare", "Set the election."],
-          ["02", "Organize", "Candidates & positions."],
-          ["03", "Monitor", "Follow voting."],
-          ["04", "Complete", "Results & records."],
-        ],
-      },
-      {
-        type: "trust",
-        kicker: "The process, in view.",
-        title: "Election work stays accountable",
-        items: [
-          ["Role-bound access", "Authorized Board users enter the workspace after login."],
-          ["Private records", "Student and election-management records stay inside the authenticated app."],
-          ["Clear handoff", "The landing page explains the desk; the workspace runs the election."],
-        ],
-      },
-    ],
-    finalKicker: "From preparation to results, keep it together.",
-  },
   admin: {
     routePath: "/admin",
-    audience: "Super Admin",
-    eyebrow: "Kandid",
-    eyebrowDetail: "System Administration",
-    title: "System-wide oversight for Kandid.",
-    lead: "Controlled access for platform oversight.",
     loginLabel: "Admin Login",
     loginPath: "/admin-login",
-    headerLabel: "Privileged System Entrance",
-    deskTitle: "Admin entry",
-    deskItems: ["Role context", "Admin login", "Workspace access"],
-    sections: [
-      {
-        type: "trust",
-        kicker: "System level",
-        title: "Controlled administration",
-        items: [
-          ["Organizations", "Manage organizations across Kandid."],
-          ["Access", "Keep administration within authorized roles."],
-          ["Oversight", "Maintain the system behind every election."],
-        ],
-      },
+    workflow: [
+      ["Organize", "Set up organizations and their program structure."],
+      ["Maintain", "Manage academic terms and student records."],
+      ["Authorize", "Manage Electoral Board access and assignments."],
+      ["Oversee", "Administer elections across organizations."],
+      ["Review", "Follow audit activity and election records."],
     ],
-    finalKicker: null,
+    responsibilities: [
+      ["The structure", "Organizations, programs, coverage, and academic terms."],
+      ["The people", "Student records and authorized Electoral Board access."],
+      ["The election", "Election setup, eligibility, candidates, and results."],
+      ["The record", "Reports, audit history, archives, and verification."],
+    ],
   },
 };
 
@@ -175,58 +126,65 @@ const transparencyGroups = [
   },
 ];
 
-function EntryDesk({ config }) {
+function AdminHeroScene() {
+  const indexRows = ["ORG", "TERM", "ACCESS", "ELECTION"];
+
   return (
-    <aside className="kandid-entry-panel" aria-labelledby="kandid-entry-desk-title">
-      <div className="kandid-entry-panel-head">
-        <span>{config.audience}</span>
-        <h2 id="kandid-entry-desk-title">{config.deskTitle}</h2>
+    <div
+      className="admin-public-scene admin-public-hero-scene"
+      role="img"
+      aria-label="Kandid organizes a system index of organizations, academic terms, access, and elections."
+    >
+      <div className="admin-public-index-sheet" aria-hidden="true">
+        <span className="admin-public-sheet-kicker">KANDID / SYSTEM INDEX</span>
+        <strong>Structure, in order.</strong>
+        <ol>
+          {indexRows.map((label, index) => (
+            <li key={label}>
+              <span>{String(index + 1).padStart(2, "0")}</span>
+              <b>{label}</b>
+              <i />
+            </li>
+          ))}
+        </ol>
       </div>
-      <ul className="kandid-entry-desk-list">
-        {config.deskItems.map((item) => (
-          <li key={item}>
-            <BadgeCheck size={17} aria-hidden="true" />
-            <span>{item}</span>
+      <KandidMascot pose="inspect" className="admin-public-scene-mascot" />
+    </div>
+  );
+}
+
+function AdminWorkflow({ config }) {
+  return (
+    <section id="admin-workflow" className="admin-public-workflow admin-public-canvas" aria-labelledby="admin-workflow-title">
+      <div className="admin-public-section-heading">
+        <p className="admin-public-eyebrow">The system</p>
+        <h2 id="admin-workflow-title">From structure to oversight.</h2>
+      </div>
+      <ol className="admin-public-workflow-list">
+        {config.workflow.map(([title, text], index) => (
+          <li key={title}>
+            <span className="admin-public-step-number">{String(index + 1).padStart(2, "0")}</span>
+            <strong>{title}</strong>
+            <p>{text}</p>
           </li>
         ))}
-      </ul>
-    </aside>
-  );
-}
-
-function NumberedSection({ section }) {
-  return (
-    <section className="kandid-entry-section" aria-labelledby={`${section.type}-section-title`}>
-      <div className="kandid-entry-section-head">
-        <span>{section.kicker}</span>
-        <h2 id={`${section.type}-section-title`}>{section.title}</h2>
-      </div>
-      <div className="kandid-entry-step-grid">
-        {section.items.map(([number, title, text]) => (
-          <article className="kandid-entry-step" key={title}>
-            <span>{number}</span>
-            <strong>{title}</strong>
-            {text ? <p>{text}</p> : null}
-          </article>
-        ))}
-      </div>
+      </ol>
     </section>
   );
 }
 
-function TrustSection({ section }) {
+function AdminResponsibilities({ config }) {
   return (
-    <section className="kandid-entry-section kandid-entry-trust" aria-labelledby={`${section.type}-section-title`}>
-      <div className="kandid-entry-section-head">
-        <span>{section.kicker}</span>
-        <h2 id={`${section.type}-section-title`}>{section.title}</h2>
+    <section id="admin-responsibilities" className="admin-public-responsibilities admin-public-canvas" aria-labelledby="admin-responsibilities-title">
+      <div className="admin-public-section-heading">
+        <p className="admin-public-eyebrow">System responsibility</p>
+        <h2 id="admin-responsibilities-title">Know what keeps Kandid together.</h2>
       </div>
-      <div className="kandid-entry-trust-grid">
-        {section.items.map(([title, text]) => (
+      <div className="admin-public-responsibility-list">
+        {config.responsibilities.map(([title, text]) => (
           <article key={title}>
-            <ShieldCheck size={18} aria-hidden="true" />
             <strong>{title}</strong>
-            {text ? <p>{text}</p> : null}
+            <p>{text}</p>
           </article>
         ))}
       </div>
@@ -234,66 +192,73 @@ function TrustSection({ section }) {
   );
 }
 
-function EntrySection({ section }) {
-  if (section.type === "trust") return <TrustSection section={section} />;
-  return <NumberedSection section={section} />;
+function AdminCheckpoint() {
+  return (
+    <section className="admin-public-checkpoint admin-public-canvas" aria-labelledby="admin-checkpoint-title">
+      <div>
+        <p className="admin-public-eyebrow">Across Kandid</p>
+        <h2 id="admin-checkpoint-title">Keep every layer in view.</h2>
+        <p>Organizations grow. Academic terms move forward. Boards change hands. Keep the structures and records behind their elections in view.</p>
+      </div>
+      <div className="admin-public-checkpoint-scene" aria-hidden="true">
+        <div className="admin-public-index-tabs"><span>ORG</span><span>TERM</span><span>ACCESS</span></div>
+        <KandidMascot pose="know" />
+        <div className="admin-public-checkpoint-sheet"><i /><i /><i /><i /></div>
+      </div>
+    </section>
+  );
 }
 
-function RoleEntryLanding({ role }) {
-  const config = landingConfig[role];
+function AdminLanding() {
+  const config = landingConfig.admin;
 
   return (
-    <main id="top" className={`kandid-landing kandid-entry kandid-entry-${role} k-paper-canvas`}>
-      <header className="kandid-entry-header">
-        <Link to={config.routePath} className="kandid-entry-brand" aria-label="Kandid">
-          <img src={logo} alt="KANDID Logo" />
-          <span>KANDID</span>
-        </Link>
-        <span className="kandid-entry-descriptor">{config.headerLabel}</span>
-        <Link to={config.loginPath} className="kandid-entry-header-action">
-          {config.loginLabel}
-        </Link>
-      </header>
+    <main id="top" className="admin-public-site k-paper-canvas">
+      <div className="admin-public-first-view">
+        <header className="admin-public-header admin-public-canvas">
+          <Link to={config.routePath} className="admin-public-brand" aria-label="Kandid Super Admin home">
+            <img src={logo} alt="KANDID" />
+            <span>KANDID</span>
+          </Link>
+          <nav className="admin-public-nav" aria-label="Super Admin landing navigation">
+            <a href="#admin-workflow">How It Works</a>
+            <a href="#admin-responsibilities">What You Manage</a>
+            <Link to={config.loginPath}>{config.loginLabel}</Link>
+          </nav>
+        </header>
 
-      <section className="kandid-entry-shell" aria-labelledby="kandid-entry-title">
-        <div className="kandid-entry-intro">
-          <p className="kandid-entry-kicker">
-            {config.eyebrow}
-            <span>{config.eyebrowDetail}</span>
-          </p>
-          <h1 id="kandid-entry-title">{config.title}</h1>
-          <p className="kandid-entry-copy">{config.lead}</p>
-          <div className="kandid-entry-primary">
-            <Link to={config.loginPath} className="kandid-entry-primary-action">
-              {config.loginLabel}
-              <ArrowRight size={18} aria-hidden="true" />
+        <section className="admin-public-hero admin-public-canvas" aria-labelledby="admin-public-title">
+          <div className="admin-public-hero-copy">
+            <p className="admin-public-eyebrow">Super Admin</p>
+            <h1 id="admin-public-title">Keep Kandid<br />in order.</h1>
+            <p className="admin-public-hero-deck">Kandid keeps the structure behind every election clear.</p>
+            <p className="admin-public-hero-line">Maintain organizations, academic terms, and the records behind each election.</p>
+            <Link to={config.loginPath} className="admin-public-login">
+              {config.loginLabel} <ArrowRight size={18} aria-hidden="true" />
             </Link>
           </div>
-        </div>
-
-        <EntryDesk config={config} />
-      </section>
-
-      <div className="kandid-entry-content">
-        {config.sections.map((section) => (
-          <EntrySection key={`${role}-${section.type}-${section.title}`} section={section} />
-        ))}
+          <AdminHeroScene />
+        </section>
       </div>
 
-      {config.finalKicker ? (
-        <section className="kandid-entry-final" aria-label={`${config.audience} entry`}>
-          <span>{config.finalKicker}</span>
-          <Link to={config.loginPath} className="kandid-entry-secondary-action">
-            {config.loginLabel}
-            <ArrowRight size={17} aria-hidden="true" />
-          </Link>
-        </section>
-      ) : null}
+      <AdminWorkflow config={config} />
+      <AdminResponsibilities config={config} />
+      <AdminCheckpoint />
 
-      <footer className="kandid-entry-footer">
-        <span>Kandid</span>
+      <section id="admin-login-cta" className="admin-public-closing admin-public-canvas" aria-label="Super Admin login">
+        <h2>Keep Kandid ready.</h2>
+        <div className="admin-public-closing-action">
+          <Link to={config.loginPath} className="admin-public-login">
+            {config.loginLabel} <ArrowRight size={18} aria-hidden="true" />
+          </Link>
+          <KandidMascot pose="close" />
+        </div>
+      </section>
+
+      <footer className="admin-public-footer admin-public-canvas">
+        <strong>KANDID</strong>
         <span>Centralized Election Management System</span>
-        <Building2 size={16} aria-hidden="true" />
+        <span>Western Institute of Technology</span>
       </footer>
     </main>
   );
@@ -419,7 +384,7 @@ function PublicWebsite() {
 }
 
 function RoleLanding({ role = "student" }) {
-  const activeRole = landingConfig[role] ? role : "student";
+  const activeRole = roleAccess[role] ? role : "student";
   const user = getStoredUser();
 
   if (roleAccess[activeRole] && user?.role === roleAccess[activeRole]) {
@@ -430,7 +395,11 @@ function RoleLanding({ role = "student" }) {
     return <PublicWebsite />;
   }
 
-  return <RoleEntryLanding role={activeRole} />;
+  if (activeRole === "board") {
+    return <BoardLanding />;
+  }
+
+  return <AdminLanding />;
 }
 
 export default RoleLanding;
