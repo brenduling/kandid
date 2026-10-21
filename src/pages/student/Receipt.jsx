@@ -113,7 +113,7 @@ function BallotProgress({ status }) {
     "Vote cast",
     "Ballot sealed",
     "Receipt recorded",
-    "Secured",
+    "Blockchain processing",
     "Verified",
   ];
   const activeIndex = status.className === "verified"
@@ -127,7 +127,7 @@ function BallotProgress({ status }) {
       {steps.map((step, index) => (
         <div
           key={step}
-          className={`student-ballot-progress-step ${index <= activeIndex ? "is-complete" : ""} ${index === activeIndex ? "is-current" : ""}`}
+          className={`student-ballot-progress-step ${index <= Math.min(activeIndex, 2) || status.className === "verified" ? "is-complete" : ""} ${index === activeIndex ? "is-current" : ""}`}
         >
           <span>{index < activeIndex ? "OK" : index + 1}</span>
           <strong>{step}</strong>
@@ -485,7 +485,7 @@ function StudentReceipt() {
                             </div>
                             <div>
                               <span>Blockchain</span>
-                              <strong>{isVerified ? "Permanent integrity record secured." : "Integrity verification may still be processing."}</strong>
+                              <strong>{isVerified ? "Permanent integrity record secured." : status.detail}</strong>
                               <em>You do not need to wait here.</em>
                             </div>
                             <BallotProgress status={status} />
@@ -593,10 +593,11 @@ function StudentReceipt() {
 
                   {(() => {
                     const { anchored, total } = getVerificationCounts(receipt.votes);
+                    const isComplete = total > 0 && anchored === total;
 
                     return (
                       <div
-                        className={`student-receipt-verification ${anchored === total ? "is-complete" : ""}`}
+                        className={`student-receipt-verification ${isComplete ? "is-complete" : ""}`}
                       >
                         <div>
                           <span>Ballot Status</span>
@@ -606,8 +607,8 @@ function StudentReceipt() {
                         <div>
                           <span>Security Verification</span>
                           <strong>{getVerificationSummary(receipt.votes)}</strong>
-                          {anchored < total ? (
-                            <em>Verification continues automatically.</em>
+                          {!isComplete ? (
+                            <em>Your vote remains recorded while blockchain verification is incomplete.</em>
                           ) : (
                             <em>Security verification complete.</em>
                           )}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import "./RemainingPages.css";
+import "./CSVImport.css";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   AlertTriangle,
@@ -65,8 +66,7 @@ function formatName(row) {
 
 function blockingRow(row) {
   return (
-    row.reconciliation_status === "invalid" ||
-    row.reconciliation_status === "conflict" ||
+    !["new", "continuing", "returnee", "shifted_program"].includes(row.reconciliation_status) ||
     (row.reconciliation_status === "shifted_program" &&
       row.review_status !== "approved")
   );
@@ -397,6 +397,8 @@ function MasterlistReview() {
           </>
         )}
       />
+
+      {finalized && payload?.import_summary ? <section className="sa-masterlist-import-result" role="status" aria-label="Finalized import results"><strong>{payload.import_summary.processed} records processed</strong><span>{payload.import_summary.created} new students</span><span>{payload.import_summary.existing_enrollments} existing term enrollments</span><span>{payload.import_summary.skipped} skipped staged rows</span><span>{payload.import_summary.failed} failed staged rows</span><small>Only staged rows are counted here. Locally excluded CSV rows were not imported. Existing account credentials and identities were preserved.</small></section> : null}
 
       <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div className="metric-card">

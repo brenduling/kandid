@@ -1,0 +1,112 @@
+{
+  "status": "Completed and tested locally; not installed or deployed",
+  "preparedAt": "2026-10-22T10:49:43.417Z",
+  "files": {
+    "supabase/proposals/academic-term-transitions.sql": "06cf6591e1a3d1da9895d32b411f25765a8c25e75182c4be6250363d2c2e0e79",
+    "supabase/proposals/academic-term-transitions.rollback.sql": "53890bcd733b855580cc995a985989947f3a22cea4d53991e648b2891bb13cd7",
+    "supabase/proposals/academic-term-transitions.preflight.sql": "964c04ec371eca58cf4377df46b53023fef70343822df2a074de2126e1c1cf19",
+    "supabase/proposals/system-settings-initial-record.sql": "46228d345130acb2dc6f59baba8a366308a0e845257e3fceb477eba26f65f1dc",
+    "supabase/proposals/system-settings-initial-record.rollback.sql": "7f8c7638d18464f241bcda2efbaa120a9de7670718ae33fd1e23468b73a4a273",
+    "supabase/functions/admin-academic-terms/index.ts": "84c76d4beb702099e6c46edb73ce0cbe901f4bf1094fbbb6e8f3f17c425a92db",
+    "supabase/functions/admin-academic-terms/deno.json": "77f0b01614c9f9e43a65262b47e7fe82f0adddcd1f5b640356c077f03d39d836",
+    "supabase/functions/admin-academic-terms/deno.lock": "a098714c05c8817a269db721e9be90f55d39d7215e9478c5a6b7c5901f0931bd",
+    "supabase/functions/_shared/kandidProductionSecurity.mjs": "87a7100ca782092528dc9cd49e7941216fe664ac4a0099f5d44fc9cf476733e2",
+    "src/pages/superadmin/SystemSettings.jsx": "326a8eec8d2bbaedd628bd8f9fa5bd23626e389d2c554e3ed35a3b7be03a55cf",
+    "src/pages/superadmin/AcademicTermDangerZone.jsx": "54ae667abf9d40f0692cd85798c6f76fad52c0eadb3a5cbc4503e764eb3f8462",
+    "src/pages/superadmin/AcademicTermDangerZone.css": "52c654262895040f0202f019750e2feb774f45fd270126dba77a23ccab968308",
+    "src/utils/academicTerms.js": "347b6e8ab185b6bb54419b4ca9eac3c9f144d813aabfbbe6a84fc1a947d457cc",
+    "src/utils/academicTermTransitionPresentation.js": "b0c742b429c236b714d0fdf0a36aacee33a326c366649d51e131ad5e37291db5",
+    "supabase/runtime-validation/academic-term-transitions-fixture.sql": "4c8724ca6ec0d5f6d3b43cfb5c2f6cbd12d24d3a761c3e78894739b7decd87f8",
+    "scripts/kandid-academic-term-transitions-pg17.mjs": "a1114c5632ea6738c31d82d1953712a553c3fa63285dc5af477486af7ee07928",
+    "scripts/kandid-academic-term-danger-zone-browser.mjs": "dbe1c229b7d46883e35559bbe8a8f9685fb58c9407ea7729ce2ad6e7d09a1e6a",
+    "scripts/lib/academic-term-browser-fixture.mjs": "b103ec3aaed10452e0c7870839cef02db18dd934afa42ad4eea7aebdc518663f",
+    "tests/academicTermClient.test.mjs": "256856304b9437dfe31baa41c0bec21dffce854e0fb44d85cf0e7733d55baf1e",
+    "tests/academicTermTransitionsEdge.test.mjs": "c7f3ad29ce8d4b92bf6debc806190d2646b8e03ceea3dc69fb3cf02cfeb6e548",
+    "tests/academicTermDangerZone.test.mjs": "37d78bce5d075e8637f175811cfdf1ad226c6298e611ce7ed3e7f1d7f49a1689",
+    "tests/superAdminSystemSettings.test.mjs": "23e19178b816d8d11b4211132da2e1575c1d3e2a41b578edaebc441a099467e9",
+    "tests/candidateElectionTermEligibility.test.mjs": "fef0930938684fd161cabf438e91c764ade41f95a3bd2a6c15631f6180ddfd4e",
+    "docs/academic-term-management-release.md": "0e17b960dc096ad7eef591cfa56b3598e2a714b1460a628582014e9b4f68e277",
+    "docs/academic-term-transition-backend.md": "c1a8a5a06e0effcf26b73edae9025525bd9d8cd511ac5b513c9ae94de78c2aaf",
+    "docs/system-settings-academic-term-danger-zone-plan.md": "60937e74a72bc8412f14742c721d1133b563649040cff3cf78514db01a1883e1",
+    ".tmp/academic-term-transitions-pg17.json": "67ae7d2f147bcc121b229f133cad759f579822c627ee5a6d5a5fbdf100361ab9",
+    ".tmp/academic-term-danger-zone-browser.json": "3f09eb2516b00b8a6d7655c9a17fb29e56f0c19a0784588588dea71c51508a95",
+    ".tmp/academic-term-transition-dependencies.json": "739795af1e2acebb04d48d083db5b7821474d0cc934b6435a35393a45275d847",
+    ".tmp/academic-term-completion-build.log": "87ac2a9c1dde50b818da10867282582514bc800dee8e20cd2beef134810be608",
+    ".tmp/academic-term-completion-source-lint.log": "3279656fe3c28fe12f3e2b2aace8bad895751fe969f95f806a50d3afe12d5e17",
+    ".tmp/academic-term-completion-regressions.tap": "c9ed1dd9d5d7a7ad96f1cc9a4494bd4072add469b63255768423f04c17168a88"
+  },
+  "configuration": {
+    "function": "admin-academic-terms",
+    "verify_jwt": true,
+    "authConfigurationChanged": false,
+    "sharedCorsChanged": false
+  },
+  "validation": {
+    "isolatedPostgresChecks": 57,
+    "focusedNodeChecks": 120,
+    "browserScenarios": 13,
+    "browserWidths": [
+      1280,
+      768,
+      390
+    ],
+    "fanoutRecipients": 5008,
+    "fanoutFixtureMs": 3547,
+    "denoVersion": "2.9.6",
+    "denoTypecheck": "pass",
+    "denoBundle": "pass",
+    "scopedLint": "pass",
+    "sourceWideLint": {
+      "errors": 15,
+      "warnings": 14,
+      "scope": "excludes generated .tmp and supabase/.temp"
+    },
+    "rawRepositoryLint": "failed capture buffer while traversing generated artifacts",
+    "vitePwaBuildExitCode": 0,
+    "productionSqlExecutions": 0,
+    "productionMutations": 0,
+    "unauthenticatedHttpProbes": 2
+  },
+  "deployedEndpointProbe": {
+    "endpoint": "https://fszgdxqxonqqcrzsnkca.supabase.co/functions/v1/admin-academic-terms",
+    "methods": [
+      "OPTIONS",
+      "POST without auth, empty body"
+    ],
+    "statuses": [
+      404,
+      404
+    ],
+    "body": {
+      "code": "NOT_FOUND",
+      "message": "Requested function was not found"
+    },
+    "databaseAndSettingsState": "unverified; production SQL approval required"
+  },
+  "reusedDependencyBodies": {
+    "public.activate_academic_term(integer)": "743fd26961017ee9b988d76586107d2f",
+    "public.kandid_guard_candidate_mutation()": "e5cee55575617f826b5d90c75c1451a5",
+    "public.insert_v2_vote_rows(integer,integer,jsonb)": "197c45b640f429441111c6963feaa5a9",
+    "private.kandid_require_locked_electorate_for_ballot()": "6802a2abfe7ce14749d026e2f3e66e7b",
+    "public.kandid_check_student_ballot_eligibility(integer)": "b6970955d8c23c41ac04be2d4fe83b10",
+    "public.sync_organization_term_participation_for_activation(integer)": "2e9e72f285c76105b6dc3815b4a4fbcc",
+    "public.resolve_student_organization_participation(integer,integer,integer)": "9ba6236c32f519d3f8e210f06023c4da",
+    "public.kandid_finalize_masterlist_import_with_membership_sync(integer,bigint)": "c19e908f17e1a0bd525a2aa9e20d9763",
+    "public.kandid_board_register_verified_student_for_term_v1(bigint,integer,text,text,text,text,text,integer,text,boolean,boolean,text,text,text)": "7622af7cb09f04f012d970128da12323"
+  },
+  "artifacts": {
+    "sourceDirectory": ".tmp/academic-term-management-release-20261022-b5bc42",
+    "bundleSha256": "94c1a844cfe7a85c58e360978777a4c819cccc6c22780297958f196da00b510f",
+    "archive": ".tmp/academic-term-management-release-20261022-b5bc42.zip",
+    "archiveSha256": "8e6c6193754158e692a5e7b31105571f1dfbaa1720c9d4d64265afffa85f0ce6"
+  },
+  "approvalScope": [
+    "production read-only compatibility preflight",
+    "deploy only admin-academic-terms with existing JWT/CORS/secrets",
+    "install exact academic-term SQL proposal",
+    "conditional settings initialization after confirmed empty/pristine baseline",
+    "scoped frontend publication",
+    "separate named draft/preview/activation including memberships, audit and notifications"
+  ],
+  "rollback": "Use guarded SQL teardown only before a committed transition; preserve drafts/audits. After commit, preserve evidence and use separately reviewed forward recovery. Settings rollback requires captured unchanged-row fingerprint."
+}

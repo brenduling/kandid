@@ -1,5 +1,5 @@
 import { corsHeaders, handleCorsPreflight, rejectDisallowedOrigin, serveWithKandidCors } from "../_shared/kandidProductionSecurity.mjs";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.118.0";
 
 
 const VALID_RECONCILIATION_STATUSES = [
@@ -40,7 +40,7 @@ function parsePositiveInteger(value: unknown, label: string) {
 
 function parseYearLevel(value: unknown) {
   const yearLevel = Number(value);
-  if (!Number.isInteger(yearLevel) || yearLevel <= 0 || yearLevel > 12) {
+  if (!Number.isInteger(yearLevel) || yearLevel <= 0 || yearLevel > 6) {
     throw new Error("Enter a valid year level.");
   }
   return yearLevel;
@@ -55,10 +55,10 @@ function normalizeEditableRow(input: unknown) {
   const program = normalizeProgram(row.program);
   const yearLevel = parseYearLevel(row.year_level);
 
-  if (!studentNumber) throw new Error("student_number is required.");
+  if (!/^\d{5}$/.test(studentNumber)) throw new Error("Student number must contain five digits.");
   if (!firstName) throw new Error("first_name is required.");
   if (!lastName) throw new Error("last_name is required.");
-  if (email && !email.includes("@")) throw new Error("valid email is required.");
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("valid email is required.");
   if (!program) throw new Error("program is required.");
 
   return {
@@ -169,7 +169,7 @@ async function requireSuperAdmin(
 }
 
 async function auditSuperAdminImport(
-  adminClient: ReturnType<typeof createClient>,
+  adminClient: SupabaseClient,
   adminProfile: { id: number; full_name: string },
   importId: number,
   metadata: Record<string, unknown>,
@@ -195,7 +195,7 @@ async function auditSuperAdminImport(
   return true;
 }
 
-async function resolvePreviousTermId(adminClient: ReturnType<typeof createClient>, academicTermId: number) {
+async function resolvePreviousTermId(adminClient: SupabaseClient, academicTermId: number) {
   const { data: targetTerm, error: targetError } = await adminClient
     .from("academic_terms")
     .select("id, academic_year, semester")
@@ -229,7 +229,7 @@ async function resolvePreviousTermId(adminClient: ReturnType<typeof createClient
 }
 
 async function loadImport(
-  adminClient: ReturnType<typeof createClient>,
+  adminClient: SupabaseClient,
   importId: number,
   actorAdminId: number,
 ) {
@@ -342,10 +342,16 @@ async function loadImport(
   ).length;
   counts.blocking = enrichedRows.filter(
     (row) =>
-      row.reconciliation_status === "invalid" ||
-      row.reconciliation_status === "conflict" ||
+      !["new", "continuing", "returnee", "shifted_program"].includes(row.reconciliation_status) ||
       (row.reconciliation_status === "shifted_program" && row.review_status !== "approved"),
   ).length;
+  const finalized = masterlistImport.import_status === "finalized";
+  const importSummary = finalized ? {
+    created:counts.new,
+    existing_enrollments:counts.continuing+counts.returnee+counts.shifted_program,
+    processed:counts.new+counts.continuing+counts.returnee+counts.shifted_program,
+    skipped:0,failed:0,
+  } : null;
 
   return {
     data: {
@@ -353,13 +359,14 @@ async function loadImport(
       rows: enrichedRows,
       counts,
       absence_preview: absencePreview,
+      import_summary: importSummary,
     },
     error: null,
   };
 }
 
 async function ensureEditableImportRow(
-  adminClient: ReturnType<typeof createClient>,
+  adminClient: SupabaseClient,
   importId: number,
   rowId: number,
 ) {
@@ -389,7 +396,7 @@ async function ensureEditableImportRow(
 }
 
 async function rerunReconciliationAndLoad(
-  adminClient: ReturnType<typeof createClient>,
+  adminClient: SupabaseClient,
   importId: number,
   actorAdminId: number,
 ) {
@@ -407,7 +414,7 @@ async function rerunReconciliationAndLoad(
 }
 
 async function syncMembershipsForImport(
-  adminClient: ReturnType<typeof createClient>,
+  adminClient: SupabaseClient,
   importId: number,
   actorAdminId: number,
 ) {
@@ -432,6 +439,7 @@ function normalizeRows(inputRows: unknown) {
   if (!Array.isArray(inputRows) || inputRows.length === 0) {
     throw new Error("At least one valid CSV row is required.");
   }
+  if(inputRows.length>5000)throw new Error("Use files containing at most 5,000 rows.");
 
   return inputRows.map((input, index) => {
     const row = (input || {}) as Record<string, unknown>;
@@ -442,10 +450,10 @@ function normalizeRows(inputRows: unknown) {
     const program = normalizeProgram(row.program);
     const yearLevel = parseYearLevel(row.year_level);
 
-    if (!studentNumber) throw new Error(`Row ${index + 1}: student_number is required.`);
+    if (!/^\d{5}$/.test(studentNumber)) throw new Error(`Row ${index + 1}: Student number must contain five digits.`);
     if (!firstName) throw new Error(`Row ${index + 1}: first_name is required.`);
     if (!lastName) throw new Error(`Row ${index + 1}: last_name is required.`);
-    if (email && !email.includes("@")) throw new Error(`Row ${index + 1}: valid email is required.`);
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error(`Row ${index + 1}: valid email is required.`);
     if (!program) throw new Error(`Row ${index + 1}: program is required.`);
 
     return {
@@ -461,7 +469,7 @@ function normalizeRows(inputRows: unknown) {
   });
 }
 
-serveWithKandidCors(async (request) => {
+serveWithKandidCors(async (request: Request) => {
   const preflightResponse = handleCorsPreflight(request);
   if (preflightResponse) return preflightResponse;
 

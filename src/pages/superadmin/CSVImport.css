@@ -762,3 +762,5 @@
     transition: none;
   }
 }
+.sa-masterlist-import-result {display: flex; gap: .75rem; flex-wrap: wrap; padding: 1rem; border-block: 1px solid #302d25; margin-block: 1rem; border-radius: 0;}
+.sa-masterlist-import-result small {flex-basis: 100%;}

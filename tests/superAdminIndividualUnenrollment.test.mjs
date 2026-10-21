@@ -175,7 +175,7 @@ test("term re-enrollment cannot silently change program and bypass automatic mem
   assert.match(page, /PROGRAM_CHANGE_REQUIRES_MASTERLIST_REVIEW:[\s\S]*?trusted Masterlist Review workflow/);
 });
 
-test("unenrolled status denies organization and candidate participation while frozen voting still requires enrollment", async () => {
+test("unenrolled status denies organization and candidate participation while automatic voting still requires enrollment", async () => {
   const [membership, candidate, submitVote] = await Promise.all([
     readFile(MEMBERSHIP_MIGRATION_PATH, "utf8"),
     readFile(CANDIDATE_MIGRATION_PATH, "utf8"),
@@ -184,12 +184,9 @@ test("unenrolled status denies organization and candidate participation while fr
   const resolver = membership.slice(membership.indexOf("create or replace function public.resolve_student_organization_participation"));
   assert.match(resolver, /enrollment_status_value <> 'enrolled'[\s\S]*?not_enrolled_for_term/i);
   assert.match(candidate, /resolve_student_organization_participation\([\s\S]*?participation_allowed is distinct from true/i);
-  const frozenBranch = submitVote.slice(
-    submitVote.indexOf('if (Number(election.electorate_policy_version) === 1)'),
-    submitVote.indexOf('} else if (Number(election.electorate_policy_version) === 0)'),
-  );
-  assert.match(frozenBranch, /\.eq\("enrollment_status", "enrolled"\)/);
-  assert.match(frozenBranch, /hasCurrentTermEnrollment\([\s\S]*?kandid_is_locked_electorate_member/);
+  assert.match(submitVote,/authClient\.rpc\(\s*"kandid_check_student_ballot_eligibility"/);
+  const current=await readFile('supabase/proposals/automatic-voter-eligibility.core.sql','utf8');
+  assert.match(current,/ste\.enrollment_status='enrolled'/);
 });
 
 test("re-enrollment continues to use trusted membership admission and duplicate-vote safeguards", async () => {

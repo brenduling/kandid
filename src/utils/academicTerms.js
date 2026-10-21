@@ -23,9 +23,7 @@ export function isAcademicTermSchemaMissing(error) {
   return (
     code === "42P01" ||
     code === "PGRST205" ||
-    message.includes("academic_terms") ||
-    message.includes("could not find the table") ||
-    message.includes("schema cache")
+    (message.includes("academic_terms") && message.includes("could not find the table"))
   );
 }
 
@@ -98,6 +96,7 @@ export async function listAcademicTerms({ force = false } = {}) {
   termsRequest = supabase
     .from("academic_terms")
     .select(TERM_SELECT)
+    .abortSignal(AbortSignal.timeout(15000))
     .order("academic_year", { ascending: false })
     .order("semester", { ascending: true })
     .then(({ data, error }) => {
@@ -131,36 +130,49 @@ export async function createAcademicTerm({ semester, startYear }) {
     return { data: null, error: new Error("Choose a supported semester.") };
   }
 
-  const { data: result, error } = await supabase.functions.invoke(
-    ADMIN_ACADEMIC_TERMS_FUNCTION,
-    {
-      body: {
-        action: "create",
-        semester,
-        startYear,
-      },
-    },
-  );
-
-  if (!error) invalidateAcademicTermCache();
-  return { data: result?.data || null, error };
+  return invokeAcademicTermAction({ action: "create", semester, startYear: Number(startYear) });
 }
 
-export async function activateAcademicTerm(termId) {
-  if (!ACADEMIC_TERM_WRITE_ENABLED) {
-    return { data: null, error: new Error(WRITE_PATH_BLOCKED_MESSAGE) };
+async function invokeAcademicTermAction(body) {
+  try {
+    const { data: result, error } = await supabase.functions.invoke(ADMIN_ACADEMIC_TERMS_FUNCTION, { body, timeout: 60000 });
+    if (error) {
+      let details;
+      try { details = await error.context?.clone().json(); } catch { /* Network failures have no response body. */ }
+      const message = typeof details?.error === "string" ? details.error
+        : error.context?.status === 401 ? "Your session expired or the Edge gateway rejected its JWT. Sign in again; verify the deployed authentication contract if this persists."
+        : error.context?.status === 404 ? "The academic term Edge Function is not deployed at the configured project."
+        : error.name === "FunctionsFetchError" ? "The academic term service could not be reached. Check its deployment, CORS preflight, and your connection. No success was confirmed."
+        : error.message || "Academic term service could not be reached.";
+      return { data: null, error: { message, status: error.context?.status || 0 } };
+    }
+    const data = result?.data;
+    const isTerm = term => Number.isSafeInteger(term?.id) && term.id > 0 && SEMESTERS.includes(term.semester) && /^\d{4}-\d{4}$/.test(term.academic_year);
+    const isReceipt = value => value?.status === "committed" && value.operation_id === body.operationId &&
+      isTerm(value.academic_term) && Number.isSafeInteger(value.audit_id) && value.audit_id > 0 &&
+      Number.isSafeInteger(value.notification_count) && value.notification_count >= 0 && Number.isFinite(Date.parse(value.committed_at));
+    const isReview = value => value?.status === "review" && /^[0-9a-f-]{36}$/i.test(value.operation_id || "") &&
+      Number.isFinite(Date.parse(value.expires_at)) && isTerm(value.impact?.source_term) && isTerm(value.impact?.target_term) &&
+      value.confirmation_text === `ACTIVATE ${formatAcademicTerm(value.impact.target_term)}` &&
+      Array.isArray(value.impact.blockers) && value.impact.blockers.every(reason => typeof reason === "string") &&
+      typeof value.impact.can_activate === "boolean" && (!value.impact.can_activate || value.impact.blockers.length === 0) &&
+      ["persistent_accounts", "source_enrolled_students", "target_enrolled_students", "active_accounts_requiring_verification",
+        "verified_program_shifts", "intended_program_memberships", "intended_institution_memberships", "target_explicit_removals_preserved",
+        "conflicting_program_memberships", "blocking_elections", "notification_recipients"].every(key => Number.isSafeInteger(value.impact.counts?.[key]) && value.impact.counts[key] >= 0);
+    const valid = body.action === "create" ? isTerm(data) && data.status === "draft" && data.semester === body.semester && data.academic_year === validateAcademicYear(body.startYear).academicYear
+      : body.action === "preview" ? isReview(data) && data.impact.target_term.id === body.termId
+      : body.action === "activate" ? isReceipt(data)
+      : data?.operation_id === body.operationId && (isReceipt(data) || isReview(data));
+    if (!data || result?.error || !valid) {
+      return { data: null, error: { message: result?.error || "The academic term response could not be verified. Refresh terms or recover the saved operation before retrying.", status: 503 } };
+    }
+    if (body.action === "create" || data.status === "committed") invalidateAcademicTermCache();
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error: { message: error.message || "The request was interrupted. Check the transition status before retrying activation.", status: 0 } };
   }
-
-  const { data: result, error } = await supabase.functions.invoke(
-    ADMIN_ACADEMIC_TERMS_FUNCTION,
-    {
-      body: {
-        action: "activate",
-        termId: Number(termId),
-      },
-    },
-  );
-
-  if (!error) invalidateAcademicTermCache();
-  return { data: result?.data || null, error };
 }
+
+export const previewAcademicTerm = termId => invokeAcademicTermAction({ action: "preview", termId: Number(termId) });
+export const activateAcademicTerm = ({ operationId, confirmationText }) => invokeAcademicTermAction({ action: "activate", operationId, acknowledged: true, confirmationText });
+export const getAcademicTermTransitionStatus = operationId => invokeAcademicTermAction({ action: "transition_status", operationId });

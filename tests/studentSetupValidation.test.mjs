@@ -38,33 +38,16 @@ test("OTP verification validates only the code without asking for an email or CA
   assert.match(getStudentOtpFailureMessage({ status: 503 }), /connection/);
 });
 
-test("setup preserves Student ID, password, send-code, OTP, and completion order without CAPTCHA", () => {
-  assert.match(setupPage, /const SETUP_STAGES = \[\s*\{ key: "lookup"[\s\S]*?\{ key: "password"[\s\S]*?\{ key: "otp"/);
-  assert.match(setupPage, /setStep\("password"\)/);
-  assert.match(setupPage, /Send Verification Code/);
-  assert.match(setupPage, /setStep\("otp"\)/);
-  assert.match(setupPage, /<form noValidate onSubmit=\{verifyOtp\}/);
-  assert.match(setupPage, /<form noValidate onSubmit=\{handlePasswordContinue\}/);
-  const passwordScreen = setupPage.slice(setupPage.indexOf("function renderPasswordStep"), setupPage.indexOf("function renderOtpStep"));
-  assert.match(passwordScreen, /onSubmit=\{handlePasswordContinue\}/);
-  assert.match(passwordScreen, /disabled=\{sendingOtp \|\| loading \|\| resendCooldown > 0\}/);
-  assert.match(passwordScreen, /Send Verification Code/);
-  assert.match(setupPage, /const sent = await sendOtp\(\);[\s\S]*?if \(!sent\) return;[\s\S]*?setStep\("otp"\)/);
-  assert.match(setupPage, /async function verifyOtp[\s\S]*?await completeSetup\(\)/);
-  assert.match(setupPage, /disabled=\{sendingOtp \|\| loading \|\| resendCooldown > 0\}/);
-  assert.match(setupPage, /disabled=\{verifyingOtp \|\| loading\}/);
-  assert.match(setupPage, /OTP_RESEND_COOLDOWN_SECONDS = 60/);
-  assert.match(setupPage, /disabled=\{resendCooldown > 0 \|\| sendingOtp \|\| verifyingOtp \|\| loading\}/);
-  assert.match(setupPage, /getStudentSetupRequestError\(/);
-  assert.match(setupPage, /getStudentOtpVerificationError\(/);
+test("setup confirms recognition and configures password before OTP, committing only after verified admission", () => {
+  assert.match(setupPage, /const SETUP_STAGES = \[\s*\{ key: "lookup"[\s\S]*?\{ key: "confirm"[\s\S]*?\{ key: "password"[\s\S]*?\{ key: "otp"/);
   const passwordHandler = setupPage.slice(setupPage.indexOf("async function handlePasswordContinue"), setupPage.indexOf("async function completeSetup"));
-  assert.match(passwordHandler, /getStudentSetupRequestError/);
-  assert.match(passwordHandler, /await sendOtp\(\)/);
-  assert.doesNotMatch(passwordHandler, /completeSetup\(/);
-  const verifyHandler = setupPage.slice(setupPage.indexOf("async function verifyOtp"), setupPage.indexOf("function handleStudentNumberChange"));
-  assert.match(verifyHandler, /verifyStudentAccessCode[\s\S]*?await completeSetup\(\)/);
-  assert.match(setupPage, /async function completeSetup\(\)[\s\S]*?linkCurrentStudentIdentity\([\s\S]*?setupMode: true,[\s\S]*?password/);
-  assert.doesNotMatch(setupPage, /StudentCaptcha|captchaToken|captchaConfigured/);
+  assert.match(passwordHandler, /detailsConfirmed/);assert.match(passwordHandler, /await sendOtp\(\)/);
+  assert.match(passwordHandler, /setStep\("otp"\)/);assert.doesNotMatch(passwordHandler, /completeSetup|linkCurrentStudentIdentity|updateUser/);
+  const verifyHandler=setupPage.slice(setupPage.indexOf("async function verifyOtp"),setupPage.indexOf("function handleStudentNumberChange"));
+  assert.match(verifyHandler,/verifyStudentAccessCode[\s\S]*?setup_verification[\s\S]*?await completeSetup\(proof\)/);
+  assert.match(setupPage,/proof\.auth_user_id !== verifiedIdentityRef.current\?\.id/);
+  assert.match(setupPage,/disabled=\{!detailsConfirmed\}/);assert.match(setupPage,/OTP_RESEND_COOLDOWN_SECONDS = 60/);
+  assert.doesNotMatch(setupPage,/StudentCaptcha|captchaToken|captchaConfigured|Confirm verified password recovery/);
 });
 
 test("dispatch notices never claim delivery and cooldown honors bounded server Retry-After", () => {
@@ -110,7 +93,24 @@ test("OTP request uses no caller-supplied email and remains bound to the trusted
   assert.match(identityLinker, /fetch\(`\$\{supabaseUrl\}\/auth\/v1\/user`/);
   assert.match(identityLinker, /Authorization: authorization, apikey: anonKey/);
   assert.doesNotMatch(identityLinker, /auth\.admin\.updateUserById|authClient\.auth\.updateUser/);
-  assert.ok(identityLinker.indexOf("const passwordResponse") < identityLinker.indexOf('.from("students")\n    .update('), "set password before linking or activating the pending student");
+  assertPasswordBeforeStudentUpdate(identityLinker);
+});
+
+function assertPasswordBeforeStudentUpdate(source) {
+  const normalized = source.replace(/\r\n/g, "\n");
+  const passwordIndex = normalized.indexOf("const passwordResponse");
+  const updateIndex = normalized.indexOf('.from("students")\n    .update(');
+  assert.ok(passwordIndex >= 0 && updateIndex >= 0 && passwordIndex < updateIndex,
+    "set password before linking or activating the pending student");
+}
+
+test("password-before-linking assertion accepts LF and CRLF without accepting reversed or missing operations", () => {
+  const lf = identityLinker.replace(/\r\n/g, "\n");
+  for (const source of [lf, lf.replace(/\n/g, "\r\n")]) {
+    assertPasswordBeforeStudentUpdate(source);
+  }
+  assert.throws(() => assertPasswordBeforeStudentUpdate('const passwordResponse = null;'));
+  assert.throws(() => assertPasswordBeforeStudentUpdate('.from("students")\n    .update({});\nconst passwordResponse = null;'));
 });
 
 test("OTP and final setup network exceptions restore the loading state and surface errors", () => {

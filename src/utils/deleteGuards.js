@@ -3,6 +3,7 @@ import { officersContract } from "./officersContract";
 import { listAdminUsers } from "./adminUsers";
 import { getVoteDependencyCount } from "./voteAccess";
 import { loadAdminCandidates } from "./adminCandidates";
+import { isAutomaticVoterEligibilityEnabled } from "./automaticVoterEligibility";
 
 async function countVoteRecords(entityType, id, context) {
   const { count, error } = await getVoteDependencyCount(entityType, id, context);
@@ -367,7 +368,9 @@ export async function analyzeDeleteDependencies(entityType, entity) {
     } else {
       severity = "delete";
       recommendation =
-        "Deleting this rule removes its declared audience metadata. Enrollment, organization participation and the locked electorate continue to determine voting access.";
+        isAutomaticVoterEligibilityEnabled(import.meta.env)
+          ? "Deleting this rule removes an additional voting restriction. Verified organization membership and term enrollment still apply. Rules cannot be changed after a recorded vote or an existing electorate freeze."
+          : "Deleting this rule removes its declared audience metadata. Enrollment, organization participation and the locked electorate continue to determine voting access.";
     }
   }
 

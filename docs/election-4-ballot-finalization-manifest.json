@@ -1,0 +1,91 @@
+{
+    "project_ref":  "fszgdxqxonqqcrzsnkca",
+    "status":  "Local preparation tested; explicit production approval still required",
+    "scope":  "Election 4 only for backend rule enforcement; shared frontend safety and active-position correction",
+    "production_changed":  false,
+    "production_approval_granted":  false,
+    "root_head":  "2c20a0277f22a09d2df89a3b82b11d0324eaf82b",
+    "baseline_election_digest":  "5367cd5d8740a2579ce85f7487e02070",
+    "eligibility":  {
+                        "program":  "BSIT",
+                        "min_year_level":  1,
+                        "max_year_level":  4,
+                        "allow_shs":  false,
+                        "expected_current_count":  2
+                    },
+    "validation":  {
+                       "targeted_tests":  213,
+                       "postgres_finalization":  22,
+                       "postgres_atomic_submission":  8,
+                       "browser_desktop_mobile":  10,
+                       "lint":  "pass",
+                       "production_build":  "pass",
+                       "production_votes":  0
+                   },
+    "files":  [
+                  {
+                      "path":  "src/pages/student/VotePage.jsx",
+                      "sha256":  "6684bc95da4fa068d476a77d32945e8bbd9565e234479580297005ca6a5083f1"
+                  },
+                  {
+                      "path":  "src/pages/board/ElectionElectoratePanel.jsx",
+                      "sha256":  "23cb1e34ea4a5bedd08e2a458a6e75e28db0a9013235204f42e1d64796a10d91"
+                  },
+                  {
+                      "path":  "src/utils/studentBallotReadiness.js",
+                      "sha256":  "dd505f1f54965fb46297f08aacdab122c1f0a19919ff199f67d10ab644807604"
+                  },
+                  {
+                      "path":  "src/utils/electorateFinalization.js",
+                      "sha256":  "f924e75d78ef18fca5e0627e86d3fdda23d099f52895e074457699e3f239fa95"
+                  },
+                  {
+                      "path":  "src/utils/positionOrder.js",
+                      "sha256":  "0cad9be9981137ed8eefcd1a4d4c6e37f17e094df93a449a7f4ca1cf534275ef"
+                  },
+                  {
+                      "path":  "src/utils/developmentAdminRequests.js",
+                      "sha256":  "f37090ec7d05c8e2c8383b08c632090f11d7314183405a1f7848151f372e1ce6"
+                  },
+                  {
+                      "path":  "src/utils/eligibilityRuleManagement.js",
+                      "sha256":  "37485fe3f8f65a72c20ba034a7c5fab77cbf58a04cc92db12c14bf4f400e338d"
+                  },
+                  {
+                      "path":  "tests/ballotFinalization.test.mjs",
+                      "sha256":  "c0a0ec78862f76338554aae387d03153cf8d396ac2e129426454d7d5806daf2b"
+                  },
+                  {
+                      "path":  "tests/developmentAdminCrud.test.mjs",
+                      "sha256":  "8dda0d87d6e241c219f048849a74f1c721cac2a15b1e1838e283378fcbae03e8"
+                  },
+                  {
+                      "path":  "tests/eligibilityRuleManagement.test.mjs",
+                      "sha256":  "fbe5e996a2fd43093ba760946cf3b83b0d71498b8a659cfaffe0df31f62ee10e"
+                  },
+                  {
+                      "path":  "tests/candidateCampaignPrivacyContract.test.mjs",
+                      "sha256":  "d0cb9a064945f6e05211dd41f42fa5b0a544a74ad0c64e3e9f14c07f74576ec9"
+                  },
+                  {
+                      "path":  "scripts/kandid-ballot-finalization-pg17.mjs",
+                      "sha256":  "dedc86a4f68798a953ec0a99d49400a53101f49071c7ebc87875a3f24b3f82bd"
+                  },
+                  {
+                      "path":  "scripts/kandid-ballot-visibility-browser.mjs",
+                      "sha256":  "beb06ed34554bc5eb2d2f9e996af53ad47d58e47363126bc8e76ed388e54dc95"
+                  },
+                  {
+                      "path":  "supabase/proposals/election-4-ballot-finalization.sql",
+                      "sha256":  "cb63355a4342cec846c162581013c0202c9dcbc5329680cd5b689cff87b78064"
+                  },
+                  {
+                      "path":  "supabase/runtime-validation/election-4-ballot-finalization-readonly.sql",
+                      "sha256":  "7bf9258f8b1bd0b26d391053773bc1708fd0ff79dda4be798845f3fcc449ddc7"
+                  },
+                  {
+                      "path":  "docs/election-4-ballot-finalization.md",
+                      "sha256":  "dffad4684e3d6a6176f162de727449f217a77f0b735bcd447f9c58f06448cd72"
+                  }
+              ]
+}

@@ -41,7 +41,7 @@ test("sync creates only automatic scopes with guarded system provenance and rema
   const [migration, masterlistMigration, schema] = await Promise.all([
     read(MIGRATION_PATH),
     read("supabase/migrations/20261018100000_masterlist_import_scope_and_safe_finalization.sql"),
-    read("supabase/runtime-validation/production-kandid-schema.sql"),
+    read("tests/fixtures/superAdminStudentsProductionContract.json"),
   ]);
   const rpcStart = migration.indexOf("create or replace function public.kandid_super_admin_sync_current_term_memberships(");
   const rpcEnd = migration.indexOf("alter function public.kandid_super_admin_sync_current_term_memberships", rpcStart);
@@ -63,7 +63,10 @@ test("sync creates only automatic scopes with guarded system provenance and rema
     finalizer.indexOf("insert into public.student_organization_terms") < finalizer.indexOf("insert into public.student_organizations"),
     "ordering matches the working trusted Masterlist finalizer",
   );
-  assert.match(schema, /student_organization_terms_unique" unique \("student_id", "organization_id", "academic_term_id"\)/i);
+  assert.deepEqual(JSON.parse(schema).membershipConstraints, [{
+    conname: "student_organization_terms_unique",
+    definition: "UNIQUE (student_id, organization_id, academic_term_id)",
+  }]);
   assert.doesNotMatch(migration, /public\.(elections|votes|vote_ballots|election_eligible_voters|frozen_electorates)/i);
 });
 

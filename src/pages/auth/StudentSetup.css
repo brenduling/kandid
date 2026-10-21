@@ -797,3 +797,115 @@
     animation: none;
   }
 }
+
+/* Verified recognition flow: compact steps and readable, authorized details. */
+.student-setup-auth-screen .student-setup-progress {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.student-setup-auth-screen .student-setup-entered-id {
+  display: grid;
+  gap: 0.25rem;
+  border-block: 1px solid #d8d0c3;
+  padding-block: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.student-setup-auth-screen .student-setup-entered-id span {
+  color: #625c53;
+  font-size: 0.8rem;
+}
+
+.student-setup-auth-screen .student-setup-entered-id strong {
+  color: #211f1b;
+  font-size: 1.1rem;
+}
+
+.student-setup-auth-screen .student-setup-identity-item {
+  min-width: 0;
+}
+
+.student-setup-auth-screen .student-setup-identity-item strong {
+  overflow-wrap: anywhere;
+}
+
+.student-setup-auth-screen .student-setup-identity-grid dt {
+  color: #625c53;
+  font-size: 0.78rem;
+}
+
+.student-setup-auth-screen .student-setup-identity-grid dd {
+  margin: 0.25rem 0 0;
+  color: #211f1b;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.student-setup-auth-screen .student-setup-stage .student-setup-confirm-ownership {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 44px;
+  padding-block: 0.5rem;
+  color: #211f1b;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.student-setup-auth-screen .student-setup-confirm-ownership input[type="checkbox"] {
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  /* Override the verified 3.25rem !important text-input minimum above. */
+  min-height: 20px !important;
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  accent-color: #d8401a;
+  color-scheme: light;
+}
+
+.student-setup-auth-screen .student-auth-setup-link:focus-visible {
+  outline: 2px solid #d8401a;
+  outline-offset: 3px;
+}
+
+.student-setup-auth-screen .student-setup-stage .student-auth-setup-link {
+  justify-content: flex-start;
+  min-height: 44px;
+  border: 0;
+  border-radius: 0;
+  padding: 0.7rem 0;
+  background: transparent;
+  color: #bd3916;
+  font-weight: 700;
+  text-align: left;
+}
+
+.student-setup-auth-screen .student-setup-stage-intro h3 {
+  font-size: 1.4rem;
+  line-height: 1.2;
+}
+
+.student-setup-auth-screen .student-setup-password-panel h4 {
+  font-size: 1.05rem;
+}
+
+@media (max-width: 640px) {
+  .student-setup-auth-screen .student-setup-identity-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.8rem;
+  }
+
+  .student-setup-auth-screen .student-setup-section-head {
+    flex-wrap: wrap;
+  }
+
+  .student-setup-auth-screen .student-auth-setup-link {
+    min-height: 44px;
+    width: 100%;
+    text-align: left;
+    white-space: normal;
+  }
+}

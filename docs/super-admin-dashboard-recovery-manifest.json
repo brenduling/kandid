@@ -1,0 +1,96 @@
+{
+  "revision": 2,
+  "revision_change": "Correct candidate-relation validation in forward and rollback SQL for qualified and unqualified pg_get_expr output; retain pinned search_path and existing authorization predicates.",
+  "target": {
+    "supabase_project_id": "fszgdxqxonqqcrzsnkca",
+    "dashboard_route": "/super-admin/dashboard",
+    "prepared_on": "2026-10-22"
+  },
+  "production_baseline": {
+    "students_policy": "students_release_safe_select directly queries public.candidates; authenticated lacks SELECT on candidates",
+    "candidate_access_helper": "private.kandid_board_can_read_candidate_student(integer) absent",
+    "migration": "20261021110000_publication_and_board_privacy_contract absent from production migration registry",
+    "existing_organization_helper": {
+      "owner": "postgres",
+      "security_definer": true,
+      "search_path": "pg_catalog",
+      "checks": "active admin identity and Super Admin or same-organization Electoral Board scope"
+    },
+    "student_dashboard_column_select": {
+      "id": true,
+      "program": true,
+      "status": true
+    },
+    "admin_user_management": {
+      "status": "ACTIVE",
+      "version": 10,
+      "verify_jwt": true,
+      "deployed_bundle_fingerprint": "ezbr_sha256:71de0f4dc9bb220685851cd692d4c8f195e69a809b68a467e2921a9f270f3276",
+      "localhost_5174_allowed": false,
+      "captured_entrypoint_matches_live_source": true,
+      "captured_shared_module_matches_live_source": true
+    },
+    "private_role_grants": {
+      "authenticated_schema_usage": false,
+      "authenticated_or_anon_function_execute_count": 0,
+      "authenticated_or_anon_relation_or_sequence_grants": 0
+    },
+    "production_private_schema_exposure": {
+      "blocker_cleared": true,
+      "evidence": "User-provided official Supabase Data API Settings screenshot confirmation",
+      "exposed_schemas": ["public", "graphql_public"],
+      "private_exposed": false,
+      "independently_verified_by_api": false
+    }
+  },
+  "scope": {
+    "database": "Only the private candidate-access helper and public.students SELECT policy correction. No broad candidates grant and no unrelated migration changes.",
+    "edge_function": "Only add http://localhost:5174 to the captured v10 CORS allowlist. Preserve entrypoint and authorization logic.",
+    "current_approval_request": "Execute only the revised forward SQL proposal, then verify actual dashboard reads and authorization using read-only checks. Rollback SQL is prepared separately. No CORS deployment is included.",
+    "verify_jwt": true,
+    "production_changes_performed": false
+  },
+  "artifacts": [
+    {
+      "path": "supabase/proposals/super-admin-dashboard-students-policy-fix.sql",
+      "role": "forward_sql",
+      "sha256": "1e8f0ca98ae3fd1e88c2efba6a6d65b2b9af4cb2269781973c9f807926639334"
+    },
+    {
+      "path": "supabase/proposals/super-admin-dashboard-students-policy-fix.rollback.sql",
+      "role": "rollback_sql",
+      "sha256": "41cee573709ecb4c5c908217e48fb2dcea8eedf25e9dba27f55ebf741c97069c"
+    },
+    {
+      "path": "supabase/proposals/super-admin-dashboard-recovery/edge/config.toml",
+      "role": "isolated_edge_project_config",
+      "sha256": "effcfe3aa71bf5ea8ca1178f6d8ac405e927a55bda86d8cbe571eeaaee8997a7"
+    },
+    {
+      "path": "supabase/proposals/super-admin-dashboard-recovery/edge/functions/admin-user-management/index.ts",
+      "role": "captured_v10_entrypoint_unchanged",
+      "sha256": "d424c8e6592856ec3f4049ca36ecbdb022b27279d71818015396d94bbd29906e"
+    },
+    {
+      "path": "supabase/proposals/super-admin-dashboard-recovery/edge/functions/_shared/kandidProductionSecurity.mjs",
+      "role": "cors_allowlist_change",
+      "sha256": "65129004e923049f6e1ed9c3156a2308adbb56d2e65b1d4d0d014d39f2a3be6c"
+    },
+    {
+      "path": "supabase/proposals/super-admin-dashboard-recovery/baseline/kandidProductionSecurity.mjs",
+      "role": "edge_cors_rollback_source",
+      "sha256": "5adff6381b411bba076928627ea4e660d9f26c78199f7614a557658d1ab8bab0"
+    }
+  ],
+  "validation": {
+    "test_file": "tests/superAdminDashboardRecovery.test.mjs",
+    "focused_regression_result": "30 tests passed across superAdminDashboardRecovery, superAdminDashboard, and kandidProductionSecurity.",
+    "targeted_lint_result": "ESLint passed for tests/superAdminDashboardRecovery.test.mjs.",
+    "role_matrix_tests_are": "Contract-level model plus SQL predicate assertions; not a live PostgreSQL/RLS integration test.",
+    "dashboard_query_contract": "Source inspection verifies the existing Super Admin students reads only use id, program, and status and preserve error handling.",
+    "candidate_guard_regression": "Both pg_get_expr relation renderings must pass the required-branch checks; other schemas, table names, aliases, and missing branches must fail. Rollback rejects a pre-existing direct candidate branch before restoration.",
+    "postgresql_guard_verification": "A read-only SELECT on the official project verified all 8 guard cases and accepted both the actual policy and its schema-qualified rendering. No settings or database objects were changed; the installation transaction was not executed.",
+    "sql_scope_integrity": "Reconstructing the pre-correction files by reversing only the guard edits reproduces their revision-1 SHA-256 values. All authorization DDL and policy predicates remain byte-for-byte unchanged.",
+    "live_authenticated_super_admin_query": "Not performed; requires a genuine signed-in Super Admin browser session after deployment."
+  }
+}

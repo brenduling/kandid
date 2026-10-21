@@ -1,0 +1,23 @@
+{
+  "algorithm": "SHA-256",
+  "scope": "local optional eligibility and scheduled electorate finalization",
+  "files": {
+    "supabase/migrations/20261021140000_scheduled_electorate_finalization.sql": "697dd49ed0eb145579031b4790643de6acd22adc7086b699c654edd84c6e7491",
+    "supabase/proposals/20261020114248_election_3_program_year_eligibility_historical-proposal.sql": "085435c020484539d8da947449816b9ce687d044446e8bda000730506a16c273",
+    "src/utils/electorateFinalization.js": "e2b183afacccc19e7a4dc99f6b8c6f4957a87cd10877e5acd0e8346d90fdb4bd",
+    "src/utils/eligibilityRuleManagement.js": "25ace6a9f1fc1c572315dbe41f895c080403e7d3e5879bac43cd79a1aced2c47",
+    "src/utils/developmentProductionWriteGuard.js": "ea2d7b7d65c360a5d3b45282990067c202aa7fc78e9c30ac07e9fa4cd608344c",
+    "src/pages/board/ElectionElectoratePanel.jsx": "ddcd003f7b33cbf9281a845d9333840fb1bb9faa4db17fc95b5327fda3e38009",
+    "src/pages/board/BoardElectionSetup.jsx": "0c9cae8ea83497b5764f34768fd7d23a0b0d5cd4ec918ecd1efc7261cb8f869b",
+    "src/pages/board/Elections.jsx": "e182caa36b6ae336a6bd1679cf415dadcc3476b0854973d2843f2bb40df1cffc",
+    "src/pages/board/EligibilityRules.jsx": "ca55b874b0d421fac51fc7004f8e7a7fccd8e9d3445a4c8d5621cd5da9f768b1",
+    "tests/electorateFinalization.test.mjs": "e8c5940c39393d62843389795655ebf06e090b81661b7dd79019353f9716f0f9",
+    "tests/boardScheduledFinalizationPresentation.test.mjs": "64e54ecbae60fd7d14e39a5ffa395dd87e9368b2d80d602f1b14cb5d2fa610bf",
+    "tests/eligibilityRuleManagement.test.mjs": "f63291577410ba841fa6c869af0394ece1c7358aa5e898abebb3edd24d61e674",
+    "tests/electionElectorate.test.mjs": "38b91bf3f18fcdddabf13404d60d6a28ce7f64d5f989bec9acf69d9b5c47a9a2",
+    "scripts/kandid-scheduled-electorate-pg17.mjs": "b1fba91c7a0fff81d71782a661b01f8f398d801dcb804afc17b29dbb67bef7bf",
+    "scripts/kandid-election-3-eligibility-pg17.mjs": "4571623fc65a29262aecc185b5e1a771f87e62c2002f75f7c4eea432c895b900",
+    "docs/optional-eligibility-scheduled-finalization.md": "5fd5842e350eb2dd760f7fe653b21cf023cb6bcac52a110b01ef2c2ac51dba46",
+    "docs/optional-eligibility-scheduled-finalization-implementation.md": "9337fb4824caf544b958cffacb1b7a13e1e4362ca0b23c172694d296a80ca8b2"
+  }
+}

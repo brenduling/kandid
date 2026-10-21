@@ -61,10 +61,18 @@ test("term activation enrolls no one implicitly and only synchronizes target-ter
   assert.match(activation, /prior\.academic_term_id = previous_term_id/i);
 });
 
-test("term-bound voting requires the election term to be the unique active term and current enrollment", () => {
-  assert.match(voteHandler, /activeTerms\?\.length !== 1[\s\S]*?activeTerms\[0\]\?\.id\) !== Number\(election\.academic_term_id\)/i);
-  assert.match(voteHandler, /\.eq\("academic_term_id", activeTermId\)[\s\S]*?\.eq\("enrollment_status", "enrolled"\)/i);
-  assert.match(voteHandler, /hasCurrentTermEnrollment\([\s\S]*?electionTermId: Number\(election\.academic_term_id\)/i);
+test("term-bound voting delegates to the JWT-derived canonical predicate and rechecks at atomic insertion", () => {
+  // Enrollment enforcement moved into the database. Requiring duplicated Edge
+  // queries here obscured the actual security contract. The isolated PG runner
+  // exercises this predicate and real insertion against verified/unverified rows.
+  const canonical = readFileSync("supabase/proposals/automatic-voter-eligibility.core.sql", "utf8");
+  assert.match(voteHandler, /authClient\.rpc\(\s*"kandid_check_student_ballot_eligibility",\s*\{ p_election_id: electionId \}/);
+  assert.match(canonical, /where auth_user_id=auth\.uid\(\)/);
+  assert.match(canonical, /join public\.academic_terms t on t\.id=e\.academic_term_id and t\.status='active'/);
+  assert.match(canonical, /ste\.academic_term_id=e\.academic_term_id and ste\.enrollment_status='enrolled'/);
+  assert.match(canonical, /count\(\*\) from public\.academic_terms where status='active'\)=1/);
+  assert.match(canonical, /kandid_require_locked_electorate_for_ballot\(\)[\s\S]*?kandid_student_is_live_eligible\(new\.election_id,new\.student_id\)/);
+  assert.match(voteHandler, /adminClient\.rpc\(\s*"insert_v2_vote_rows"/);
 });
 
 test("the Board term selector makes the chosen term explicit rather than deriving it from active term", () => {

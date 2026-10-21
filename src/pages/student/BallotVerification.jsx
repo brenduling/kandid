@@ -40,7 +40,7 @@ function formatNetworkName(value) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-function getFinalState({ status, ballotVerificationUnavailable, network }) {
+function getFinalState({ status, ballotVerificationUnavailable }) {
   const className = status?.className || "";
   const label = status?.label || "";
 
@@ -54,7 +54,7 @@ function getFinalState({ status, ballotVerificationUnavailable, network }) {
 
   const unavailable =
     ballotVerificationUnavailable ||
-    (className === "delayed" && !/temporarily delayed/i.test(label));
+    (className === "delayed" && /unavailable/i.test(label));
 
   if (unavailable) {
     return {
@@ -68,14 +68,14 @@ function getFinalState({ status, ballotVerificationUnavailable, network }) {
     return {
       headline: "Verification Delayed",
       body:
-        "Your ballot is safe. The integrity record is temporarily delayed, and Kandid will retry automatically.",
+        "Your vote remains recorded. Blockchain verification is temporarily delayed.",
     };
   }
 
   if (className === "review") {
     return {
-      headline: "Verification Completing",
-      body: "Your ballot was submitted successfully. Kandid is completing its verification.",
+      headline: "Verification Needs Review",
+      body: "Your vote remains recorded. Its blockchain verification requires additional review.",
     };
   }
 
@@ -106,9 +106,9 @@ function getProofRecord({ isVerified, status, network }) {
   const className = status?.className || "";
 
   if (className === "delayed") {
-    return /temporarily delayed/i.test(label)
-      ? { text: "Record delayed — Kandid is retrying", className: "delayed" }
-      : { text: "Record details unavailable", className: "unavailable" };
+    return /unavailable/i.test(label)
+      ? { text: "Record details unavailable", className: "unavailable" }
+      : { text: "Blockchain verification delayed", className: "delayed" };
   }
 
   if (className === "review") {
@@ -256,7 +256,7 @@ function BallotVerification() {
     ? formatBlockNumber(record.blockchain_block_number)
     : "";
   const txId = record?.blockchain_tx_id || "";
-  const anchoredAt = record?.blockchain_anchored_at
+  const anchoredAt = isVerified && record?.blockchain_anchored_at
     ? formatAbsoluteTimestampAsManilaDateTime(record.blockchain_anchored_at)
     : "";
   const ballotHash = record?.ballot_hash || "";
@@ -277,7 +277,6 @@ function BallotVerification() {
     ballotVerificationUnavailable: Boolean(
       currentReceipt?.ballotVerificationUnavailable,
     ),
-    network: record?.blockchain_network || "",
   });
 
   function goBack() {

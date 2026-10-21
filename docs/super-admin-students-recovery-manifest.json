@@ -1,0 +1,267 @@
+{
+  "revision": 1,
+  "prepared_on": "2026-10-22",
+  "project": "fszgdxqxonqqcrzsnkca",
+  "status": "LOCAL_PREPARATION_ONLY_NOT_APPROVED_FOR_DEPLOYMENT",
+  "edge_functions": [
+    {
+      "name": "super-admin-manual-enrollment",
+      "production_baseline": "ABSENT",
+      "entrypoint": "supabase/functions/super-admin-manual-enrollment/index.ts",
+      "verify_jwt": true,
+      "shared": [
+        "supabase/functions/_shared/kandidProductionSecurity.mjs",
+        "supabase/functions/_shared/membershipAdmission.js"
+      ]
+    },
+    {
+      "name": "super-admin-masterlist-import",
+      "production_baseline": "ABSENT",
+      "entrypoint": "supabase/functions/super-admin-masterlist-import/index.ts",
+      "verify_jwt": true,
+      "shared": [
+        "supabase/functions/_shared/kandidProductionSecurity.mjs"
+      ]
+    }
+  ],
+  "supabase_sdk": "2.118.0",
+  "sql_scope": [
+    "public.kandid_super_admin_list_students(bigint,text,text,integer[],text,integer,integer)",
+    "public.kandid_super_admin_update_student(bigint,integer,jsonb)"
+  ],
+  "baseline_definition_md5": [
+    {
+      "name": "kandid_super_admin_list_students",
+      "md5": "2ed6363ec85d2cbd710331e7bc0023d5"
+    },
+    {
+      "name": "kandid_super_admin_update_student",
+      "md5": "96a1c2b4cb5c513e2db13248dea04ca2"
+    }
+  ],
+  "validation": {
+    "targeted_tests": {
+      "passed": 156,
+      "failed": 0
+    },
+    "isolated_postgres": {
+      "passed": 33,
+      "production_connections": 0
+    },
+    "deno": "PASS: both functions",
+    "eslint": {
+      "errors": 0,
+      "warnings": 2,
+      "note": "Existing Students useEffect dependency warnings"
+    },
+    "production_build": "PASS",
+    "diff_check": "PASS",
+    "browser": {
+      "status": "PASS",
+      "viewports": [
+        1280,
+        375
+      ],
+      "synthetic_only": true,
+      "real_supabase_requests": 0,
+      "production_writes": 0,
+      "scenarios": [
+        "directory",
+        "search",
+        "status and organization filters",
+        "sorting",
+        "pagination",
+        "details",
+        "manual registration and duplicate-click protection",
+        "empty/missing/denied states",
+        "CSV preview and local validation"
+      ]
+    }
+  },
+  "excluded": [
+    "environment files",
+    "secrets and credentials",
+    "temporary files/caches/browser profiles/screenshots/build output",
+    "all unrelated working-tree changes",
+    "all other Edge Functions",
+    "RLS/grant changes",
+    "automatic migrations",
+    "Vercel settings"
+  ],
+  "optional_separate_cors_review": "docs/super-admin-dashboard-recovery-manifest.json; not part of this deployment",
+  "files": [
+    {
+      "path": "src/pages/superadmin/Students.jsx",
+      "bytes": 83990,
+      "sha256": "e6042cbf5002fd1cddab72b91e0178d47ace2edeef184bff88fe5d46ba872767",
+      "sha256_lf": "3642beec67eafc806773a720b1281d0c7f61565abe688a76c48c639b409b2820"
+    },
+    {
+      "path": "src/pages/superadmin/Students.css",
+      "bytes": 42409,
+      "sha256": "30eda7d489846dbbf49a0b9fb079216dfb90a9edf224e946089d51512f72290d",
+      "sha256_lf": "757ccc6469b62ecaf7a3ece7917c3f26f44ca2d0deac6a8699162463ac1862e0"
+    },
+    {
+      "path": "src/pages/superadmin/CSVImport.jsx",
+      "bytes": 17375,
+      "sha256": "e379a00ce53435b2d39621ba8928b42a9e0e8f5bb0ae21bdfd997ed286f7a557",
+      "sha256_lf": "7ddfbcfb1d4246a59e8770154a38e9be7e380eaa529733aaae7d581ea94a36a4"
+    },
+    {
+      "path": "src/pages/superadmin/CSVImport.css",
+      "bytes": 21907,
+      "sha256": "8b7c3f05b5463cb98cbb76d085ae644deb64e04c5ec165a7a0d52817ef8e4454",
+      "sha256_lf": "420307959d674ce89811c0153ac13878f1f871b7cc9278652d662b8ffc882084"
+    },
+    {
+      "path": "src/pages/superadmin/MasterlistReview.jsx",
+      "bytes": 38791,
+      "sha256": "8a1807f9c9b3d030964691be655778a6efe750fcabdf6e756ea392db324b02bb",
+      "sha256_lf": "ce6c5d99aed1e07b01aea155a90b1f3e27adbf154bf6e904e1b7d37c339e6d17"
+    },
+    {
+      "path": "src/utils/superAdminManualEnrollment.js",
+      "bytes": 4453,
+      "sha256": "419922c12ebdfe4fa8f01c1c3ab4af1da58b2a3a6afba5c0c54d5dae2c0c8202",
+      "sha256_lf": "939c84aaf7d1fee0ed511f7eaac72f87ef0b01132777c963d3585f795c4b63cc"
+    },
+    {
+      "path": "src/utils/superAdminMasterlistImport.js",
+      "bytes": 3391,
+      "sha256": "90d12933f8469ccfc69f57f2875994031998cbe28a4c80a7e97e0521ca742f97",
+      "sha256_lf": "b04d455e5778ff07f9e7a74d2064bb8a79485bae46e872bb3fab5e834b48b1f5"
+    },
+    {
+      "path": "src/utils/studentCsvValidation.js",
+      "bytes": 2448,
+      "sha256": "f66324ddeac5c35f0e9e92cfaad3491e82ad253db45fb70a40ff4b877f225683",
+      "sha256_lf": "f66324ddeac5c35f0e9e92cfaad3491e82ad253db45fb70a40ff4b877f225683"
+    },
+    {
+      "path": "src/utils/studentManagementRequest.js",
+      "bytes": 1646,
+      "sha256": "03c25b9624f5a29bc0edecc03f28b3145a2ccfe8b40ceb64e349ef91185368ef",
+      "sha256_lf": "03c25b9624f5a29bc0edecc03f28b3145a2ccfe8b40ceb64e349ef91185368ef"
+    },
+    {
+      "path": "src/utils/superAdminStudentDirectory.js",
+      "bytes": 1100,
+      "sha256": "dd8cc39eec0db5517f4210b0bea639736879f17be4cbbee6d1b75e1235bb4fd7",
+      "sha256_lf": "dd8cc39eec0db5517f4210b0bea639736879f17be4cbbee6d1b75e1235bb4fd7"
+    },
+    {
+      "path": "supabase/functions/super-admin-manual-enrollment/index.ts",
+      "bytes": 49263,
+      "sha256": "bc7a0fe40850f9eb7b610613eeb0b7d4b69055ec5e87cc364b062ab635a4120e",
+      "sha256_lf": "2a5d64725a0f17e854dfdf996ff7cd561d0bc22049bced9f0fd47fdf087bf611"
+    },
+    {
+      "path": "supabase/functions/super-admin-masterlist-import/index.ts",
+      "bytes": 27559,
+      "sha256": "470997220dfdc3d2078fa3889d8fbd7434b5b0d139bb226a35e6110a449a7bff",
+      "sha256_lf": "970ed19b97902dd3eba26ce0d5b6c6af0fd5d8559af40df6ccb922503566c4ca"
+    },
+    {
+      "path": "supabase/functions/_shared/kandidProductionSecurity.mjs",
+      "bytes": 4628,
+      "sha256": "87a7100ca782092528dc9cd49e7941216fe664ac4a0099f5d44fc9cf476733e2",
+      "sha256_lf": "340ebeb85e42e5274d4ae48ca7548e6170957652cb8e1c1161188740ecb5cdeb"
+    },
+    {
+      "path": "supabase/functions/_shared/membershipAdmission.js",
+      "bytes": 1183,
+      "sha256": "66471fcc5fa7ae8b394b82f0db3f3caef1e6248d698cfd8dae0fc142b7e0e4d3",
+      "sha256_lf": "70a746d39400732b01f62ef30ca07bf2a0c368676e2d09fa06846a7383357487"
+    },
+    {
+      "path": "supabase/proposals/super-admin-students-recovery.sql",
+      "bytes": 12575,
+      "sha256": "2c36ab961d28d875914b27918bc9b08ff2ff28644e175de5817b3a7f6d6a0895",
+      "sha256_lf": "2c36ab961d28d875914b27918bc9b08ff2ff28644e175de5817b3a7f6d6a0895"
+    },
+    {
+      "path": "supabase/proposals/super-admin-students-recovery.rollback.sql",
+      "bytes": 11976,
+      "sha256": "30c865db00458f2ec6da3972c7b0fce9023b8f0e9cad8e71708e1f4894893870",
+      "sha256_lf": "30c865db00458f2ec6da3972c7b0fce9023b8f0e9cad8e71708e1f4894893870"
+    },
+    {
+      "path": "tests/superAdminStudentsRecovery.test.mjs",
+      "bytes": 17781,
+      "sha256": "8e818fe0bd07c2dd93e60321850e1bbb67a90f3356bb1f85e3ac7cea2570ceea",
+      "sha256_lf": "8e818fe0bd07c2dd93e60321850e1bbb67a90f3356bb1f85e3ac7cea2570ceea"
+    },
+    {
+      "path": "tests/superAdminStudentMobileActions.test.mjs",
+      "bytes": 4391,
+      "sha256": "cc850723960f4149d15768dcc617d85e35e74e1e55633e28629c7fb80b9e2c33",
+      "sha256_lf": "589829f654b4c08d1be3e02ab6938ae25dc1df51d92b888a03e5bce3e668a63e"
+    },
+    {
+      "path": "tests/masterlistImportScope.test.mjs",
+      "bytes": 9063,
+      "sha256": "0cf05a331aa2c163cd04115ddb3c1d6e1c3ed81c1871f77aaf10a2e608e4ef41",
+      "sha256_lf": "400bf23b63da376b5916de3fdfb66224c8276a13bcc74bc182395c039a85b6be"
+    },
+    {
+      "path": "tests/superAdminIndividualUnenrollment.test.mjs",
+      "bytes": 11409,
+      "sha256": "9ebf13f75d66c57784dd1e3c7f7d77b9f6cec6c726beac68c0eacfbb5750f418",
+      "sha256_lf": "648b1066b298bb1ebdd7df1fad282916a4e275ad6e0e919cad4b18fbeee0853c"
+    },
+    {
+      "path": "tests/superAdminMembershipRemoval.test.mjs",
+      "bytes": 11520,
+      "sha256": "ff15ff0395dfb308ffeb2bef89556c68b99bfa3a9c4bf4e5fa595ef1498cf167",
+      "sha256_lf": "15890ff4ba5b113dbda8ceae36c3a6eab4c41965e0f62a32af4f9fdbd073174f"
+    },
+    {
+      "path": "tests/superAdminAutomaticMembershipSync.test.mjs",
+      "bytes": 6954,
+      "sha256": "8826f1855145d4d3cbbb21c3cca9164fccbfcdfaf913bbdeabd752f51b085ad8",
+      "sha256_lf": "72dc131e1df228511a0e1c7864e0683bad0d647d5884b504e5a282f61ce620a2"
+    },
+    {
+      "path": "tests/fixtures/superAdminStudentsProductionContract.json",
+      "bytes": 73890,
+      "sha256": "dd1aed17004c8a07940a24c603e292e53eefb44d761038b128c26905955af890",
+      "sha256_lf": "dd1aed17004c8a07940a24c603e292e53eefb44d761038b128c26905955af890"
+    },
+    {
+      "path": "scripts/prepare-super-admin-students-recovery.mjs",
+      "bytes": 3528,
+      "sha256": "3fc65ab9860d3e04a3223418d9fff29cc7a7960019d052621a73626f24270d1c",
+      "sha256_lf": "3fc65ab9860d3e04a3223418d9fff29cc7a7960019d052621a73626f24270d1c"
+    },
+    {
+      "path": "scripts/kandid-super-admin-students-pg17.mjs",
+      "bytes": 11560,
+      "sha256": "d6566a141b7d05f267d694fae88382e4676d7833f462630bd1a2f29747f0b4e7",
+      "sha256_lf": "d6566a141b7d05f267d694fae88382e4676d7833f462630bd1a2f29747f0b4e7"
+    },
+    {
+      "path": "scripts/kandid-super-admin-students-browser.mjs",
+      "bytes": 16509,
+      "sha256": "f2b0019b399a66b3f1cea2f9a1affb47a004953dda18811663d1ec46861ef99b",
+      "sha256_lf": "f2b0019b399a66b3f1cea2f9a1affb47a004953dda18811663d1ec46861ef99b"
+    },
+    {
+      "path": "docs/super-admin-students-recovery.md",
+      "bytes": 11884,
+      "sha256": "a046aab355dc739190c1bac65c612692bef3c3bbdd7ca99bc9d80ea6b8bfe9ee",
+      "sha256_lf": "a046aab355dc739190c1bac65c612692bef3c3bbdd7ca99bc9d80ea6b8bfe9ee"
+    }
+  ],
+  "production_read_only_preflight": {
+    "rpc_dependencies_installed": 18,
+    "list_update_source_guards_match": true,
+    "owner": "postgres",
+    "security_definer": true,
+    "search_path": "pg_catalog",
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "service_execute": true,
+    "catalog_and_photo_column_grants_present": true
+  }
+}

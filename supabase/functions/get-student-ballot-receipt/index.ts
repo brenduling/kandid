@@ -1,5 +1,5 @@
 import { corsHeaders, handleCorsPreflight, rejectDisallowedOrigin, serveWithKandidCors } from "../_shared/kandidProductionSecurity.mjs";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.104.1";
 
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
@@ -28,7 +28,7 @@ function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
-serveWithKandidCors(async (request) => {
+serveWithKandidCors(async (request: Request) => {
   const preflightResponse = handleCorsPreflight(request);
   if (preflightResponse) return preflightResponse;
 

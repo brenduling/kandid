@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, Plus, Pencil, Trash2, UserX, X, Search, MoreHorizontal, Upload } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Plus, Pencil, Trash2, UserX, X, Search, MoreHorizontal, Upload, Eye } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import PopupOverlay from "../../components/PopupOverlay";
 import { OrganizationLogo, StudentAvatar } from "../../components/KandidImage";
@@ -24,11 +24,14 @@ import {
   resolveSuperAdminStudentForTerm,
   unenrollSuperAdminStudentForCurrentTerm,
   updateSuperAdminStudent,
+  removeSuperAdminCurrentOrganizationMembership,
 } from "../../utils/superAdminManualEnrollment";
 import "./Students.css";
+import { loadSuperAdminStudentDirectory } from "../../utils/superAdminStudentDirectory.js";
+import { studentManagementErrorMessage } from "../../utils/studentManagementRequest.js";
 
 const PAGE_SIZE = 10;
-const ORGANIZATION_CATALOG_SELECT = "id, name, description, organization_type";
+const ORGANIZATION_CATALOG_SELECT = "id, name, description, organization_type, membership_scope";
 const EMPTY_STUDENT_FORM = {
   student_number: "",
   first_name: "",
@@ -43,7 +46,7 @@ const EMPTY_STUDENT_FORM = {
   status: "pending",
 };
 
-function StudentMobileActions({ student, studentName, onEdit, onDelete, onUnenroll }) {
+function StudentMobileActions({ student, studentName, onView, onEdit, onDelete, onUnenroll }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
   const triggerRef = useRef(null);
@@ -114,7 +117,8 @@ function StudentMobileActions({ student, studentName, onEdit, onDelete, onUnenro
           aria-label={`Student actions for ${studentName}`}
           onKeyDown={handleMenuKeyDown}
         >
-          <button ref={firstItemRef} type="button" role="menuitem" onClick={() => { setOpen(false); onEdit(); }}>
+          <button ref={firstItemRef} type="button" role="menuitem" onClick={() => { setOpen(false); onView(); }}>View student</button>
+          <button type="button" role="menuitem" onClick={() => { setOpen(false); onEdit(); }}>
             Edit student
           </button>
           <button type="button" role="menuitem" onClick={() => { setOpen(false); onUnenroll(); }}>
@@ -188,6 +192,15 @@ function Students() {
   const studentPhotoCache = useRef(new Map());
   const organizationLogoCache = useRef(new Map());
   const organizationCatalogRequest = useRef(null);
+  const directoryRequest = useRef(0);
+  const registrationRequest = useRef(false);
+  const [details,setDetails] = useState(null);
+  const [detailResolution,setDetailResolution] = useState(null);
+  const [detailsError,setDetailsError] = useState("");
+  const [detailsBusy,setDetailsBusy] = useState(false);
+  const [membershipOrganization,setMembershipOrganization] = useState("");
+  const detailRequest = useRef(0);
+  const membershipRequest = useRef(false);
 
   const [form, setForm] = useState(EMPTY_STUDENT_FORM);
 
@@ -214,7 +227,9 @@ function Students() {
   }, [searchParamValue]);
 
   useEffect(() => {
+    const requestCounter = directoryRequest;
     fetchStudents();
+    return () => {requestCounter.current++;};
   }, [debouncedSearch, organizationFilter, statusFilter, sortBy, page]);
 
   useEffect(() => {
@@ -444,76 +459,20 @@ function Students() {
   }
 
   async function fetchStudents() {
-    setLoadingStudents(true);
-    setStudentsError("");
-
-    let allowedStudentIds = null;
-
-    if (organizationFilter !== "all") {
-      const { data: members, error: membershipError } = await getCurrentOrganizationMembers(
-        Number(organizationFilter),
-      );
-
-      if (membershipError) {
-        console.error("Failed to load current organization members:", membershipError);
-        setStudents([]);
-        setTotalStudents(0);
-        setStudentsError("Unable to load students for the selected organization.");
-        setLoadingStudents(false);
-        return;
-      }
-
-      allowedStudentIds = [...new Set((members || []).map((membership) => Number(membership.student_id)).filter(Boolean))];
-
-      if (allowedStudentIds.length === 0) {
-        setStudents([]);
-        setTotalStudents(0);
-        setLoadingStudents(false);
-        return;
-      }
-    }
-
-    const { data: directory, error } = await listSuperAdminStudents({
-      search: debouncedSearch,
-      status: statusFilter,
-      studentIds: allowedStudentIds,
-      sort: sortBy,
-      page,
-      pageSize: PAGE_SIZE,
-    });
-
-    if (error || !directory) {
-      console.error("Failed to load students:", error);
-      setStudents([]);
-      setTotalStudents(0);
-      setStudentsError("Unable to load the student directory. Please try again.");
-      setLoadingStudents(false);
-      return;
-    }
-
-    const data = directory.data || [];
-    const count = Number(directory.total_count) || 0;
-
-    const {
-      data: studentsWithOrganizations,
-      error: organizationError,
-    } = await attachVisibleStudentOrganizations(data || []);
-
-    if (organizationError) {
-      console.error("Failed to load visible student organizations:", organizationError);
-      setStudents([]);
-      setTotalStudents(0);
-      setStudentsError(
-        organizationError.message ||
-          "Unable to load student organization assignments. Please try again."
-      );
-      setLoadingStudents(false);
-      return;
-    }
-
-    setStudents(studentsWithOrganizations || []);
-    setTotalStudents(count || 0);
-    setLoadingStudents(false);
+    const request=++directoryRequest.current;
+    setLoadingStudents(true);setStudentsError("");
+    try {
+      const result=await loadSuperAdminStudentDirectory({
+        listStudents:listSuperAdminStudents,organizationMembers:getCurrentOrganizationMembers,memberships:attachVisibleStudentOrganizations,
+      },{organization:organizationFilter,search:debouncedSearch,status:statusFilter,sort:sortBy,page,pageSize:PAGE_SIZE});
+      if(request!==directoryRequest.current)return;
+      const lastPage=Math.max(1,Math.ceil(result.total/PAGE_SIZE));
+      if(page>lastPage){setPage(lastPage);return;}
+      setStudents(result.students);setTotalStudents(result.total);
+    } catch(error) {
+      if(request!==directoryRequest.current)return;
+      setStudents([]);setTotalStudents(0);setStudentsError(studentManagementErrorMessage(error));
+    } finally {if(request===directoryRequest.current)setLoadingStudents(false);}
   }
 
   async function fetchOrganizations() {
@@ -532,6 +491,39 @@ function Students() {
 
       return;
     }
+  }
+
+  async function openDetails(student) {
+    const request=++detailRequest.current;
+    setDetails(student);setDetailResolution(null);setDetailsError("");setDetailsBusy(true);setMembershipOrganization("");
+    const {data,error}=await resolveSuperAdminStudentForTerm(student.student_number);
+    if(request!==detailRequest.current)return;
+    if(error)setDetailsError(studentManagementErrorMessage(error));else setDetailResolution(data);
+    setDetailsBusy(false);
+  }
+
+  async function manageDetailMembership(action,organizationId) {
+    if(membershipRequest.current || detailsBusy || !details)return;
+    membershipRequest.current=true;
+    try {
+      let reason=null;
+      if(action==='remove'){
+        reason=await prompt.prompt({title:'Remove organization participation',message:'Enter the reason. The student identity, term enrollment, ballots and receipts will be preserved.',confirmText:'Remove membership'});
+        if(!reason?.trim())return;
+      } else if(!membershipOrganization)return;
+      setDetailsBusy(true);setDetailsError("");
+      const result=action==='remove'
+        ? await removeSuperAdminCurrentOrganizationMembership({studentId:details.id,organizationId,reason:reason.trim()})
+        : await enrollExistingSuperAdminStudent({student_number:details.student_number,program:detailResolution?.student?.program,year_level:detailResolution?.student?.year_level,organization_id:Number(membershipOrganization)});
+      if(result.error){setDetailsError(studentManagementErrorMessage(result.error,{write:true}));return;}
+      const ok=action==='remove'?result.data?.status==='removed':result.data?.outcome==='EXISTING_STUDENT_ORGANIZATION_ENROLLED';
+      if(!ok){setDetailsError(registrationOutcomeMessage(result.data?.organization_outcome||result.data?.outcome));return;}
+      const refreshed=await attachVisibleStudentOrganizations([details]);
+      if(refreshed.error)setDetailsError('The operation returned success, but current memberships could not be refreshed. Refresh the directory before another action.');
+      else setDetails(refreshed.data[0]);
+      setMembershipOrganization("");fetchStudents();
+    } catch(error) {setDetailsError(studentManagementErrorMessage(error,{write:true}));}
+    finally {membershipRequest.current=false;setDetailsBusy(false);}
   }
 
   function openCreateForm() {
@@ -685,7 +677,7 @@ function Students() {
     setResolvingStudent(false);
 
     if (!data?.outcome) {
-      setRegistrationError(error ? "Unable to check this Student ID. Try again." : "No registration result was returned.");
+      setRegistrationError(error ? studentManagementErrorMessage(error) : "No registration result was returned.");
       return;
     }
 
@@ -744,7 +736,7 @@ function Students() {
 
   async function submitRegistration(event) {
     event.preventDefault();
-    if (submitting || !validateRegistrationDetails()) return;
+    if (registrationRequest.current || submitting || !validateRegistrationDetails()) return;
 
     const isNewStudent = registrationResolution?.outcome === "NEW_STUDENT";
     const payload = isNewStudent
@@ -767,14 +759,17 @@ function Students() {
           organization_id: form.organization_id || null,
         };
 
+    registrationRequest.current=true;
     setSubmitting(true);
     setRegistrationError("");
     const result = isNewStudent
       ? await registerNewSuperAdminStudent(payload)
       : await enrollExistingSuperAdminStudent(payload);
     setSubmitting(false);
+    registrationRequest.current=false;
 
     const outcome = result.data?.outcome;
+    if(result.error && !outcome){setRegistrationError(studentManagementErrorMessage(result.error,{write:true}));return;}
     if (result.data?.organization_outcome === "RESTORATION_REQUIRED") {
       setRegistrationResult({
         ...result.data,
@@ -855,7 +850,7 @@ function Students() {
 
     if (error) {
       console.error("Student save failed:", error);
-      prompt.error(error.message || "Failed to save student.");
+      prompt.error(studentManagementErrorMessage(error,{write:true}));
       setSubmitting(false);
       return;
     }
@@ -1523,6 +1518,7 @@ function Students() {
                         </div>
                         <div className="sa-students-actions">
                           <div className="sa-students-action-list">
+                            <button type="button" onClick={()=>openDetails(student)} aria-label={`View ${studentName}`}><Eye size={15} aria-hidden="true" />View</button>
                             <button
                               onClick={() => openEditForm(student)}
                               type="button"
@@ -1586,6 +1582,7 @@ function Students() {
                             <StudentMobileActions
                               student={student}
                               studentName={studentName}
+                              onView={()=>openDetails(student)}
                               onEdit={() => openEditForm(student)}
                               onDelete={() => handleDelete(student.id)}
                               onUnenroll={() => handleUnenroll(student)}
@@ -1628,6 +1625,18 @@ function Students() {
           CREATE / EDIT FORM
       ======================================================== */}
 
+      {details ? <PopupOverlay>
+        <section className="sa-student-details" role="dialog" aria-modal="true" aria-labelledby="sa-student-details-title">
+          <header><div><p className="sa-students-eyebrow">Student record</p><h2 id="sa-student-details-title">{studentDisplayName(details)}</h2></div><button type="button" disabled={detailsBusy} onClick={()=>{detailRequest.current++;setDetails(null);}} aria-label="Close student details"><X size={20}/></button></header>
+          <dl>{[['Student ID',details.student_number],['Email',details.email||'Not recorded'],['Status',details.status],['Profile program',details.program],['Profile year',details.year_level],['Current term',formatAcademicTerm(detailResolution?.academic_term)],['Term enrollment',detailResolution?.enrollment?.status||'Not enrolled'],['Term program',detailResolution?.student?.program||'Not recorded'],['Term year',detailResolution?.student?.year_level||'Not recorded']].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+          {detailsBusy ? <p role="status">Reading or updating the authorized student record…</p> : null}
+          {detailsError ? <p role="alert" className="sa-registration-error">{detailsError}</p> : null}
+          <h3>Current organization participation</h3>
+          {(details.student_organizations||[]).length ? <ul>{details.student_organizations.map(item=><li key={item.organization_id}><span>{item.organizations?.name||'Organization'}</span>{item.organizations?.membership_scope==='manual'?<button type="button" disabled={detailsBusy} onClick={()=>manageDetailMembership('remove',item.organization_id)}>Remove membership</button>:<small>Managed by enrollment and program coverage</small>}</li>)}</ul>:<p>No active organization memberships.</p>}
+          {detailResolution?.outcome==='ALREADY_ENROLLED_CURRENT_TERM' ? <div className="sa-student-membership-controls"><label htmlFor="sa-student-membership">Enroll in an additional manual organization</label><select id="sa-student-membership" value={membershipOrganization} disabled={detailsBusy} onChange={event=>setMembershipOrganization(event.target.value)}><option value="">Choose organization</option>{organizations.filter(org=>org.membership_scope==='manual'&&!(details.student_organizations||[]).some(item=>Number(item.organization_id)===Number(org.id))).map(org=><option key={org.id} value={org.id}>{org.name}</option>)}</select><button type="button" disabled={detailsBusy||!membershipOrganization} onClick={()=>manageDetailMembership('enroll')}>Enroll in organization</button></div>:<p>Use Add student to resolve and enroll an existing student for the current term. Program changes use the existing Masterlist Review.</p>}
+          <footer><button type="button" disabled={detailsBusy} onClick={()=>{setDetails(null);openEditForm(details);}}>Edit profile</button><button type="button" disabled={detailsBusy} onClick={()=>setDetails(null)}>Close</button></footer>
+        </section>
+      </PopupOverlay> : null}
       {formOpen && (
         <PopupOverlay>
           <div className={`popup-sheet popup-sheet-wide sa-students-modal max-h-[90vh] overflow-hidden ${editingStudent ? "is-editing" : `is-registration is-${registrationStep}`}`} role="dialog" aria-modal="true" aria-labelledby="student-form-title">
@@ -1643,7 +1652,7 @@ function Students() {
 
                 <p className="surface-copy mt-2 text-sm leading-6">
                   {editingStudent
-                    ? "Update the central student record and organization membership."
+                    ? "Update the central profile. Linked Student ID and email remain protected; manage current-term memberships from View student."
                     : activeTermLoading
                       ? "Checking the current academic term..."
                       : activeTerm
@@ -1688,6 +1697,7 @@ function Students() {
                         })
                       }
                       className="field-shell w-full"
+                      readOnly={editingStudent?.identity_linked === true}
                       placeholder="Student Number"
                     />
                   </div>
@@ -1746,6 +1756,7 @@ function Students() {
 
                     <input
                       type="email"
+                      readOnly={editingStudent?.identity_linked === true}
                       value={form.email}
                       onChange={(e) =>
                         setForm({
@@ -1782,7 +1793,7 @@ function Students() {
                     />
 
                     <p className="mt-2 text-xs text-gray-500">
-                      Departmental memberships are synced from covered programs.
+                      Profile academic fields do not replace current-term enrollment. Use Masterlist Review for term academic changes.
                     </p>
                   </div>
 

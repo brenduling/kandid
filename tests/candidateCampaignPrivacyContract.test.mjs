@@ -7,6 +7,7 @@ const migration = readFileSync("supabase/migrations/20261018161039_candidate_cam
 const storageMigration = readFileSync("supabase/migrations/20261018150914_campaign_material_storage.sql", "utf8");
 const campaignPage = readFileSync("src/pages/student/Campaign.jsx", "utf8");
 const votePage = readFileSync("src/pages/student/VotePage.jsx", "utf8");
+const ballotReader = readFileSync("src/utils/studentBallotReadiness.js", "utf8");
 const kiosk = readFileSync("src/pages/shared/KioskVoting.jsx", "utf8");
 const resultLoader = readFileSync("src/utils/resultDataLoader.js", "utf8");
 
@@ -81,12 +82,16 @@ test("results remain behind the existing turnout gate and return no campaign con
 
 test("all current student campaign/ballot callers use the privacy RPCs", () => {
   assert.match(campaignPage, /rpc\("kandid_get_student_published_campaign"/);
-  assert.match(votePage, /kandid_get_student_ballot_candidates/);
+  assert.match(votePage, /loadStudentBallotCandidates\(supabase, electionData\)/);
+  assert.match(ballotReader, /rpc\("kandid_get_student_ballot_candidates"/);
+  assert.doesNotMatch(ballotReader, /from\("candidates"\)/);
   assert.match(kiosk, /kandid_get_student_ballot_candidates/);
 });
 
-test("the frozen Storage migration is byte-for-byte unchanged and delegates student reads through the legacy wrapper", () => {
-  const sha = createHash("sha256").update(storageMigration).digest("hex").toUpperCase();
+test("the frozen Storage migration retains its canonical Git content and delegates student reads through the legacy wrapper", () => {
+  // Git's Windows checkout converts LF to CRLF. Keep the original reviewed
+  // content hash, normalize only checkout newlines, and never edit the migration.
+  const sha = createHash("sha256").update(storageMigration.replace(/\r\n/g, "\n")).digest("hex").toUpperCase();
   assert.equal(sha, "F179AC907C98C17D0FAF10B003C0627EB06F7ABA423134CDA8EB760890744D87");
   assert.match(storageMigration, /campaign_response := public\.get_student_campaign\(election_id_value\)/i);
   assert.match(storageMigration, /candidate\.value -> 'campaign_materials'/i);

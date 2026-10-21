@@ -1,0 +1,410 @@
+{
+  "project_ref": "fszgdxqxonqqcrzsnkca",
+  "tables": [
+    {
+      "table": "vote_ballots",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "default": "extensions.gen_random_uuid()",
+          "not_null": true
+        },
+        {
+          "name": "student_id",
+          "type": "integer",
+          "default": null,
+          "not_null": true
+        },
+        {
+          "name": "election_id",
+          "type": "integer",
+          "default": null,
+          "not_null": true
+        },
+        {
+          "name": "canonical_submitted_at",
+          "type": "text",
+          "default": null,
+          "not_null": true
+        },
+        {
+          "name": "ballot_hash",
+          "type": "text",
+          "default": null,
+          "not_null": false
+        },
+        {
+          "name": "hash_version",
+          "type": "text",
+          "default": "'KANDID_BALLOT_V1'::text",
+          "not_null": true
+        },
+        {
+          "name": "ballot_nonce",
+          "type": "text",
+          "default": null,
+          "not_null": false
+        },
+        {
+          "name": "blockchain_anchor_status",
+          "type": "text",
+          "default": "'pending'::text",
+          "not_null": true
+        },
+        {
+          "name": "blockchain_tx_id",
+          "type": "text",
+          "default": null,
+          "not_null": false
+        },
+        {
+          "name": "blockchain_network",
+          "type": "text",
+          "default": null,
+          "not_null": false
+        },
+        {
+          "name": "blockchain_contract_address",
+          "type": "text",
+          "default": null,
+          "not_null": false
+        },
+        {
+          "name": "blockchain_block_number",
+          "type": "bigint",
+          "default": null,
+          "not_null": false
+        },
+        {
+          "name": "blockchain_anchored_at",
+          "type": "timestamp with time zone",
+          "default": null,
+          "not_null": false
+        },
+        {
+          "name": "blockchain_retry_count",
+          "type": "integer",
+          "default": "0",
+          "not_null": true
+        },
+        {
+          "name": "blockchain_last_error",
+          "type": "text",
+          "default": null,
+          "not_null": false
+        },
+        {
+          "name": "blockchain_anchor_claimed_at",
+          "type": "timestamp with time zone",
+          "default": null,
+          "not_null": false
+        },
+        {
+          "name": "blockchain_next_retry_at",
+          "type": "timestamp with time zone",
+          "default": null,
+          "not_null": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "not_null": true
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "not_null": true
+        }
+      ]
+    },
+    {
+      "table": "votes",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "default": "nextval('votes_id_seq'::regclass)",
+          "not_null": true
+        },
+        {
+          "name": "student_id",
+          "type": "integer",
+          "default": null,
+          "not_null": false
+        },
+        {
+          "name": "election_id",
+          "type": "integer",
+          "default": null,
+          "not_null": false
+        },
+        {
+          "name": "position_id",
+          "type": "integer",
+          "default": null,
+          "not_null": false
+        },
+        {
+          "name": "candidate_id",
+          "type": "integer",
+          "default": null,
+          "not_null": false
+        },
+        {
+          "name": "is_abstain",
+          "type": "boolean",
+          "default": "false",
+          "not_null": false
+        },
+        {
+          "name": "vote_timestamp",
+          "type": "timestamp without time zone",
+          "default": "CURRENT_TIMESTAMP",
+          "not_null": false
+        },
+        {
+          "name": "vote_hash",
+          "type": "text",
+          "default": null,
+          "not_null": false
+        },
+        {
+          "name": "blockchain_tx_id",
+          "type": "text",
+          "default": null,
+          "not_null": false
+        },
+        {
+          "name": "hash_version",
+          "type": "text",
+          "default": "'legacy_v1'::text",
+          "not_null": true
+        },
+        {
+          "name": "vote_nonce",
+          "type": "text",
+          "default": null,
+          "not_null": false
+        },
+        {
+          "name": "canonical_vote_timestamp",
+          "type": "text",
+          "default": null,
+          "not_null": false
+        },
+        {
+          "name": "blockchain_anchor_status",
+          "type": "text",
+          "default": "'legacy_unanchored'::text",
+          "not_null": true
+        },
+        {
+          "name": "blockchain_network",
+          "type": "text",
+          "default": null,
+          "not_null": false
+        },
+        {
+          "name": "blockchain_contract_address",
+          "type": "text",
+          "default": null,
+          "not_null": false
+        },
+        {
+          "name": "blockchain_block_number",
+          "type": "bigint",
+          "default": null,
+          "not_null": false
+        },
+        {
+          "name": "blockchain_anchored_at",
+          "type": "timestamp with time zone",
+          "default": null,
+          "not_null": false
+        },
+        {
+          "name": "blockchain_retry_count",
+          "type": "integer",
+          "default": "0",
+          "not_null": true
+        },
+        {
+          "name": "blockchain_last_error",
+          "type": "text",
+          "default": null,
+          "not_null": false
+        },
+        {
+          "name": "blockchain_anchor_claimed_at",
+          "type": "timestamp with time zone",
+          "default": null,
+          "not_null": false
+        },
+        {
+          "name": "ballot_id",
+          "type": "uuid",
+          "default": null,
+          "not_null": false
+        },
+        {
+          "name": "blockchain_next_retry_at",
+          "type": "timestamp with time zone",
+          "default": null,
+          "not_null": false
+        }
+      ]
+    }
+  ],
+  "insertion": "CREATE OR REPLACE FUNCTION public.insert_v2_vote_rows(p_student_id integer, p_election_id integer, p_votes jsonb)\n RETURNS TABLE(vote_id integer, vote_hash text, canonical_vote_timestamp text, ballot_id uuid)\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog', 'public'\nAS $function$\ndeclare\n  v_item jsonb;\n\n  v_ballot_id uuid;\n  v_ballot_nonce text;\n  v_ballot_payload text;\n  v_ballot_hash text;\n  v_ordered_row_hashes text;\n  v_row_count integer;\n\n  v_vote_id integer;\n  v_position_id integer;\n  v_candidate_id integer;\n  v_is_abstain boolean;\n\n  v_submitted_at timestamptz;\n  v_canonical_timestamp text;\n  v_nonce text;\n  v_canonical_payload text;\n  v_vote_hash text;\nbegin\n  ---------------------------------------------------------------------------\n  -- Basic trusted-server input validation\n  ---------------------------------------------------------------------------\n\n  if p_student_id is null then\n    raise exception 'student_id is required';\n  end if;\n\n  if p_election_id is null then\n    raise exception 'election_id is required';\n  end if;\n\n  if p_votes is null\n     or jsonb_typeof(p_votes) <> 'array'\n     or jsonb_array_length(p_votes) = 0 then\n    raise exception 'votes must be a non-empty JSON array';\n  end if;\n\n  ---------------------------------------------------------------------------\n  -- Serialize submissions for this exact student/election pair.\n  ---------------------------------------------------------------------------\n\n  perform pg_catalog.pg_advisory_xact_lock(\n    p_student_id,\n    p_election_id\n  );\n\n  ---------------------------------------------------------------------------\n  -- Authoritative duplicate-ballot guard remains the existing votes check.\n  ---------------------------------------------------------------------------\n\n  if exists (\n    select 1\n    from public.votes\n    where student_id = p_student_id\n      and election_id = p_election_id\n  ) then\n    raise exception 'This student has already voted in this election.';\n  end if;\n\n  ---------------------------------------------------------------------------\n  -- One canonical timestamp and one private ballot nonce for the ballot.\n  ---------------------------------------------------------------------------\n\n  v_submitted_at := clock_timestamp();\n\n  v_canonical_timestamp :=\n    to_char(\n      v_submitted_at at time zone 'UTC',\n      'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"'\n    );\n\n  v_ballot_nonce :=\n    encode(\n      extensions.gen_random_bytes(32),\n      'hex'\n    );\n\n  insert into public.vote_ballots (\n    student_id,\n    election_id,\n    canonical_submitted_at,\n    ballot_hash,\n    hash_version,\n    ballot_nonce,\n    blockchain_anchor_status,\n    blockchain_retry_count\n  )\n  values (\n    p_student_id,\n    p_election_id,\n    v_canonical_timestamp,\n    null,\n    'KANDID_BALLOT_V1',\n    v_ballot_nonce,\n    'pending',\n    0\n  )\n  returning id into v_ballot_id;\n\n  ---------------------------------------------------------------------------\n  -- Process each already-validated vote choice.\n  ---------------------------------------------------------------------------\n\n  for v_item in\n    select value\n    from jsonb_array_elements(p_votes)\n  loop\n    -------------------------------------------------------------------------\n    -- Extract persisted vote fields\n    -------------------------------------------------------------------------\n\n    if not (v_item ? 'position_id') then\n      raise exception 'position_id is required for every vote row';\n    end if;\n\n    if not (v_item ? 'is_abstain') then\n      raise exception 'is_abstain is required for every vote row';\n    end if;\n\n    begin\n      v_position_id := (v_item ->> 'position_id')::integer;\n    exception\n      when others then\n        raise exception 'position_id must be an integer';\n    end;\n\n    begin\n      v_is_abstain := (v_item ->> 'is_abstain')::boolean;\n    exception\n      when others then\n        raise exception 'is_abstain must be a boolean';\n    end;\n\n    if v_position_id is null then\n      raise exception 'position_id cannot be null';\n    end if;\n\n    if v_is_abstain is null then\n      raise exception 'is_abstain cannot be null';\n    end if;\n\n    if v_item ? 'candidate_id'\n       and v_item -> 'candidate_id' <> 'null'::jsonb then\n      begin\n        v_candidate_id := (v_item ->> 'candidate_id')::integer;\n      exception\n        when others then\n          raise exception 'candidate_id must be an integer or null';\n      end;\n    else\n      v_candidate_id := null;\n    end if;\n\n    -------------------------------------------------------------------------\n    -- Preserve abstain/candidate invariant\n    -------------------------------------------------------------------------\n\n    if v_is_abstain and v_candidate_id is not null then\n      raise exception 'abstain vote cannot contain candidate_id';\n    end if;\n\n    if not v_is_abstain and v_candidate_id is null then\n      raise exception 'non-abstain vote requires candidate_id';\n    end if;\n\n    -------------------------------------------------------------------------\n    -- Allocate persisted vote ID and generate private row nonce\n    -------------------------------------------------------------------------\n\n    v_vote_id := nextval('public.votes_id_seq'::regclass);\n\n    v_nonce :=\n      encode(\n        extensions.gen_random_bytes(32),\n        'hex'\n      );\n\n    -------------------------------------------------------------------------\n    -- Frozen KANDID_VOTE_V2 canonical serialization\n    -------------------------------------------------------------------------\n\n    v_canonical_payload :=\n        'KANDID_VOTE_V2'\n      || '|vote_id:' || v_vote_id::text\n      || '|election_id:' || p_election_id::text\n      || '|position_id:' || v_position_id::text\n      || '|candidate_id:'\n      || case\n           when v_candidate_id is null then 'null'\n           else v_candidate_id::text\n         end\n      || '|abstain:'\n      || case\n           when v_is_abstain then '1'\n           else '0'\n         end\n      || '|submitted_at:' || v_canonical_timestamp\n      || '|nonce:' || v_nonce;\n\n    v_vote_hash :=\n      '0x'\n      || encode(\n           extensions.digest(\n             convert_to(v_canonical_payload, 'UTF8'),\n             'sha256'\n           ),\n           'hex'\n         );\n\n    -------------------------------------------------------------------------\n    -- Insert the V2 integrity row, grouped under one ballot.\n    --\n    -- New ballot-level submissions keep row hashes for diagnostics, but rows\n    -- are not individual blockchain jobs. The old worker only claims queueable\n    -- row statuses, so 'ballot_grouped' prevents duplicate row anchoring.\n    -------------------------------------------------------------------------\n\n    insert into public.votes (\n      id,\n      student_id,\n      election_id,\n      position_id,\n      candidate_id,\n      is_abstain,\n      vote_timestamp,\n      vote_hash,\n      blockchain_tx_id,\n      hash_version,\n      vote_nonce,\n      canonical_vote_timestamp,\n      blockchain_anchor_status,\n      blockchain_network,\n      blockchain_contract_address,\n      blockchain_block_number,\n      blockchain_anchored_at,\n      blockchain_retry_count,\n      blockchain_last_error,\n      ballot_id\n    )\n    values (\n      v_vote_id,\n      p_student_id,\n      p_election_id,\n      v_position_id,\n      v_candidate_id,\n      v_is_abstain,\n      v_submitted_at at time zone 'UTC',\n      v_vote_hash,\n      null,\n      'KANDID_VOTE_V2',\n      v_nonce,\n      v_canonical_timestamp,\n      'ballot_grouped',\n      null,\n      null,\n      null,\n      null,\n      0,\n      null,\n      v_ballot_id\n    );\n  end loop;\n\n  select\n    count(*)::integer,\n    string_agg(v.vote_hash, E'\\n' order by\n      p.display_order asc,\n      v.position_id asc,\n      case when v.is_abstain then 1 else 0 end asc,\n      v.candidate_id asc nulls last,\n      v.id asc\n    )\n  into\n    v_row_count,\n    v_ordered_row_hashes\n  from public.votes v\n  join public.positions p\n    on p.id = v.position_id\n   and p.election_id = v.election_id\n  where v.ballot_id = v_ballot_id;\n\n  if v_row_count is distinct from jsonb_array_length(p_votes)\n     or v_ordered_row_hashes is null then\n    raise exception 'Ballot row hash assembly failed.';\n  end if;\n\n  ---------------------------------------------------------------------------\n  -- KANDID_BALLOT_V1 canonical ordering:\n  -- position display_order, position_id, selection type (candidate before\n  -- abstain), candidate_id with abstain/null last, then vote_id as final\n  -- deterministic tie-breaker.\n  ---------------------------------------------------------------------------\n\n  v_ballot_payload :=\n      'KANDID_BALLOT_V1'\n    || '|ballot_id:' || v_ballot_id::text\n    || '|election_id:' || p_election_id::text\n    || '|submitted_at:' || v_canonical_timestamp\n    || '|ballot_nonce:' || v_ballot_nonce\n    || '|row_count:' || v_row_count::text\n    || '|row_hashes:' || E'\\n'\n    || v_ordered_row_hashes;\n\n  v_ballot_hash :=\n    '0x'\n    || encode(\n         extensions.digest(\n           convert_to(v_ballot_payload, 'UTF8'),\n           'sha256'\n         ),\n         'hex'\n       );\n\n  update public.vote_ballots\n  set\n    ballot_hash = v_ballot_hash,\n    hash_version = 'KANDID_BALLOT_V1',\n    blockchain_anchor_status = 'pending'\n  where id = v_ballot_id;\n\n  return query\n  select\n    v.id,\n    v.vote_hash,\n    v.canonical_vote_timestamp,\n    v.ballot_id\n  from public.votes v\n  join public.positions p\n    on p.id = v.position_id\n   and p.election_id = v.election_id\n  where v.ballot_id = v_ballot_id\n  order by\n    p.display_order asc,\n    v.position_id asc,\n    case when v.is_abstain then 1 else 0 end asc,\n    v.candidate_id asc nulls last,\n    v.id asc;\nend;\n$function$\n",
+  "constraints": [
+    {
+      "name": "vote_ballots_anchor_status_check",
+      "table": "vote_ballots",
+      "definition": "CHECK ((blockchain_anchor_status = ANY (ARRAY['pending'::text, 'anchoring'::text, 'submitted'::text, 'anchored'::text, 'anchor_failed'::text, 'manual_review'::text])))"
+    },
+    {
+      "name": "vote_ballots_anchored_metadata_check",
+      "table": "vote_ballots",
+      "definition": "CHECK (((blockchain_anchor_status <> 'anchored'::text) OR ((ballot_hash IS NOT NULL) AND (blockchain_tx_id IS NOT NULL) AND (btrim(blockchain_tx_id) <> ''::text) AND (blockchain_network IS NOT NULL) AND (btrim(blockchain_network) <> ''::text) AND (blockchain_contract_address IS NOT NULL) AND (blockchain_block_number IS NOT NULL) AND (blockchain_anchored_at IS NOT NULL))))"
+    },
+    {
+      "name": "vote_ballots_block_number_check",
+      "table": "vote_ballots",
+      "definition": "CHECK (((blockchain_block_number IS NULL) OR (blockchain_block_number >= 0)))"
+    },
+    {
+      "name": "vote_ballots_contract_address_check",
+      "table": "vote_ballots",
+      "definition": "CHECK (((blockchain_contract_address IS NULL) OR (blockchain_contract_address ~ '^0x[0-9a-fA-F]{40}$'::text)))"
+    },
+    {
+      "name": "vote_ballots_election_id_fkey",
+      "table": "vote_ballots",
+      "definition": "FOREIGN KEY (election_id) REFERENCES elections(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "vote_ballots_hash_material_check",
+      "table": "vote_ballots",
+      "definition": "CHECK (((ballot_hash IS NULL) OR (ballot_hash ~ '^0x[0-9a-f]{64}$'::text)))"
+    },
+    {
+      "name": "vote_ballots_hash_version_check",
+      "table": "vote_ballots",
+      "definition": "CHECK ((hash_version = 'KANDID_BALLOT_V1'::text))"
+    },
+    {
+      "name": "vote_ballots_nonce_check",
+      "table": "vote_ballots",
+      "definition": "CHECK (((ballot_nonce IS NULL) OR (ballot_nonce ~ '^[0-9a-f]{64}$'::text)))"
+    },
+    {
+      "name": "vote_ballots_pkey",
+      "table": "vote_ballots",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "vote_ballots_retry_count_check",
+      "table": "vote_ballots",
+      "definition": "CHECK ((blockchain_retry_count >= 0))"
+    },
+    {
+      "name": "vote_ballots_student_id_fkey",
+      "table": "vote_ballots",
+      "definition": "FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "vote_ballots_submitted_metadata_check",
+      "table": "vote_ballots",
+      "definition": "CHECK (((blockchain_anchor_status <> 'submitted'::text) OR ((blockchain_tx_id IS NOT NULL) AND (btrim(blockchain_tx_id) <> ''::text))))"
+    },
+    {
+      "name": "vote_ballots_tx_hash_check",
+      "table": "vote_ballots",
+      "definition": "CHECK (((blockchain_tx_id IS NULL) OR (blockchain_tx_id ~ '^0x[0-9a-fA-F]{64}$'::text)))"
+    },
+    {
+      "name": "votes_abstain_candidate_check",
+      "table": "votes",
+      "definition": "CHECK ((((is_abstain = true) AND (candidate_id IS NULL)) OR ((COALESCE(is_abstain, false) = false) AND (candidate_id IS NOT NULL))))"
+    },
+    {
+      "name": "votes_ballot_id_fkey",
+      "table": "votes",
+      "definition": "FOREIGN KEY (ballot_id) REFERENCES vote_ballots(id) ON DELETE RESTRICT"
+    },
+    {
+      "name": "votes_blockchain_anchor_status_check",
+      "table": "votes",
+      "definition": "CHECK ((blockchain_anchor_status = ANY (ARRAY['legacy_unanchored'::text, 'pending'::text, 'anchoring'::text, 'anchored'::text, 'anchor_failed'::text, 'manual_review'::text, 'ballot_grouped'::text])))"
+    },
+    {
+      "name": "votes_blockchain_anchored_metadata_check",
+      "table": "votes",
+      "definition": "CHECK (((blockchain_anchor_status <> 'anchored'::text) OR ((blockchain_tx_id IS NOT NULL) AND (btrim(blockchain_tx_id) <> ''::text) AND (blockchain_network IS NOT NULL) AND (btrim(blockchain_network) <> ''::text) AND (blockchain_contract_address IS NOT NULL) AND (blockchain_anchored_at IS NOT NULL))))"
+    },
+    {
+      "name": "votes_blockchain_block_number_check",
+      "table": "votes",
+      "definition": "CHECK (((blockchain_block_number IS NULL) OR (blockchain_block_number >= 0)))"
+    },
+    {
+      "name": "votes_blockchain_contract_address_check",
+      "table": "votes",
+      "definition": "CHECK (((blockchain_contract_address IS NULL) OR (blockchain_contract_address ~ '^0x[0-9a-fA-F]{40}$'::text)))"
+    },
+    {
+      "name": "votes_blockchain_retry_count_check",
+      "table": "votes",
+      "definition": "CHECK ((blockchain_retry_count >= 0))"
+    },
+    {
+      "name": "votes_candidate_id_fkey",
+      "table": "votes",
+      "definition": "FOREIGN KEY (candidate_id) REFERENCES candidates(id)"
+    },
+    {
+      "name": "votes_election_id_fkey",
+      "table": "votes",
+      "definition": "FOREIGN KEY (election_id) REFERENCES elections(id)"
+    },
+    {
+      "name": "votes_hash_version_check",
+      "table": "votes",
+      "definition": "CHECK ((hash_version = ANY (ARRAY['legacy_v1'::text, 'KANDID_VOTE_V2'::text])))"
+    },
+    {
+      "name": "votes_pkey",
+      "table": "votes",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "votes_position_id_fkey",
+      "table": "votes",
+      "definition": "FOREIGN KEY (position_id) REFERENCES positions(id)"
+    },
+    {
+      "name": "votes_student_id_fkey",
+      "table": "votes",
+      "definition": "FOREIGN KEY (student_id) REFERENCES students(id)"
+    },
+    {
+      "name": "votes_student_id_position_id_key",
+      "table": "votes",
+      "definition": "UNIQUE (student_id, position_id)"
+    },
+    {
+      "name": "votes_v2_anchor_state_check",
+      "table": "votes",
+      "definition": "CHECK (((hash_version <> 'KANDID_VOTE_V2'::text) OR (blockchain_anchor_status <> 'legacy_unanchored'::text)))"
+    },
+    {
+      "name": "votes_v2_hash_material_check",
+      "table": "votes",
+      "definition": "CHECK (((hash_version <> 'KANDID_VOTE_V2'::text) OR ((vote_hash IS NOT NULL) AND (vote_hash ~ '^0x[0-9a-f]{64}$'::text) AND (vote_nonce IS NOT NULL) AND (vote_nonce ~ '^[0-9a-f]{64}$'::text) AND (canonical_vote_timestamp IS NOT NULL) AND (canonical_vote_timestamp ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$'::text))))"
+    }
+  ],
+  "frozen_guard": "CREATE OR REPLACE FUNCTION private.kandid_require_locked_electorate_for_ballot()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog'\nAS $function$\ndeclare\n  election_row public.elections%rowtype;\nbegin\n  select e.* into election_row from public.elections e where e.id = new.election_id;\n  if not found then\n    raise exception using errcode = '42501', message = 'Election is unavailable.';\n  end if;\n  if election_row.electorate_policy_version = 0 then\n    return new;\n  end if;\n  if election_row.electorate_policy_version <> 1\n     or election_row.electorate_frozen_at is null then\n    raise exception using errcode = '42501', message = 'Voting is unavailable because the election electorate is not locked.';\n  end if;\n  if not exists (\n    select 1 from private.election_eligible_voters v\n    where v.election_id = new.election_id and v.student_id = new.student_id\n  ) then\n    raise exception using errcode = '42501', message = 'Student is not a member of the locked election electorate.';\n  end if;\n  return new;\nend;\n$function$\n"
+}

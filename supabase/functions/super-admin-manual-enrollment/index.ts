@@ -1,5 +1,5 @@
 import { corsHeaders, handleCorsPreflight, rejectDisallowedOrigin, serveWithKandidCors } from "../_shared/kandidProductionSecurity.mjs";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.118.0";
 import { decodeMembershipAdmissionReason } from "../_shared/membershipAdmission.js";
 
 
@@ -137,7 +137,7 @@ function sanitizeEnrollmentError(error: { code?: string; message?: string } | nu
 }
 
 async function ensureProgram(
-  adminClient: ReturnType<typeof createClient>,
+  adminClient: SupabaseClient,
   program: string,
   actorAdminId: number,
 ) {
@@ -154,7 +154,7 @@ async function ensureProgram(
 }
 
 async function resolveMembershipOrganizationIds(
-  adminClient: ReturnType<typeof createClient>,
+  adminClient: SupabaseClient,
   program: string,
   explicitOrganizationId: unknown,
   actorAdminId: number,
@@ -258,7 +258,7 @@ function organizationAuditContext(event: { organizationId?: number; organization
 }
 
 async function auditSuperAdminEvent(
-  adminClient: ReturnType<typeof createClient>,
+  adminClient: SupabaseClient,
   adminProfile: { id: number; full_name: string },
   event: {
     eventType: string;
@@ -470,7 +470,7 @@ function safeParticipationError(message: unknown) {
 }
 
 async function removeCurrentOrganizationMembership(
-  adminClient: ReturnType<typeof createClient>,
+  adminClient: SupabaseClient,
   adminProfile: { id: number; full_name: string },
   body: Record<string, unknown>,
 ) {
@@ -967,8 +967,9 @@ async function handleTermAwareRegistration(
   }
 
   const outcome = cleanText(rpcResult?.outcome, 80) || "SAFE_SERVER_ERROR";
+  const organizationOnly = mode === "enroll_existing" && outcome === "ALREADY_ENROLLED_CURRENT_TERM" && explicitOrganization?.membership_scope === "manual";
   if (
-    !["NEW_STUDENT_CREATED", "EXISTING_STUDENT_ENROLLED", "EXISTING_STUDENT_TERM_RESTORED"].includes(outcome) ||
+    (!["NEW_STUDENT_CREATED", "EXISTING_STUDENT_ENROLLED", "EXISTING_STUDENT_TERM_RESTORED"].includes(outcome) && !organizationOnly) ||
     !studentId
   ) {
     const status = ["IDENTITY_RECHECK_REQUIRED", "ALREADY_ENROLLED_CURRENT_TERM"].includes(outcome)
@@ -1019,7 +1020,7 @@ async function handleTermAwareRegistration(
 
   return jsonResponse({
     data: {
-      outcome,
+      outcome: organizationOnly ? "EXISTING_STUDENT_ORGANIZATION_ENROLLED" : outcome,
       student_number: studentNumber,
       student_status: rpcResult?.student_status || null,
       academic_term: activeTerm,
@@ -1029,7 +1030,7 @@ async function handleTermAwareRegistration(
   });
 }
 
-serveWithKandidCors(async (request) => {
+serveWithKandidCors(async (request: Request) => {
   const preflightResponse = handleCorsPreflight(request);
   if (preflightResponse) return preflightResponse;
 
@@ -1059,6 +1060,15 @@ serveWithKandidCors(async (request) => {
   }
 
   const action = cleanText(body.action, 80);
+  const actionFields: Record<string,string[]> = {
+    list_students:["search","status","student_ids","sort","page","page_size"],student_report:[],student_labels:["student_ids"],
+    update_student:["student_id","student"],unenroll_student_for_current_term:["student_id"],student_deletion_readiness:["student_id"],
+    delete_student:["student_id","confirmed"],remove_current_organization_membership:["student_id","organization_id","reason"],
+    resolve_student_for_term:["student_number"],create_new_student_for_term:["student"],enroll_existing_student_for_term:["student"],
+  };
+  if (!Object.hasOwn(actionFields,action) || Object.keys(body).some(key=>key!=="action"&&!actionFields[action].includes(key))) {
+    return jsonResponse({error:"Unsupported student management action or field."},400);
+  }
   if (action === "list_students") {
     return await listSuperAdminStudents(auth.adminClient, auth.adminProfile, body);
   }
@@ -1223,7 +1233,7 @@ serveWithKandidCors(async (request) => {
   );
   if (membership.error) {
     if (membership.admissionReason) {
-      return admissionOutcomeResponse(membership.admissionReason, explicitOrganization?.name);
+      return admissionOutcomeResponse(membership.admissionReason);
     }
     return jsonResponse({ error: "Student was enrolled, but organization membership could not be saved." }, 400);
   }

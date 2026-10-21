@@ -1,0 +1,455 @@
+/* Student ballot only. Shared shell, kiosk choices and other prompts stay scoped out. */
+.student-ballot {
+  max-width: 960px;
+  margin-inline: auto;
+  color: var(--k-text-primary);
+}
+
+.student-ballot-header {
+  border-top: 3px solid var(--k-ink-950);
+  padding-top: 20px;
+}
+
+.student-ballot .student-ballot-eyebrow {
+  margin: 0;
+  color: var(--k-orange-700);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  line-height: 1.5;
+  text-transform: uppercase;
+}
+
+.student-ballot-header h1 {
+  margin: 12px 0;
+  font-family: var(--k-font-interface);
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 1.1;
+}
+
+.student-ballot-intro {
+  max-width: 58ch;
+  color: var(--k-text-secondary);
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.student-ballot-election {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 24px 0 18px;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.student-ballot-election > span {
+  color: var(--k-text-secondary);
+}
+
+.student-ballot-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 0;
+  border-top: 1px solid var(--k-border-strong);
+  border-bottom: 1px solid var(--k-ink-950);
+  padding: 16px 0;
+}
+
+.student-ballot-meta dt {
+  margin-bottom: 5px;
+  color: var(--k-text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.student-ballot-meta dd {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.student-ballot-paper {
+  margin-top: 24px;
+  border: 1px solid var(--k-border-strong);
+  background: var(--k-bg-surface);
+}
+
+.student-ballot-paper-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 20px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--k-border-subtle);
+  background: var(--k-paper-50);
+}
+
+.student-ballot-paper-heading > p:last-child {
+  margin: 0;
+  color: var(--k-text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.student-ballot-position {
+  padding: 24px;
+}
+
+.student-ballot-position + .student-ballot-position {
+  border-top: 1px solid var(--k-border-strong);
+}
+
+.student-ballot-position-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.student-ballot-position-number {
+  color: var(--k-orange-700);
+  font-family: var(--k-font-technical);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.student-ballot-position-heading h2 {
+  margin: 0 0 5px;
+  font-size: 23px;
+  font-weight: 800;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.student-ballot-position-heading p {
+  color: var(--k-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.student-ballot-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.student-ballot .ballot-choice {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  min-height: 116px;
+  padding: 16px;
+  border: 1px solid var(--k-border-strong);
+  border-radius: 0;
+  background: var(--k-bg-surface);
+  color: var(--k-text-primary);
+  box-shadow: none;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+
+.student-ballot .ballot-choice:hover {
+  border-color: var(--k-ink-900);
+  background: var(--k-paper-50);
+  transform: none;
+}
+
+.student-ballot .ballot-choice-muted {
+  opacity: 1;
+  filter: none;
+}
+
+.student-ballot .ballot-choice-active {
+  border: 2px solid var(--k-orange-600);
+  padding: 15px;
+  background: var(--k-brand-soft);
+}
+
+.student-ballot .ballot-choice-active:hover {
+  border-color: var(--k-orange-700);
+  background: var(--k-brand-soft);
+}
+
+.student-ballot-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--k-ink-600);
+  color: var(--k-paper-0);
+}
+
+.ballot-choice-active .student-ballot-mark {
+  border-color: var(--k-orange-600);
+  background: var(--k-orange-600);
+}
+
+.student-ballot-candidate {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.student-ballot .student-ballot-portrait {
+  flex: 0 0 52px;
+  width: 52px;
+  height: 64px;
+  border-radius: 0;
+  object-fit: cover;
+}
+
+.student-ballot-candidate-copy {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.student-ballot-candidate-name {
+  display: block;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.student-ballot-party {
+  display: block;
+  margin-top: 3px;
+  color: var(--k-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.student-ballot-choice-state {
+  display: block;
+  margin-top: 8px;
+  color: var(--k-text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.ballot-choice-active .student-ballot-choice-state {
+  color: var(--k-orange-700);
+}
+
+.student-ballot .student-ballot-abstain {
+  grid-column: 1 / -1;
+  min-height: 96px;
+  background: var(--k-paper-50);
+}
+
+.student-ballot .student-ballot-abstain.ballot-choice-active {
+  border-color: var(--k-ink-700);
+  background: var(--k-paper-100);
+}
+
+.student-ballot-abstain.ballot-choice-active .student-ballot-mark {
+  border-color: var(--k-ink-700);
+  background: var(--k-ink-700);
+}
+
+.student-ballot-abstain .student-ballot-choice-state {
+  color: var(--k-text-secondary);
+}
+
+.student-ballot-empty {
+  grid-column: 1 / -1;
+  padding: 16px;
+  color: var(--k-text-secondary);
+  font-size: 14px;
+}
+
+.student-ballot-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 24px;
+  border-top: 1px solid var(--k-border-strong);
+  padding-top: 20px;
+}
+
+.student-ballot-actions > p {
+  max-width: 35ch;
+  color: var(--k-text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.student-ballot-review-button {
+  flex-shrink: 0;
+  min-height: 48px;
+  padding: 12px 28px;
+  border: 1px solid var(--k-orange-600);
+  border-radius: 0;
+  background: var(--k-orange-600);
+  color: var(--k-paper-0);
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.student-ballot-review-button:hover:not(:disabled) {
+  background: var(--k-orange-700);
+}
+
+.student-ballot-review-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.student-ballot button:focus-visible {
+  outline: 2px solid var(--k-ink-950);
+  outline-offset: 4px;
+}
+
+/* The existing prompt lives outside the authenticated theme. Reuse its
+   editorial variant; override verified legacy !important rules only here. */
+.prompt-overlay .kandid-confirm-editorial:has(.student-ballot-review) {
+  max-width: 540px;
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  background: var(--k-paper-50) !important;
+  box-shadow: none !important;
+}
+
+.kandid-confirm-editorial:has(.student-ballot-review) .config-modal-header {
+  position: relative;
+  display: block;
+}
+
+.kandid-confirm-editorial:has(.student-ballot-review) .config-title {
+  max-width: calc(100% - 20px);
+  font-family: var(--k-font-interface);
+  font-size: clamp(1.75rem, 4vw, 2rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.kandid-confirm-editorial:has(.student-ballot-review) .config-description {
+  max-width: none;
+  color: var(--k-text-secondary);
+  white-space: normal;
+}
+
+.kandid-confirm-editorial:has(.student-ballot-review) .config-close-btn {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  width: 44px;
+  height: 44px;
+}
+
+.student-ballot-review,
+.student-ballot-review > span {
+  display: block;
+}
+
+.student-ballot-review-list {
+  margin: 24px 0;
+  border-top: 2px solid var(--k-ink-950);
+}
+
+.student-ballot-review-row {
+  display: grid;
+  gap: 7px;
+  border-bottom: 1px solid var(--k-border-strong);
+  padding: 16px 0;
+  overflow-wrap: anywhere;
+}
+
+.student-ballot-review-position {
+  color: var(--k-text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.student-ballot-review-choice {
+  color: var(--k-text-primary);
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.student-ballot-review .student-ballot-review-notice {
+  display: flex;
+  gap: 10px;
+  color: var(--k-text-primary);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+.student-ballot-review-notice svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.student-ballot-review-receipt {
+  margin-top: 14px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.kandid-confirm-editorial:has(.student-ballot-review) .config-footer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.kandid-confirm-editorial:has(.student-ballot-review) .config-footer > button {
+  min-height: 48px;
+}
+
+@media (max-width: 640px) {
+  .student-ballot-meta {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .student-ballot-paper-heading,
+  .student-ballot-position {
+    padding: 16px;
+  }
+
+  .student-ballot-choices {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .student-ballot .ballot-choice {
+    gap: 10px;
+    padding: 14px 12px;
+  }
+
+  .student-ballot .ballot-choice-active {
+    padding: 13px 11px;
+  }
+
+  .student-ballot-actions {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .student-ballot-actions > p {
+    max-width: none;
+  }
+
+  .kandid-confirm-editorial:has(.student-ballot-review) .config-footer {
+    grid-template-columns: 1fr;
+  }
+}

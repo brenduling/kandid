@@ -258,7 +258,7 @@ test("the shared RPC changes only current-term participation and preserves struc
 });
 
 test("trusted current-member counts exclude removed term participation and unenrolled students", async () => {
-  const eligibility = await readFile("supabase/functions/organization-eligibility/index.ts", "utf8");
+  const eligibility = (await readFile("supabase/functions/organization-eligibility/index.ts", "utf8")).replace(/\r\n/g, "\n");
   const countPath = eligibility.slice(
     eligibility.indexOf("async function handleCurrentOrganizationMemberCount"),
     eligibility.indexOf("Deno.serve"),

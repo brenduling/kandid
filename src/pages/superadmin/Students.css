@@ -1339,3 +1339,16 @@
     transition: none;
   }
 }
+.sa-student-details {width: min(44rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow-y: auto; padding: 1.25rem; background: var(--kandid-app-paper, #fffdf7); border: 1px solid var(--kandid-app-ink, #171717); border-radius: 0; color: var(--kandid-app-ink, var(--k-text-primary, #17181c)); color-scheme: light;}
+.sa-student-details header, .sa-student-details footer, .sa-student-details li {display: flex; justify-content: space-between; align-items: center; gap: .75rem; flex-wrap: wrap;}
+.sa-student-details h2 {font-size: 1.35rem; font-weight: 900; overflow-wrap: anywhere;}
+.sa-student-details h3 {font-size: 1rem; font-weight: 800; margin: 1rem 0 .5rem;}
+.sa-student-details dl {display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .75rem; margin: 1rem 0;}
+.sa-student-details dt, .sa-student-details label {font-size: .72rem; font-weight: 800; text-transform: uppercase;}
+.sa-student-details dd {margin: .2rem 0; overflow-wrap: anywhere;}
+.sa-student-details li {padding: .65rem 0; border-bottom: 1px solid #d8d2c7;}
+.sa-student-details button, .sa-student-details select {border: 1px solid #25231e; border-radius: 0; background: transparent; color: inherit; padding: .55rem; min-height: 2.5rem; font-weight: 700; max-width: 100%;}
+.sa-student-details button:disabled {opacity: .5; cursor: not-allowed;}
+.sa-student-membership-controls {display: grid; gap: .55rem; margin: 1rem 0;}
+.sa-student-details footer {margin-top: 1rem; border-top: 1px solid #25231e; padding-top: .75rem;}
+@media (max-width: 430px) {.sa-student-details {padding: 1rem;} .sa-student-details dl {grid-template-columns: minmax(0,1fr);} .sa-student-details footer button {flex: 1;}}

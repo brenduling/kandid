@@ -1,0 +1,136 @@
+.sa-system-settings .academic-term-danger-zone {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin-top: 2rem;
+  padding: 1.5rem 0;
+  border-top: 2px solid #a3372b;
+  border-bottom: 1px solid var(--sa-rule-strong);
+  color: var(--sa-ink);
+  overflow-wrap: anywhere;
+}
+
+.sa-system-settings .term-zone-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.sa-system-settings .term-danger-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.6rem;
+  color: #963125;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.sa-system-settings .academic-term-danger-zone h2 {
+  margin: 0;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.6rem;
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.sa-system-settings .academic-term-danger-zone h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.sa-system-settings .academic-term-danger-zone p:not(.term-danger-label) {
+  max-width: 75ch;
+  margin: 0.65rem 0;
+  color: var(--sa-muted);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.sa-system-settings .term-preview-notice { font-weight: 700; }
+.sa-system-settings .term-zone-heading button { flex-shrink: 0; }
+
+.sa-system-settings .term-current-register {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 1.5rem 0;
+  padding: 1rem 0;
+  border-block: 1px solid var(--sa-rule-strong);
+  gap: 1.25rem;
+}
+
+.sa-system-settings .term-current-register dt {
+  color: var(--sa-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.sa-system-settings .term-current-register dd {
+  margin: 0.4rem 0 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.sa-system-settings .term-next-selection { max-width: 38rem; margin-block: 1.5rem; }
+.sa-system-settings .term-next-selection label,
+.sa-system-settings .term-review > label { display: block; font-size: 0.875rem; font-weight: 700; }
+.sa-system-settings .term-next-selection select,
+.sa-system-settings .term-review > input { display: block; width: 100%; min-width: 0; margin-top: 0.6rem; }
+.sa-system-settings .term-impact-summary { padding-top: 1.25rem; border-top: 1px solid var(--sa-rule); }
+.sa-system-settings .term-impact-counts { margin: 1rem 0; }
+.sa-system-settings .term-impact-counts > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--sa-rule);
+  font-size: 0.875rem;
+}
+.sa-system-settings .term-impact-counts dd { margin: 0; color: var(--sa-muted); }
+.sa-system-settings .term-safeguards { padding-left: 1.25rem; margin-block: 1.25rem; font-size: 0.875rem; line-height: 1.65; }
+.sa-system-settings .term-safeguards li + li { margin-top: 0.5rem; }
+.sa-system-settings .term-review { margin-top: 1.5rem; padding-top: 1.25rem; border-top: 2px solid var(--sa-ink); }
+.sa-system-settings .term-review .term-acknowledgement { display: flex; align-items: flex-start; gap: 0.7rem; margin: 1.25rem 0; line-height: 1.6; }
+.sa-system-settings .term-acknowledgement input { width: 1rem; height: 1rem; flex-shrink: 0; margin-top: 0.25rem; }
+.sa-system-settings .term-review-feedback { padding-left: 0.75rem; border-left: 2px solid var(--sa-ink); }
+.sa-system-settings .term-activation-action { display: flex; align-items: flex-start; gap: 1rem; margin-top: 1.5rem; }
+.sa-system-settings .term-activate-button {
+  flex-shrink: 0;
+  min-height: 2.75rem;
+  padding: 0.65rem 1rem;
+  border: 1px solid #a3372b;
+  border-radius: 0;
+  color: #963125;
+  background: #fff6f4;
+  font-size: 0.875rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.sa-system-settings .term-activate-button:disabled { opacity: 0.55; }
+.sa-system-settings .term-load-error { color: #963125; }
+.sa-system-settings .term-review > .term-activate-button { margin-top: 1rem; }
+.sa-system-settings .academic-term-danger-zone .term-activation-action p { margin-top: 0; }
+.sa-system-settings .academic-term-danger-zone button:disabled { cursor: not-allowed; }
+.sa-system-settings .term-configuration-history,
+.sa-system-settings .term-draft-creation,
+.sa-system-settings .term-audit-note { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--sa-rule); }
+.sa-system-settings .academic-term-danger-zone summary { font-size: 0.875rem; font-weight: 800; cursor: pointer; }
+.sa-system-settings .term-configuration-history ul { list-style: none; padding: 0; }
+.sa-system-settings .term-configuration-history li { display: flex; justify-content: space-between; gap: 1rem; padding: 0.7rem 0; font-size: 0.875rem; }
+.sa-system-settings .term-configuration-history li span { color: var(--sa-muted); }
+.sa-system-settings .term-audit-note a { color: var(--sa-ink); font-size: 0.875rem; font-weight: 800; text-decoration: underline; text-underline-offset: 0.2em; }
+.sa-system-settings .academic-term-danger-zone :focus-visible { outline: 2px solid var(--sa-ink); outline-offset: 3px; }
+
+@media (max-width: 640px) {
+  .sa-system-settings .term-zone-heading,
+  .sa-system-settings .term-activation-action { flex-direction: column; }
+  .sa-system-settings .term-current-register { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+  .sa-system-settings .term-current-register > div { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+  .sa-system-settings .term-current-register dd { text-align: right; }
+  .sa-system-settings .term-impact-counts > div { grid-template-columns: minmax(0, 1fr); gap: 0.25rem; }
+  .sa-system-settings .term-review > button,
+  .sa-system-settings .term-activate-button { width: 100%; justify-content: center; }
+}

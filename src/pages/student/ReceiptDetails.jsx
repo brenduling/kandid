@@ -16,7 +16,6 @@ import {
 } from "../../utils/blockchain";
 import {
   formatAbsoluteTimestampAsManilaDateTime,
-  formatUtcTimestampAsManilaDateTime,
 } from "../../utils/time";
 import {
   StudentSkeletonGroup,
@@ -181,11 +180,9 @@ function ReceiptDetails() {
   const blockNumber = blockchainRecord?.blockchain_block_number
     ? String(blockchainRecord.blockchain_block_number)
     : "";
-  const timestamp = blockchainRecord?.blockchain_anchored_at
+  const timestamp = status?.className === "verified" && blockchainRecord?.blockchain_anchored_at
     ? formatAbsoluteTimestampAsManilaDateTime(blockchainRecord.blockchain_anchored_at)
-    : !isBallotV1 && currentVote?.vote_timestamp
-      ? formatUtcTimestampAsManilaDateTime(currentVote.vote_timestamp)
-      : "";
+    : "";
 
   function goBack() {
     navigate("/student/receipt");

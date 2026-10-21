@@ -31,15 +31,18 @@ import {
   STUDENT_OTP_REQUEST_NOTICE,
   getStudentSetupRequestError,
 } from "../../utils/studentSetupValidation";
-import { isStudentAccountSetupEnabled } from "../../utils/studentAccountSetupFeatureGate";
+import { isStudentAccountSetupEnabled, isVerifiedStudentSetupEnabled } from "../../utils/studentAccountSetupFeatureGate";
+import { getStudentSetupLookupFailure } from "../../utils/studentSetupLookupFailure";
+import { supabase } from "../../lib/supabaseClient";
 
 const OTP_LENGTH = 6;
 const OTP_RESEND_COOLDOWN_SECONDS = 60;
 
 const SETUP_STAGES = [
-  { key: "lookup", label: "Find your record", shortLabel: "Find" },
-  { key: "password", label: "Secure access", shortLabel: "Secure" },
-  { key: "otp", label: "Verify email", shortLabel: "Verify" },
+  { key: "lookup", label: "Student ID", shortLabel: "ID" },
+  { key: "confirm", label: "Confirm information", shortLabel: "Confirm" },
+  { key: "password", label: "Configure password", shortLabel: "Password" },
+  { key: "otp", label: "Verify OTP", shortLabel: "OTP" },
 ];
 
 const PASSWORD_RULE_LABELS = {
@@ -50,7 +53,8 @@ const PASSWORD_RULE_LABELS = {
 };
 
 function SetupProgress({ step }) {
-  const activeIndex = step === "success" ? SETUP_STAGES.length : step === "existing" ? 2 : SETUP_STAGES.findIndex((stage) => stage.key === step);
+  const activeStep = step === "existing" ? "otp" : step;
+  const activeIndex = step === "success" ? SETUP_STAGES.length : SETUP_STAGES.findIndex((stage) => stage.key === activeStep);
 
   return (
     <nav className="student-setup-progress" aria-label="Account setup progress">
@@ -74,6 +78,7 @@ function StudentSetup() {
   const navigate = useNavigate();
   const [studentNumber, setStudentNumber] = useState(location.state?.studentNumber || "");
   const [student, setStudent] = useState(null);
+  const [detailsConfirmed, setDetailsConfirmed] = useState(false);
   const [step, setStep] = useState("lookup");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -81,6 +86,7 @@ function StudentSetup() {
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [setupError, setSetupError] = useState("");
+  const [lookupFailure, setLookupFailure] = useState(null);
   const [pasteMessage, setPasteMessage] = useState("");
   const [otpNotice, setOtpNotice] = useState("");
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -93,6 +99,9 @@ function StudentSetup() {
   const setupRequestRef = useRef(0);
   const verificationInFlightRef = useRef(false);
   const dispatchInFlightRef = useRef(false);
+  const verifiedIdentityRef = useRef(null);
+  const [verificationExpiresAt, setVerificationExpiresAt] = useState(0);
+  const recognitionEnabled = isVerifiedStudentSetupEnabled();
 
   const passwordChecks = useMemo(() => getPasswordChecks(password), [password]);
   const passwordValid = passwordChecks.every((check) => check.met);
@@ -105,6 +114,11 @@ function StudentSetup() {
     lookupRequestRef.current = requestId;
     setNotFound(false);
     setSetupError("");
+    setLookupFailure(null);
+    if (!isVerifiedStudentSetupEnabled()) {
+      setSetupError("Student setup is awaiting backend recognition readiness. No lookup or email request has been sent.");
+      return;
+    }
     const normalized = typeof number === "string" ? number.trim() : "";
     if (!/^[0-9]{1,20}$/.test(normalized)) {
       setNotFound(true);
@@ -114,23 +128,25 @@ function StudentSetup() {
     let result;
     try {
       result = await inspectStudentSetup({ studentNumber: normalized });
-    } catch {
-      result = { error: true };
+    } catch (error) {
+      result = { error };
     }
     if (!isActive() || lookupRequestRef.current !== requestId) return;
     setLoading(false);
     if (result.error || !result.data) {
-      setSetupError("We couldn't check your Student ID securely. Try again or contact the Electoral Board.");
+      const failure = getStudentSetupLookupFailure(result.error);
+      setLookupFailure(failure);
+      setSetupError(failure.message);
       return;
     }
     setStudent(result.data);
-    setStep("password");
+    setDetailsConfirmed(false);
+    setStep("confirm");
     setPassword("");
     setConfirmPassword("");
     setOtpDigits(Array(OTP_LENGTH).fill(""));
     setPasteMessage("");
     setOtpNotice("");
-    setResendCooldown(0);
   }, []);
 
   useEffect(() => {
@@ -160,6 +176,55 @@ function StudentSetup() {
 
   useEffect(() => () => { lookupRequestRef.current += 1; }, []);
 
+  const invalidateVerification = useCallback((message) => {
+    setupRequestRef.current += 1;
+    verifiedIdentityRef.current = null;
+    setVerificationExpiresAt(0);
+    setStudent(null);
+    setDetailsConfirmed(false);
+    setPassword("");
+    setConfirmPassword("");
+    setOtpDigits(Array(OTP_LENGTH).fill(""));
+    setStep("lookup");
+    setSetupError(message);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const identity = verifiedIdentityRef.current;
+      if (!identity) return;
+      if (!session || session.user?.id !== identity.id || session.user?.email?.trim().toLowerCase() !== identity.email) {
+        invalidateVerification("Your verification session changed. Request a new code before continuing.");
+      } else {
+        identity.expiresAt = Number(session.expires_at) || 0;
+        setVerificationExpiresAt(identity.expiresAt);
+      }
+    });
+    return () => { setupRequestRef.current += 1; subscription.unsubscribe(); };
+  }, [invalidateVerification]);
+
+  useEffect(() => {
+    if (!verifiedIdentityRef.current) return undefined;
+    const timer = window.setTimeout(() => invalidateVerification("Your verification session expired. Request a new code before continuing."),
+      Math.max(0, verificationExpiresAt * 1000 - Date.now()));
+    return () => window.clearTimeout(timer);
+  }, [verificationExpiresAt, invalidateVerification]);
+
+  function changeStudentId() {
+    setupRequestRef.current += 1;
+    lookupRequestRef.current += 1;
+    verifiedIdentityRef.current = null;
+    setVerificationExpiresAt(0);
+    setStudent(null);
+    setDetailsConfirmed(false);
+    setPassword("");
+    setConfirmPassword("");
+    setOtpDigits(Array(OTP_LENGTH).fill(""));
+    setSetupError("");
+    setStep("lookup");
+  }
+
   async function handleCheckStudent(event) {
     event.preventDefault();
     await loadStudentRecord(studentNumber);
@@ -172,8 +237,8 @@ function StudentSetup() {
       setSetupError("Find your Student ID record before requesting email verification.");
       return false;
     }
-    if (!isStudentAccountSetupEnabled() && import.meta.env.VITE_ENABLE_ISOLATED_STUDENT_SETUP_TESTS !== "true") {
-      setSetupError("Student account setup is not enabled in this development build yet.");
+    if (!isStudentAccountSetupEnabled() || !recognitionEnabled) {
+      setSetupError("Email verification is awaiting setup readiness. Please contact the Electoral Board before continuing.");
       return false;
     }
     dispatchInFlightRef.current = true;
@@ -207,29 +272,38 @@ function StudentSetup() {
   async function handlePasswordContinue(event) {
     event.preventDefault();
     setPasteMessage("");
-    const validationError = getStudentSetupRequestError({
-      studentNumber: student?.student_number,
-      passwordValid,
-      passwordsMatch,
-    });
-    if (validationError) {
-      setSetupError(validationError);
+    const validationError = getStudentSetupRequestError({ studentNumber: student?.student_number, passwordValid, passwordsMatch });
+    if (validationError || !detailsConfirmed) {
+      setSetupError(validationError || "Confirm that the Student details belong to you before continuing.");
       return;
     }
     const sent = await sendOtp();
     if (!sent) return;
+    setShowPassword(false);
+    setShowConfirmPassword(false);
     setOtpDigits(Array(OTP_LENGTH).fill(""));
-    setOtpNotice(STUDENT_OTP_REQUEST_NOTICE);
     setStep("otp");
   }
 
-  async function completeSetup() {
+  async function completeSetup(proof) {
+    if (loading || !detailsConfirmed || !passwordValid || !passwordsMatch ||
+        proof?.account_state !== "pending" || proof.student_number !== student?.student_number ||
+        proof.auth_user_id !== verifiedIdentityRef.current?.id) return false;
     const requestId = setupRequestRef.current + 1;
     setupRequestRef.current = requestId;
     setLoading(true);
     setSetupError("");
 
     try {
+      const current = await supabase.auth.getUser();
+      if (setupRequestRef.current !== requestId) return false;
+      if (current.error || !current.data.user?.email_confirmed_at ||
+          current.data.user.id !== verifiedIdentityRef.current?.id ||
+          current.data.user.email?.trim().toLowerCase() !== verifiedIdentityRef.current?.email ||
+          (verifiedIdentityRef.current?.expiresAt || 0) * 1000 <= Date.now()) {
+        invalidateVerification("Your verification session expired or changed. Request a new code before continuing.");
+        return false;
+      }
       const linkResult = await linkCurrentStudentIdentity({
         studentNumber: student.student_number,
         setupMode: true,
@@ -258,6 +332,10 @@ function StudentSetup() {
   async function verifyOtp(event) {
     event.preventDefault();
     if (verificationInFlightRef.current || loading || sendingOtp) return;
+    if (!detailsConfirmed || !student || !passwordValid || !passwordsMatch) {
+      setSetupError("Confirm your Student details and configure your password before verifying OTP.");
+      return;
+    }
     const validationError = getStudentOtpVerificationError({
       code: otpValue,
     });
@@ -267,6 +345,7 @@ function StudentSetup() {
     }
 
     verificationInFlightRef.current = true;
+    const requestId = ++setupRequestRef.current;
     setVerifyingOtp(true);
     setSetupError("");
     setOtpNotice("");
@@ -276,25 +355,38 @@ function StudentSetup() {
         studentNumber: student.student_number,
         code: otpValue,
       });
+      if (setupRequestRef.current !== requestId) return;
       if (verificationResult?.error || !verificationResult?.data?.session) {
         if (Number(verificationResult?.error?.context?.status || verificationResult?.error?.status) === 429) {
           setResendCooldown(getStudentOtpRetrySeconds(verificationResult.error));
         }
         setSetupError(getStudentOtpFailureMessage(verificationResult?.error));
+        setOtpDigits(Array(OTP_LENGTH).fill(""));
+        if (verificationResult?.error?.code === "setup_recognition_unavailable" || Number(verificationResult?.error?.context?.status) === 503) {
+          setResendCooldown(seconds => Math.max(seconds, 60));
+        }
         document.querySelector("[data-student-otp-index='0']")?.focus();
         return;
       }
       setOtpDigits(Array(OTP_LENGTH).fill(""));
       setSetupError("");
-      const verifiedDetails = verificationResult.data.student_details;
-      if (verifiedDetails?.details_verified && verifiedDetails.student_number === student.student_number) {
-        setStudent(verifiedDetails);
-        if (verifiedDetails.account_state === "active") {
+      const proof = verificationResult.data.setup_verification;
+      const verifiedUser = verificationResult.data.user;
+      const expiresAt = Number(verificationResult.data.session.expires_at);
+      if (proof?.student_number === student.student_number && proof.auth_user_id === verifiedUser?.id && expiresAt * 1000 > Date.now()) {
+        verifiedIdentityRef.current = { id: verifiedUser.id, email: verifiedUser.email.trim().toLowerCase(), expiresAt };
+        setVerificationExpiresAt(expiresAt);
+        if (proof.account_state === "active") {
+          setPassword("");
+          setConfirmPassword("");
           setStep("existing");
           return;
         }
+        await completeSetup(proof);
+        return;
       }
-      await completeSetup();
+      setSetupError("Verified student information is unavailable. Request a new code after the cooldown.");
+      setResendCooldown(seconds => Math.max(seconds, 60));
     } catch {
       setSetupError(getStudentOtpFailureMessage());
     } finally {
@@ -305,12 +397,17 @@ function StudentSetup() {
 
   function handleStudentNumberChange(event) {
     lookupRequestRef.current += 1;
+    setupRequestRef.current += 1;
+    verifiedIdentityRef.current = null;
+    setVerificationExpiresAt(0);
+    setPassword("");
+    setConfirmPassword("");
     setStudentNumber(event.target.value);
     setLoading(false);
     setNotFound(false);
     setSetupError("");
     setStudent(null);
-    setResendCooldown(0);
+    setDetailsConfirmed(false);
   }
 
   function handleConfirmPaste(event) {
@@ -376,7 +473,7 @@ function StudentSetup() {
     return (
       <form noValidate onSubmit={handleCheckStudent} className="student-setup-stage student-setup-lookup">
         <div className="student-setup-stage-intro">
-          <h3>Find your student record.</h3>
+          <h3>Find your Student ID.</h3>
           <p>Enter the Student ID given to you by your Electoral Board.</p>
         </div>
 
@@ -384,6 +481,7 @@ function StudentSetup() {
           <label>
             <span>Student ID Number</span>
             <input
+              id="student-setup-student-id"
               value={studentNumber}
               onChange={handleStudentNumberChange}
               inputMode="numeric"
@@ -392,8 +490,8 @@ function StudentSetup() {
             />
           </label>
 
-          <button disabled={loading} className="student-auth-submit">
-            {loading ? <KandidButtonLoader label="Checking record..." /> : <>Verify Student ID <ArrowRight size={18} aria-hidden="true" /></>}
+          <button disabled={loading || !recognitionEnabled} className="student-auth-submit">
+            {loading ? <KandidButtonLoader label="Checking record..." /> : <>Find Student ID <ArrowRight size={18} aria-hidden="true" /></>}
           </button>
         </div>
 
@@ -401,6 +499,7 @@ function StudentSetup() {
           <p className="student-setup-operation" role="status">Checking your student record...</p>
         ) : null}
 
+        {!recognitionEnabled ? <p className="student-setup-feedback is-warning" role="status">Student setup is awaiting backend recognition readiness. No lookup or email will be requested until the reviewed contract is enabled.</p> : null}
         {notFound ? (
           <div className="student-setup-feedback is-warning" role="status">
             <strong>Check your Student ID format.</strong>
@@ -409,7 +508,7 @@ function StudentSetup() {
         ) : null}
         {setupError ? (
           <div className={`student-setup-feedback ${setupError.includes("unavailable for setup") ? "is-blocked" : "is-error"}`} role="alert">
-            <strong>{setupError.includes("unavailable for setup") ? "Setup unavailable" : "Record check interrupted"}</strong>
+            <strong>{lookupFailure?.title || "Student ID check unavailable"}</strong>
             <p>{setupError}</p>
           </div>
         ) : null}
@@ -425,43 +524,69 @@ function StudentSetup() {
   }
 
   function renderIdentityPanel() {
-    return (
-      <section className="student-setup-identity" aria-label="Account verification information">
-        <div className="student-setup-section-head">
-          <span>Verify your account</span>
-          <p><ShieldCheck size={14} aria-hidden="true" /> Read only</p>
-        </div>
-        <div className="student-setup-identity-grid" aria-label="Read-only student details">
-          {[
-            ["Student ID", student?.student_number],
-            ["Student name", student?.details_verified ? [student.first_name, student.last_name].filter(Boolean).join(" ") || "Not recorded" : "Protected until email verification"],
-            ["Registered email", student?.details_verified ? student.email : "Protected until email verification"],
-            ["Program", student?.details_verified ? student.program || "Not recorded" : "Protected until email verification"],
-            ["Year level", student?.details_verified ? student.year_level || "Not recorded" : "Protected until email verification"],
-            ["Enrollment", student?.details_verified ? student.enrollments?.map((term) => `Term ${term.academic_term_id}: ${term.program} / Year ${term.year_level} / ${term.enrollment_status}`).join("; ") || "No enrollment details available" : "Protected until email verification"],
-          ].map(([label, value]) => <div className="student-setup-identity-item" key={label}>
-            <span>{label}</span><strong>{value}</strong>
-          </div>)}
-        </div>
-        <p className="student-setup-record-note">
-          {student?.details_verified ? "These details were confirmed after email verification and cannot be edited here." : "A code is sent only to the email already recorded for an eligible Student account. Personal details stay protected until email verification. This check does not disclose whether a Student ID is on file."}
-        </p>
-      </section>
-    );
+    if (!student) return null;
+    return <section className="student-setup-identity" aria-label="Read-only Student details">
+      <div className="student-setup-section-head"><span>Student details</span><p><ShieldCheck size={14} aria-hidden="true" /> Read only</p></div>
+      <dl className="student-setup-identity-grid">
+        {[["Student full name", student.full_name || "Not recorded"], ["Program", student.program || "Not recorded"], ["Year level", student.year_level || "Not recorded"]].map(([label, value]) =>
+          <div className="student-setup-identity-item" key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+      </dl>
+    </section>;
+  }
+
+  function continueToPassword() {
+    if (!student || !detailsConfirmed) {
+      setSetupError("Confirm that these Student details belong to you before continuing.");
+      return;
+    }
+    setSetupError("");
+    setStep("password");
+  }
+
+  function reviewStudentDetails() {
+    setPassword("");
+    setConfirmPassword("");
+    setDetailsConfirmed(false);
+    setSetupError("");
+    setStep("confirm");
+  }
+
+  function reconfigurePassword() {
+    verifiedIdentityRef.current = null;
+    setVerificationExpiresAt(0);
+    setPassword("");
+    setConfirmPassword("");
+    setOtpDigits(Array(OTP_LENGTH).fill(""));
+    setSetupError("");
+    setStep("password");
+  }
+
+  function renderConfirmationStep() {
+    return <section className="student-setup-stage student-setup-flow">
+      <div className="student-setup-stage-intro"><h3>Confirm your Student details.</h3><p>Check that this record belongs to you before configuring a password.</p></div>
+      {renderIdentityPanel()}
+      <label className="student-setup-confirm-ownership">
+        <input id="student-setup-confirm-details" type="checkbox" checked={detailsConfirmed} onChange={event => { setDetailsConfirmed(event.target.checked); setSetupError(""); }} />
+        <span>I confirm these details belong to me.</span>
+      </label>
+      {setupError ? <div className="student-setup-feedback is-error" role="alert"><p>{setupError}</p></div> : null}
+      <button type="button" className="student-auth-submit" disabled={!detailsConfirmed} onClick={continueToPassword}>Configure Password <ArrowRight size={18} aria-hidden="true" /></button>
+      <button type="button" className="student-auth-setup-link" onClick={changeStudentId}>Use a Different Student ID</button>
+    </section>;
   }
 
   function renderPasswordStep() {
     return (
       <form noValidate onSubmit={handlePasswordContinue} className="student-setup-stage student-setup-flow student-setup-activation">
         <div className="student-setup-stage-intro">
-          <h3>Secure your Student account.</h3>
-          <p>Choose a password that meets the requirements, then verify the email already recorded for your Student account.</p>
+          <h3>Configure your password.</h3>
+          <p>Choose a password, then verify the code sent exclusively to your registered email. Your password is submitted only after successful OTP verification.</p>
         </div>
 
-        {renderIdentityPanel()}
+        <button type="button" className="student-auth-setup-link" disabled={sendingOtp || loading} onClick={reviewStudentDetails}>Review Student Details</button>
 
         <section className="student-setup-password-panel">
-          <h4>Create or reset your password</h4>
+          <h4>Secure your access</h4>
 
           <label className="student-setup-label">
             <span>Password</span>
@@ -582,12 +707,10 @@ function StudentSetup() {
           ) : null}
 
           <button disabled={sendingOtp || loading || resendCooldown > 0} className="student-auth-submit">
-            {sendingOtp ? <KandidButtonLoader label="Sending code..." /> : <>Send Verification Code <ArrowRight size={18} aria-hidden="true" /></>}
+            {sendingOtp ? <KandidButtonLoader label="Requesting code..." /> : <>Send Verification Code <ArrowRight size={18} aria-hidden="true" /></>}
           </button>
-          {sendingOtp ? (
-            <p className="student-setup-operation" role="status">Checking your request. If eligible, a code will be sent to the email on file.</p>
-          ) : null}
-          {!sendingOtp && resendCooldown > 0 ? <p className="student-setup-operation" role="status">Wait {resendCooldown}s before requesting another code.</p> : null}
+          {sendingOtp ? <p className="student-setup-operation" role="status">Requesting verification using the registered email on file...</p> : null}
+          {resendCooldown > 0 ? <p className="student-setup-operation" role="status">Wait {resendCooldown}s before requesting another code.</p> : null}
         </section>
       </form>
     );
@@ -597,7 +720,7 @@ function StudentSetup() {
     return (
       <form noValidate onSubmit={verifyOtp} className="student-setup-stage student-setup-flow student-setup-verify">
         <div className="student-setup-stage-intro">
-          <h3>Check your registered email.</h3>
+          <h3>Verify your OTP.</h3>
           <p>A code can be sent only to the email already recorded for an eligible Student account.</p>
         </div>
         <section className="student-otp-card">
@@ -639,7 +762,7 @@ function StudentSetup() {
           ) : null}
 
           <button disabled={verifyingOtp || loading} className="student-auth-submit">
-            {verifyingOtp || loading ? <KandidButtonLoader label={loading ? "Finishing setup..." : "Checking code..."} /> : <>Verify and continue <ArrowRight size={18} aria-hidden="true" /></>}
+            {verifyingOtp || loading ? <KandidButtonLoader label="Checking code..." /> : <>Verify OTP and Complete Setup <ArrowRight size={18} aria-hidden="true" /></>}
           </button>
           {verifyingOtp || loading || sendingOtp ? (
             <p className="student-setup-operation" role="status">
@@ -657,6 +780,8 @@ function StudentSetup() {
               {sendingOtp ? "Sending..." : resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend code"}
             </button>
           </div>
+          <button type="button" className="student-auth-setup-link" onClick={reconfigurePassword} disabled={verifyingOtp || sendingOtp || loading}>Change Password</button>
+          <button type="button" className="student-auth-setup-link" onClick={changeStudentId} disabled={verifyingOtp || sendingOtp || loading}>Use a Different Student ID</button>
         </section>
       </form>
     );
@@ -680,7 +805,6 @@ function StudentSetup() {
   function renderSuccessStep() {
     return (
       <section className="student-setup-stage student-setup-success" role="status" aria-live="polite">
-        {student?.details_verified ? renderIdentityPanel() : null}
         <CheckCircle2 size={34} aria-hidden="true" />
         <h3>Account Successfully Registered</h3>
         <p>Your Kandid account is now ready. You can proceed to login.</p>
@@ -696,22 +820,22 @@ function StudentSetup() {
     <AuthLayout
       roleLabel="Student Portal"
       title="Complete account setup"
-      copy="Secure your account through the email already recorded for your Student identity."
+      copy="Confirm your Student details, configure a password, and verify your registered email."
       backTo="/student-login"
       screenClassName="student-setup-auth-screen"
     >
       <div className="student-auth-card student-setup-card kandid-auth-form-card">
         <SetupProgress step={step} />
         {step === "lookup" ? renderLookupStep() : null}
-        {step === "password" && student ? renderPasswordStep() : null}
+        {step === "confirm" && student ? renderConfirmationStep() : null}
+        {step === "password" && student && detailsConfirmed ? renderPasswordStep() : null}
         {step === "otp" && student ? renderOtpStep() : null}
         {step === "existing" && student ? <section className="student-setup-stage student-setup-success">
           {renderIdentityPanel()}
           <h3>Your account is already active.</h3>
-          <p>Proceed to login. If you need password recovery, explicitly confirm below to use the password you entered with this verified email session.</p>
+          <p>Proceed to login. Use the existing recovery option on the login page if you need to recover access.</p>
           {setupError ? <div className="student-setup-feedback is-error" role="alert"><p>{setupError}</p></div> : null}
           <button type="button" className="student-auth-submit" onClick={proceedToLogin} disabled={loading}>Proceed to Login</button>
-          <button type="button" className="student-auth-setup-link" onClick={completeSetup} disabled={loading}>Confirm verified password recovery</button>
         </section> : null}
         {step === "success" ? renderSuccessStep() : null}
       </div>

@@ -106,10 +106,9 @@ test("locked policy, organization, term, schedule, and membership are immutable"
   assert.match(migration, /before insert or update on public\.elections/i);
 });
 
-test("submit-vote uses locked membership for frozen policy and dynamic compatibility only for marked legacy elections", () => {
-  assert.match(submitVote, /Number\(election\.electorate_policy_version\) === 1[\s\S]*?electorate_frozen_at[\s\S]*?kandid_is_locked_electorate_member/i);
-  assert.match(submitVote, /Number\(election\.electorate_policy_version\) === 0[\s\S]*?resolve_student_organization_participation/i);
-  assert.match(submitVote, /electorate has not been locked/i);
+test("new submit-vote delegates live eligibility while historical frozen helper remains server-only", () => {
+  assert.match(submitVote, /authClient\.rpc\(\s*"kandid_check_student_ballot_eligibility"/);
+  assert.doesNotMatch(submitVote, /kandid_is_locked_electorate_member|electorate has not been locked/);
   assert.match(migration, /grant execute on function public\.kandid_is_locked_electorate_member\(integer, integer\) to service_role/i);
   assert.match(migration, /auth\.role\(\) is distinct from 'service_role'/i);
 });
@@ -148,10 +147,10 @@ test("Board report package extension reuses the canonical helper and CSV has a t
   assert.doesNotMatch(readFileSync("src/utils/boardReports.js", "utf8"), /student_id|student_number|ballot_id|vote_hash/);
 });
 
-test("Board lock UI confirms final recomputation and removes rebuild controls after locking", () => {
+test("Board scheduled-finalization UI distinguishes automatic scheduling and immutable completion", () => {
   assert.match(setup, /disabled=\{electorateLocked\}/);
-  assert.match(electoratePanel, /server will recompute the final count/i);
-  assert.match(electoratePanel, /The electorate could not be locked|Voting cannot open because the electorate was not locked/i);
+  assert.match(electoratePanel, /schedules the electorate freeze automatically/i);
+  assert.match(electoratePanel, /server recomputes the electorate and freezes it atomically/i);
   assert.match(electoratePanel, /locked \? \([\s\S]*?immutable/i);
 });
 

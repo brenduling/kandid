@@ -42,5 +42,6 @@ test("Super Admin mobile roster geometry matches the Board mobile identity rhyth
   assert.match(styles, /\.sa-students-mobile-record \{ grid-template-columns: 1\.2rem 1\.9rem minmax\(0, 1fr\) 1\.25rem; column-gap: 0\.5rem; \}/);
   assert.match(styles, /\.sa-students-mobile-content \.sa-students-identity-meta \{ font-size: 0\.68rem; \}/);
   assert.match(page, /student\.student_number[\s\S]*?student\.program[\s\S]*?Year \$\{student\.year_level\}[\s\S]*?studentStatus/);
-  assert.doesNotMatch(page, /sa-students-mobile-record[\s\S]*?student_organizations/);
+  const start=page.indexOf('className="sa-students-mobile-record"');
+  assert.doesNotMatch(page.slice(start,page.indexOf('</article>',start)), /student_organizations/);
 });

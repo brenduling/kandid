@@ -10,6 +10,7 @@ import { buildElectionPhaseSummary } from "./electionPhaseSummary";
 import "./Elections.css";
 import { supabase } from "../../lib/supabaseClient";
 import { loadElectionForEdit, saveElectionEdit, electionSaveError } from "../../utils/electionEditContract";
+import { electionEditBlockReason } from "../../utils/electionEditingEnvironment";
 import { createElectionSubmission } from "../../utils/electionCreateContract";
 import { electionManagementQuery, verifyElectionRemovalReadiness } from "../../utils/electionManagementCompatibility";
 import { isElectionSoftRemovalEnabled } from "../../utils/electionRemovalFeatureGate";
@@ -32,6 +33,8 @@ import { logAuditEvent } from "../../utils/auditLog";
 import { loadElectionDeleteReview } from "../../utils/electionDeleteReview";
 import { callElectionRemoval, electionRemovalErrorMessage } from "../../utils/electionRemoval";
 import { copyLatestOrganizationPositions } from "../../utils/positionReuse";
+import { assertElectorateSchedulingReady } from "../../utils/electorateFinalization";
+import { isAutomaticVoterEligibilityEnabled } from "../../utils/automaticVoterEligibility";
 import {
   isResultVisibilityConstraintError,
   resultVisibilityLabel,
@@ -101,6 +104,7 @@ function BoardElections() {
   const orgName = user?.organizations?.name;
   const searchQuery = (searchParams.get("q") || "").trim().toLowerCase();
   const scheduleMin = editing ? "" : currentDateTimeInputValue();
+  const editBlockReason = electionEditBlockReason(import.meta.env);
 
   useEffect(() => {
     let active = true;
@@ -258,6 +262,11 @@ function BoardElections() {
   async function handleSubmit(e) {
     e.preventDefault();
 
+    if (editing && editBlockReason) {
+      prompt.info(editBlockReason);
+      return;
+    }
+
     if (saveInFlight.current) return;
     if (coverUploadBusy.current) return;
 
@@ -309,6 +318,16 @@ function BoardElections() {
       editing
         ? saveElectionEdit(supabase, editing, nextPayload)
         : (createSubmission.current ||= createElectionSubmission(supabase))(nextPayload, orgId);
+
+    try {
+      if (!isAutomaticVoterEligibilityEnabled(import.meta.env)) {
+        await assertElectorateSchedulingReady(supabase, editing, payload);
+      }
+    } catch (readinessError) {
+      prompt.error(readinessError.message || "Automatic electorate finalization is not ready. The election was not saved.");
+      setSubmitting(false);
+      return;
+    }
 
     let result = await saveElection(payload);
 
@@ -395,6 +414,10 @@ function BoardElections() {
 
   async function handleCoverUpload(file) {
     if (!file || coverUploadBusy.current || saveInFlight.current) return;
+    if (editing && editBlockReason) {
+      prompt.info(editBlockReason);
+      return;
+    }
 
     const request = ++coverUploadRequest.current;
     coverUploadBusy.current = true;
@@ -915,6 +938,7 @@ function BoardElections() {
       {formOpen && (
         <BoardElectionSetup
           editing={editing}
+          saveBlockedReason={editing ? editBlockReason : ""}
           onElectorateLocked={(lockResult) => {
             setEditing((current) => current ? { ...current, electorate_frozen_at: lockResult?.locked_at } : current);
           }}

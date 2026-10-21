@@ -1,0 +1,71 @@
+{
+  "project": "fszgdxqxonqqcrzsnkca",
+  "checkedAtManila": "2026-10-22 09:19:34.819427",
+  "manifestRevision": 1,
+  "reviewedArtifactsVerified": 25,
+  "sql": {
+    "success": true,
+    "name": "automatic_voter_eligibility_reviewed_v1",
+    "version": "20261022091543",
+    "sha256": "2d70f573ac97f43260e73f1b6cd0d789c21ed40bfa3c09b80d84062709b3b855",
+    "installedBodyChecks": 8,
+    "authorizationGrantsVerified": true,
+    "rlsTableGrantsConstraintsAndPreexistingTriggersUnchanged": true
+  },
+  "edge": {
+    "name": "submit-vote",
+    "status": "ACTIVE",
+    "version": 3,
+    "verify_jwt": true,
+    "sourceFileCount": 4,
+    "allSourceFilesMatchReviewedArtifact": true,
+    "bundleSha256": "3a09002626a374bbf594f1e0c660ab7e5b7f182dc13fecf582d5ef9dc0670282",
+    "otherFunctionsUnchanged": 12
+  },
+  "local": {
+    "releaseFlag": "VITE_ENABLE_AUTOMATIC_VOTER_ELIGIBILITY",
+    "enabled": true,
+    "ignoredFile": ".env.development.local",
+    "otherEnvironmentValuesPreserved": true,
+    "officialProjectPreserved": true,
+    "vitePort": 5174,
+    "viteHttpStatus": 200,
+    "flagAndReviewedInterfaceServed": true
+  },
+  "protectedRecords": {
+    "fingerprintsUnchanged": true,
+    "counts": {
+      "public.votes": 2,
+      "public.elections": 5,
+      "public.vote_ballots": 2,
+      "public.eligibility_rules": 1,
+      "private.election_eligible_voters": 4
+    }
+  },
+  "election5": {
+    "entireRecordUnchanged": true,
+    "status": "active",
+    "start": "2026-10-22T04:45:00",
+    "end": "2026-10-22T05:30:00",
+    "votingOpen": false,
+    "ballots": 0,
+    "voteRows": 0
+  },
+  "verificationNote": "The final direct-column timestamp comparison initially differed from JSON timestamp formatting. A read-only comparison using the original JSON serialization confirmed the entire election row is unchanged; aggregate row fingerprints also match.",
+  "limits": {
+    "productionTestVotes": 0,
+    "liveStudentBallotFlowTested": false,
+    "reason": "No valid current voting window and no synthetic votes authorized.",
+    "vercelDeployment": false,
+    "gitPush": false,
+    "secretsModified": false,
+    "workerOrReceiptDeployed": false
+  },
+  "rollback": {
+    "preserved": true,
+    "path": "supabase/proposals/automatic-voter-eligibility.rollback.sql",
+    "sha256": "67630d5fdb996fab37627426004cfa20b48cdbd2edda3b00372231323df23013",
+    "executed": false
+  },
+  "reportingLimitation": "Historical snapshot turnout denominators remain reporting-only limitations; live eligibility does not depend on them."
+}

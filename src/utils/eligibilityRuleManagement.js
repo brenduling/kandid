@@ -4,6 +4,11 @@ const failure = (message, code = "RULE_VALIDATION") => Object.assign(new Error(m
 const programCode = (value) => String(value || "").trim().toUpperCase();
 const validYear = (value) => value === null || Number.isInteger(value) && value >= 1 && value <= 6;
 
+// Presentation follows the election policy metadata. The database remains the
+// authority for whether an installed policy enforces the saved declarations.
+export const enforcesElectionEligibilityRules = (election) =>
+  Number(typeof election === "object" ? election?.electorate_policy_version : NaN) === 1;
+
 export function isValidEligibilityRuleContent(row) {
   return Boolean(row && typeof row === "object" && !Array.isArray(row) &&
     Object.keys(row).length === fields.length && Object.keys(row).every((key) => fields.includes(key)) &&
@@ -76,8 +81,9 @@ async function loadElection(client, electionId, board) {
     throw failure("This election is unavailable in your assigned organization.", "RULE_SCOPE");
   }
   if (data.removed_at !== null) throw failure("This election has been removed. Its rules are read-only.", "RULE_REMOVED");
-  // Metadata may describe historical terms. Never substitute the current term
-  // or turn these declarations into enrollment/participation authorization.
+  // Metadata may describe historical terms. Never substitute the current term.
+  // Trusted database operations enforce the scoped rule and freeze contract;
+  // the browser must not reconstruct student authorization from this record.
   if (data.academic_term_id !== null) {
     const term = await client.from("academic_terms").select("id").eq("id", data.academic_term_id).maybeSingle();
     if (term.error || term.data?.id !== data.academic_term_id) throw failure("The election academic term could not be verified. No rule change was submitted.");
@@ -170,6 +176,7 @@ export async function deleteEligibilityRule(client, original, organizationId) {
 }
 
 export function eligibilityRuleErrorMessage(error) {
+  if (error?.code === "42501" && /eligibility rules are locked/i.test(error.message || "")) return "This election's electorate or voting history is locked. Its eligibility rules cannot be changed.";
   if (error?.code === "42501") return /removed/i.test(error.message || "") ? "This election has been removed. Its rules are read-only." : "You do not have permission to change this election's rules. Refresh your Board session.";
   if (error?.code === "PGRST116") return "The rule changed or access was revoked. Refresh before trying again.";
   if (error?.code === "23503") return "The related election is no longer available. Refresh the register.";

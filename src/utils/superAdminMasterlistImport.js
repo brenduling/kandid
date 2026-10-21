@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabaseClient";
+import { invokeStudentManagement } from "./studentManagementRequest.js";
 
 const MASTERLIST_FUNCTION = "super-admin-masterlist-import";
 
@@ -6,19 +7,11 @@ function unwrapFunctionResult(result) {
   return result?.data || null;
 }
 
-async function resolveFunctionError(result, error) {
-  let resolvedError = error || (result?.error ? new Error(result.error) : null);
-  if (error?.context?.json) {
-    try {
-      const payload = await error.context.clone().json();
-      resolvedError = new Error(payload?.error || error.message);
-    } catch {
-      resolvedError = error;
-    }
-  }
-
-  return resolvedError || null;
-}
+const masterlistClient = {functions:{invoke:async(endpoint,options)=>{
+  const {response,error}=await invokeStudentManagement(supabase,endpoint,options.body);
+  return {data:response,error};
+}}};
+const resolveFunctionError = async (result,error) => error || (result?.error ? new Error(result.error) : null);
 
 export async function createMasterlistImport({
   academicTermId,
@@ -26,7 +19,7 @@ export async function createMasterlistImport({
   rows,
   importScope = "incremental",
 }) {
-  const { data: result, error } = await supabase.functions.invoke(
+  const { data: result, error } = await masterlistClient.functions.invoke(
     MASTERLIST_FUNCTION,
     {
       body: {
@@ -46,7 +39,7 @@ export async function createMasterlistImport({
 }
 
 export async function getMasterlistImport(importId) {
-  const { data: result, error } = await supabase.functions.invoke(
+  const { data: result, error } = await masterlistClient.functions.invoke(
     MASTERLIST_FUNCTION,
     {
       body: {
@@ -67,7 +60,7 @@ export async function updateMasterlistImportRow({
   rowId,
   row,
 }) {
-  const { data: result, error } = await supabase.functions.invoke(
+  const { data: result, error } = await masterlistClient.functions.invoke(
     MASTERLIST_FUNCTION,
     {
       body: {
@@ -86,7 +79,7 @@ export async function updateMasterlistImportRow({
 }
 
 export async function removeMasterlistImportRow({ importId, rowId }) {
-  const { data: result, error } = await supabase.functions.invoke(
+  const { data: result, error } = await masterlistClient.functions.invoke(
     MASTERLIST_FUNCTION,
     {
       body: {
@@ -104,7 +97,7 @@ export async function removeMasterlistImportRow({ importId, rowId }) {
 }
 
 export async function finalizeMasterlistImport(importId, options = {}) {
-  const { data: result, error } = await supabase.functions.invoke(
+  const { data: result, error } = await masterlistClient.functions.invoke(
     MASTERLIST_FUNCTION,
     {
       body: {

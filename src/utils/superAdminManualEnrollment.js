@@ -1,27 +1,10 @@
 import { supabase } from "../lib/supabaseClient";
+import { invokeStudentManagement } from "./studentManagementRequest.js";
 
 const SUPER_ADMIN_MANUAL_ENROLLMENT_FUNCTION = "super-admin-manual-enrollment";
 
 async function invokeManualEnrollment(body) {
-  const { data: result, error } = await supabase.functions.invoke(
-    SUPER_ADMIN_MANUAL_ENROLLMENT_FUNCTION,
-    {
-      body,
-    },
-  );
-
-  let response = result;
-  let resolvedError = error || (result?.error ? new Error(result.error) : null);
-  if (error?.context?.json) {
-    try {
-      response = await error.context.clone().json();
-      resolvedError = new Error(response?.error || error.message);
-    } catch {
-      resolvedError = error;
-    }
-  }
-
-  return { response, error: resolvedError };
+  return invokeStudentManagement(supabase,SUPER_ADMIN_MANUAL_ENROLLMENT_FUNCTION,body);
 }
 
 export async function resolveSuperAdminStudentForTerm(studentNumber) {

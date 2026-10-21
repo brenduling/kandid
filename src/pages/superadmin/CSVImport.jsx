@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Papa from "papaparse";
 import { AlertTriangle, ArrowRight, FileText, FileUp } from "lucide-react";
@@ -6,6 +6,8 @@ import { createMasterlistImport } from "../../utils/superAdminMasterlistImport";
 import { formatAcademicTerm, listAcademicTerms } from "../../utils/academicTerms";
 import { usePrompt } from "../../context/PromptContext";
 import SuperAdminPageHeader from "../../components/SuperAdminPageHeader";
+import { validateStudentCsv } from "../../utils/studentCsvValidation.js";
+import { studentManagementErrorMessage } from "../../utils/studentManagementRequest.js";
 import "./CSVImport.css";
 
 function CSVImport() {
@@ -20,6 +22,9 @@ function CSVImport() {
   const [importScope, setImportScope] = useState("incremental");
   const [termLoading, setTermLoading] = useState(true);
   const [selectedFileName, setSelectedFileName] = useState("");
+  const [parseErrors,setParseErrors] = useState([]);
+  const staging = useRef(false);
+  const parseRequest = useRef(0);
 
   const availableTerms = useMemo(
     () => terms.filter((term) => term.status !== "closed"),
@@ -60,74 +65,40 @@ function CSVImport() {
 
   function handleFileUpload(e) {
     const file = e.target.files[0];
+    e.target.value = "";
     if (!file) return;
+    const request=++parseRequest.current;
+    setRows([]);setValidRows([]);setInvalidRows([]);setParseErrors([]);
     setSelectedFileName(file.name);
 
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
+      transformHeader: value => value.replace(/^\uFEFF/,"").trim(),
       complete: (result) => {
+        if(request!==parseRequest.current)return;
         const parsedRows = result.data;
         setRows(parsedRows);
-        validateRows(parsedRows);
+        const validated=validateStudentCsv(result);
+        setValidRows(validated.validRows);
+        setInvalidRows(validated.invalidRows);
+        setParseErrors(validated.errors);
       },
+      error: () => {if(request===parseRequest.current){setRows([]);setValidRows([]);setInvalidRows([]);setParseErrors(['The CSV file could not be read. Select it again.']);}},
     });
-  }
-
-  function validateRows(data) {
-    const valid = [];
-    const invalid = [];
-
-    data.forEach((row, index) => {
-      const requiredFields = [
-        "student_number",
-        "first_name",
-        "last_name",
-        "program",
-        "year_level",
-      ];
-
-      const missing = requiredFields.filter((field) => !row[field]);
-      const email = row.email?.trim() || "";
-
-      if (missing.length > 0) {
-        invalid.push({
-          row: index + 2,
-          reason: `Missing: ${missing.join(", ")}`,
-          data: row,
-        });
-      } else if (email && !email.includes("@")) {
-        invalid.push({
-          row: index + 2,
-          reason: "Invalid email format",
-          data: row,
-        });
-      } else {
-        valid.push({
-          row_number: index + 2,
-          student_number: row.student_number.trim(),
-          first_name: row.first_name.trim(),
-          last_name: row.last_name.trim(),
-          email,
-          program: row.program.trim(),
-          year_level: Number(row.year_level),
-          is_shs: false,
-          status: "pending",
-        });
-      }
-    });
-
-    setValidRows(valid);
-    setInvalidRows(invalid);
   }
 
   async function importStudents() {
-    if (validRows.length === 0) return;
+    if (staging.current || validRows.length === 0 || parseErrors.length) return;
+    if (importScope === "full_roster" && invalidRows.length) {
+      prompt.error("Correct every invalid row before staging a complete full-term roster.");return;
+    }
     if (!selectedTermId) {
       prompt.error("Choose an academic term before staging the masterlist.");
       return;
     }
 
+    staging.current=true;
     setImporting(true);
 
     const { data, error } = await createMasterlistImport({
@@ -138,9 +109,10 @@ function CSVImport() {
     });
 
     setImporting(false);
+    staging.current=false;
 
     if (error || !data?.import?.id) {
-      prompt.error(error?.message || "Masterlist could not be staged.");
+      prompt.error(error ? studentManagementErrorMessage(error,{write:true}) : "Masterlist staging could not be confirmed. Refresh before retrying.");
       return;
     }
 
@@ -305,9 +277,11 @@ function CSVImport() {
         <label className="sa-csv-import-file-action">
           <FileUp size={16} aria-hidden="true" />
           {selectedFileName ? "Replace CSV file" : "Select CSV file"}
-          <input type="file" accept=".csv" onChange={handleFileUpload} />
+          <input type="file" accept=".csv" disabled={importing} onChange={handleFileUpload} />
         </label>
       </section>
+
+      {parseErrors.length ? <div className="sa-csv-import-attention" role="alert"><AlertTriangle size={18} aria-hidden="true" /><ul>{parseErrors.map((error,index)=><li key={index}>{error}</li>)}</ul></div> : null}
 
       {rows.length > 0 ? (
         <>
@@ -434,7 +408,7 @@ function CSVImport() {
           </div>
           <button
             onClick={importStudents}
-            disabled={importing || !selectedTermId}
+            disabled={importing || !selectedTermId || parseErrors.length > 0 || (importScope === "full_roster" && invalidRows.length > 0)}
             type="button"
           >
             {importing ? "Staging records..." : `Stage ${validRows.length} records`}

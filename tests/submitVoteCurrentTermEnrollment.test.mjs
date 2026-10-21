@@ -56,14 +56,9 @@ test("enrollment in a different academic term does not satisfy current-term elig
   }), false);
 });
 
-test("frozen-policy submissions verify current enrollment before the frozen roster", () => {
-  const frozenBranch = submitVote.slice(
-    submitVote.indexOf('if (Number(election.electorate_policy_version) === 1)'),
-    submitVote.indexOf('} else if (Number(election.electorate_policy_version) === 0)'),
-  );
-  assert.match(frozenBranch, /\.from\("academic_terms"\)[\s\S]*?\.eq\("status", "active"\)/);
-  assert.match(frozenBranch, /\.from\("student_term_enrollments"\)[\s\S]*?\.eq\("enrollment_status", "enrolled"\)/);
-  assert.match(frozenBranch, /hasCurrentTermEnrollment\([\s\S]*?electionTermId:[\s\S]*?\)[\s\S]*?kandid_is_locked_electorate_member/);
+test("submission delegates enrollment, membership and optional rules to the canonical JWT RPC", () => {
+  assert.match(submitVote, /authClient\.rpc\(\s*"kandid_check_student_ballot_eligibility",\s*\{ p_election_id: electionId \}/);
+  assert.doesNotMatch(submitVote,/kandid_is_locked_electorate_member/);
 });
 
 test("the existing trusted submission RPC still rejects a duplicate student/election ballot", () => {

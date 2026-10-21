@@ -1,6 +1,7 @@
 import { guardedSupabaseFetch, supabase } from "../lib/supabaseClient";
 import { callVoteAccess } from "./voteAccess";
 import { READ_ONLY_DASHBOARD_MODE } from "./localProductionReadOnly";
+import { isAutomaticVoterEligibilityEnabled } from "./automaticVoterEligibility";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_KEY;
@@ -24,8 +25,13 @@ export async function submitBallot({
   accessCode,
   location,
 }) {
-  // Keep this direct-fetch path behind both explicit local production safeguards.
-  if (import.meta.env.MODE === READ_ONLY_DASHBOARD_MODE || import.meta.env.MODE === "development") {
+  // Default-off rollout switch, never an authorization claim. The trusted
+  // endpoint still checks Auth, schedule, live eligibility and duplicate votes.
+  const election4RecoveryEnabled = Number(electionId) === 4 &&
+    import.meta.env.VITE_ENABLE_ELECTION_4_RECOVERY === "true";
+  if (import.meta.env.MODE === READ_ONLY_DASHBOARD_MODE ||
+      (import.meta.env.MODE === "development" && !election4RecoveryEnabled &&
+        !isAutomaticVoterEligibilityEnabled(import.meta.env))) {
     return {
       error: new Error("Ballot submission is disabled until the production backend is approved for activation."),
       alreadyVoted: false,

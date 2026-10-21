@@ -11,6 +11,7 @@ import { isBoardStudentRegistrationEnabled } from "../utils/boardStudentRegistra
 import { isBoardStudentManagementEnabled } from "../utils/boardStudentManagementFeatureGate";
 import { isStudentAccountSetupEnabled } from "../utils/studentAccountSetupFeatureGate";
 import { isElectionSoftRemovalEnabled } from "../utils/electionRemovalFeatureGate";
+import { isAutomaticVoterEligibilityEnabled } from "../utils/automaticVoterEligibility";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_KEY;
@@ -38,6 +39,9 @@ export const guardedSupabaseFetch = async (input, init) => {
   const startedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
   const response = import.meta.env.MODE === "development"
     ? await fetchDevelopmentProductionRequest(input, init, globalThis.fetch, {
+      allowBackendAuthorizedAdminCrud: true,
+      allowElection4Recovery: import.meta.env.VITE_ENABLE_ELECTION_4_RECOVERY === "true",
+      allowAutomaticVoterEligibility: isAutomaticVoterEligibilityEnabled(import.meta.env),
       allowBoardStudentRegistration: isBoardStudentRegistrationEnabled(),
       allowBoardStudentManagement: isBoardStudentManagementEnabled(),
       allowStudentAccountSetup: isStudentAccountSetupEnabled(),

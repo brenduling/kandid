@@ -8,7 +8,9 @@ const source = (await readFile(new URL("../src/utils/auth.js", import.meta.url),
   .replace(/^import .*;\r?\n/gm, "")
   .replace(/import\.meta\.env/g, "testEnvironment")
   .replace(/^export /gm, "");
-const session = { access_token: "synthetic-access", refresh_token: "synthetic-refresh" };
+import { readStudentSetupRecognition, readStudentSetupVerification } from "../src/utils/studentSetupRecognition.js";
+const details = {contract_version:2,student_number:"700001",auth_user_id:"synthetic-auth",account_state:"pending"};
+const session = { access_token: "synthetic-access", refresh_token: "synthetic-refresh", expires_at: Math.floor(Date.now()/1000)+3600 };
 const student = { id: 42, student_number: "700001", status: "active" };
 
 test("a stateless bearer header is not an Auth SDK session for password updates", async () => {
@@ -28,7 +30,9 @@ function harness(options = {}) {
       async invoke(name, { body }) {
         events.push({ kind: "invoke", name, body });
         if (options.invokeError) return { data: null, error: options.invokeError };
-        if (name === "resolve-student-login") return { data: { data: { authenticated: true, session } }, error: null };
+        if (name === "resolve-student-login" && body.action === "inspect_setup") return {data:{data:{recognition_version:2,student_number:student.student_number,student_details:{full_name:"Synthetic Student",program:"BSIT",year_level:1}}},error:null};
+        if (name === "resolve-student-login" && body.action === "begin_access") return {data:{data:{verification_requested:true}},error:null};
+        if (name === "resolve-student-login") return { data: { data: { authenticated: true, session, setup_verification: options.missingDetails ? undefined : {...details, ...options.details} } }, error: null };
         assert.equal(name, "link-student-identity", "setup never relies on the separate profile endpoint");
         return { data: options.linkResponse || { linked: true, student }, error: null };
       },
@@ -40,18 +44,18 @@ function harness(options = {}) {
       },
       async getUser() {
         events.push({ kind: "identity" });
-        return { data: { user: { id: "synthetic-auth", email_confirmed_at: options.unconfirmed ? null : "2026-10-17T00:00:00Z" } }, error: options.identityError || null };
+        return { data: { user: { id: options.userId || "synthetic-auth", email: "synthetic@example.invalid", email_confirmed_at: options.unconfirmed ? null : "2026-10-17T00:00:00Z" } }, error: options.identityError || null };
       },
       async signOut(value) { events.push({ kind: "signOut", value }); return { error: options.signOutError || null }; },
     },
   };
   const storage = { removeItem() {}, getItem() { return null; } };
   const context = {
-    supabase, testEnvironment: {}, clearSessionCache() { events.push({ kind: "clearCache" }); },
+    readStudentSetupRecognition, readStudentSetupVerification, supabase, testEnvironment: {}, clearSessionCache() { events.push({ kind: "clearCache" }); },
     localStorage: storage, sessionStorage: storage,
     window: { dispatchEvent() {} }, CustomEvent: class {},
   };
-  runInNewContext(source + "\nglobalThis.api = { verifyStudentAccessCode, linkCurrentStudentIdentity, signOutStudentSetupSession };", context);
+  runInNewContext(source + "\nglobalThis.api = { inspectStudentSetup, beginStudentAccessVerification, verifyStudentAccessCode, linkCurrentStudentIdentity, signOutStudentSetupSession };", context);
   return { api: context.api, events };
 }
 
@@ -81,6 +85,24 @@ test("OTP rejection and rate-limit status reach the UI without establishing a se
   }
 });
 
+test("missing or mismatched recognition never advances to account linking or automatically retries", async () => {
+  for (const options of [{missingDetails:true},{details:{student_number:"700002"}},{userId:"foreign-auth"},{details:{contract_version:1}}]) {
+    const h=harness(options);
+    const result=await h.api.verifyStudentAccessCode({studentNumber:student.student_number,code:"012345"});
+    assert.equal(result.error.code,"setup_recognition_unavailable");
+    assert.equal(h.events.filter(e=>e.kind==="invoke").length,1);
+    assert.ok(!h.events.some(e=>e.name==="link-student-identity"));
+  }
+});
+
+test("post-OTP unavailable response preserves a safe manual-restart diagnostic without retrying",async()=>{
+  const context=new Response(JSON.stringify({code:"setup_recognition_unavailable",error:"Synthetic read failure"}),{status:503});
+  const h=harness({invokeError:{context}});
+  const result=await h.api.verifyStudentAccessCode({studentNumber:student.student_number,code:"012345"});
+  assert.equal(result.error.code,"setup_recognition_unavailable");assert.equal(result.error.status,503);
+  assert.deepEqual(h.events.map(e=>e.kind),["invoke"]);
+});
+
 test("completion trusts only explicit server confirmation of the requested active Student", async () => {
   for (const linkResponse of [
     { linked: false, student }, { linked: true },
@@ -108,4 +130,12 @@ test("Proceed to Login closes only the setup session and reports logout failure"
   const failed = harness({ signOutError: new Error("Synthetic logout failure") });
   assert.ok((await failed.api.signOutStudentSetupSession()).error);
   assert.ok(!failed.events.some(e => e.kind === "clearCache"));
+});
+
+test("lookup and OTP requests never include the configured password or a substituted email",async()=>{
+ const h=harness();const r=await h.api.inspectStudentSetup({studentNumber:student.student_number});assert.equal(r.data.full_name,"Synthetic Student");
+ await h.api.beginStudentAccessVerification({studentNumber:student.student_number,password:"Ignored!123",email:"ignored@example.invalid"});
+ await h.api.verifyStudentAccessCode({studentNumber:student.student_number,code:"012345",password:"Ignored!123"});
+ assert.ok(h.events.filter(e=>e.kind==="invoke").every(e=>!("password" in e.body)&&!("email" in e.body)&&!("registered_email" in e.body)));
+ assert.ok(!h.events.some(e=>e.name==="link-student-identity"));
 });

@@ -85,7 +85,7 @@ test("a changed affected-Student population between confirmation and finalizatio
 
 test("only an authenticated active Super Admin can select, preview, confirm, or finalize scope", () => {
   const authFunction = functionBody(edge, "async function requireSuperAdmin(", "async function auditSuperAdminImport(");
-  const handler = edge.slice(edge.indexOf("serveWithKandidCors(async (request) =>"));
+  const handler = edge.slice(edge.indexOf("serveWithKandidCors(async (request"));
   const authGate = handler.indexOf("await requireSuperAdmin(request");
   const actionDispatch = handler.indexOf("const action = String(body.action || \"\")");
 
@@ -114,14 +114,10 @@ test("BSIT to BSHM reconciliation remains targeted to included Students and pres
   assert.match(programMembership, /where mir\.import_id = p_import_id[\s\S]*?mir\.reconciliation_status in \('new', 'continuing', 'shifted_program', 'returnee'\)/i);
 });
 
-test("frozen-electorate voting still rejects Students without active current-term enrollment", () => {
-  const frozenBranch = submitVote.slice(
-    submitVote.indexOf('if (Number(election.electorate_policy_version) === 1)'),
-    submitVote.indexOf('} else if (Number(election.electorate_policy_version) === 0)'),
-  );
-  assert.match(frozenBranch, /\.eq\("enrollment_status", "enrolled"\)/);
-  assert.match(frozenBranch, /hasCurrentTermEnrollment/);
-  assert.ok(frozenBranch.indexOf("hasCurrentTermEnrollment") < frozenBranch.indexOf("kandid_is_locked_electorate_member"));
+test("automatic voting still delegates current-term enrollment to its canonical backend", async () => {
+  assert.match(submitVote,/authClient\.rpc\(\s*"kandid_check_student_ballot_eligibility"/);
+  const current=await readFile(new URL('../supabase/proposals/automatic-voter-eligibility.core.sql',import.meta.url),'utf8');
+  assert.match(current,/ste\.enrollment_status='enrolled'/);
 });
 
 test("scope migration changes no election, ballot, vote, or historical evidence tables", () => {

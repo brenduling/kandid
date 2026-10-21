@@ -1,0 +1,1425 @@
+{
+  "project": "fszgdxqxonqqcrzsnkca",
+  "preparedAt": "2026-10-22T11:28:05.277Z",
+  "recommendation": "NO-GO",
+  "target": {
+    "academic_year": "2026-2027",
+    "activated_at": "2026-10-09T00:49:02.22805+08:00",
+    "closed_at": "2026-10-15T20:57:48.323909+08:00",
+    "created_at": "2026-10-09T00:49:01.967439+08:00",
+    "id": 2,
+    "row_sha256": "295874405f02540a6a7989ed50e0b153f06f2033e9e257b43ec138158f86aa42",
+    "semester": "2nd Semester",
+    "status": "closed"
+  },
+  "activeTerm": {
+    "academic_year": "2026-2027",
+    "activated_at": "2026-10-09T00:44:56.550833+08:00",
+    "closed_at": null,
+    "created_at": "2026-10-09T00:44:56.344585+08:00",
+    "id": 1,
+    "semester": "1st Semester",
+    "status": "active"
+  },
+  "productionMutations": 0,
+  "approvedDeletionScope": [],
+  "recommendedDeletionScope": [],
+  "inventory": [
+    {
+      "records": [
+        {
+          "academic_year": "2026-2027",
+          "activated_at": "2026-10-09T00:49:02.22805+08:00",
+          "closed_at": "2026-10-15T20:57:48.323909+08:00",
+          "created_at": "2026-10-09T00:49:01.967439+08:00",
+          "id": 2,
+          "row_sha256": "295874405f02540a6a7989ed50e0b153f06f2033e9e257b43ec138158f86aa42",
+          "semester": "2nd Semester",
+          "status": "closed"
+        }
+      ],
+      "relation": "public.academic_terms",
+      "row_count": 1,
+      "classification": "User-confirmed test term; removal blocked by retained dependencies",
+      "proposedDeletionCount": 0
+    },
+    {
+      "records": [
+        {
+          "academic_term_id": 2,
+          "campaign_end": "2026-10-10T08:00:00",
+          "campaign_start": "2026-10-10T04:00:00",
+          "created_at": "2026-10-09T19:31:47.302211",
+          "electorate_frozen_at": "2026-10-10T03:37:30.557135+08:00",
+          "end_date": "2026-10-11T17:00:00",
+          "id": 1,
+          "organization_id": 2,
+          "removed_at": null,
+          "results_released_at": null,
+          "row_sha256": "721909ca7b5877b6b70c10b224f85f25199eed95c9d10e7480273b71b9ac2506",
+          "start_date": "2026-10-11T08:00:00",
+          "status": "active",
+          "title": "SYNTHETIC - WITSG Voting Integration Test (2026-2027 2nd Semester)"
+        },
+        {
+          "academic_term_id": 2,
+          "campaign_end": "2026-10-10T18:29:00",
+          "campaign_start": "2026-10-10T18:14:00",
+          "created_at": "2026-10-10T10:13:36.780633",
+          "electorate_frozen_at": "2026-10-10T18:13:36.948033+08:00",
+          "end_date": "2026-10-10T20:00:00",
+          "id": 2,
+          "organization_id": 2,
+          "removed_at": null,
+          "results_released_at": null,
+          "row_sha256": "77d8307caf92cbc3daf97b848f702d41dbf20116251f21a0d36e109a386d0071",
+          "start_date": "2026-10-10T18:30:00",
+          "status": "active",
+          "title": "SYNTHETIC - WITSG Same-Day Voting Test - 2026-10-10 6:30 PM"
+        }
+      ],
+      "relation": "public.elections",
+      "row_count": 2,
+      "classification": "Synthetic/test-associated dependency; defer all removal while complete cleanup is blocked",
+      "proposedDeletionCount": 0
+    },
+    {
+      "records": [
+        {
+          "election_id": 1,
+          "id": 1,
+          "name": "President - Synthetic Test",
+          "row_sha256": "d50d920b998e5c76eb360aba750e48d31e17cbe02feaee06dc7a99a3c27efa5d",
+          "status": "active"
+        },
+        {
+          "election_id": 2,
+          "id": 2,
+          "name": "President - Synthetic Test",
+          "row_sha256": "f67b7ef904884e0a1160caefef62db589e151437c395a68dbcad265ff5ce5f25",
+          "status": "active"
+        }
+      ],
+      "relation": "public.positions",
+      "row_count": 2,
+      "classification": "Synthetic/test-associated dependency; defer all removal while complete cleanup is blocked",
+      "proposedDeletionCount": 0
+    },
+    {
+      "records": [],
+      "relation": "public.partylists",
+      "row_count": 0,
+      "classification": "Synthetic/test-associated dependency; defer all removal while complete cleanup is blocked",
+      "proposedDeletionCount": 0
+    },
+    {
+      "records": [
+        {
+          "campaign_status": "draft",
+          "created_at": "2026-10-09T19:31:47.409584",
+          "id": 1,
+          "partylist_id": null,
+          "position_id": 1,
+          "row_sha256": "4b5ba626fb816b68cc360e3c047cb0483cf48d02b6a78df55345299d89c9a17f",
+          "student_id": 1
+        },
+        {
+          "campaign_status": "draft",
+          "created_at": "2026-10-10T10:13:36.867164",
+          "id": 2,
+          "partylist_id": null,
+          "position_id": 2,
+          "row_sha256": "738b6b078f864bb041585cdffaf597ee2b67ad3d2a15e28be16730df24c1b2eb",
+          "student_id": 1
+        }
+      ],
+      "relation": "public.candidates",
+      "row_count": 2,
+      "classification": "Synthetic/test-associated dependency; defer all removal while complete cleanup is blocked",
+      "proposedDeletionCount": 0
+    },
+    {
+      "records": [],
+      "relation": "public.candidate_media",
+      "row_count": 0,
+      "classification": "Synthetic/test-associated dependency; defer all removal while complete cleanup is blocked",
+      "proposedDeletionCount": 0
+    },
+    {
+      "records": [
+        {
+          "ballot_hash": "0x6f3aed472bda8be4e04c203070f1941f8cdaea750738aebc8cfc735d646249fc",
+          "blockchain_anchor_status": "pending",
+          "blockchain_anchored_at": null,
+          "blockchain_block_number": null,
+          "blockchain_contract_address": null,
+          "blockchain_network": null,
+          "blockchain_tx_id": null,
+          "canonical_submitted_at": "2026-10-10T10:42:49.426Z",
+          "election_id": 2,
+          "hash_version": "KANDID_BALLOT_V1",
+          "id": "3c5a6c0f-5c69-49d1-bd66-ee4f97383cc1",
+          "row_sha256": "0ca4deb9622f08c904713436c32799292c723e120ae2911c279a262f5e57c587",
+          "student_id": 1
+        }
+      ],
+      "relation": "public.vote_ballots",
+      "row_count": 1,
+      "classification": "Required preservation evidence; retain",
+      "proposedDeletionCount": 0
+    },
+    {
+      "records": [
+        {
+          "ballot_id": "3c5a6c0f-5c69-49d1-bd66-ee4f97383cc1",
+          "blockchain_anchor_status": "ballot_grouped",
+          "blockchain_anchored_at": null,
+          "blockchain_block_number": null,
+          "blockchain_contract_address": null,
+          "blockchain_network": null,
+          "blockchain_tx_id": null,
+          "candidate_id": 2,
+          "election_id": 2,
+          "hash_version": "KANDID_VOTE_V2",
+          "id": 1,
+          "is_abstain": false,
+          "position_id": 2,
+          "row_sha256": "664db276ced5ae3fa57dfe9360fa490428eadcf4e802769011b6a67f6f1b79f7",
+          "student_id": 1,
+          "vote_hash": "0xe6803c0f95f2bbf5eb1beb93798ce9186061605f9a5a2bef96b33c3203f4a615",
+          "vote_timestamp": "2026-10-10T10:42:49.426973"
+        }
+      ],
+      "relation": "public.votes",
+      "row_count": 1,
+      "classification": "Required preservation evidence; retain",
+      "proposedDeletionCount": 0
+    },
+    {
+      "records": [],
+      "relation": "public.election_access_tokens",
+      "row_count": 0,
+      "classification": "Synthetic/test-associated dependency; defer all removal while complete cleanup is blocked",
+      "proposedDeletionCount": 0
+    },
+    {
+      "records": [
+        {
+          "created_at": "2026-10-10T03:37:30.555459+08:00",
+          "election_id": 1,
+          "row_sha256": "30c1a801c61acbcb16aade0ecb6317eb11c80b56c4b79c99f21e0503ec56ac03",
+          "student_id": 1
+        },
+        {
+          "created_at": "2026-10-10T18:13:36.947007+08:00",
+          "election_id": 2,
+          "row_sha256": "3b401b9c6a396444f9641cbf880601e165ed17a48fead885d79e73f431b4f23d",
+          "student_id": 1
+        }
+      ],
+      "relation": "private.election_eligible_voters",
+      "row_count": 2,
+      "classification": "Synthetic/test-associated dependency; defer all removal while complete cleanup is blocked",
+      "proposedDeletionCount": 0
+    },
+    {
+      "records": [
+        {
+          "ballot_hash": "0x6f3aed472bda8be4e04c203070f1941f8cdaea750738aebc8cfc735d646249fc",
+          "ballot_id": "3c5a6c0f-5c69-49d1-bd66-ee4f97383cc1",
+          "election_id": 2,
+          "reason": "Preserve the two existing pending ballot groups; anchor new ballots only.",
+          "recorded_at": "2026-10-21T17:01:48.434167+08:00",
+          "row_sha256": "ca107c04eafbbdc56002f29828eb45a4a0cc08d1d9e186a50096a3105f8ff7ee"
+        }
+      ],
+      "relation": "private.ballot_anchor_exclusions",
+      "row_count": 1,
+      "classification": "Required preservation evidence; retain",
+      "proposedDeletionCount": 0
+    },
+    {
+      "records": [],
+      "relation": "public.officers",
+      "row_count": 0,
+      "classification": "Synthetic/test-associated dependency; defer all removal while complete cleanup is blocked",
+      "proposedDeletionCount": 0
+    },
+    {
+      "records": [],
+      "relation": "public.officer_new_roster",
+      "row_count": 0,
+      "classification": "Synthetic/test-associated dependency; defer all removal while complete cleanup is blocked",
+      "proposedDeletionCount": 0
+    },
+    {
+      "records": [],
+      "relation": "public.officer_leadership_releases",
+      "row_count": 0,
+      "classification": "Synthetic/test-associated dependency; defer all removal while complete cleanup is blocked",
+      "proposedDeletionCount": 0
+    },
+    {
+      "records": [],
+      "relation": "public.election_campaign_snapshots",
+      "row_count": 0,
+      "classification": "Synthetic/test-associated dependency; defer all removal while complete cleanup is blocked",
+      "proposedDeletionCount": 0
+    },
+    {
+      "records": [],
+      "relation": "public.election_officer_publications",
+      "row_count": 0,
+      "classification": "Synthetic/test-associated dependency; defer all removal while complete cleanup is blocked",
+      "proposedDeletionCount": 0
+    },
+    {
+      "records": [],
+      "relation": "public.election_officer_publication_entries",
+      "row_count": 0,
+      "classification": "Synthetic/test-associated dependency; defer all removal while complete cleanup is blocked",
+      "proposedDeletionCount": 0
+    },
+    {
+      "records": [],
+      "relation": "public.archived_elections",
+      "row_count": 0,
+      "classification": "Synthetic/test-associated dependency; defer all removal while complete cleanup is blocked",
+      "proposedDeletionCount": 0
+    },
+    {
+      "records": [],
+      "relation": "public.eligibility_rules",
+      "row_count": 0,
+      "classification": "Synthetic/test-associated dependency; defer all removal while complete cleanup is blocked",
+      "proposedDeletionCount": 0
+    },
+    {
+      "records": [
+        {
+          "academic_term_id": 2,
+          "conflict_rows": 0,
+          "created_at": "2026-10-10T22:47:06.722295+08:00",
+          "file_name": "LOCAL-SYNTHETIC-BSIT-ENROLLMENT.csv",
+          "finalized_at": "2026-10-11T00:21:04.32032+08:00",
+          "id": 1,
+          "import_scope": "incremental",
+          "import_status": "finalized",
+          "invalid_rows": 0,
+          "row_sha256": "898a7b1b4e12fa028a91edd5ec4ff06cf5369a26e2e74a136a577975e63908f7",
+          "total_rows": 1,
+          "valid_rows": 0
+        },
+        {
+          "academic_term_id": 2,
+          "conflict_rows": 0,
+          "created_at": "2026-10-10T22:48:19.966834+08:00",
+          "file_name": "LOCAL-SYNTHETIC-BSIT-ENROLLMENT-LOCAL-PC-E8A5ECB74C3F.csv",
+          "finalized_at": "2026-10-11T00:17:16.018352+08:00",
+          "id": 2,
+          "import_scope": "incremental",
+          "import_status": "finalized",
+          "invalid_rows": 0,
+          "row_sha256": "40066d226bae58790c36cfffcddd446d9dad670dbf67b4b5df659f84962f1c11",
+          "total_rows": 1,
+          "valid_rows": 1
+        },
+        {
+          "academic_term_id": 2,
+          "conflict_rows": 0,
+          "created_at": "2026-10-11T02:07:00.654383+08:00",
+          "file_name": "synthetic-incremental-isolation-20261011.csv",
+          "finalized_at": "2026-10-11T02:07:02.635601+08:00",
+          "id": 3,
+          "import_scope": "incremental",
+          "import_status": "finalized",
+          "invalid_rows": 0,
+          "row_sha256": "578dced04edd0718f143bb67de7b2ccd8523ab424fb1b0292cc656d0ddd9360b",
+          "total_rows": 1,
+          "valid_rows": 1
+        }
+      ],
+      "relation": "public.masterlist_imports",
+      "row_count": 3,
+      "classification": "Synthetic/test-associated dependency; defer all removal while complete cleanup is blocked",
+      "proposedDeletionCount": 0
+    },
+    {
+      "records": [
+        {
+          "created_at": "2026-10-10T22:47:06.773955+08:00",
+          "id": 1,
+          "import_id": 1,
+          "matched_student_id": 34,
+          "reconciliation_status": "shifted_program",
+          "review_decision": "approve_shifted_program",
+          "review_status": "approved",
+          "reviewed_at": "2026-10-11T00:21:04.104616+08:00",
+          "row_number": 2,
+          "row_sha256": "72cd35583a3aeef98f676d8d5121dddc7b721c7bab3104354e65f45b48f9617c"
+        },
+        {
+          "created_at": "2026-10-10T22:48:19.975453+08:00",
+          "id": 2,
+          "import_id": 2,
+          "matched_student_id": 34,
+          "reconciliation_status": "new",
+          "review_decision": null,
+          "review_status": "none",
+          "reviewed_at": null,
+          "row_number": 2,
+          "row_sha256": "d4295e89f8b90c60ec6515b04adaca3ff1730e00cb1c01a61e643ee92143de03"
+        },
+        {
+          "created_at": "2026-10-11T02:07:01.078492+08:00",
+          "id": 3,
+          "import_id": 3,
+          "matched_student_id": 35,
+          "reconciliation_status": "new",
+          "review_decision": null,
+          "review_status": "none",
+          "reviewed_at": null,
+          "row_number": 2,
+          "row_sha256": "c977d974c099e80f0e3c47ab8638273d28becf7342fc9b669c0704117d748ab5"
+        }
+      ],
+      "relation": "public.masterlist_import_rows",
+      "row_count": 3,
+      "classification": "Synthetic/test-associated dependency; defer all removal while complete cleanup is blocked",
+      "proposedDeletionCount": 0
+    },
+    {
+      "records": [
+        {
+          "academic_term_id": 2,
+          "created_at": "2026-10-11T00:17:16.018352+08:00",
+          "enrollment_status": "enrolled",
+          "id": 11,
+          "program": "BSHM",
+          "row_sha256": "e01661d63ccb32040319d760e8c0cb611d20ba833c03cd79f91638c1cb9264e5",
+          "source": "masterlist",
+          "student_id": 34,
+          "updated_at": "2026-10-11T00:21:04.32032+08:00",
+          "verification_method": null,
+          "verified_at": null,
+          "verified_by_admin_id": null,
+          "year_level": 1
+        },
+        {
+          "academic_term_id": 2,
+          "created_at": "2026-10-11T02:07:02.635601+08:00",
+          "enrollment_status": "enrolled",
+          "id": 15,
+          "program": "BSIT",
+          "row_sha256": "e9a1c08f3863e521d2dee7569b49a07294b896ed815aa6dc333f35ebb6d61cb5",
+          "source": "masterlist",
+          "student_id": 35,
+          "updated_at": "2026-10-11T02:07:02.635601+08:00",
+          "verification_method": null,
+          "verified_at": null,
+          "verified_by_admin_id": null,
+          "year_level": 1
+        },
+        {
+          "academic_term_id": 2,
+          "created_at": "2026-10-11T04:19:44.438008+08:00",
+          "enrollment_status": "enrolled",
+          "id": 16,
+          "program": "BSIT",
+          "row_sha256": "5761f64f7f1f0eb8271ddde9003f2ac4d3c90528136c6eb7296c3eb4fa7b80a2",
+          "source": "manual",
+          "student_id": 36,
+          "updated_at": "2026-10-11T05:16:26.9017+08:00",
+          "verification_method": null,
+          "verified_at": null,
+          "verified_by_admin_id": null,
+          "year_level": 2
+        },
+        {
+          "academic_term_id": 2,
+          "created_at": "2026-10-09T00:49:01.967439+08:00",
+          "enrollment_status": "enrolled",
+          "id": 2,
+          "program": "BSIT",
+          "row_sha256": "274d9442be2733937ca29a1d33628f6b48e59a30d1e7cca20771ecc75ca46b20",
+          "source": "masterlist",
+          "student_id": 1,
+          "updated_at": "2026-10-11T02:26:39.198014+08:00",
+          "verification_method": null,
+          "verified_at": null,
+          "verified_by_admin_id": null,
+          "year_level": 1
+        }
+      ],
+      "relation": "public.student_term_enrollments",
+      "row_count": 4,
+      "classification": "Test-associated; final test-only classification/retention decision unresolved",
+      "proposedDeletionCount": 0
+    },
+    {
+      "records": [
+        {
+          "academic_term_id": 2,
+          "created_at": "2026-10-09T00:49:02.22805+08:00",
+          "id": 1,
+          "organization_id": 2,
+          "removal_reason": null,
+          "removed_at": null,
+          "row_sha256": "72b90c41194081b73397b5fb8c03a13213b1039e1f1b8edb0ad87efdc54f64e8",
+          "source": "system",
+          "status": "active",
+          "student_id": 1,
+          "updated_at": "2026-10-09T00:49:02.22805+08:00"
+        },
+        {
+          "academic_term_id": 2,
+          "created_at": "2026-10-10T19:20:22.697992+08:00",
+          "id": 2,
+          "organization_id": 3,
+          "removal_reason": null,
+          "removed_at": null,
+          "row_sha256": "eeb394594f09521a1f077f163b0212d609dcde8e93e57e5734cab4d5fc8c6faf",
+          "source": "system",
+          "status": "active",
+          "student_id": 1,
+          "updated_at": "2026-10-10T19:20:22.697992+08:00"
+        },
+        {
+          "academic_term_id": 2,
+          "created_at": "2026-10-11T00:17:16.018352+08:00",
+          "id": 3,
+          "organization_id": 2,
+          "removal_reason": null,
+          "removed_at": null,
+          "row_sha256": "1444d06cac90bfffc6bf8295ebbf4098b2d510818de4e83c53793772fe88e8de",
+          "source": "system",
+          "status": "active",
+          "student_id": 34,
+          "updated_at": "2026-10-11T00:17:16.018352+08:00"
+        },
+        {
+          "academic_term_id": 2,
+          "created_at": "2026-10-11T00:17:16.018352+08:00",
+          "id": 4,
+          "organization_id": 3,
+          "removal_reason": "program_change_reconciliation",
+          "removed_at": "2026-10-11T00:21:04.331716+08:00",
+          "row_sha256": "61d2e8a107b6cae0cdfec7cbc8eada8e9e337cb1ba1314b06cb120b9c5ff4165",
+          "source": "system",
+          "status": "removed",
+          "student_id": 34,
+          "updated_at": "2026-10-11T00:21:04.331716+08:00"
+        },
+        {
+          "academic_term_id": 2,
+          "created_at": "2026-10-11T02:07:02.635601+08:00",
+          "id": 5,
+          "organization_id": 2,
+          "removal_reason": null,
+          "removed_at": null,
+          "row_sha256": "896ffd61a207f794f5afc03761fa19c7c08d6d5087ee811f25b9f989ac71d5b3",
+          "source": "system",
+          "status": "active",
+          "student_id": 35,
+          "updated_at": "2026-10-11T02:07:02.635601+08:00"
+        },
+        {
+          "academic_term_id": 2,
+          "created_at": "2026-10-11T02:07:02.635601+08:00",
+          "id": 6,
+          "organization_id": 3,
+          "removal_reason": null,
+          "removed_at": null,
+          "row_sha256": "8814c6436b677cce600fa54f7cdab06e04f2c91b969d5bb633e8d6b20ff5b23d",
+          "source": "system",
+          "status": "active",
+          "student_id": 35,
+          "updated_at": "2026-10-11T02:07:02.635601+08:00"
+        },
+        {
+          "academic_term_id": 2,
+          "created_at": "2026-10-11T05:13:28.241131+08:00",
+          "id": 7,
+          "organization_id": 2,
+          "removal_reason": null,
+          "removed_at": null,
+          "row_sha256": "4264ec1819597a7972858e452fbd0c4d844f6db6558545e015426c9567fb708e",
+          "source": "system",
+          "status": "active",
+          "student_id": 36,
+          "updated_at": "2026-10-11T05:13:28.241131+08:00"
+        },
+        {
+          "academic_term_id": 2,
+          "created_at": "2026-10-11T05:13:28.241131+08:00",
+          "id": 8,
+          "organization_id": 3,
+          "removal_reason": null,
+          "removed_at": null,
+          "row_sha256": "ff5a3f6e111359d8efa3a735f97111ec2a41363e27502151f053d62993ad88a7",
+          "source": "system",
+          "status": "active",
+          "student_id": 36,
+          "updated_at": "2026-10-11T05:13:28.241131+08:00"
+        }
+      ],
+      "relation": "public.student_organization_terms",
+      "row_count": 8,
+      "classification": "Test-associated; final test-only classification/retention decision unresolved",
+      "proposedDeletionCount": 0
+    },
+    {
+      "records": [
+        {
+          "created_at": "2026-10-10T03:31:47.357904+08:00",
+          "election_id": 1,
+          "entity_id": "1",
+          "entity_type": "election",
+          "event_category": "elections",
+          "event_origin": "trusted_database",
+          "event_type": "election_created",
+          "id": 6,
+          "metadata_keys": [
+            "changed_fields"
+          ],
+          "organization_id": 2,
+          "row_sha256": "9bee1f214b2943059bb8214b91b805d1c25b8242993af619fca102acf6661cf4",
+          "status": "completed"
+        },
+        {
+          "created_at": "2026-10-10T03:31:47.397463+08:00",
+          "election_id": 1,
+          "entity_id": "1",
+          "entity_type": "position",
+          "event_category": "positions",
+          "event_origin": "trusted_database",
+          "event_type": "position_created",
+          "id": 7,
+          "metadata_keys": [
+            "changed_fields"
+          ],
+          "organization_id": 2,
+          "row_sha256": "66b425ca278618943205eda9b43705eb41d70b393ada4e7afb0196c1b7d77bb1",
+          "status": "completed"
+        },
+        {
+          "created_at": "2026-10-10T03:31:47.42702+08:00",
+          "election_id": 1,
+          "entity_id": "1",
+          "entity_type": "candidate",
+          "event_category": "candidates",
+          "event_origin": "trusted_database",
+          "event_type": "candidate_created",
+          "id": 8,
+          "metadata_keys": [
+            "changed_fields"
+          ],
+          "organization_id": 2,
+          "row_sha256": "29dd155784388be7289ed54e9dfcf51e709fe22db1379c6eccf453e3989ecfae",
+          "status": "completed"
+        },
+        {
+          "created_at": "2026-10-10T03:37:30.518472+08:00",
+          "election_id": 1,
+          "entity_id": "1",
+          "entity_type": "election",
+          "event_category": "elections",
+          "event_origin": "trusted_database",
+          "event_type": "election_status_changed",
+          "id": 9,
+          "metadata_keys": [
+            "changed_fields"
+          ],
+          "organization_id": 2,
+          "row_sha256": "e910b7939f831f18179856dafbca0a772d6c3655927be5d0972a6a22fee4c7d5",
+          "status": "completed"
+        },
+        {
+          "created_at": "2026-10-10T03:37:30.559352+08:00",
+          "election_id": 1,
+          "entity_id": "1",
+          "entity_type": "election",
+          "event_category": "elections",
+          "event_origin": "trusted_database",
+          "event_type": "election_electorate_locked",
+          "id": 10,
+          "metadata_keys": [
+            "eligible_count",
+            "policy_version",
+            "academic_term_id"
+          ],
+          "organization_id": 2,
+          "row_sha256": "75bea66d2cbcf055f6459ef42d14b1e7effe89f2db3787675500e170087bbf2f",
+          "status": "completed"
+        },
+        {
+          "created_at": "2026-10-10T17:35:21.486858+08:00",
+          "election_id": 1,
+          "entity_id": "1",
+          "entity_type": "election",
+          "event_category": "elections",
+          "event_origin": "trusted_database",
+          "event_type": "election_updated",
+          "id": 11,
+          "metadata_keys": [
+            "changed_fields"
+          ],
+          "organization_id": 2,
+          "row_sha256": "2419dd9d98dc4ab304a1c633446fee7af32025fdd168b7bc8cd2d0a5c5657f08",
+          "status": "completed"
+        },
+        {
+          "created_at": "2026-10-10T18:13:36.823507+08:00",
+          "election_id": 2,
+          "entity_id": "2",
+          "entity_type": "election",
+          "event_category": "elections",
+          "event_origin": "trusted_database",
+          "event_type": "election_created",
+          "id": 12,
+          "metadata_keys": [
+            "changed_fields"
+          ],
+          "organization_id": 2,
+          "row_sha256": "93a7673a6747fb3269030b4b53cc100a9c4ba2fcc735fc8ccc69fe78349ec4f8",
+          "status": "completed"
+        },
+        {
+          "created_at": "2026-10-10T18:13:36.85325+08:00",
+          "election_id": 2,
+          "entity_id": "2",
+          "entity_type": "position",
+          "event_category": "positions",
+          "event_origin": "trusted_database",
+          "event_type": "position_created",
+          "id": 13,
+          "metadata_keys": [
+            "changed_fields"
+          ],
+          "organization_id": 2,
+          "row_sha256": "abcaf213ea225a2d977d63dc9fca80c413dc644211982bd2c468315372447b46",
+          "status": "completed"
+        },
+        {
+          "created_at": "2026-10-10T18:13:36.889503+08:00",
+          "election_id": 2,
+          "entity_id": "2",
+          "entity_type": "candidate",
+          "event_category": "candidates",
+          "event_origin": "trusted_database",
+          "event_type": "candidate_created",
+          "id": 14,
+          "metadata_keys": [
+            "changed_fields"
+          ],
+          "organization_id": 2,
+          "row_sha256": "ff61f39733a8715a68328aed2fa4d91dcc904a34f79426d09dbb8f587bd1da90",
+          "status": "completed"
+        },
+        {
+          "created_at": "2026-10-10T18:13:36.914588+08:00",
+          "election_id": 2,
+          "entity_id": "2",
+          "entity_type": "election",
+          "event_category": "elections",
+          "event_origin": "trusted_database",
+          "event_type": "election_status_changed",
+          "id": 15,
+          "metadata_keys": [
+            "changed_fields"
+          ],
+          "organization_id": 2,
+          "row_sha256": "762d802110b03ef63bf62c8cf726b96b4e63d02baf50b29735035b6d78f62c73",
+          "status": "completed"
+        },
+        {
+          "created_at": "2026-10-10T18:13:36.949105+08:00",
+          "election_id": 2,
+          "entity_id": "2",
+          "entity_type": "election",
+          "event_category": "elections",
+          "event_origin": "trusted_database",
+          "event_type": "election_electorate_locked",
+          "id": 16,
+          "metadata_keys": [
+            "eligible_count",
+            "policy_version",
+            "academic_term_id"
+          ],
+          "organization_id": 2,
+          "row_sha256": "96b8c7a76bc50e9d80650af6230f5221c3e3bbe9ca67c7252cff73d849f32b62",
+          "status": "completed"
+        },
+        {
+          "created_at": "2026-10-11T02:26:39.768542+08:00",
+          "election_id": null,
+          "entity_id": "1",
+          "entity_type": "student",
+          "event_category": "students",
+          "event_origin": "trusted_edge",
+          "event_type": "student_term_enrolled",
+          "id": 23,
+          "metadata_keys": [
+            "academic_term_id",
+            "created_organization_count",
+            "existing_organization_count"
+          ],
+          "organization_id": null,
+          "row_sha256": "6bf7c9b31920deb313e7467f938d8abe3744e99c299973524f5ebe68ad25eab0",
+          "status": "completed"
+        },
+        {
+          "created_at": "2026-10-11T04:19:44.813954+08:00",
+          "election_id": null,
+          "entity_id": "36",
+          "entity_type": "student",
+          "event_category": "students",
+          "event_origin": "trusted_edge",
+          "event_type": "student_term_enrolled",
+          "id": 24,
+          "metadata_keys": [
+            "academic_term_id",
+            "created_organization_count",
+            "existing_organization_count"
+          ],
+          "organization_id": null,
+          "row_sha256": "578ad0e978c87dcf4c31354dbc12c4afd862b034911c3a41a3991550e25a1991",
+          "status": "completed"
+        },
+        {
+          "created_at": "2026-10-11T04:22:04.124103+08:00",
+          "election_id": null,
+          "entity_id": "36",
+          "entity_type": "student",
+          "event_category": "students",
+          "event_origin": "trusted_server",
+          "event_type": "student_term_unenrolled",
+          "id": 25,
+          "metadata_keys": [
+            "academic_term_id",
+            "enrollment_status"
+          ],
+          "organization_id": null,
+          "row_sha256": "c553ffd79760ae463abd23ff1160cf4a0a3a0c2eb4825c6aeb7516d4d808433c",
+          "status": "completed"
+        },
+        {
+          "created_at": "2026-10-11T04:22:16.270198+08:00",
+          "election_id": null,
+          "entity_id": "36",
+          "entity_type": "student",
+          "event_category": "students",
+          "event_origin": "trusted_edge",
+          "event_type": "student_term_enrolled",
+          "id": 26,
+          "metadata_keys": [
+            "academic_term_id",
+            "created_organization_count",
+            "existing_organization_count"
+          ],
+          "organization_id": null,
+          "row_sha256": "05c2666cdf45a9990ad6c4475724d71c9aa154b386b83860de203531d36e520d",
+          "status": "completed"
+        },
+        {
+          "created_at": "2026-10-11T05:13:09.008155+08:00",
+          "election_id": null,
+          "entity_id": "36",
+          "entity_type": "student",
+          "event_category": "students",
+          "event_origin": "trusted_server",
+          "event_type": "student_term_unenrolled",
+          "id": 27,
+          "metadata_keys": [
+            "academic_term_id",
+            "enrollment_status"
+          ],
+          "organization_id": null,
+          "row_sha256": "c89bfe77e2b5bf392eb1e85a8170ab7360aefdceb01d41e824b66c95be04ecf9",
+          "status": "completed"
+        },
+        {
+          "created_at": "2026-10-11T05:13:28.467163+08:00",
+          "election_id": null,
+          "entity_id": "36",
+          "entity_type": "student",
+          "event_category": "students",
+          "event_origin": "trusted_edge",
+          "event_type": "student_term_enrolled",
+          "id": 28,
+          "metadata_keys": [
+            "academic_term_id",
+            "created_organization_count",
+            "existing_organization_count"
+          ],
+          "organization_id": null,
+          "row_sha256": "28cd548e7547a3f4b7194b1afd09e0223461dca9633ae8c038024d2a1c918633",
+          "status": "completed"
+        },
+        {
+          "created_at": "2026-10-11T05:15:35.655435+08:00",
+          "election_id": null,
+          "entity_id": "36",
+          "entity_type": "student",
+          "event_category": "students",
+          "event_origin": "trusted_server",
+          "event_type": "student_term_unenrolled",
+          "id": 29,
+          "metadata_keys": [
+            "academic_term_id",
+            "enrollment_status"
+          ],
+          "organization_id": null,
+          "row_sha256": "0fac1fcf352e83f41831deffc452fb3d31da5ad37361d4902838bd9eb9ee962f",
+          "status": "completed"
+        },
+        {
+          "created_at": "2026-10-11T05:16:26.990621+08:00",
+          "election_id": null,
+          "entity_id": "36",
+          "entity_type": "student",
+          "event_category": "students",
+          "event_origin": "trusted_edge",
+          "event_type": "student_term_enrolled",
+          "id": 30,
+          "metadata_keys": [
+            "academic_term_id",
+            "created_organization_count",
+            "existing_organization_count"
+          ],
+          "organization_id": null,
+          "row_sha256": "7482d5df482689e4a6ae1a9000b80f992464f446551dc8243eb5c99b2feec62d",
+          "status": "completed"
+        }
+      ],
+      "relation": "public.audit_logs",
+      "row_count": 19,
+      "classification": "Durable audit history; retain",
+      "proposedDeletionCount": 0
+    },
+    {
+      "records": [],
+      "relation": "public.student_notifications",
+      "row_count": 0,
+      "classification": "Synthetic/test-associated dependency; defer all removal while complete cleanup is blocked",
+      "proposedDeletionCount": 0
+    }
+  ],
+  "retainedIdentifiers": {
+    "all_audits": [
+      1,
+      2,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61,
+      62,
+      63,
+      64,
+      65,
+      66,
+      67,
+      68,
+      69,
+      70,
+      71,
+      72,
+      73,
+      74,
+      75,
+      76,
+      77,
+      78,
+      79,
+      80,
+      81,
+      82,
+      83,
+      84,
+      85,
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92
+    ],
+    "all_notifications": [],
+    "candidate_media_flags": [
+      {
+        "campaign_materials_nonempty": false,
+        "campaign_urls_nonempty": false,
+        "id": 1,
+        "photo_present": false
+      },
+      {
+        "campaign_materials_nonempty": false,
+        "campaign_urls_nonempty": false,
+        "id": 2,
+        "photo_present": false
+      }
+    ],
+    "new_term_rpc_presence": {
+      "commit": false,
+      "create": false,
+      "preview": false
+    },
+    "organizations": [
+      2,
+      3,
+      4
+    ],
+    "other_ballots": [
+      "682d9d76-bd16-493b-951e-975806e3a381",
+      "a9bb5581-acb0-4c1b-9d7a-b08cf358368c"
+    ],
+    "other_candidates": [
+      3,
+      6,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13
+    ],
+    "other_elections": [
+      3,
+      4,
+      5,
+      6
+    ],
+    "other_enrollments": [
+      1,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22
+    ],
+    "other_positions": [
+      3,
+      4,
+      5,
+      6,
+      8,
+      9,
+      10
+    ],
+    "other_term_memberships": [
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29
+    ],
+    "other_votes": [
+      2,
+      3,
+      4,
+      5
+    ],
+    "storage_objects": [
+      "23ba74df-5c04-46ae-bdf4-b3a4ffde1867",
+      "36cde589-0962-4a63-bb22-37002a8a1bb2",
+      "4d38c0f6-816a-4378-942d-90c18e60d0b1",
+      "6891763b-5387-4e2d-ba40-c249ed22c53b",
+      "68be0b6c-f3f7-47ee-aa41-9f22ef949182",
+      "6adbfcd9-8404-4ceb-ba9a-490733bb3fbe",
+      "807476cf-812e-4062-9802-0ce8addf914c",
+      "8ab6a18c-4ae3-477b-b17c-0743c55cee93"
+    ],
+    "structured_json_term_mentions": [
+      {
+        "column_name": "metadata",
+        "relation": "public.audit_logs",
+        "row_id": "10"
+      },
+      {
+        "column_name": "metadata",
+        "relation": "public.audit_logs",
+        "row_id": "16"
+      },
+      {
+        "column_name": "metadata",
+        "relation": "public.audit_logs",
+        "row_id": "23"
+      },
+      {
+        "column_name": "metadata",
+        "relation": "public.audit_logs",
+        "row_id": "24"
+      },
+      {
+        "column_name": "metadata",
+        "relation": "public.audit_logs",
+        "row_id": "25"
+      },
+      {
+        "column_name": "metadata",
+        "relation": "public.audit_logs",
+        "row_id": "26"
+      },
+      {
+        "column_name": "metadata",
+        "relation": "public.audit_logs",
+        "row_id": "27"
+      },
+      {
+        "column_name": "metadata",
+        "relation": "public.audit_logs",
+        "row_id": "28"
+      },
+      {
+        "column_name": "metadata",
+        "relation": "public.audit_logs",
+        "row_id": "29"
+      },
+      {
+        "column_name": "metadata",
+        "relation": "public.audit_logs",
+        "row_id": "30"
+      }
+    ],
+    "student_organizations": [
+      1,
+      2,
+      3,
+      4,
+      6,
+      7,
+      10,
+      11,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38
+    ],
+    "students": [
+      1,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42
+    ]
+  },
+  "relatedSharedIdentities": [
+    {
+      "created_at": "2026-10-08T16:47:57.619972",
+      "id": 1,
+      "other_candidate_ids": [
+        8,
+        13
+      ],
+      "other_enrollment_ids": [
+        1
+      ],
+      "other_membership_ids": [
+        9,
+        10,
+        21
+      ],
+      "other_vote_ids": [],
+      "status": "active",
+      "structural_membership_ids": [
+        1,
+        2,
+        30
+      ],
+      "test_marker_fields": [
+        "email"
+      ]
+    },
+    {
+      "created_at": "2026-10-10T16:17:16.018352",
+      "id": 34,
+      "other_candidate_ids": [],
+      "other_enrollment_ids": [],
+      "other_membership_ids": [],
+      "other_vote_ids": [],
+      "status": "pending",
+      "structural_membership_ids": [
+        3,
+        4
+      ],
+      "test_marker_fields": [
+        "student_number",
+        "first_name",
+        "last_name",
+        "email"
+      ]
+    },
+    {
+      "created_at": "2026-10-10T18:07:02.635601",
+      "id": 35,
+      "other_candidate_ids": [],
+      "other_enrollment_ids": [],
+      "other_membership_ids": [],
+      "other_vote_ids": [],
+      "status": "pending",
+      "structural_membership_ids": [
+        6,
+        7
+      ],
+      "test_marker_fields": [
+        "first_name",
+        "last_name"
+      ]
+    },
+    {
+      "created_at": "2026-10-10T20:19:44.438008",
+      "id": 36,
+      "other_candidate_ids": [],
+      "other_enrollment_ids": [],
+      "other_membership_ids": [],
+      "other_vote_ids": [],
+      "status": "pending",
+      "structural_membership_ids": [
+        10,
+        11
+      ],
+      "test_marker_fields": [
+        "last_name",
+        "email"
+      ]
+    }
+  ],
+  "relatedAuditIds": [
+    2,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    32
+  ],
+  "onChain": {
+    "project": "fszgdxqxonqqcrzsnkca",
+    "checkedAt": "2026-10-22T11:12:25.987Z",
+    "readOnly": true,
+    "chainId": 11155111,
+    "registry": "0x91fB285801A80017Db3A5a75F0b797a2B4c4198A",
+    "frontendRegistryMatched": true,
+    "observations": [
+      {
+        "providerHost": "ethereum-sepolia-rpc.publicnode.com",
+        "success": true,
+        "block": "11969166",
+        "results": [
+          {
+            "hash": "0x6f3aed472bda8be4e04c203070f1941f8cdaea750738aebc8cfc735d646249fc",
+            "scope": "target_term",
+            "recorded": false,
+            "record": null
+          },
+          {
+            "hash": "0xe6803c0f95f2bbf5eb1beb93798ce9186061605f9a5a2bef96b33c3203f4a615",
+            "scope": "target_term",
+            "recorded": false,
+            "record": null
+          },
+          {
+            "hash": "0xe7cddee1a7bf6383530d207b70b59c2d407899dd34fe2b239ea9ac9b0d57fff2",
+            "scope": "retained_outside_term",
+            "recorded": true,
+            "record": {
+              "hash": "0xe7cddee1a7bf6383530d207b70b59c2d407899dd34fe2b239ea9ac9b0d57fff2",
+              "recordedAt": "1792651704",
+              "recorder": "0x70d276359a4249d49E6302106171378D99C5db3F"
+            }
+          }
+        ]
+      },
+      {
+        "providerHost": "sepolia.drpc.org",
+        "success": true,
+        "block": "11969166",
+        "results": [
+          {
+            "hash": "0x6f3aed472bda8be4e04c203070f1941f8cdaea750738aebc8cfc735d646249fc",
+            "scope": "target_term",
+            "recorded": false,
+            "record": null
+          },
+          {
+            "hash": "0xe6803c0f95f2bbf5eb1beb93798ce9186061605f9a5a2bef96b33c3203f4a615",
+            "scope": "target_term",
+            "recorded": false,
+            "record": null
+          },
+          {
+            "hash": "0xe7cddee1a7bf6383530d207b70b59c2d407899dd34fe2b239ea9ac9b0d57fff2",
+            "scope": "retained_outside_term",
+            "recorded": true,
+            "record": {
+              "hash": "0xe7cddee1a7bf6383530d207b70b59c2d407899dd34fe2b239ea9ac9b0d57fff2",
+              "recordedAt": "1792651704",
+              "recorder": "0x70d276359a4249d49E6302106171378D99C5db3F"
+            }
+          }
+        ]
+      }
+    ],
+    "limitation": "Only the reviewed registry and these exact hashes are checked. No claim about unknown contracts or historical reorgs. On-chain evidence cannot be removed by SQL."
+  },
+  "tests": {
+    "project": "fszgdxqxonqqcrzsnkca",
+    "testedAt": "2026-10-22T11:20:56.034Z",
+    "passed": 18,
+    "checks": [
+      "blocked proposal has no data/schema mutation statements or trigger bypass",
+      "exact reviewed fixture reaches preservation NO-GO and rolls back with every record unchanged",
+      "active term drift refuses the assessment without modifying either term",
+      "closed target fingerprint drift refuses the assessment",
+      "same-count identity substitution refuses the assessment",
+      "an unexpected term enrollment refuses the assessment",
+      "a new indirect dependency table refuses the assessment and rolls back its fixture DDL",
+      "a disabled preservation trigger is rejected rather than bypassed",
+      "direct vote removal is rejected by the actual preservation trigger",
+      "direct ballot receipt removal is rejected by the actual preservation trigger",
+      "direct exclusion removal is rejected by the actual immutable-register trigger",
+      "truncation is rejected by the actual immutable-register trigger",
+      "parent election and term removal remain blocked by actual FK contracts",
+      "actual frontend refuses Create Draft while the closed immediate-next term still exists",
+      "actual proposed creation RPC rejects the existing closed next semester instead of reopening it",
+      "counterfactual evidence-free fixture exposes the correct next draft through the actual UI helper",
+      "counterfactual creation RPC creates a fresh next draft with a new ID and leaves active term 1 unchanged",
+      "counterfactual draft retry returns the same ID without duplicate draft or audit records"
+    ],
+    "postgres": "public.ecr.aws/supabase/postgres:17.6.1.167",
+    "productionMutations": 0,
+    "recommendation": "NO-GO",
+    "cleanupExecuted": false,
+    "deletionScope": [],
+    "counterfactualCreationPassed": true,
+    "limitation": "No successful cleanup is claimed. Fresh draft creation was tested only in a separate fixture where target history never existed. Fixture uses catalog-shaped tables, actual FK and preservation bodies; it does not reproduce all production RLS/auth/business triggers."
+  },
+  "scopedSnapshotDrift": [],
+  "blockers": [
+    "Immutable existing exclusion requires preserving ballot 3c5a6c0f-5c69-49d1-bd66-ee4f97383cc1 and its vote/receipt. FK dependencies retain election 2 and academic term 2.",
+    "Manual enrollment 16 / student 36 has trusted manual history and test markers, but those markers alone are not an authoritative test-only deletion classification. Enrollment 2 is shared-student legacy evidence. No inference from term linkage alone authorizes erasure.",
+    "The guarded draft/preview/commit RPCs are absent in the inspected deployed catalog. Complete production draft workflow also requires separately approved backend installation."
+  ],
+  "files": {
+    "scripts/inspect-academic-term-cleanup.mjs": "1b70b6350175bdc9134b06fdb3cb9eeb5c0f560c4fc28f120c48dde6524978ce",
+    "scripts/check-academic-term-cleanup-chain.mjs": "779882eaa63f6494d7536ddfbf2437b50979b6cc8508e0bf9142b734067882f5",
+    "scripts/kandid-academic-term-cleanup-pg17.mjs": "97f6eca8f12efa113850c4b03c9140c1f1978465d89f33cd1245e22832c661b3",
+    "supabase/runtime-validation/academic-term-cleanup-catalog.sql": "7b5733d4c3da1550bb9c96143f091300dcece143d4ba92957820c951571092a1",
+    "supabase/runtime-validation/academic-term-cleanup-inventory.sql": "6fb0b644da2ebf80a34907fa6baaf0f6f88825b869f349ba57c6cd139a0050fb",
+    "supabase/runtime-validation/academic-term-cleanup-evidence.sql": "8785e1efff6a16c84d9850f9f3ecc6995cdceaceaf69e30d02e6bb5d2aaa7953",
+    "supabase/runtime-validation/academic-term-cleanup-final-check.sql": "31320519e144968d8471e092ae9043681c2082e532bae575e92ecdc7deb9bda5",
+    "supabase/proposals/academic-term-test-cleanup.blocked.sql": "c275d682d1aa6288f9ac39933562ee5a772520d10564a083ca043f6f0435932b",
+    ".tmp/academic-term-cleanup-investigation/catalog.json": "22725ffd8658c4c29eaa31e68a3c8214506f07624e2da4c475473f604bb37eab",
+    ".tmp/academic-term-cleanup-investigation/inventory.json": "6191e7a0807894237078e8d59b5278220f95baa19df9b2e96309c05b11314e3b",
+    ".tmp/academic-term-cleanup-investigation/evidence.json": "4d00c4448b09c1f102896c00479d069384f0c69aca2894ac63e90b66a16895f7",
+    ".tmp/academic-term-cleanup-investigation/chain.json": "0978b2dfd13bc74b4eb84da36dc2689481ebfb834bd524d46f6af9174854055b",
+    ".tmp/academic-term-cleanup-investigation/final-check.json": "956f141d18b1ef85eb6ea617eacecf028af59d4c9a3120e19f35e3e8b1338e90",
+    ".tmp/academic-term-cleanup-investigation/local-pg17-tests.json": "98f85ee578f86593a8155f76e7957c504ac4e75ce39689abebed7de7714c4b43",
+    ".tmp/academic-term-cleanup-investigation/expected-scope.json": "2dd2d0decf03d416f88d8e2f18238e8a426e52398d4eb8b827ee322953f238db",
+    "docs/academic-term-test-cleanup-assessment.md": "94a2d355d507a03db627c4963b289adc99989c470082d470c325ec2af79c23c7"
+  }
+}

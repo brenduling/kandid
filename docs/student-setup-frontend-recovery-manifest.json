@@ -1,0 +1,134 @@
+{
+  "manifest_revision": 1,
+  "scope": "Local frontend recovery and sanitized lookup diagnostics only; backend revision 2 unchanged",
+  "preserved_commit": "068510be7614e6dc8534a13640fba17c4b8b94e2",
+  "rebased_commit": "e7f0c07be8f20b821f70c79e28de76065261100f",
+  "reviewed_manifest_lf_sha256": "e7b62fe939c056b6f9d9d46d48413ec40ef355b2586cd488623e2a4ab871e28f",
+  "restored_reviewed_normalized_entries": 19,
+  "patched_review_files": [
+    {
+      "path": "src/pages/auth/StudentSetup.jsx",
+      "reviewed_lf_sha256": "cddaf9afd65f650493fc4d560c296119719068dff03b08b33a4b17fde2438165",
+      "lf_sha256": "66a453ecb5a0701559071fdda49e1d29929e5965fcdf6d09acfbf5765747c294"
+    },
+    {
+      "path": "src/utils/auth.js",
+      "reviewed_lf_sha256": "ea1e25cd677bfbf878423d56799ec0de71d3e6779c727967f9b5555679f3cba4",
+      "lf_sha256": "d6ad2163ec77ccba76c3ca659cef37709f47369ab442f5278535718ddb5a4e3c"
+    },
+    {
+      "path": "tests/studentSetupRecognitionManifest.test.mjs",
+      "reviewed_lf_sha256": "7cb3c497d4835884284d3c9df3517fdb8b901936845fbd17c4e81bc055c7c429",
+      "lf_sha256": "39fe3b4daf83a61b64f6ae2f25ec3144ee2d6eb4b36a960a7c04781762215bce"
+    },
+    {
+      "path": "scripts/kandid-student-setup-recognition-browser.mjs",
+      "reviewed_lf_sha256": "49c7688f1ec210bbc7e49ed12756f963af0f3c93f1dfbaaec6617e92b93bd169",
+      "lf_sha256": "b995b67e3497a689145c37003769ecf85962dcf7ebc870a640c243928d40e6fe"
+    }
+  ],
+  "new_frontend_files": [
+    {
+      "path": "src/utils/studentSetupLookupFailure.js",
+      "lf_sha256": "df3611e09e21c0eade2ad21193b13711ab991a21a5dbb9ab369b1d115a7a9ce4"
+    },
+    {
+      "path": "tests/studentSetupLookupFailure.test.mjs",
+      "lf_sha256": "11099aec91edb26c207a7270db585540da44c3b92c5cbac779299af3153babac"
+    }
+  ],
+  "backend_files": [
+    {
+      "path": "supabase/functions/resolve-student-login-recognition-deploy/index.ts",
+      "sha256": "4cbc45350f4e19ff149b5a15f32560ba606b57a4287f0d41d9cc8994b1e6bcd8",
+      "expected_sha256": "4cbc45350f4e19ff149b5a15f32560ba606b57a4287f0d41d9cc8994b1e6bcd8"
+    },
+    {
+      "path": "supabase/functions/_shared/kandidProductionSecurity.mjs",
+      "sha256": "87a7100ca782092528dc9cd49e7941216fe664ac4a0099f5d44fc9cf476733e2",
+      "expected_sha256": "87a7100ca782092528dc9cd49e7941216fe664ac4a0099f5d44fc9cf476733e2"
+    }
+  ],
+  "production_requests": 0,
+  "restored_frontend_files": [
+    {
+      "path": "src/pages/auth/StudentSetup.jsx",
+      "reviewed_lf_sha256": "cddaf9afd65f650493fc4d560c296119719068dff03b08b33a4b17fde2438165",
+      "current_lf_sha256": "66a453ecb5a0701559071fdda49e1d29929e5965fcdf6d09acfbf5765747c294",
+      "diagnostic_patch": true
+    },
+    {
+      "path": "src/pages/auth/StudentSetup.css",
+      "reviewed_lf_sha256": "f8401d3e241a7636c6afbd63b39d38668f265f64cc0f104d28a11d55628833cc",
+      "current_lf_sha256": "f8401d3e241a7636c6afbd63b39d38668f265f64cc0f104d28a11d55628833cc",
+      "diagnostic_patch": false
+    },
+    {
+      "path": "src/utils/auth.js",
+      "reviewed_lf_sha256": "ea1e25cd677bfbf878423d56799ec0de71d3e6779c727967f9b5555679f3cba4",
+      "current_lf_sha256": "d6ad2163ec77ccba76c3ca659cef37709f47369ab442f5278535718ddb5a4e3c",
+      "diagnostic_patch": true
+    },
+    {
+      "path": "src/utils/studentSetupRecognition.js",
+      "reviewed_lf_sha256": "bac4fb8b54c5aef1cbc2830e45ba516209d0e5ba0f7d25b0aa0fcb4c7fb84263",
+      "current_lf_sha256": "bac4fb8b54c5aef1cbc2830e45ba516209d0e5ba0f7d25b0aa0fcb4c7fb84263",
+      "diagnostic_patch": false
+    },
+    {
+      "path": "src/utils/studentSetupValidation.js",
+      "reviewed_lf_sha256": "7a1e728c935289e649c425ef3b80453f2f756b92a0172d27ce851d97ae704140",
+      "current_lf_sha256": "7a1e728c935289e649c425ef3b80453f2f756b92a0172d27ce851d97ae704140",
+      "diagnostic_patch": false
+    },
+    {
+      "path": "src/utils/studentAccountSetupFeatureGate.js",
+      "reviewed_lf_sha256": "35256ef7c351f288ec9e224a814ef37b98dc2c694f5b52cfd741853edbe911af",
+      "current_lf_sha256": "35256ef7c351f288ec9e224a814ef37b98dc2c694f5b52cfd741853edbe911af",
+      "diagnostic_patch": false
+    }
+  ],
+  "git": {
+    "branch": "main",
+    "rebase_complete": true,
+    "rebased_commit": "e7f0c07be8f20b821f70c79e28de76065261100f",
+    "preserved_original_head": "068510be7614e6dc8534a13640fba17c4b8b94e2",
+    "duplicate_scheduler_change": "Already present upstream as 9325838; original 4f905d7 remains preserved in original history",
+    "rebased_tree_identical_to_original": true
+  },
+  "local_flags": {
+    "file": ".env.development.local",
+    "git_ignored": true,
+    "VITE_ENABLE_STUDENT_ACCOUNT_SETUP": true,
+    "VITE_ENABLE_VERIFIED_STUDENT_SETUP": true
+  },
+  "validation": {
+    "node_tests": {
+      "passed": 96,
+      "failed": 0
+    },
+    "deno_pinned_sdk": {
+      "passed": 5,
+      "failed": 0
+    },
+    "browser_journeys": {
+      "passed": 24,
+      "failed": 0,
+      "widths": [
+        1280,
+        768,
+        375
+      ],
+      "production_requests": 0,
+      "emails": 0,
+      "accounts_created": 0
+    },
+    "eslint": "passed",
+    "actionlint": "passed",
+    "deno_type_check": "passed (--cached-only)",
+    "deno_lint": "passed",
+    "production_build": "passed; nonfatal plugin timing warning",
+    "git_diff_check": "passed",
+    "vite_served_v9_parser": true
+  }
+}

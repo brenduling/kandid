@@ -68,12 +68,9 @@ test("corrective migration removes the PL/pgSQL program_id ambiguity without cha
   assert.doesNotMatch(correctiveMigration, /create\s+(?:or replace\s+)?function\s+(?!public\.kandid_finalize_masterlist_import_with_membership_sync)/i);
 });
 
-test("frozen-electorate vote submission also requires current organization participation", () => {
-  const frozenBranch = submitVote.slice(
-    submitVote.indexOf("if (Number(election.electorate_policy_version) === 1)"),
-    submitVote.indexOf("} else if (Number(election.electorate_policy_version) === 0)"),
-  );
-  assert.match(frozenBranch, /resolve_student_organization_participation/);
-  assert.match(frozenBranch, /participation\?\.allowed !== true/);
-  assert.ok(frozenBranch.indexOf("resolve_student_organization_participation") < frozenBranch.indexOf("kandid_is_locked_electorate_member"));
+test("automatic vote submission retains current participation through the canonical server predicate", async () => {
+  assert.match(submitVote, /authClient\.rpc\(\s*"kandid_check_student_ballot_eligibility"/);
+  const proposal=await readFile(new URL("../supabase/proposals/automatic-voter-eligibility.core.sql",import.meta.url),"utf8");
+  assert.match(proposal,/resolve_student_organization_participation/);
+  assert.match(proposal,/membership\.allowed is true and membership\.status='active'/);
 });
