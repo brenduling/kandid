@@ -1,0 +1,116 @@
+# Prepared locally; the job is gated on the repository enable variable.
+name: Kandid ballot anchoring
+
+on:
+  schedule:
+    - cron: '2-59/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      confirm_anchor_pending_ballots:
+        description: 'I approve processing pending production ballots and Sepolia transactions'
+        required: true
+        type: boolean
+        default: false
+
+permissions: {}
+
+concurrency:
+  group: kandid-anchor-ballot-hashes-production
+  cancel-in-progress: false
+
+jobs:
+  anchor:
+    if: >-
+      github.repository == 'brenduling/kandid' &&
+      github.ref == 'refs/heads/main' &&
+      vars.KANDID_ANCHOR_SCHEDULER_ENABLED == 'true' &&
+      (github.event_name == 'schedule' ||
+       (github.event_name == 'workflow_dispatch' && inputs.confirm_anchor_pending_ballots == true))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Invoke the existing worker once with private credentials
+        shell: node {0}
+        env:
+          KANDID_ANCHOR_GATEWAY_JWT: ${{ secrets.KANDID_ANCHOR_GATEWAY_JWT }}
+          KANDID_ANCHOR_WORKER_TOKEN: ${{ secrets.KANDID_ANCHOR_WORKER_TOKEN }}
+        run: |
+          async function main() {
+            const gatewayJwt = process.env.KANDID_ANCHOR_GATEWAY_JWT;
+            const workerToken = process.env.KANDID_ANCHOR_WORKER_TOKEN;
+            if (!gatewayJwt || !workerToken || /[\r\n]/.test(workerToken)) {
+              throw new Error('Required scheduler secrets are missing or invalid.');
+            }
+
+            // Only a project legacy anon JWT is accepted here. Supabase verifies
+            // its signature; these checks reject wrong-project/privileged keys.
+            const parts = gatewayJwt.split('.');
+            if (parts.length !== 3 || !parts.every(part => /^[A-Za-z0-9_-]+$/.test(part))) {
+              throw new Error('The gateway credential must be a legacy anon JWT.');
+            }
+            let header, claims;
+            try {
+              header = JSON.parse(Buffer.from(parts[0], 'base64url').toString());
+              claims = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
+            } catch {
+              throw new Error('The gateway credential must be a legacy anon JWT.');
+            }
+            if (header.alg !== 'HS256' || claims.role !== 'anon' ||
+                claims.ref !== 'fszgdxqxonqqcrzsnkca' ||
+                !Number.isFinite(claims.exp) || claims.exp * 1000 <= Date.now() + 60000) {
+              throw new Error('The gateway credential has the wrong project, role, algorithm, or expiry.');
+            }
+
+            let response;
+            try {
+              // No retries or redirects: a lost response can follow a broadcast.
+              response = await fetch('https://fszgdxqxonqqcrzsnkca.supabase.co/functions/v1/anchor-ballot-hashes', {
+                method: 'POST',
+                redirect: 'error',
+                signal: AbortSignal.timeout(90000),
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': 'Bearer ' + gatewayJwt,
+                  'apikey': gatewayJwt,
+                  'x-anchor-worker-token': workerToken,
+                },
+                body: JSON.stringify({ source: 'github-actions' }),
+              });
+            } catch {
+              throw new Error('Worker request failed or timed out; transaction outcome may be unknown. No immediate retry was sent.');
+            }
+            if (response.status !== 200) {
+              throw new Error('Worker returned a non-200 HTTP status. Inspect restricted Supabase logs.');
+            }
+            let result;
+            try {
+              result = await response.json();
+            } catch {
+              throw new Error('Worker returned an invalid JSON response.');
+            }
+            if (result?.ok !== true) throw new Error('Worker did not report success.');
+            if (result.status === 'idle' && result.processed === 0) {
+              console.log('Worker completed: no pending work.');
+              return;
+            }
+            if (result.status !== 'completed' || !Array.isArray(result.results) ||
+                result.results.length === 0 || result.processed !== result.results.length) {
+              throw new Error('Worker returned an unexpected response shape.');
+            }
+            const counts = { anchored: 0, submitted: 0, confirmation_pending: 0, signer_busy: 0 };
+            for (const item of result.results) {
+              if (!item || !Object.hasOwn(counts, item.status)) {
+                throw new Error('Worker reported a processing failure or manual review. Inspect restricted Supabase logs.');
+              }
+              counts[item.status]++;
+            }
+            // Only fixed status names/counts are logged, never raw response data.
+            console.log('Worker completed: ' + Object.entries(counts).map(([status, count]) => status + '=' + count).join(', '));
+            if (counts.signer_busy) console.log('::warning::Signer busy; investigate if this persists across scheduled runs.');
+          }
+          main().catch(() => {
+            // Exceptions and response bodies can contain credentials or ballot
+            // references. Keep failure output fixed and use restricted logs.
+            console.error('::error::Anchor scheduler failed. Check secrets, worker health, and restricted Supabase logs; do not blindly rerun.');
+            process.exitCode = 1;
+          });
