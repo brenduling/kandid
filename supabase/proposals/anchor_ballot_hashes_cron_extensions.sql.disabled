@@ -1,0 +1,13 @@
+-- WITHDRAWN: pg_net queued-header credential exposure; do not apply.
+-- Retained outside supabase/migrations so db push cannot discover this proposal.
+-- Local preparation only. Applying this migration is not authorized here.
+-- This installs the supported extensions only; it creates no scheduled job.
+--
+-- Security note: Vault encrypts secrets at rest. When pg_net queues the request,
+-- its headers are stored in net.http_request_queue in readable form until sent.
+-- Supabase grants access to pg_net queue objects to database login roles; treat
+-- those roles as trusted with the worker token before activating this job.
+
+create schema if not exists extensions;
+create extension if not exists pg_cron;
+create extension if not exists pg_net with schema extensions;

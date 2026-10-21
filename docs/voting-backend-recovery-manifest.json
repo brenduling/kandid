@@ -1,0 +1,258 @@
+{
+  "project_ref": "fszgdxqxonqqcrzsnkca",
+  "prepared_at_utc": "2026-10-21 00:06:46 UTC",
+  "revision": 5,
+  "previous_manifest_sha256": "c89e31f5f9adbd0691d08d64417bc1ca18e6110a8864e0270c913afe1f128411",
+  "frontend_correction_prepared_date_manila": "2026-10-20",
+  "status": "local recovery artifacts prepared; renewed production approval required; no production changes executed",
+  "approval_gates": {
+    "FR": {
+      "purpose": "separately approved scoped receipt frontend release before function restoration",
+      "deployment_approved": false,
+      "precondition": "review six corrected source hashes and scoped artifact; exclude earlier Board eligibility changes; verify published assets and updated PWA client before repeating nonwriting preflight"
+    },
+    "A": {
+      "function": "get-student-ballot-receipt",
+      "purpose": "owned read-only receipts",
+      "precondition": "Gate FR verified; renewed approval and repeated nonwriting production preflight passed"
+    },
+    "B": {
+      "function": "submit-vote",
+      "precondition": "Gate FR verified and Gate A passed; renewed approval accepts pending anchoring; global worker and worker token remain absent"
+    },
+    "D": {
+      "function": "anchor-ballot-hashes",
+      "included_in_initial_release": false,
+      "precondition": "separate blockchain configuration/evidence/backlog approval"
+    }
+  },
+  "required_verify_jwt": true,
+  "files": [
+    {
+      "path": "supabase/functions/submit-vote/index.ts",
+      "sha256": "b59237dd935a00386fae457bae0ce0c179efd4cece36460c390b1a3e6b46c0a0"
+    },
+    {
+      "path": "supabase/functions/submit-vote/deno.json",
+      "sha256": "77f0b01614c9f9e43a65262b47e7fe82f0adddcd1f5b640356c077f03d39d836"
+    },
+    {
+      "path": "supabase/functions/submit-vote/deno.lock",
+      "sha256": "57dd5cd3c5ca59a6c59cdfb9d98fbe3b28f8e6786a5040fc1cbf0a6629004769"
+    },
+    {
+      "path": "supabase/functions/get-student-ballot-receipt/index.ts",
+      "sha256": "cb91334d5d2d9259937a72d0b37158321b0d51ad1cd59b254e83be44f6ab0da5"
+    },
+    {
+      "path": "supabase/functions/get-student-ballot-receipt/deno.json",
+      "sha256": "77f0b01614c9f9e43a65262b47e7fe82f0adddcd1f5b640356c077f03d39d836"
+    },
+    {
+      "path": "supabase/functions/get-student-ballot-receipt/deno.lock",
+      "sha256": "57dd5cd3c5ca59a6c59cdfb9d98fbe3b28f8e6786a5040fc1cbf0a6629004769"
+    },
+    {
+      "path": "supabase/functions/anchor-ballot-hashes/index.ts",
+      "sha256": "32c76ed0e0262ccca129c0117f37193725afee6adeef03171dcdeee26b8d245c"
+    },
+    {
+      "path": "supabase/functions/anchor-ballot-hashes/deno.json",
+      "sha256": "77f0b01614c9f9e43a65262b47e7fe82f0adddcd1f5b640356c077f03d39d836"
+    },
+    {
+      "path": "supabase/functions/anchor-ballot-hashes/deno.lock",
+      "sha256": "23922e74f271083642b5ab1198a395d5456cfb779438e43f7d9e1a18332b77d3"
+    },
+    {
+      "path": "supabase/functions/_shared/kandidProductionSecurity.mjs",
+      "sha256": "87a7100ca782092528dc9cd49e7941216fe664ac4a0099f5d44fc9cf476733e2"
+    },
+    {
+      "path": "supabase/functions/_shared/ballotSelection.js",
+      "sha256": "0177ae241b08c944209eecec16dc4ab33cab8a058a51cb37cf4cfc2514f15c0c"
+    },
+    {
+      "path": "supabase/functions/_shared/currentTermEnrollment.js",
+      "sha256": "7ead0e8fc9cd1b78689cf39adcfb020600f655e1e80dfff80f0233c167ba2aa7"
+    },
+    {
+      "path": "supabase/functions/_shared/geofence.js",
+      "sha256": "30879304cd052535abfa5f939c50c514f620c8df6e751d3ca559c150b32baf7d"
+    },
+    {
+      "path": "supabase/config.toml",
+      "sha256": "edc752ef6579bc270e8bf50d5ea339a4cb91985458f8eebc90f2f66a4226dbad"
+    },
+    {
+      "path": "src/pages/student/receiptData.js",
+      "sha256": "583a7694b286920d3d3151800346272598c6fea066372a7ad6b214afa131db57"
+    },
+    {
+      "path": "src/utils/blockchainVerification.js",
+      "sha256": "49842f6474837b54c599f9cfbd56402305d3c809412d967bf3422925f77c0d94"
+    },
+    {
+      "path": "src/pages/student/Receipt.jsx",
+      "sha256": "783f0d036c5420b9d0298f239548d5b5bd0505295ad769c2d93651b2cf82fcdd"
+    },
+    {
+      "path": "src/pages/student/ReceiptDetails.jsx",
+      "sha256": "e223d2626b9ceff4a9e67fc02303bda2a99424fc19d19467637a9c3a8dc593e8"
+    },
+    {
+      "path": "src/pages/student/BallotVerification.jsx",
+      "sha256": "4eba4a016c505f3ebcf7f1bfd09c7844c8b98ceceba600bdf91ec6857f3fa6b0"
+    },
+    {
+      "path": "src/pages/student/VotePage.jsx",
+      "sha256": "944716285828f5514820f004b229d7212b8ec8ceb963f14cf56b72a9e8819963"
+    }
+  ],
+  "frontend_review_evidence": {
+    "regression_test": {
+      "path": "tests/receiptStatusDisplays.test.mjs",
+      "sha256": "e786bfe738008259d9902b0eb469110909b699f8e0d461578b81339133edceef"
+    },
+    "scoped_build_script": {
+      "path": "scripts/kandid-receipt-scoped-build.mjs",
+      "sha256": "1401b865a5fc0ae2de79af9289c4a20d6ae00c55014056d581e2f8ea3c755673"
+    },
+    "scoped_artifact_manifest": {
+      "path": ".tmp/voting-backend-runtime/receipt-only-release-manifest.json",
+      "sha256": "2833e072013026134acb21558e951c4a5131eceec8d6bb84feb439cca3bc3537",
+      "output_directory": ".tmp/voting-backend-runtime/receipt-only-release-d6fd15d0892f",
+      "artifact_files": 195,
+      "source_files": 6,
+      "excluded_board_edits": 2,
+      "checkpoint": "2c20a0277f22a09d2df89a3b82b11d0324eaf82b",
+      "production_deployed": false,
+      "deployment_approved": false,
+      "note": "Full artifact hashes and preserved Board working-copy/build-input hashes are in this ignored local manifest. Rebuilds must be rehashed and reviewed."
+    }
+  },
+  "observed_inventory_note": "Historical read-only inventory from the stopped preflight; not refreshed during this local-only frontend task.",
+  "observed_deployed_inventory": [
+    {
+      "slug": "admin-user-management",
+      "version": 9,
+      "verify_jwt": true,
+      "sha256": "71de0f4dc9bb220685851cd692d4c8f195e69a809b68a467e2921a9f270f3276"
+    },
+    {
+      "slug": "vote-access",
+      "version": 10,
+      "verify_jwt": true,
+      "sha256": "28323e364c6fbb7cd5d69eeb2e045a0af95fa8864be1fb500116273bbea92bf6"
+    },
+    {
+      "slug": "board-manual-enrollment",
+      "version": 14,
+      "verify_jwt": true,
+      "sha256": "4ed6da3d9885658808ecbf5e790261a0e3508f57d0d68fba2199ec2d1d95c4c7"
+    },
+    {
+      "slug": "resolve-student-login",
+      "version": 6,
+      "verify_jwt": false,
+      "sha256": "29dbe4a85e94a425e57dfb89bab3b5f02d7aae1d2213494f8f1b8f5d3ab9a168"
+    },
+    {
+      "slug": "link-student-identity",
+      "version": 5,
+      "verify_jwt": true,
+      "sha256": "982cded993e18762588909ee28d9746ee6f78191599c0c1b97eecff292546a56"
+    },
+    {
+      "slug": "student-profile",
+      "version": 6,
+      "verify_jwt": true,
+      "sha256": "ab2b1e17e449b028acbf3a4236062630b041677e9219a3ca60a401768a00954e"
+    },
+    {
+      "slug": "student-notifications",
+      "version": 4,
+      "verify_jwt": true,
+      "sha256": "615a779c329bfb8d6fcb4ff39af81ee3063b0c14ea6da05b80f2d2d516672b34"
+    },
+    {
+      "slug": "manage-election-removal",
+      "version": 3,
+      "verify_jwt": true,
+      "sha256": "3accbcbb31c6c394ae6d735d74a97e2bbff3dd2179905aa2b79e1cc077c87844"
+    },
+    {
+      "slug": "officers-contract",
+      "version": 2,
+      "verify_jwt": true,
+      "sha256": "a483a0489383fd1d3e81fedec65165e90ad8e460019183ce5658b35f3cfd9566"
+    },
+    {
+      "slug": "organization-eligibility",
+      "version": 2,
+      "verify_jwt": true,
+      "sha256": "75b41990533ea697dd56f3ec172e71661eb4a7011b2f7e1728476d8d74cc77b8"
+    }
+  ],
+  "insertion_rpc_definition_md5": "6b99f18237fbe72cc96cf63c9f1cc8af",
+  "pending_ballot_summary": {
+    "election_id": 2,
+    "count": 1,
+    "status": "pending",
+    "retry_count": 0,
+    "transaction_absent": true,
+    "processing_authorized": false
+  },
+  "election_3_plan": {
+    "organization_id": 2,
+    "program": "BSIT",
+    "years": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "expected_active_authenticated_enrolled_members": 2,
+    "production_rule_changed": false,
+    "schedule_changed": false,
+    "electorate_locked": false,
+    "recorded_ballots": 0
+  },
+  "local_validation": {
+    "targeted_node_tests": 164,
+    "targeted_node_failures": 0,
+    "new_receipt_regression_tests": 18,
+    "focused_receipt_tests": 29,
+    "targeted_frontend_eslint": "passed; six changed application files",
+    "production_build": "passed; PWA 188 entries; full workspace is not receipt-only release scope",
+    "scoped_receipt_build": "passed; 195 artifact files; two earlier Board edits excluded and preserved on disk; PWA 188 entries",
+    "backend_hashes_unchanged": 14,
+    "historical_backend_validation_note": "Postgres, Deno and offline Edge checks below passed during prior backend preparation; not rerun during this frontend-only task.",
+    "postgres_integrity_checks": 8,
+    "postgres_electorate_checks": 26,
+    "frozen_deno_checks": 3,
+    "offline_edge_functions": 3,
+    "offline_edge_http_checks": 10
+  },
+  "limitations": [
+    "Hosted native dependency packaging and fresh real-user JWT require approved post-deployment validation.",
+    "Offline Edge harness rewrites only pinned dependency imports in a test copy to cached public bundles.",
+    "Local receipt display correction is not deployed; Gate FR approval and production asset/PWA validation are required before receipt-plus-submission restoration.",
+    "Worker chain binding and registry reconciliation evidence remain separate blockers to any later worker activation; worker release is excluded.",
+    "Election 2 pending ballot remains unprocessed; Election 3 rules, schedule, migration and electorate remain unchanged."
+  ],
+  "worker_reconciliation_review": {
+    "source": "supabase/functions/anchor-ballot-hashes/index.ts",
+    "source_sha256": "32c76ed0e0262ccca129c0117f37193725afee6adeef03171dcdeee26b8d245c",
+    "regression_test": "tests/ballotAnchorReadiness.test.mjs",
+    "regression_test_sha256": "cb69a488f6aab2a7b01b4e289c976758c84afeae8f4c244ec5ca1b0437d2e21d",
+    "type_check": "passed",
+    "type_check_command": "deno 2.9.6 check --frozen --config supabase/functions/anchor-ballot-hashes/deno.json supabase/functions/anchor-ballot-hashes/index.ts",
+    "type_check_only_source_change": "timeoutId type changed from number to ReturnType<typeof setTimeout>",
+    "requires_success_status_and_matching_registry_event_hash": true,
+    "verifies_registry_state_and_canonical_block": true,
+    "applies_to_new_and_reconciled_transactions": true,
+    "production_deployed": false,
+    "transactions_sent": false
+  }
+}

@@ -1,11 +1,14 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { ethers } from "https://esm.sh/ethers@6";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.104.1";
+import { ethers } from "https://esm.sh/ethers@6.16.0";
+import { verifyLegacyVoteAnchorEvidence } from "../_shared/legacyVoteAnchorEvidence.mjs";
 
 const VOTE_REGISTRY_ABI = [
   "function owner() view returns (address)",
   "function recordVoteHash(bytes32 voteHash)",
   "function isVoteHashRecorded(bytes32 voteHash) view returns (bool)",
+  "event VoteHashRecorded(bytes32 indexed voteHash, address indexed recorder, uint256 recordedAt)",
 ];
+const voteRegistryInterface = new ethers.Interface(VOTE_REGISTRY_ABI);
 
 const NETWORK_NAME = "sepolia";
 const EXPECTED_CHAIN_ID = 11155111n;
@@ -32,6 +35,41 @@ function isValidBytes32Hash(value: unknown) {
   return typeof value === "string" && /^0x[0-9a-f]{64}$/.test(value);
 }
 
+async function verifyBallotAnchorEvidence({
+  provider,
+  contract,
+  observedChainId,
+  registryAddress,
+  receipt,
+  transactionHash,
+  ballotHash,
+}: {
+  provider: ethers.JsonRpcProvider;
+  contract: ethers.Contract;
+  observedChainId: bigint;
+  registryAddress: string;
+  receipt: ethers.TransactionReceipt;
+  transactionHash: string;
+  ballotHash: string;
+}) {
+  return await verifyLegacyVoteAnchorEvidence({
+    requestedTransactionHash: transactionHash,
+    expectedVoteHash: ballotHash,
+    expectedChainId: EXPECTED_CHAIN_ID,
+    observedChainId,
+    configuredContractAddress: registryAddress,
+    receipt,
+    parseRegistryEvent: (log: unknown) => voteRegistryInterface.parseLog(log as ethers.Log),
+    isVoteHashRecorded: (hash: string) => contract.isVoteHashRecorded(hash),
+    getBlock: (blockNumber: number) => provider.getBlock(blockNumber),
+  });
+}
+
+function isTransientEvidenceError(error: unknown) {
+  return typeof error === "object" && error !== null &&
+    "code" in error && error.code === "RPC_UNAVAILABLE";
+}
+
 function isPermanentBlockchainError(message: string) {
   const normalized = message.toLowerCase();
   return [
@@ -47,7 +85,7 @@ function isPermanentBlockchainError(message: string) {
 async function waitForReceiptWithTimeout(
   tx: ethers.TransactionResponse,
 ): Promise<ethers.TransactionReceipt | null> {
-  let timeoutId: number | undefined;
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
   const timeout = new Promise<null>((resolve) => {
     timeoutId = setTimeout(() => resolve(null), RECEIPT_WAIT_TIMEOUT_MS);
@@ -81,7 +119,7 @@ async function estimateRequiredBalanceWei(
 }
 
 Deno.serve(async (req) => {
-  if (req.method !== "POST") {
+  if (req.method !== "POST" && req.method !== "HEAD") {
     return jsonResponse({ error: "Method not allowed." }, 405);
   }
 
@@ -101,6 +139,18 @@ Deno.serve(async (req) => {
       ok: false,
       error: "Unauthorized.",
     }, 401);
+  }
+
+  // Authentication-only probe. The platform must retain verify_jwt=true.
+  // Exit before database/blockchain configuration, clients, claims or leases.
+  if (req.method === "HEAD") {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Cache-Control": "no-store",
+        "X-Kandid-Anchor-Probe": "ok",
+      },
+    });
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -189,31 +239,49 @@ Deno.serve(async (req) => {
               tx_hash: transactionHash,
             });
           } else if (receipt.status === 1) {
-            const { error: successError } = await adminClient.rpc(
-              "mark_ballot_anchor_success",
-              {
-                p_ballot_id: ballotId,
-                p_ballot_hash: ballotHash,
-                p_transaction_hash: transactionHash,
-                p_block_number: Number(receipt.blockNumber),
-                p_anchored_at: new Date().toISOString(),
-              },
-            );
+            let evidence;
+            try {
+              evidence = await verifyBallotAnchorEvidence({
+                provider,
+                contract,
+                observedChainId: network.chainId,
+                registryAddress,
+                receipt,
+                transactionHash,
+                ballotHash,
+              });
+            } catch (error) {
+              if (isTransientEvidenceError(error)) {
+                results.push({ status: "confirmation_pending", ballot_id: ballotId, tx_hash: transactionHash });
+              } else {
+                await adminClient.rpc("mark_ballot_manual_review", {
+                  p_ballot_id: ballotId,
+                  p_ballot_hash: ballotHash,
+                  p_reason: "Successful transaction lacks matching registry evidence for this ballot.",
+                });
+                results.push({ status: "manual_review_required", ballot_id: ballotId });
+              }
+              evidence = null;
+            }
 
-            if (successError) {
-              console.error("Ballot tx confirmed but DB finalization failed:", successError);
-              results.push({
-                status: "blockchain_recorded_db_finalize_failed",
-                ballot_id: ballotId,
-                tx_hash: transactionHash,
-              });
-            } else {
-              results.push({
-                status: "anchored",
-                ballot_id: ballotId,
-                tx_hash: transactionHash,
-                block_number: Number(receipt.blockNumber),
-              });
+            if (evidence) {
+              const { error: successError } = await adminClient.rpc(
+                "mark_ballot_anchor_success",
+                {
+                  p_ballot_id: ballotId,
+                  p_ballot_hash: ballotHash,
+                  p_transaction_hash: evidence.transaction_hash,
+                  p_block_number: evidence.block_number,
+                  p_anchored_at: evidence.anchored_at,
+                },
+              );
+
+              if (successError) {
+                console.error("Ballot tx confirmed but DB finalization failed:", successError);
+                results.push({ status: "blockchain_recorded_db_finalize_failed", ballot_id: ballotId, tx_hash: transactionHash });
+              } else {
+                results.push({ status: "anchored", ballot_id: ballotId, tx_hash: evidence.transaction_hash, block_number: evidence.block_number });
+              }
             }
           } else {
             const { error: failureError } = await adminClient.rpc(
@@ -407,14 +475,44 @@ Deno.serve(async (req) => {
             throw new Error("Blockchain transaction receipt returned a failed status.");
           }
 
+          let evidence;
+          try {
+            evidence = await verifyBallotAnchorEvidence({
+              provider,
+              contract,
+              observedChainId: network.chainId,
+              registryAddress,
+              receipt,
+              transactionHash: tx.hash,
+              ballotHash,
+            });
+          } catch (error) {
+            if (isTransientEvidenceError(error)) {
+              results.push({
+                status: "submitted",
+                ballot_id: ballotId,
+                tx_hash: tx.hash,
+                message: "Transaction persisted; registry evidence will be reconciled later.",
+              });
+              continue;
+            }
+            await adminClient.rpc("mark_ballot_manual_review", {
+              p_ballot_id: ballotId,
+              p_ballot_hash: ballotHash,
+              p_reason: "Successful transaction lacks matching registry evidence for this ballot.",
+            });
+            results.push({ status: "manual_review_required", ballot_id: ballotId });
+            break;
+          }
+
           const { error: successError } = await adminClient.rpc(
             "mark_ballot_anchor_success",
             {
               p_ballot_id: ballotId,
               p_ballot_hash: ballotHash,
-              p_transaction_hash: tx.hash,
-              p_block_number: Number(receipt.blockNumber),
-              p_anchored_at: new Date().toISOString(),
+              p_transaction_hash: evidence.transaction_hash,
+              p_block_number: evidence.block_number,
+              p_anchored_at: evidence.anchored_at,
             },
           );
 
@@ -432,7 +530,7 @@ Deno.serve(async (req) => {
             status: "anchored",
             ballot_id: ballotId,
             tx_hash: tx.hash,
-            block_number: Number(receipt.blockNumber),
+            block_number: evidence.block_number,
           });
         } catch (error) {
           const errorMessage = getErrorMessage(error);

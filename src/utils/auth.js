@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { clearSessionCache } from "./sessionCache";
 import { guardedSupabaseFetch, supabase } from "../lib/supabaseClient";
+import { readStudentSetupRecognition, readStudentSetupVerification } from "./studentSetupRecognition";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_KEY;
@@ -332,12 +333,11 @@ export async function inspectStudentSetup({ studentNumber }) {
   const { data, error } = await supabase.functions.invoke(RESOLVE_STUDENT_LOGIN_FUNCTION, {
     body: { action: "inspect_setup", student_number: studentNumber },
   });
-  const details = data?.data?.student_details;
-  if (error || data?.data?.verification_required !== true || details?.student_number !== studentNumber || details?.details_verified !== false) {
-    return { data: null, error: error || new Error("The Student ID check could not be completed. Try again.") };
+  const details = readStudentSetupRecognition(data?.data, studentNumber);
+  if (error || !details) {
+    return { data: null, error: error || Object.assign(new Error("The Student ID service returned an unsupported response."), { code: "student_setup_contract_mismatch" }) };
   }
-  // Pre-OTP responses never carry personal details, even from a malformed API.
-  return { data: { student_number: studentNumber, details_verified: false }, error: null };
+  return { data: details, error: null };
 }
 
 export async function verifyStudentAccessCode({ studentNumber, code }) {
@@ -348,6 +348,16 @@ export async function verifyStudentAccessCode({ studentNumber, code }) {
       verification_code: code,
     },
   });
+  if (error?.context?.status === 503 && typeof error.context.clone === "function") {
+    try {
+      const failure = await error.context.clone().json();
+      if (failure?.code === "setup_recognition_unavailable") {
+        return { data: null, error: Object.assign(new Error("Verified student information is unavailable."), {
+          code: "setup_recognition_unavailable", status: 503,
+        }) };
+      }
+    } catch { /* Keep unrelated failures unchanged; never retry a consumed code. */ }
+  }
   const session = data?.data?.authenticated ? data.data.session : null;
   if (error || !session?.access_token || !session?.refresh_token) {
     return { data: null, error: error || Object.assign(new Error("Verification could not be completed."), { status: 401 }) };
@@ -361,8 +371,11 @@ export async function verifyStudentAccessCode({ studentNumber, code }) {
   if (identityError || !identity?.user?.email_confirmed_at) {
     return { data: null, error: identityError || Object.assign(new Error("Verified identity required."), { status: 401 }) };
   }
-  const details = data?.data?.student_details;
-  return { ...result, data: { ...result.data, student_details: details?.details_verified === true && details.student_number === studentNumber ? details : null } };
+  const proof = readStudentSetupVerification(data?.data?.setup_verification, studentNumber, identity.user);
+  if (!proof) {
+    return { data: null, error: Object.assign(new Error("Verified student information is unavailable. Request a new code after the cooldown."), { code: "setup_recognition_unavailable" }) };
+  }
+  return { ...result, data: { ...result.data, user: identity.user, setup_verification: proof } };
 }
 
 function createIsolatedStudentAuthClient() {

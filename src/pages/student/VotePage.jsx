@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
+  Check,
   CheckCircle2,
   LockKeyhole,
   MapPin,
   QrCode,
   ShieldCheck,
-  Vote,
 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { formatLocalDateTime, getElectionPhase } from "../../utils/elections";
@@ -21,7 +21,9 @@ import KandidImage from "../../components/KandidImage";
 import { fetchOrderedPositions } from "../../utils/positionOrder";
 import { getCurrentStudentProfile } from "../../utils/auth";
 import { studentElectionFailure } from "../../utils/studentElectionAccess";
+import { loadStudentBallotCandidates } from "../../utils/studentBallotReadiness";
 import { useElectionClock } from "../../utils/useElectionClock";
+import "./VotePage.css";
 
 function StudentVotePage() {
   const { electionId } = useParams();
@@ -56,6 +58,10 @@ function StudentVotePage() {
       setAccessDenied(false);
       setCandidateError("");
       setLoadError("");
+      setCandidates([]);
+      setPositions([]);
+      setSelectedVotes({});
+      setAlreadyVoted(false);
 
       const [
         { data: electionData, error: electionError },
@@ -75,6 +81,8 @@ function StudentVotePage() {
               start_date,
               end_date,
               status,
+              electorate_policy_version,
+              electorate_frozen_at,
               voting_access_mode,
               location_label,
               organizations(name)
@@ -82,7 +90,7 @@ function StudentVotePage() {
             .eq("id", electionId)
             .single(),
           getCurrentStudentProfile(),
-          fetchOrderedPositions(supabase, electionId),
+          fetchOrderedPositions(supabase, electionId, { activeOnly: true }),
           hasStudentVotedInElection(userId, electionId),
         ]);
 
@@ -110,15 +118,11 @@ function StudentVotePage() {
       setStudentProfile(studentData);
       setAlreadyVoted(Boolean(voteCheck?.hasVoted));
 
-      if (positionData?.length) {
+      if (positionData?.length && !voteCheck?.hasVoted) {
         setPositions(positionData);
-        const { data: candData, error: candidateLoadError } = await supabase.rpc(
-          "kandid_get_student_ballot_candidates",
-          { p_election_id: Number(electionId) },
-        );
+        const { data: candData, error: candidateLoadError } = await loadStudentBallotCandidates(supabase, electionData);
 
         if (candidateLoadError) {
-          console.error("Failed to load ballot candidates:", candidateLoadError);
           if (active) {
             setCandidateError(
               candidateLoadError.message || "Unable to load ballot candidates."
@@ -336,14 +340,36 @@ function StudentVotePage() {
             .filter(Boolean)
             .join(", ");
 
-      return `${position.name}: ${candidateName || "Abstain"}`;
+      return (
+        <span className="student-ballot-review-row" role="listitem" key={position.id}>
+          <span className="student-ballot-review-position">{position.name}</span>
+          <span className="student-ballot-review-choice">{candidateName || "Abstain"}</span>
+        </span>
+      );
     });
 
     const ok = await prompt.confirm({
-      title: "Review and Submit Ballot",
-      message: `Review your selections before submitting:\n\n${reviewLines.join("\n")}\n\nOnce submitted, your vote is cryptographically secured and cannot be altered or re-cast.`,
+      title: "Review Your Ballot",
+      eyebrow: "Official ballot / Final review",
+      variant: "editorial",
+      message: (
+        <span className="student-ballot-review">
+          <span>Check your selections carefully before submitting your vote.</span>
+          <span className="student-ballot-review-list" role="list" aria-label="Your selections">
+            {reviewLines}
+          </span>
+          <span className="student-ballot-review-notice">
+            <LockKeyhole size={18} aria-hidden="true" />
+            <span>Once submitted, your ballot cannot be changed. You can vote only once in this election.</span>
+          </span>
+          <span className="student-ballot-review-receipt">
+            You will receive a receipt after your vote is recorded. Blockchain verification may still be pending.
+          </span>
+        </span>
+      ),
       type: "primary",
-      confirmText: "Submit Official Vote",
+      cancelText: "Change Selection",
+      confirmText: "Submit My Vote",
     });
 
     if (!ok) return;
@@ -369,7 +395,7 @@ function StudentVotePage() {
       return;
     }
 
-    prompt.success("Vote submitted and verified successfully!");
+    prompt.success("Your vote is recorded. Blockchain verification may still be processing.");
     navigate("/student/receipt");
   }
 
@@ -461,6 +487,17 @@ function StudentVotePage() {
       </div>
     );
   }
+
+  if (candidateError) return (
+    <div className="soft-card" role="alert">
+      <h1 className="text-2xl font-black">Ballot unavailable</h1>
+      <p className="mt-2 text-gray-500">{candidateError}</p>
+      <div className="mt-6 flex flex-wrap gap-3">
+        <button type="button" className="student-outline-btn" onClick={() => setReloadKey(value => value + 1)}>Retry</button>
+        <button type="button" className="student-outline-btn" onClick={() => navigate("/student/elections")}>Back to Elections</button>
+      </div>
+    </div>
+  );
 
   if (!accessGranted) {
     return (
@@ -622,120 +659,66 @@ function StudentVotePage() {
   }
 
   return (
-    <div>
-      <div className="section-grid mt-0 grid-cols-1 xl:grid-cols-[1.1fr_0.9fr]">
-        <div className="soft-card">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="secure-badge">
-                <ShieldCheck size={14} />
-                Secure Ballot
-              </div>
-              <p className="mt-4 text-sm font-bold uppercase tracking-[0.18em] text-[#d35a25]">
-                {election.organizations?.name}
-              </p>
-              <h1 className="mt-2 text-3xl font-black">{election.title}</h1>
-            </div>
-            <div className="hidden h-14 w-14 items-center justify-center rounded-2xl bg-[rgba(232,108,47,0.12)] text-[#d35a25] sm:flex">
-              <Vote size={24} />
-            </div>
-          </div>
-
-          <p className="mt-4 text-gray-500">
-            Select your preferred candidate for each position. Every submitted
-            ballot generates a receipt with a verification hash.
-          </p>
-
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            <div className="info-row !block">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8b6e5c]">
-                Positions
-              </p>
-              <p className="mt-2 text-2xl font-black text-[#1d262f]">{positions.length}</p>
-            </div>
-            <div className="info-row !block">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8b6e5c]">
-                Selected
-              </p>
-              <p className="mt-2 text-2xl font-black text-[#1d262f]">{completedSelections}</p>
-            </div>
-            <div className="info-row !block">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8b6e5c]">
-                Voting Ends
-              </p>
-              <p className="mt-2 text-sm font-bold text-[#1d262f]">
-                {formatLocalDateTime(election.end_date)}
-              </p>
-            </div>
-          </div>
+    <div className="student-ballot">
+      <header className="student-ballot-header">
+        <p className="student-ballot-eyebrow">KANDID / STUDENT / OFFICIAL BALLOT</p>
+        <h1>Cast Your Vote</h1>
+        <p className="student-ballot-intro">
+          Choose your candidate for each position. Review your selections before submitting.
+        </p>
+        <div className="student-ballot-election">
+          <span>{election.organizations?.name}</span>
+          <strong>{election.title}</strong>
         </div>
-
-        <div className="trust-card">
-          <div className="flex items-center gap-3">
-            <div className="rounded-2xl bg-white/10 p-3 text-[#9ce7dd]">
-              <LockKeyhole size={22} />
-            </div>
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">
-                Voting Safety
-              </p>
-              <h2 className="mt-1 text-2xl font-black">Protected ballot flow</h2>
-            </div>
+        <dl className="student-ballot-meta">
+          <div>
+            <dt>Your progress</dt>
+            <dd aria-live="polite">{completedSelections} of {positions.length} positions selected</dd>
           </div>
-
-          <div className="mt-6 space-y-3">
-            {[
-              "One complete selection is required for every position before submission.",
-              "Submitted votes cannot be edited after confirmation.",
-              "A receipt page stores your verification hash after a successful ballot.",
-            ].map((item) => (
-              <div key={item} className="flex gap-3 rounded-2xl bg-white/7 px-4 py-3">
-                <CheckCircle2 size={18} className="mt-0.5 text-[#9ce7dd]" />
-                <p className="text-sm leading-6 text-white/72">{item}</p>
-              </div>
-            ))}
+          <div>
+            <dt>Voting closes</dt>
+            <dd>{formatLocalDateTime(election.end_date)}</dd>
           </div>
-        </div>
-      </div>
+        </dl>
+      </header>
 
       {positions.length === 0 ? (
         <div className="empty-state mt-8">
           No positions found for this election.
         </div>
       ) : (
-        <div className="soft-card mt-8">
-          <div className="border-b border-[rgba(104,86,72,0.1)] pb-5">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#d35a25]">
-              Official Ballot
-            </p>
-            <h2 className="mt-2 text-2xl font-black">{election.title}</h2>
-            <p className="mt-2 text-sm text-gray-500">
-              Complete each position below, then submit the ballot once.
-            </p>
+        <div className="student-ballot-paper">
+          <div className="student-ballot-paper-heading">
+            <p className="student-ballot-eyebrow">Your ballot</p>
+            <p>Select a candidate or choose to abstain for every position.</p>
           </div>
-
-          <div className="divide-y divide-[rgba(104,86,72,0.1)]">
-            {positions.map((position) => {
+          <div className="student-ballot-positions">
+            {positions.map((position, positionIndex) => {
             const positionCandidates = candidates.filter(
               (candidate) => candidate.position_id === position.id
             );
 
             return (
-              <section key={position.id} className="py-6 first:pt-5 last:pb-0">
-                <h3 className="text-xl font-black uppercase tracking-[0.04em]">{position.name}</h3>
-                <p className="mb-4 mt-1 text-sm text-gray-500">
+              <section key={position.id} className="student-ballot-position" aria-labelledby={`ballot-position-${position.id}`}>
+                <div className="student-ballot-position-heading">
+                  <span className="student-ballot-position-number" aria-hidden="true">{String(positionIndex + 1).padStart(2, "0")}</span>
+                  <div>
+                    <h2 id={`ballot-position-${position.id}`}>{position.name}</h2>
+                    <p>
                   {Number(position.max_votes || 1) > 1
                     ? `Choose up to ${position.max_votes} candidates or abstain.`
-                    : "Vote for one."}
-                </p>
+                    : "Choose one candidate or abstain."}
+                    </p>
+                  </div>
+                </div>
 
-                <div className="space-y-2">
+                <div className="student-ballot-choices" role="group" aria-labelledby={`ballot-position-${position.id}`}>
                   {candidateError ? (
-                    <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                    <div className="student-ballot-empty" role="alert">
                       Candidate records could not be loaded for this position.
                     </div>
                   ) : positionCandidates.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-[rgba(104,86,72,0.25)] bg-white/50 px-4 py-3 text-sm font-semibold text-gray-500">
+                    <div className="student-ballot-empty">
                       No candidates have been added for this position.
                     </div>
                   ) : (
@@ -764,26 +747,27 @@ function StudentVotePage() {
                         }`}
                         aria-pressed={selected}
                       >
-                        <div className="ballot-oval" aria-hidden="true">
-                          <span />
-                        </div>
-                        <div className="flex min-w-0 items-center gap-3 text-left">
+                        <span className="student-ballot-mark" aria-hidden="true">
+                          {selected ? <Check size={16} strokeWidth={3} /> : null}
+                        </span>
+                        <span className="student-ballot-candidate">
                           <KandidImage
                             src={candidate.photo || candidate.students?.photo_url}
                             alt={`${candidate.students?.first_name || ""} ${candidate.students?.last_name || ""}`.trim() || "Candidate"}
                             label={`${candidate.students?.first_name || ""} ${candidate.students?.last_name || ""}`.trim() || "Candidate"}
-                            className="h-11 w-11 shrink-0 rounded-full object-cover"
+                            className="student-ballot-portrait"
                             fit="cover"
                           />
-                          <div className="min-w-0">
-                            <p className="truncate font-black">
+                          <span className="student-ballot-candidate-copy">
+                            <span className="student-ballot-candidate-name">
                               {candidate.students?.first_name} {candidate.students?.last_name}
-                            </p>
-                            <div className="mt-1 text-xs text-gray-500">
+                            </span>
+                            <span className="student-ballot-party">
                               <span>{candidate.partylists?.name || "Independent"}</span>
-                            </div>
-                          </div>
-                        </div>
+                            </span>
+                            <span className="student-ballot-choice-state">{selected ? "Selected" : "Select candidate"}</span>
+                          </span>
+                        </span>
                       </button>
                     );
                     })
@@ -793,7 +777,7 @@ function StudentVotePage() {
                     <button
                       type="button"
                       onClick={() => handleAbstain(position)}
-                      className={`ballot-choice ${
+                      className={`ballot-choice student-ballot-abstain ${
                         selectedVotes[position.id]?.is_abstain
                           ? "ballot-choice-active"
                           : selectedVotes[position.id]
@@ -802,10 +786,14 @@ function StudentVotePage() {
                       }`}
                       aria-pressed={Boolean(selectedVotes[position.id]?.is_abstain)}
                     >
-                      <div className="ballot-oval" aria-hidden="true">
-                        <span />
-                      </div>
-                      <p className="font-black">Abstain</p>
+                      <span className="student-ballot-mark" aria-hidden="true">
+                        {selectedVotes[position.id]?.is_abstain ? <Check size={16} strokeWidth={3} /> : null}
+                      </span>
+                      <span className="student-ballot-candidate-copy">
+                        <span className="student-ballot-candidate-name">Abstain</span>
+                        <span className="student-ballot-party">Do not cast a vote for this position.</span>
+                        <span className="student-ballot-choice-state">{selectedVotes[position.id]?.is_abstain ? "Selected" : "Choose to abstain"}</span>
+                      </span>
                     </button>
                   ) : null}
                 </div>
@@ -817,11 +805,12 @@ function StudentVotePage() {
       )}
 
       {positions.length > 0 && (
-        <div className="mt-8 flex justify-end">
+        <div className="student-ballot-actions">
+          <p>You can change your selections before submitting.</p>
           <button
             disabled={submitting || Boolean(candidateError)}
             onClick={handleSubmitVotes}
-            className="primary-btn px-8 py-4 disabled:opacity-60"
+            className="student-ballot-review-button"
           >
             {submitting ? "Submitting..." : "Review Ballot"}
           </button>

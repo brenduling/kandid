@@ -7,9 +7,9 @@ export function getStudentSetupRequestError({
   passwordsMatch,
 }) {
   if (typeof studentNumber !== "string" || !STUDENT_NUMBER_PATTERN.test(studentNumber.trim())) {
-    return "Enter a valid Student ID before requesting email verification.";
+    return "Enter a valid Student ID before configuring your password.";
   }
-  if (!passwordValid) return "Meet each password requirement before requesting a verification code.";
+  if (!passwordValid) return "Meet each password requirement before requesting an OTP.";
   if (!passwordsMatch) return "The passwords do not match. Retype the same password in both fields.";
   return "";
 }
@@ -22,6 +22,7 @@ export function getStudentOtpVerificationError({ code }) {
 }
 
 export function getStudentOtpFailureMessage(error) {
+  if (error?.code === "setup_recognition_unavailable") return "Account admission could not be confirmed after email verification. Request a new code after the cooldown; setup has not been confirmed complete.";
   const status = Number(error?.context?.status || error?.status);
   if (status === 429) return "Too many verification attempts. Wait before trying again or requesting a new code.";
   if (status === 401 || status === 403) return "This code is incorrect, expired or already used. Check it or request a new code.";

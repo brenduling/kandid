@@ -26,7 +26,7 @@ export function positionOrderValue(position) {
   return normalizePositionOrder(position);
 }
 
-export async function fetchOrderedPositions(supabase, electionId) {
+export async function fetchOrderedPositions(supabase, electionId, { activeOnly = false } = {}) {
   const buildOrderedQuery = () => {
     let query = supabase
       .from("positions")
@@ -37,6 +37,7 @@ export async function fetchOrderedPositions(supabase, electionId) {
     if (electionId !== undefined && electionId !== null && electionId !== "") {
       query = query.eq("election_id", electionId);
     }
+    if (activeOnly) query = query.eq("status", "active");
 
     return query;
   };
@@ -50,6 +51,7 @@ export async function fetchOrderedPositions(supabase, electionId) {
     if (electionId !== undefined && electionId !== null && electionId !== "") {
       query = query.eq("election_id", electionId);
     }
+    if (activeOnly) query = query.eq("status", "active");
 
     return query;
   };

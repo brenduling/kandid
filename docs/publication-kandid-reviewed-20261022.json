@@ -1,0 +1,827 @@
+{
+  "revision": 1,
+  "status": "NO-GO: 17 broad-suite failures require triage; no publication authorized",
+  "branch": "publication/kandid-reviewed-20261022",
+  "parent": "9325838b0066800fa340545913e25b5c0ab5c642",
+  "original_main": "e7f0c07be8f20b821f70c79e28de76065261100f",
+  "changed_file_count": 143,
+  "excluded_temporary_paths": 3108,
+  "manifest_self_hashed": false,
+  "files": [
+    {
+      "path": ".gitattributes",
+      "sha256": "a755ce803093798c39bb86972af8be4e20492018fa7122531ef292fed43d42b3",
+      "lf_sha256": "a755ce803093798c39bb86972af8be4e20492018fa7122531ef292fed43d42b3"
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "0c32d077605191fcbe5357466f95fddc717daf01148f93eac3eba355f57a2177",
+      "lf_sha256": "d3181729ed1da928322ec9a7855b6467b0ea24fd446f43b2a4714e6513e672d2"
+    },
+    {
+      "path": "docs/anchor-auth-probe-manifest.json",
+      "sha256": "f68f4f6a047aa8b82bd26b23f1ce2aeee66cd3e94a84e155f4bfaae85bcb7f63",
+      "lf_sha256": "e3bf6d8781b8b49911d5fddda3a7d2cf7b631d0846f8d181d51ff90a37a364e2"
+    },
+    {
+      "path": "docs/anchor-auth-probe.md",
+      "sha256": "57f098256f40d1ab301ebef5a76eb6dfb840978b4b4e5baaa4ddf40b7987d4ef",
+      "lf_sha256": "3ef368538f5df65eaa420e37d85b615c4558e9b60d105e85c4072693d31009f4"
+    },
+    {
+      "path": "docs/anchor-management-preflight.md",
+      "sha256": "b3f53153a789aa2f7ab667efd6a501ec726fc6f5fb7d99c4a5e709ef69407af6",
+      "lf_sha256": "86084fd5d0bd417a75fac2a9d97470440a7c8ff4a8910c804d019c2f9be3c9bb"
+    },
+    {
+      "path": "docs/anchor-new-ballots-only-manifest.json",
+      "sha256": "0517b4836afef36385e314e1c9ea34b5a695dff5bb59763d5a83b1e1cf633739",
+      "lf_sha256": "7e109023364412ff037ea2c1bbaeff91ec18d27543f9e3474c32cfdb29e80cef"
+    },
+    {
+      "path": "docs/anchor-new-ballots-only.md",
+      "sha256": "2516beec1599de6a83633d22ebd8b5e6f5758648c4405bd074e6a03560812d6f",
+      "lf_sha256": "a7bf3e156db91d9fc0abfd8ceb1c245d5ad56828bdd0188244380da908cb756e"
+    },
+    {
+      "path": "docs/anchor-production-configuration-procedure.md",
+      "sha256": "359a9b4033ea72666fee7347dfc8048589bbfa7ff7299f717d5476de5f616583",
+      "lf_sha256": "b61c99c1ae63232af43e0b79b16db5ac2b70f34b6de379397ff7d9ef4a924b80"
+    },
+    {
+      "path": "docs/board-election-edit-local-recovery.md",
+      "sha256": "024589636dc420180779b97e19bb3360ccb93430fb75fe3a39167ceca5a2ac0c",
+      "lf_sha256": "356a745384a48bc5efb9533de2af8c86c59dd0ea326c9558592384724f6dbdbc"
+    },
+    {
+      "path": "docs/election-3-electorate-recovery.md",
+      "sha256": "6036b5b3ab59455a9372889272b13ec14f653c4879e3828287084d13d7d4311b",
+      "lf_sha256": "3872145a0c9a6ebd0857a3ea07ed1930d2198fbe88f3e39e59feea17742279ee"
+    },
+    {
+      "path": "docs/election-3-test-recovery-prepared.md",
+      "sha256": "3ce807656ef8c89cf1c16afbabcf20e1c08a36d43ae320ddfaa9533a25e303a8",
+      "lf_sha256": "b701f83514553507a44e4aa4bb730f64f290a5ce77f06e1670c3bb300eb56380"
+    },
+    {
+      "path": "docs/election-4-ballot-finalization-manifest.json",
+      "sha256": "f26373db6a67e384660b213fe2ba33c699b3eaf646e7af397a374429df31ac63",
+      "lf_sha256": "9d8b678be7e30efc0c78b53df7e670706153fb76632dcef19edfddb14098c9db"
+    },
+    {
+      "path": "docs/election-4-ballot-finalization.md",
+      "sha256": "eb203cbf618d2a9c187d5314ae6845fc3bbaa927cc5f8be176d38763a92f8b1f",
+      "lf_sha256": "dffad4684e3d6a6176f162de727449f217a77f0b735bcd447f9c58f06448cd72"
+    },
+    {
+      "path": "docs/election-4-current-window-recovery-manifest.json",
+      "sha256": "ed6b70d239c811c50ff3657bf677f1ddd59e39b117a1cefbdab3242313b1ee8d",
+      "lf_sha256": "0feff3a4cc4c4475a8ec5d995fa9281e46b135d21d41a636d4387f554544a1a7"
+    },
+    {
+      "path": "docs/election-4-current-window-recovery.md",
+      "sha256": "43b98b33fcf21bee8f2fa8c56234eae47c6e9210fc626db5f76fd6f105bac23b",
+      "lf_sha256": "4a3f0cd0292d7d20265be80ee0aee0fae026b262f8395cf8122e8b62f6d1910a"
+    },
+    {
+      "path": "docs/normal-development-admin-crud.md",
+      "sha256": "184becea148b34b25a244375c6c76742465de49d655324e3a238799225306ed3",
+      "lf_sha256": "d2d4073fe9966161ad1e273dc9145f97ce144c1c440cc7975bb89b4a630ea82f"
+    },
+    {
+      "path": "docs/optional-eligibility-scheduled-finalization-implementation.md",
+      "sha256": "25820d5b30d30980348f75abe5412111726b691fcdbdb619bf437584baee10ba",
+      "lf_sha256": "9337fb4824caf544b958cffacb1b7a13e1e4362ca0b23c172694d296a80ca8b2"
+    },
+    {
+      "path": "docs/optional-eligibility-scheduled-finalization-manifest.json",
+      "sha256": "b8910bc734e1ff92c507bacb12e1c6772ade8dc2b57b1c43976bdd8d86b25850",
+      "lf_sha256": "24b5fe7b50a6538babd16536e8b5f400f81387412006349d26e4f9c5430e75bf"
+    },
+    {
+      "path": "docs/optional-eligibility-scheduled-finalization.md",
+      "sha256": "bd7e8e17521b883c4c7acaa499f497e565328fa80f7aa0ee437914e9506a209e",
+      "lf_sha256": "5fd5842e350eb2dd760f7fe653b21cf023cb6bcac52a110b01ef2c2ac51dba46"
+    },
+    {
+      "path": "docs/publication-kandid-reviewed-20261022.md",
+      "sha256": "3663ec7101140be844154b3cda79d1c639a8833b16968294241c62137cf5f21f",
+      "lf_sha256": "3663ec7101140be844154b3cda79d1c639a8833b16968294241c62137cf5f21f"
+    },
+    {
+      "path": "docs/student-setup-frontend-recovery-manifest.json",
+      "sha256": "0d1610bea1deae26b1108d5f3b7073e1de03580d477cd1e434783b55e42fc35d",
+      "lf_sha256": "0d1610bea1deae26b1108d5f3b7073e1de03580d477cd1e434783b55e42fc35d"
+    },
+    {
+      "path": "docs/student-setup-inspection-manifest.json",
+      "sha256": "fe0e6f3d8bb2844fdee14a625f3ab72af9732ca319c84ea493a2f11a0453a8b6",
+      "lf_sha256": "14b94c9c3bfc5e30bdc10303c9bf30ff39e7b465281ecdfc956bbe4253cad1cc"
+    },
+    {
+      "path": "docs/student-setup-inspection-recovery.md",
+      "sha256": "4541d4cfbdecca48ac896e9d62c620102cdc398002a0f8584b4fa3cf7e73acde",
+      "lf_sha256": "962474afdc51120113bb71e9f01f7001d11e703ee0934a2c06f114a4cc8e7b9d"
+    },
+    {
+      "path": "docs/student-setup-recognition-implementation.md",
+      "sha256": "cf993778ce4284e9f95287831c065252ddc04ed7abb2ce56acde30a676242d3f",
+      "lf_sha256": "aef3f4c14d5cd503ca1d6fa18a8db70feb2d9094e998773ab6632b9e378ef163"
+    },
+    {
+      "path": "docs/student-setup-recognition-manifest.json",
+      "sha256": "34f4fd6f8b1314ba78d8facd7d4adf2e7995db4a9d3c59f3fcdf67476b1218ec",
+      "lf_sha256": "e7b62fe939c056b6f9d9d46d48413ec40ef355b2586cd488623e2a4ab871e28f"
+    },
+    {
+      "path": "docs/student-setup-verified-recognition-proposal.md",
+      "sha256": "7036fea71e0df3c82aca14739c9afdd1da85b3555faddf0a68171853fedbf564",
+      "lf_sha256": "f7008ec4c656cdba1793cded23ab6680b2a302c09f3554519e6b7cd2dc37844e"
+    },
+    {
+      "path": "docs/submit-vote-deployment-readiness.md",
+      "sha256": "ad9f09344c0a90b546dbd5b5ee465a00d0da20e617f71bca28cd6de9feb8fa97",
+      "lf_sha256": "33ed21cf6b4851ab72fbabb2f7298f06c95af7d70b077997bad6e024b73fb320"
+    },
+    {
+      "path": "docs/voting-backend-recovery-manifest.json",
+      "sha256": "371ca0ebc0599db052ffabe028265f67175d23434436d1c31b0870e61d5e6ad4",
+      "lf_sha256": "c34ab3ec62f88af5f5227688193f7f3cccca41b1abd003652a6585867f285921"
+    },
+    {
+      "path": "docs/voting-backend-recovery-prepared.md",
+      "sha256": "aa04e1a6f4f76db2ece5fb3b33df2bbb1e063c59e5876680ea582fd9cae7691e",
+      "lf_sha256": "c578e6fe8b5b41cfcaefdd68855a11f3185e203cc2130d9a09aebb0b32de88a9"
+    },
+    {
+      "path": "docs/voting-backend-restoration-preflight.md",
+      "sha256": "995d6d4227f36caf306ff88310495d5dfb4d25a0a575c151905065935030b936",
+      "lf_sha256": "31f23ea34f424677455c5898f788c0a0962370d36f85afab718cd82ce46e2bfa"
+    },
+    {
+      "path": "package.json",
+      "sha256": "92dae918281c15f878ee5667ec2a8519edb3f7bf538e517737113374e57e3cc0",
+      "lf_sha256": "c45e6282315f069676bba6f5fd19a3247146654398a4f8a500a82ec14cd1c9c7"
+    },
+    {
+      "path": "scripts/configure-kandid-anchor-secrets.ps1",
+      "sha256": "4a302fd3397b4fe1d6c6e98496f39bd7dd5d6e33aba08de32b720c133ddc8e58",
+      "lf_sha256": "9985ae6fdc1f5b7181c037579fd213a14db8ea1efc30baf63951dcdcdda935db"
+    },
+    {
+      "path": "scripts/kandid-anchor-config-check.mjs",
+      "sha256": "daa3bedaca575c6c7a6f0f986d53905bce642b51ce77f226f66951ea056d4d25",
+      "lf_sha256": "137184637fd4126ee8ff7a79ee9f72eb73e2413d6215619b55c37f49464ebb64"
+    },
+    {
+      "path": "scripts/kandid-anchor-exclusions-pg17.mjs",
+      "sha256": "f60c664686d0414ca70e70944211d0ba19d8b7223d0b58efb660af8a7e4306fa",
+      "lf_sha256": "b0752ff920853efc88e78aeb358f520ef738f18d8f2a7ab21ec4cb1d2f120906"
+    },
+    {
+      "path": "scripts/kandid-anchor-management.ps1",
+      "sha256": "c16876dca2d639dac879ea109c532e47beaf189607c04925546379f267c22584",
+      "lf_sha256": "c0fb275ccd4ca892eed88ec16f630629cfdead5b29c9828849e396dce79af3c7"
+    },
+    {
+      "path": "scripts/kandid-ballot-finalization-pg17.mjs",
+      "sha256": "bbee712cf390e7c14318da50f0aa37259dfe1f9828ec495ba86e3e3a1a09a2e4",
+      "lf_sha256": "dedc86a4f68798a953ec0a99d49400a53101f49071c7ebc87875a3f24b3f82bd"
+    },
+    {
+      "path": "scripts/kandid-ballot-visibility-browser.mjs",
+      "sha256": "965c3bf7defa24074c1382f478cd734c5fe805822a665000e397c2f98837315f",
+      "lf_sha256": "46d0571747708b412b9bef24b937f79b7c034baccc2501872741c1022880afd9"
+    },
+    {
+      "path": "scripts/kandid-election-3-eligibility-pg17.mjs",
+      "sha256": "8d3650d8776faa6757c41e6b3f0ff01357918d031dc71dd424729bcc76b81dfd",
+      "lf_sha256": "4571623fc65a29262aecc185b5e1a771f87e62c2002f75f7c4eea432c895b900"
+    },
+    {
+      "path": "scripts/kandid-election-edit-local-acceptance.mjs",
+      "sha256": "7a82c3c8a18a19278383dcf906b880b30a8e366806862ebef97c3343526aa689",
+      "lf_sha256": "2acb2839b8f970b002dd7a02974e8be8013ff44cd915374952c3c0d0c2a9ae13"
+    },
+    {
+      "path": "scripts/kandid-election4-current-window-validation.mjs",
+      "sha256": "5143bd6d7edfff2d536cdff2ec75c6557ccd9f6ebb1d7c93fc59d0f4c55b0fdc",
+      "lf_sha256": "dd976175080abc39ea1b903b947d6bf6db467b35911ae8d20eab29a4ecea5968"
+    },
+    {
+      "path": "scripts/kandid-optional-eligibility-pg17.mjs",
+      "sha256": "a66cfedf0f07a7bdec704d338ccd0e8d9c4e9c94b96db30f7e02b1803cfb6c7e",
+      "lf_sha256": "ff7da133f04a593450e407ad2f6f2337f073ea240a65581e47bddc0032d908fe"
+    },
+    {
+      "path": "scripts/kandid-prepare-public-edge-dependencies.mjs",
+      "sha256": "41bd4dbc3f48eb82a467059ce3c806a8232c6514ac8784d7a1e0d49c7d467c8e",
+      "lf_sha256": "bdb2f633fa3897e5c5fb8915ee17686a2bb2c52576b33962c5d2da5b730a9b5a"
+    },
+    {
+      "path": "scripts/kandid-receipt-scoped-build.mjs",
+      "sha256": "44ee625f588eed1d783ef5e6d9061f668bb718420e62ef452d838e334b88e5ec",
+      "lf_sha256": "1401b865a5fc0ae2de79af9289c4a20d6ae00c55014056d581e2f8ea3c755673"
+    },
+    {
+      "path": "scripts/kandid-scheduled-electorate-pg17.mjs",
+      "sha256": "13472ef5a4e44b9a20d4725d4ffdc3424d38a8ecfd297e35b9e2d401ff878b8f",
+      "lf_sha256": "b1fba91c7a0fff81d71782a661b01f8f398d801dcb804afc17b29dbb67bef7bf"
+    },
+    {
+      "path": "scripts/kandid-student-ballot-design-browser.mjs",
+      "sha256": "6e98178d5dad03953e56ccd4935ba96a170fe5311d9502473288de440c87334b",
+      "lf_sha256": "0bd03dd19f838ac42aa4aaeab55b8742fd90c7484787896cbf24accd68df9f89"
+    },
+    {
+      "path": "scripts/kandid-student-setup-recognition-browser.mjs",
+      "sha256": "42ab040c431cc2991c159d202f7c418d5c7720ea2b2f724f52eeb6776d9fe788",
+      "lf_sha256": "ec74d8b5540400524497c1f7bf63ce31263bf9146dd8173d7f59f7ab1e9c0f77"
+    },
+    {
+      "path": "scripts/kandid-submit-vote-integrity-pg17.mjs",
+      "sha256": "9fbca4a27980543e8f3d741170d4f82a787c1f15ac388b09f1f4db67890d8fef",
+      "lf_sha256": "ca18e123db214a8e3dc29eaa713f1269425fad926208d52eff3780e46b6f9582"
+    },
+    {
+      "path": "scripts/kandid-voting-edge-runtime-offline.mjs",
+      "sha256": "e67fadd9390eef49e89550e004477bd66fa797f884c28fdaa865254fc9396ecf",
+      "lf_sha256": "32adbb86d0f15a42f9bbbece631cd6d30dd8bb4f7d6cfb6074883a6b1b8b9c88"
+    },
+    {
+      "path": "scripts/preflight-kandid-anchor-secrets.ps1",
+      "sha256": "acd1f32c7141471547b587fbfdbdb384e592145c23759987d8d741d965742eb8",
+      "lf_sha256": "85b405e9cf7e3ba2dc457c611f84576852d900cb6feab8c4db0ace15057dc990"
+    },
+    {
+      "path": "scripts/publish-kandid-anchor-scheduler.ps1",
+      "sha256": "a6a51838643ff7227622fcd689a8d48a767fc358b6a1d70ef81cb3573c52e1e8",
+      "lf_sha256": "4249c4165f025f43c04a10133336c3ec38b7c7eec13aa696bb16bd2008c24cb1"
+    },
+    {
+      "path": "scripts/verify-kandid-anchor-config.ps1",
+      "sha256": "4a27764d3fe589df47d61c99afe050bd64fba947fea43f89167bccb8b6d8c758",
+      "lf_sha256": "7be3ae8da661e3c0e2f56dd524cf68cf6c667f330e31be4d1e17e89692b2d8fd"
+    },
+    {
+      "path": "src/index.css",
+      "sha256": "42ba60debec21a6dab1e0b97555e8bf65e83c6a32b5752ccd7eed0c68e87adc1",
+      "lf_sha256": "1f98636a2937bea54aaeb1842feeebb2798d252affd62874f1fb7efbb26c6743"
+    },
+    {
+      "path": "src/lib/supabaseClient.js",
+      "sha256": "08c88c91eaf4ecb03f46293d8e5d956e73baa5412203499f9defe2693e1ebb8c",
+      "lf_sha256": "8a81238e5b66aff3bf2d03443f02bc7fb5d574e6177faaa2826483acef1f0731"
+    },
+    {
+      "path": "src/pages/auth/StudentSetup.css",
+      "sha256": "5a7daa8ed452e5385ed5dd3094dcab20e829547d55286675ac6bf35b10a46209",
+      "lf_sha256": "f8401d3e241a7636c6afbd63b39d38668f265f64cc0f104d28a11d55628833cc"
+    },
+    {
+      "path": "src/pages/auth/StudentSetup.jsx",
+      "sha256": "66a453ecb5a0701559071fdda49e1d29929e5965fcdf6d09acfbf5765747c294",
+      "lf_sha256": "66a453ecb5a0701559071fdda49e1d29929e5965fcdf6d09acfbf5765747c294"
+    },
+    {
+      "path": "src/pages/board/BoardElectionSetup.jsx",
+      "sha256": "0c9cae8ea83497b5764f34768fd7d23a0b0d5cd4ec918ecd1efc7261cb8f869b",
+      "lf_sha256": "1ae47078e61a023f533c3cf5ac0ddb909b55c52f0a4e3fb1aab41736469aea8a"
+    },
+    {
+      "path": "src/pages/board/BoardStudentRegistration.jsx",
+      "sha256": "b7b08a650171ed6b3a6575274f1c8371417e31173f9d5ab2c21505a0ba3f630c",
+      "lf_sha256": "1dc9b4d2d6b8f8a8ca4f7479991b0f6109abeb1bc30a5d193489bd9150ef2913"
+    },
+    {
+      "path": "src/pages/board/ElectionElectoratePanel.jsx",
+      "sha256": "d25837d1e08abdbe6e7051d4bbab235290f53848ff85081dc274d76096c35d24",
+      "lf_sha256": "2e80a73bbad3c7d2478b58553b877e71394cea92b9444dcffdbea460711f58fe"
+    },
+    {
+      "path": "src/pages/board/Elections.css",
+      "sha256": "bfc1b476cef48825c062e291993075e841189266bca87ce9e8ca6a53f91feb9f",
+      "lf_sha256": "b7cfdb7f379efb67c2765067e2105812bc2b2d4957bfe9f57b9ca7e16336357b"
+    },
+    {
+      "path": "src/pages/board/Elections.jsx",
+      "sha256": "e182caa36b6ae336a6bd1679cf415dadcc3476b0854973d2843f2bb40df1cffc",
+      "lf_sha256": "993549aace72f2c971d5ea070ef15bdc3850f2d71bebd6b3563c25ce353d07af"
+    },
+    {
+      "path": "src/pages/board/EligibilityRules.jsx",
+      "sha256": "ca55b874b0d421fac51fc7004f8e7a7fccd8e9d3445a4c8d5621cd5da9f768b1",
+      "lf_sha256": "dd792ea27f6226b70fc38532089fa4de18f415f134faca6d41e3582005c6df69"
+    },
+    {
+      "path": "src/pages/student/BallotVerification.jsx",
+      "sha256": "4eba4a016c505f3ebcf7f1bfd09c7844c8b98ceceba600bdf91ec6857f3fa6b0",
+      "lf_sha256": "5e7a85e18c828ce187640f5d497fa49caa903c2d827c786dbca39aed360b5252"
+    },
+    {
+      "path": "src/pages/student/Receipt.jsx",
+      "sha256": "783f0d036c5420b9d0298f239548d5b5bd0505295ad769c2d93651b2cf82fcdd",
+      "lf_sha256": "c5f89a96bee5753d9366d635aead82b97f8337ee14c8865263a03d222e596a47"
+    },
+    {
+      "path": "src/pages/student/ReceiptDetails.jsx",
+      "sha256": "e223d2626b9ceff4a9e67fc02303bda2a99424fc19d19467637a9c3a8dc593e8",
+      "lf_sha256": "6ffed171731c002be882982726781d375ce7106c3fbb3a85202e3ddb8098d3dc"
+    },
+    {
+      "path": "src/pages/student/VotePage.css",
+      "sha256": "07eb48049d1ab156ca4e478d6dc97da130371a27822b3fb098194874385292bb",
+      "lf_sha256": "4cf8fd0ecbd52bfefd96c9e79354fba68292f0ac8679d75f831db03a2e512cbc"
+    },
+    {
+      "path": "src/pages/student/VotePage.jsx",
+      "sha256": "b4ee81c798b35d53b82848f5e7c686dccfe9b41acfa1c08bda96175b0e381852",
+      "lf_sha256": "83b09c545f8405e73eb63aadee29f558969c30e5daa928afae268f5516f4162b"
+    },
+    {
+      "path": "src/pages/student/receiptData.js",
+      "sha256": "583a7694b286920d3d3151800346272598c6fea066372a7ad6b214afa131db57",
+      "lf_sha256": "0011fd4add37a1b3242d1902b1f92369d129783ddaafc0cdc8b8df2a595edb76"
+    },
+    {
+      "path": "src/utils/auth.js",
+      "sha256": "3582b1b4ebfd9b5eeb4292e1947b660aaac76bd4c81e62bbf77ea15ed0d4cbf8",
+      "lf_sha256": "d6ad2163ec77ccba76c3ca659cef37709f47369ab442f5278535718ddb5a4e3c"
+    },
+    {
+      "path": "src/utils/blockchainVerification.js",
+      "sha256": "49842f6474837b54c599f9cfbd56402305d3c809412d967bf3422925f77c0d94",
+      "lf_sha256": "a852077d8dac626931df849c25d4fe4625d8bc30175a7ceeb0d11c9dba6fc00b"
+    },
+    {
+      "path": "src/utils/boardStudentManagementFeatureGate.js",
+      "sha256": "5729762a375865f32936ead752d1c002d0e12cce5a5b4af69a4c4f0adc44a0d0",
+      "lf_sha256": "3016f53db9e8209e41d9360782ffef66d8d4003f2be929746cb140b1a755f06f"
+    },
+    {
+      "path": "src/utils/boardStudentRegistrationFeatureGate.js",
+      "sha256": "9df6f9ea646ccc57ee56bf000725374814c64b166bf6250eec4e3521b380f8d6",
+      "lf_sha256": "b6366df3fcdd58e92a4fcd6b16737dfef3740e2e5876aa1af15414b2fd6c30c0"
+    },
+    {
+      "path": "src/utils/boardStudentRegistrationMessages.js",
+      "sha256": "ab0d02536d7def7fd501ed09bcc710b42d9d92a791301979025c19887547ff1a",
+      "lf_sha256": "735e87535838717e9346cfe62ecbb3c6f7057353b9fca7d9a1d1ff5a2602b697"
+    },
+    {
+      "path": "src/utils/developmentAdminRequests.js",
+      "sha256": "642655d80d44ae634a0b921b181b3db5bb22bb1c2e779a73d385bc5e23c58747",
+      "lf_sha256": "f37090ec7d05c8e2c8383b08c632090f11d7314183405a1f7848151f372e1ce6"
+    },
+    {
+      "path": "src/utils/developmentProductionWriteGuard.js",
+      "sha256": "09c78ba3fbd6d408f2884541e555ec142b6c0b6035bec0997e76f9053f763a3c",
+      "lf_sha256": "be067e57f5d5fdad0a2b8b1fba17638327297814ba759bc1c977501e0ff03407"
+    },
+    {
+      "path": "src/utils/electionEditingEnvironment.js",
+      "sha256": "1c138509f53c9f9dcd5638ace45952c8275341997f4cc29417b2f7164513fd4f",
+      "lf_sha256": "edde34c3c48cdec5b591cd15f7384224864a13487a4b0928dc63c8ba51be1c21"
+    },
+    {
+      "path": "src/utils/electionRemovalFeatureGate.js",
+      "sha256": "abb87e62b47e0f91989ae3f5ce7bf3c9edbc60376ed9274668ab0ac2ea7d2751",
+      "lf_sha256": "c2b3435dfe64a21d19392a2b1b91ab1734bd9dfda0cef5efc0460d8bd8baa484"
+    },
+    {
+      "path": "src/utils/electorateFinalization.js",
+      "sha256": "497f42ac5e3ce2bd65f85604a3e045ff8bc520e2bdc871e3030b49d337a69cd5",
+      "lf_sha256": "61fb8b7d5a127cc11483e7c353cd6ae3e1b240f11c73257e3983e25d1034bda7"
+    },
+    {
+      "path": "src/utils/eligibilityRuleManagement.js",
+      "sha256": "25ace6a9f1fc1c572315dbe41f895c080403e7d3e5879bac43cd79a1aced2c47",
+      "lf_sha256": "677a8e412dffdf8d10dd4204658249bac00c85bd68adab48ea53fa1e9561c800"
+    },
+    {
+      "path": "src/utils/positionOrder.js",
+      "sha256": "0cad9be9981137ed8eefcd1a4d4c6e37f17e094df93a449a7f4ca1cf534275ef",
+      "lf_sha256": "d7bf8ff3e155b0ee06e488d4a027c57c709f44d0f84fb408d751ab8c6b46290f"
+    },
+    {
+      "path": "src/utils/studentAccountSetupFeatureGate.js",
+      "sha256": "f2097844f5501688c0ac76cc012e56b88ec3c9bda5ac8965c5a50d2bccd5e3ac",
+      "lf_sha256": "35256ef7c351f288ec9e224a814ef37b98dc2c694f5b52cfd741853edbe911af"
+    },
+    {
+      "path": "src/utils/studentBallotReadiness.js",
+      "sha256": "20d721bdf501a972b14188972f68b107d07bd7530313327a283302a0ef03fb22",
+      "lf_sha256": "dd505f1f54965fb46297f08aacdab122c1f0a19919ff199f67d10ab644807604"
+    },
+    {
+      "path": "src/utils/studentSetupLookupFailure.js",
+      "sha256": "df3611e09e21c0eade2ad21193b13711ab991a21a5dbb9ab369b1d115a7a9ce4",
+      "lf_sha256": "df3611e09e21c0eade2ad21193b13711ab991a21a5dbb9ab369b1d115a7a9ce4"
+    },
+    {
+      "path": "src/utils/studentSetupRecognition.js",
+      "sha256": "bac4fb8b54c5aef1cbc2830e45ba516209d0e5ba0f7d25b0aa0fcb4c7fb84263",
+      "lf_sha256": "bac4fb8b54c5aef1cbc2830e45ba516209d0e5ba0f7d25b0aa0fcb4c7fb84263"
+    },
+    {
+      "path": "src/utils/studentSetupValidation.js",
+      "sha256": "9a5513142213c9fc45c74a70f31f0b9757bec43912901793b08179e114375450",
+      "lf_sha256": "7a1e728c935289e649c425ef3b80453f2f756b92a0172d27ce851d97ae704140"
+    },
+    {
+      "path": "src/utils/voting.js",
+      "sha256": "cbe6726de2d51b9451f92241381ba094a65e83b123536cf803c17b30383e28cc",
+      "lf_sha256": "7a1c1efca25793eebf921e71a1d783e56c799d2e2961fab6a5fa1e2ec6ebecf2"
+    },
+    {
+      "path": "supabase/functions/anchor-ballot-hashes/deno.json",
+      "sha256": "77f0b01614c9f9e43a65262b47e7fe82f0adddcd1f5b640356c077f03d39d836",
+      "lf_sha256": "77f0b01614c9f9e43a65262b47e7fe82f0adddcd1f5b640356c077f03d39d836"
+    },
+    {
+      "path": "supabase/functions/anchor-ballot-hashes/deno.lock",
+      "sha256": "23922e74f271083642b5ab1198a395d5456cfb779438e43f7d9e1a18332b77d3",
+      "lf_sha256": "568b6aa6d6df83812befe31b18e1c405905029c9b99cfd3cf4753398d1a10245"
+    },
+    {
+      "path": "supabase/functions/anchor-ballot-hashes/index.ts",
+      "sha256": "4d019c71aac93bc9bcdc861bb7befd3c40fe7a761231426cf6164ba34c86ee11",
+      "lf_sha256": "190bf0cd7f6037e870e27d877a8343da9d6dfd801090087221c88b330b4dae81"
+    },
+    {
+      "path": "supabase/functions/get-student-ballot-receipt/deno.json",
+      "sha256": "0876f7ad8d84677e12acfc660d62cdc1b0d3bff0669814e04467d518f080ee91",
+      "lf_sha256": "77f0b01614c9f9e43a65262b47e7fe82f0adddcd1f5b640356c077f03d39d836"
+    },
+    {
+      "path": "supabase/functions/get-student-ballot-receipt/deno.lock",
+      "sha256": "e5de962c998115877c02422737ce2ec65dd5e40e0c2e868b095451cdd5a3d047",
+      "lf_sha256": "57dd5cd3c5ca59a6c59cdfb9d98fbe3b28f8e6786a5040fc1cbf0a6629004769"
+    },
+    {
+      "path": "supabase/functions/get-student-ballot-receipt/index.ts",
+      "sha256": "cb91334d5d2d9259937a72d0b37158321b0d51ad1cd59b254e83be44f6ab0da5",
+      "lf_sha256": "940a3290be973d22c04d5440d9372e8d79883a1810b92b8102c01313a096a1d7"
+    },
+    {
+      "path": "supabase/functions/resolve-student-login-inspect-deploy/index.ts",
+      "sha256": "e79d6efef161760868445c1e54012c08f548ca59f09d2309293a1b9209d13c9a",
+      "lf_sha256": "e79d6efef161760868445c1e54012c08f548ca59f09d2309293a1b9209d13c9a"
+    },
+    {
+      "path": "supabase/functions/resolve-student-login-recognition-deploy/index.ts",
+      "sha256": "4cbc45350f4e19ff149b5a15f32560ba606b57a4287f0d41d9cc8994b1e6bcd8",
+      "lf_sha256": "4cbc45350f4e19ff149b5a15f32560ba606b57a4287f0d41d9cc8994b1e6bcd8"
+    },
+    {
+      "path": "supabase/functions/submit-vote/deno.json",
+      "sha256": "0876f7ad8d84677e12acfc660d62cdc1b0d3bff0669814e04467d518f080ee91",
+      "lf_sha256": "77f0b01614c9f9e43a65262b47e7fe82f0adddcd1f5b640356c077f03d39d836"
+    },
+    {
+      "path": "supabase/functions/submit-vote/deno.lock",
+      "sha256": "e5de962c998115877c02422737ce2ec65dd5e40e0c2e868b095451cdd5a3d047",
+      "lf_sha256": "57dd5cd3c5ca59a6c59cdfb9d98fbe3b28f8e6786a5040fc1cbf0a6629004769"
+    },
+    {
+      "path": "supabase/functions/submit-vote/index.ts",
+      "sha256": "b59237dd935a00386fae457bae0ce0c179efd4cece36460c390b1a3e6b46c0a0",
+      "lf_sha256": "a0b1d75cbb97e16c43b931a0eef7542a4d2f6146c8fcfa3157337b1fd1f33139"
+    },
+    {
+      "path": "supabase/migrations/20261021140000_scheduled_electorate_finalization.sql",
+      "sha256": "22a642fe02564afc7bf80cae1901da007600793d30fd0755a7ae960b20924022",
+      "lf_sha256": "697dd49ed0eb145579031b4790643de6acd22adc7086b699c654edd84c6e7491"
+    },
+    {
+      "path": "supabase/proposals/20261020114248_election_3_program_year_eligibility_historical-proposal.sql",
+      "sha256": "fbf9fde5fd02940a5ddd5f4e9f2ed7cf786d39fd9116c1481a01ff190022c289",
+      "lf_sha256": "085435c020484539d8da947449816b9ce687d044446e8bda000730506a16c273"
+    },
+    {
+      "path": "supabase/proposals/anchor-exclude-two-existing-ballots.sql",
+      "sha256": "3bf746414ca728fd0ec4f2e40ddff56d0e775de7027c10e510ab6edb5eb37863",
+      "lf_sha256": "eb3328ee209c12f55b1da43d56596ad5f113d44f7416de5710e01662b310a1a3"
+    },
+    {
+      "path": "supabase/proposals/anchor_ballot_hashes_cron_activate.sql",
+      "sha256": "8cc1079794d5f01c6e591906af5e82906a4797a3ed8768a3af1690fa628e699b",
+      "lf_sha256": "e97a5d85892380aa4f3697f67b97a4ff0f36481b483a84333f87cf351ca047a8"
+    },
+    {
+      "path": "supabase/proposals/anchor_ballot_hashes_cron_extensions.sql.disabled",
+      "sha256": "2abca9c2cc29b942647a232a2da3344e733d81143e426cd71d1766a8c8046271",
+      "lf_sha256": "e11bf9c162dc3b5eb881ee7656c3f865ea270394ec972de70bf95a06d75047f6"
+    },
+    {
+      "path": "supabase/proposals/election-4-ballot-finalization.sql",
+      "sha256": "86cc612295f111f0d553e3a18568cf752c968f833b9fe2a396b7ea2909209815",
+      "lf_sha256": "cb63355a4342cec846c162581013c0202c9dcbc5329680cd5b689cff87b78064"
+    },
+    {
+      "path": "supabase/proposals/election-4-current-window-recovery.sql",
+      "sha256": "7868dc793f5791c0468ade8c3d23233f7591ef4c23aa415edafda43886cb0e7c",
+      "lf_sha256": "3667e39a4319b970b81666b62c20a51344635cf27114bf6f58c86ca8163eb474"
+    },
+    {
+      "path": "supabase/proposals/optional-eligibility-canonical-policy.sql",
+      "sha256": "0bcf4629875f60878c4450da4dd8524d5b9594e0ef834955aa778ba3e97b5bfd",
+      "lf_sha256": "954679d5b152d6de2cfe9226cc14d5e87c7014346728a8a3cff98e4667082391"
+    },
+    {
+      "path": "supabase/runtime-validation/anchor-exclusions-readonly.sql",
+      "sha256": "7d7ff784a7d5927bbfaa98ba639977626187b605d19006191d34bf57379eedd2",
+      "lf_sha256": "c20cd0b7998e75161c433627ae4a4a527eec05058d7c2a4aff5f404457f3a267"
+    },
+    {
+      "path": "supabase/runtime-validation/election-3-electorate-recovery-readonly.sql",
+      "sha256": "77e009b631bfc437cc23d4d48286e8680b19dba48e2c3b084042a9eaf81c152e",
+      "lf_sha256": "20fcb5f73f5c468a80eff6b6462782282861f8c0bbf1a2cce8275847e677dd2e"
+    },
+    {
+      "path": "supabase/runtime-validation/election-4-ballot-finalization-readonly.sql",
+      "sha256": "c6858c5023e18f1fb22932ba618d37f1e485da469ca5a64fb765df03d1005974",
+      "lf_sha256": "7bf9258f8b1bd0b26d391053773bc1708fd0ff79dda4be798845f3fcc449ddc7"
+    },
+    {
+      "path": "supabase/runtime-validation/submit-vote-readiness-readonly.sql",
+      "sha256": "c0db9232b548927b0f44d35b0055f8c30e4a0abf83b4b44fcefe0803e3c80b33",
+      "lf_sha256": "40faebf7f4da4a55a5f49dca13652dc6560165473d121279aecae37d6670c036"
+    },
+    {
+      "path": "tests/anchorAuthProbe.test.mjs",
+      "sha256": "7dc3f645d59a2bb1152ca8d8391e2457049a11aa788dd9354045f506c706eb25",
+      "lf_sha256": "8eec624a232274598d74b7ea764891b57c0fddc724bde1437c9e769c25a3bfc3"
+    },
+    {
+      "path": "tests/anchorBallotCronMigration.test.mjs",
+      "sha256": "7e8d2a7964cfc1d4c2c61f7ce1233c8c07ba6ad6784eea7241086a52b9a1051c",
+      "lf_sha256": "e7f6677ec1749ec03b061dfe33e3e56d05518b362b3236c80c156e73ac38ee34"
+    },
+    {
+      "path": "tests/anchorExclusions.test.mjs",
+      "sha256": "daf19150f919f6d3b84aef87b2be34538e0c72f730431a88dba96e4ed419238b",
+      "lf_sha256": "75be2b175e72cb4d3dad024ec949afa2be4aa7f16ef2fa252c9efabe95553266"
+    },
+    {
+      "path": "tests/anchorManagementDiagnostics.test.mjs",
+      "sha256": "36a9e386cd0ffbd15388e5d4bbd397ac1b0214a180b5a4ffb9ae20ffe0171909",
+      "lf_sha256": "d3dae5a4976513283c4898398e19a78dd56a89ff0f5e84abfce3c49adad432b6"
+    },
+    {
+      "path": "tests/anchorSecureConfigPreparation.test.mjs",
+      "sha256": "d7b07a284784d629569e98f006fc7322400c78e72ea49de9357c00e10212c0ba",
+      "lf_sha256": "afe6bc868388f75dbe8cefbc84921a92cd4bdbe45596846f5658b7192e32ecc6"
+    },
+    {
+      "path": "tests/ballotAnchorReadiness.test.mjs",
+      "sha256": "f1e41df3c53f30a3638a6cecfb4e1bcb6fac4642988cfb9b9e1fff30a8c6053e",
+      "lf_sha256": "cb69a488f6aab2a7b01b4e289c976758c84afeae8f4c244ec5ca1b0437d2e21d"
+    },
+    {
+      "path": "tests/ballotFinalization.test.mjs",
+      "sha256": "0e36260977cf1b0b0cf4ea5acfbe20f88a40032ee0c7e3db059c0b7a7b3279fd",
+      "lf_sha256": "c0a0ec78862f76338554aae387d03153cf8d396ac2e129426454d7d5806daf2b"
+    },
+    {
+      "path": "tests/boardScheduledFinalizationPresentation.test.mjs",
+      "sha256": "a6b5b5533c4d55219328fec02b8ab873ec5edeba020ffa909d83073d770acac2",
+      "lf_sha256": "64e54ecbae60fd7d14e39a5ffa395dd87e9368b2d80d602f1b14cb5d2fa610bf"
+    },
+    {
+      "path": "tests/boardStudentRegistrationTransport.test.mjs",
+      "sha256": "43a6ee260ba11d60fd3fc3865ea4048c41b6af1a73504e018a27edd7488f53db",
+      "lf_sha256": "f770c958197a25d95a19038bfce39a3b748f4928a8fabfc1aaa1b9862f8d727b"
+    },
+    {
+      "path": "tests/candidateCampaignPrivacyContract.test.mjs",
+      "sha256": "d0cb9a064945f6e05211dd41f42fa5b0a544a74ad0c64e3e9f14c07f74576ec9",
+      "lf_sha256": "d4ad73aed057bf7d6b609d683eee86dbabf6eac92abd90a6b3a04b69e3acfbba"
+    },
+    {
+      "path": "tests/developmentAdminCrud.test.mjs",
+      "sha256": "13a0ebf003afc7cea4361dbdac92b01956a23b368bb5b9447d5f4076e3d1c120",
+      "lf_sha256": "8dda0d87d6e241c219f048849a74f1c721cac2a15b1e1838e283378fcbae03e8"
+    },
+    {
+      "path": "tests/election4RecoveryTransport.test.mjs",
+      "sha256": "c6d25401092e825c04506dcde294f20ec8dd0548f6f205dff0921ae77f78a622",
+      "lf_sha256": "8b81fa730ede1be5ebcaf2a999aa5a31490a403ea969836fb9cb13b14c59b4c7"
+    },
+    {
+      "path": "tests/electionEditingEnvironment.test.mjs",
+      "sha256": "1486a3607f35d13933d92a2bf8224836e77f0e7589a19091b95a0f117767dd34",
+      "lf_sha256": "b92fc697a10662573a829c8752023ba20b1962a685c5195ba3729d6e9fa85324"
+    },
+    {
+      "path": "tests/electionElectorate.test.mjs",
+      "sha256": "38b91bf3f18fcdddabf13404d60d6a28ce7f64d5f989bec9acf69d9b5c47a9a2",
+      "lf_sha256": "4457f62e3b1d08d76bdd384a5a089f6e78626b904ea0c4d92b1eaabf7c3dfa00"
+    },
+    {
+      "path": "tests/electorateFinalization.test.mjs",
+      "sha256": "a9ee6f35b6202689afc876b0f770839a7c4f7817aa0d8e87271a5533613b6c24",
+      "lf_sha256": "e8c5940c39393d62843389795655ebf06e090b81661b7dd79019353f9716f0f9"
+    },
+    {
+      "path": "tests/eligibilityRuleManagement.test.mjs",
+      "sha256": "f63291577410ba841fa6c869af0394ece1c7358aa5e898abebb3edd24d61e674",
+      "lf_sha256": "d093a65b497588eb0449fd579e9ed2c60b83ae70af9edd6ccd261c908049bcad"
+    },
+    {
+      "path": "tests/fixtures/election3ElectorateProductionContract.json",
+      "sha256": "977108cc3a4084ad21fd4457123e5415ae6fcc239dd0fa874a46e0f302f42704",
+      "lf_sha256": "b335c29de0471dab089c13039b445c38115c421c567e9d09c7ad17c3efbbb40a"
+    },
+    {
+      "path": "tests/fixtures/election3ElectorateRules.sql",
+      "sha256": "be5eb186fbe47aff462edc10acab2e8756d10f88fba0c36ed05c902a1c16ba87",
+      "lf_sha256": "857d671a471f4228ae1cec48ec5daf5463abe0905d205bf81d44ae9ecea68492"
+    },
+    {
+      "path": "tests/fixtures/electionEditProductionContract.json",
+      "sha256": "67f4e0b3d542e326267794a347afac65fb002ff7d6d6f2e90a8f8498f17a6b3a",
+      "lf_sha256": "3feeae560436dab63733b9d67bb7053bfc17a7bac6c2448a859192fd79471f21"
+    },
+    {
+      "path": "tests/fixtures/studentSetupResolverV7.json",
+      "sha256": "82e1f707c9acc82451caeb5b386742b72aff837c60ac5bcd6de80f67327b66eb",
+      "lf_sha256": "395300fc4b8e06b547719377b4e27e3bf0be2ca588a9be848e682507a2becd1e"
+    },
+    {
+      "path": "tests/fixtures/submitVoteIntegrityProductionContract.json",
+      "sha256": "8fb2310dd0767dc6826b5f10fb964279793ecba196337667be0a93b86ee346aa",
+      "lf_sha256": "5727421b11c5a53943d26e45b8701a87f9d045865d4210f27ca9b7128dd5e0dd"
+    },
+    {
+      "path": "tests/kandidProductionSecurity.test.mjs",
+      "sha256": "19d5a48303dd40ad8916c2c1ec8eea2a8c5d07329b07ac7237f41d2a86bc8ff5",
+      "lf_sha256": "272796f3c1bab7305dbc41c28d6baa8a66766909e1376ffdf467224675227e42"
+    },
+    {
+      "path": "tests/receiptStatusDisplays.test.mjs",
+      "sha256": "27a303de139918cc5a3f53fc924fb289442c0801f794c9c42803093205c696b5",
+      "lf_sha256": "e786bfe738008259d9902b0eb469110909b699f8e0d461578b81339133edceef"
+    },
+    {
+      "path": "tests/receiptWorkerIndependence.test.mjs",
+      "sha256": "61c17ae622fac1174f440217728f4cef5fc6ceabe3ef9cd4acf25953c726a021",
+      "lf_sha256": "7f382829520ddbb5664b77ff09a4a027dcddb12f194f2666639ba89b01a3f56a"
+    },
+    {
+      "path": "tests/studentAuthCaptchaFree.test.mjs",
+      "sha256": "69ed98eefdaa1e2ff5762321784ff07a0c473d4af3c3b1a7223faaa9949ba3e9",
+      "lf_sha256": "15909ea4e6987130f67affe4650b4f5cd0b701fb404411fb1469c8bc2bb38b0b"
+    },
+    {
+      "path": "tests/studentSetupCompletion.test.mjs",
+      "sha256": "46c14a78ac2997b47d745ee6471e887f3f8016b10c91af9a2bd5b37540d39d77",
+      "lf_sha256": "dbdd40045e54d7493c471123f3f71f6cd88b4b45d19b92f940b5707b2796326b"
+    },
+    {
+      "path": "tests/studentSetupInspectionManifest.test.mjs",
+      "sha256": "26a8186a63321a9a8961b1e2f3ea5322dec950b6965f97145198741d3e8a5278",
+      "lf_sha256": "b6507c830208f67f369b006a3f3645fc0ff2741997bfbbdf76deecdd9e2abd5d"
+    },
+    {
+      "path": "tests/studentSetupLookupFailure.test.mjs",
+      "sha256": "11099aec91edb26c207a7270db585540da44c3b92c5cbac779299af3153babac",
+      "lf_sha256": "11099aec91edb26c207a7270db585540da44c3b92c5cbac779299af3153babac"
+    },
+    {
+      "path": "tests/studentSetupPinnedSdk.test.ts",
+      "sha256": "8de5458c608bc2817329cad64d0381f4d844f90f30330d7aeacf18068361de07",
+      "lf_sha256": "ecaa017e98d253abb51cd384d1be355948e474f28595f96d5323c4109e208a27"
+    },
+    {
+      "path": "tests/studentSetupRecognition.test.mjs",
+      "sha256": "9e729d3a9b6e58664697e3b314f9c3c24f469c2753d37504643380d82eb1698c",
+      "lf_sha256": "1c8840b9990de192a7fa3a534afd4cc76e36d719ea61ef9c4a94b470fadfb907"
+    },
+    {
+      "path": "tests/studentSetupRecognitionManifest.test.mjs",
+      "sha256": "bc0f59250591da2b6d5b268c7b3cde5591f85934554353c790a34a2f91c255b2",
+      "lf_sha256": "39fe3b4daf83a61b64f6ae2f25ec3144ee2d6eb4b36a960a7c04781762215bce"
+    },
+    {
+      "path": "tests/studentSetupRecognitionReadiness.test.mjs",
+      "sha256": "077c554e1c6a64f1c27e7a9ac749b6eb1cb46c98787bab1a074fc33fc6d0d23f",
+      "lf_sha256": "68674ac5e2ef7e86b32359669fff715a93f8b20a5a0d5aee6c8fa8fa20a79bac"
+    },
+    {
+      "path": "tests/studentSetupValidation.test.mjs",
+      "sha256": "dddca8d76779cacf3ed75188280b52d6d5f4a07724e391caec7caad312baff16",
+      "lf_sha256": "0fae1bc6ca9db05569043ad0d915bd92525ce867e33cdfb34b1f5edaa757a977"
+    },
+    {
+      "path": "tests/submitVoteReadiness.test.mjs",
+      "sha256": "6c7c575ebea9edcdb5820f2471a616d7c26c7689228f28c42d807a2a0cb95f47",
+      "lf_sha256": "2f24a353ff107829aaa3fb0381816013126ac814f309ea1a4e962b4af0d63fef"
+    }
+  ],
+  "source_preservation": {
+    "originalMainHead": "e7f0c07be8f20b821f70c79e28de76065261100f",
+    "trackedNonTemporaryOriginalFiles": 689,
+    "sourceEquivalentFiles": 687,
+    "missing": [],
+    "different": [],
+    "originalSourceSnapshotUnchanged": true
+  },
+  "validation": {
+    "focused": {
+      "passed": 258,
+      "failed": 0
+    },
+    "full": {
+      "total": 1383,
+      "passed": 1366,
+      "failed": 17
+    },
+    "baseline_reproduced_failures": 10,
+    "browser": {
+      "passed": 24,
+      "real_supabase_requests": 0,
+      "emails": 0,
+      "accounts_created": 0
+    },
+    "deno_sdk": {
+      "passed": 5,
+      "failed": 0
+    },
+    "type_checks": [
+      "resolve-student-login-recognition-deploy",
+      "anchor-ballot-hashes",
+      "submit-vote",
+      "get-student-ballot-receipt"
+    ],
+    "eslint_source_files": 30,
+    "actionlint": "PASS",
+    "build": "PASS",
+    "diff_check": {
+      "status": "three inherited blank-at-EOF warnings",
+      "files": [
+        "supabase/proposals/20261020114248_election_3_program_year_eligibility_historical-proposal.sql",
+        "supabase/proposals/election-4-ballot-finalization.sql",
+        "tests/fixtures/electionEditProductionContract.json"
+      ]
+    }
+  },
+  "failures": {
+    "publication": [
+      "finalization refreshes capability then sends only election ID to the official lock RPC",
+      "backend denials and uncertain finalization results never retry a mutation",
+      "mobile election actions form one compact row with separate accessible targets",
+      "phone layout combines Schedule and election actions in one utility row",
+      "deployment package preserves every production v6 source byte outside the two new blocks",
+      "frozen archive hashes stay intact and superseded application files match the new reviewed package",
+      "tests\\\\electionDependencyEdgeSecurity.test.mjs",
+      "tests\\\\electionRemovalIdentifierTypes.test.mjs",
+      "soft-removal frozen candidate, dependencies, SQL checks and reviewed source hashes match",
+      "read-only mode disables Board write handlers and blocks the direct vote fetch path",
+      "read-only production environment file resolves only to the official project",
+      "StudentSetup still links identity and completes setup without profile-derived organization writes",
+      "candidate management reads use the admin RPC while ballot clients use the eligible Student RPC",
+      "pre-OTP setup helper strips all unverified personal data",
+      "setup and recovery disclose no pre-auth profile data and verify only through the trusted email",
+      "sync creates only automatic scopes with guarded system provenance and remains repeat-safe",
+      "tests\\\\termParticipationBootstrapRecovery.test.mjs"
+    ],
+    "baseline": [
+      "tests\\\\boardElectionReportsRpc.test.mjs",
+      "mobile election actions form one compact row with separate accessible targets",
+      "phone layout combines Schedule and election actions in one utility row",
+      "Board password change uses the signed-in Supabase Auth identity with current-password verification",
+      "password submission requires a valid policy, matching confirmation, and prevents duplicate requests",
+      "canonical current-membership reader uses resolver, active participation, and same-term enrollment only",
+      "deployment package preserves every production v6 source byte outside the two new blocks",
+      "frozen archive hashes stay intact and superseded application files match the new reviewed package",
+      "tests\\\\electionDependencyEdgeSecurity.test.mjs",
+      "tests\\\\electionRemovalIdentifierTypes.test.mjs",
+      "soft-removal frozen candidate, dependencies, SQL checks and reviewed source hashes match",
+      "read-only production environment file resolves only to the official project",
+      "sync creates only automatic scopes with guarded system provenance and remains repeat-safe",
+      "trusted current-member counts exclude removed term participation and unenrolled students",
+      "tests\\\\termParticipationBootstrapRecovery.test.mjs"
+    ],
+    "newTitles": [
+      "finalization refreshes capability then sends only election ID to the official lock RPC",
+      "backend denials and uncertain finalization results never retry a mutation",
+      "read-only mode disables Board write handlers and blocks the direct vote fetch path",
+      "StudentSetup still links identity and completes setup without profile-derived organization writes",
+      "candidate management reads use the admin RPC while ballot clients use the eligible Student RPC",
+      "pre-OTP setup helper strips all unverified personal data",
+      "setup and recovery disclose no pre-auth profile data and verify only through the trusted email"
+    ]
+  },
+  "vercel": {
+    "project": "kandidato",
+    "repository": "brenduling/kandid",
+    "production_branch": "main",
+    "automatic_git_deployments": "enabled",
+    "automatic_domain_assignment": true,
+    "writes_performed": false
+  },
+  "production_writes": 0,
+  "pushed": false,
+  "merged": false
+}

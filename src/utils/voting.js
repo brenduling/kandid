@@ -24,8 +24,12 @@ export async function submitBallot({
   accessCode,
   location,
 }) {
-  // Keep this direct-fetch path behind both explicit local production safeguards.
-  if (import.meta.env.MODE === READ_ONLY_DASHBOARD_MODE || import.meta.env.MODE === "development") {
+  // Default-off rollout switch, never an authorization claim. The trusted
+  // endpoint still checks Auth, schedule, membership, frozen roster and votes.
+  const election4RecoveryEnabled = Number(electionId) === 4 &&
+    import.meta.env.VITE_ENABLE_ELECTION_4_RECOVERY === "true";
+  if (import.meta.env.MODE === READ_ONLY_DASHBOARD_MODE ||
+      (import.meta.env.MODE === "development" && !election4RecoveryEnabled)) {
     return {
       error: new Error("Ballot submission is disabled until the production backend is approved for activation."),
       alreadyVoted: false,

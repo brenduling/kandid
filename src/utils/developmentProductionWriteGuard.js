@@ -3,6 +3,7 @@ import { validateCandidateValues } from "./candidateManagementContract.js";
 import { isValidPartylistContent } from "./partylistManagement.js";
 import { isValidEligibilityRuleContent } from "./eligibilityRuleManagement.js";
 import { ELECTION_COVER_PATH, ELECTION_COVER_TYPES, ELECTION_COVER_MAX_BYTES } from "./electionCovers.js";
+import { isBackendAuthorizedAdminRequest } from "./developmentAdminRequests.js";
 
 const OFFICIAL_SUPABASE_ORIGIN = "https://fszgdxqxonqqcrzsnkca.supabase.co";
 const ISOLATED_STUDENT_SETUP_TEST_ORIGIN = "http://127.0.0.1:59321";
@@ -21,6 +22,7 @@ const SAFE_READ_RPC_PATHS = new Set([
   "rpc/kandid_get_board_voting_monitor",
   "rpc/kandid_get_admin_election_geofence",
   "rpc/kandid_get_board_electorate_preview",
+  "rpc/kandid_get_board_electorate_scheduler_readiness",
 ]);
 const SAFE_VOTE_ACCESS_ACTIONS = new Set([
   "board_dashboard_counts",
@@ -174,11 +176,11 @@ function isValidStudentIdentityLinkPayload(payload) {
 }
 
 /**
- * Temporary safety gate while the official production backend awaits its approved
- * activation. It permits reads, session maintenance and reviewed read-only RPCs,
- * while refusing mutations from normal local development.
+ * Development transport policy. Normal development opts into existing admin
+ * contracts; restricted callers retain the historical default-OFF profile.
+ * Voting, worker and direct electorate writes are not admin CRUD permissions.
  */
-export function isAllowedDevelopmentProductionRequest({ input, method, body, headers, allowBoardStudentRegistration = false, allowBoardStudentManagement = false, allowStudentAccountSetup = false, allowElectionSoftRemoval = false, allowElectionManagement = false, allowPositionManagement = false, allowCandidateManagement = false, allowIsolatedStudentSetupTests = false }) {
+export function isAllowedDevelopmentProductionRequest({ input, method, body, headers, allowBackendAuthorizedAdminCrud = false, allowElection4Recovery = false, allowBoardStudentRegistration = false, allowBoardStudentManagement = false, allowStudentAccountSetup = false, allowElectionSoftRemoval = false, allowElectionManagement = false, allowPositionManagement = false, allowCandidateManagement = false, allowIsolatedStudentSetupTests = false }) {
   let url;
   try {
     url = new URL(requestUrl(input));
@@ -197,6 +199,56 @@ export function isAllowedDevelopmentProductionRequest({ input, method, body, hea
     return false;
   }
   if (url.origin !== OFFICIAL_SUPABASE_ORIGIN) return false;
+
+  // Default-off Election 4 rollout only. JWT-derived authorization and all
+  // voting/receipt integrity decisions remain inside the reviewed backend.
+  if (allowElection4Recovery === true && verb === "POST" && !url.search &&
+      /^Bearer\s+\S+$/i.test(requestHeaders.get("authorization") || "")) {
+    const payload = parseBody(body);
+    if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+      // The existing receipt-list contract derives ownership from the JWT and
+      // accepts no client student/election scope. This is an owned read only.
+      if (path === "/functions/v1/vote-access" && payload.action === "student_receipts") {
+        return Object.keys(payload).length === 1;
+      }
+      if (path === "/rest/v1/rpc/kandid_recover_election4_electorate") {
+        return allowBackendAuthorizedAdminCrud === true && Object.keys(payload).length === 0;
+      }
+      if (payload.election_id === 4 && path === "/functions/v1/get-student-ballot-receipt") {
+        return hasOnlyKeys(payload,new Set(["election_id","ballot_id"])) &&
+          (payload.ballot_id === undefined || typeof payload.ballot_id === "string" &&
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(payload.ballot_id));
+      }
+      if (payload.election_id === 4 && path === "/functions/v1/submit-vote") {
+        return hasOnlyKeys(payload,new Set(["election_id","selected_votes","access_code","location"])) &&
+          payload.selected_votes !== null && typeof payload.selected_votes === "object" && !Array.isArray(payload.selected_votes) &&
+          Object.keys(payload.selected_votes).length > 0 &&
+          (payload.access_code === undefined || typeof payload.access_code === "string" && payload.access_code.length <= 64) &&
+          (payload.location == null || typeof payload.location === "object" && !Array.isArray(payload.location));
+      }
+    }
+  }
+
+  if (allowBackendAuthorizedAdminCrud === true) {
+    if (!["GET", "HEAD"].includes(verb) && (
+      ["content-profile", "accept-profile"].some(key => requestHeaders.has(key) && requestHeaders.get(key) !== "public") ||
+      /resolution=/i.test(requestHeaders.get("prefer") || "")
+    )) return false;
+    // Retire temporary development activation switches for ordinary admin CRUD.
+    // Keep the existing payload checks and all backend authorization intact.
+    allowBoardStudentRegistration = allowBoardStudentManagement = true;
+    allowElectionSoftRemoval = allowElectionManagement = allowPositionManagement = allowCandidateManagement = true;
+    // Election 4 recovery uses only its existing authenticated Board lock RPC.
+    // The RPC remains responsible for Board identity, organization scope,
+    // snapshot state, freeze and audit checks; the browser cannot supply actors
+    // or voter IDs. Keep this exception restricted to the intended election.
+    if (path === "/rest/v1/rpc/kandid_lock_board_electorate" && verb === "POST" && !url.search) {
+      const payload = parseBody(body);
+      return payload !== null && typeof payload === "object" && !Array.isArray(payload) &&
+        hasOnlyKeys(payload, new Set(["p_election_id"])) && payload.p_election_id === 4;
+    }
+    if (isBackendAuthorizedAdminRequest(url, verb, parseBody(body), requestHeaders)) return true;
+  }
 
   // These installed RPCs authorize the JWT student themselves. Admit only the
   // election argument, never a caller-supplied student or organization scope.

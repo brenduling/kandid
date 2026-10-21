@@ -1,5 +1,11 @@
 export function boardStudentRegistrationOutcomePresentation(outcome, organizationName = "this organization") {
   switch (outcome) {
+    case "REGISTRATION_RESULT_UNKNOWN":
+      return {
+        heading: "Registration result not confirmed",
+        message: "Kandid couldn't confirm whether this registration was saved.",
+        supporting: "Check the student list and current-term enrollment before submitting again.",
+      };
     case "REGISTRATION_NOT_ENABLED":
       return {
         heading: "Registration is not activated",
@@ -50,8 +56,17 @@ export function boardStudentRegistrationOutcomeMessage(outcome, fallback) {
   return boardStudentRegistrationOutcomePresentation(outcome)?.message || fallback;
 }
 
-export function boardStudentRegistrationFailureOutcome(data, code, status) {
-  return data?.outcome || (code === "session_invalid" || status === 401
-    ? "SESSION_INVALID"
-    : code === "board_forbidden" || status === 403 ? "BOARD_AUTHORIZATION_REQUIRED" : null);
+export function boardStudentRegistrationFailureOutcome(data, code, status, error) {
+  if (data?.outcome) return data.outcome;
+  if (code === "session_invalid" || status === 401) return "SESSION_INVALID";
+  if (code === "board_forbidden" || status === 403) return "BOARD_AUTHORIZATION_REQUIRED";
+  if (["FunctionsFetchError", "FunctionsRelayError"].includes(error?.name)) {
+    return "REGISTRATION_RESULT_UNKNOWN";
+  }
+  // The SDK can return a plain TypeError without retaining the response when
+  // reading its body fails. Do not replace an available server rejection.
+  if (error?.name === "TypeError" && data == null && !code && status == null) {
+    return "REGISTRATION_RESULT_UNKNOWN";
+  }
+  return null;
 }

@@ -11,3 +11,13 @@ cache/
 /artifacts/build-info/
 /artifacts/artifacts.d.ts
 /artifacts/contracts/**/artifacts.d.ts
+
+# Regenerable public dependencies and isolated voting runtime checks.
+/.tmp/voting-backend-runtime/
+
+# Local investigation artifacts, browser profiles and downloaded tools.
+/.tmp/
+/.publication/
+/.vercel/
+coverage/
+*.log

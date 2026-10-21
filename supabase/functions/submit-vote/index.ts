@@ -1,5 +1,5 @@
 import { corsHeaders, handleCorsPreflight, rejectDisallowedOrigin, serveWithKandidCors } from "../_shared/kandidProductionSecurity.mjs";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.104.1";
 import { hasDuplicateCandidateSelection } from "../_shared/ballotSelection.js";
 import { hasCurrentTermEnrollment } from "../_shared/currentTermEnrollment.js";
 import { isWithinGeofence, parseCoordinates } from "../_shared/geofence.js";
@@ -59,6 +59,8 @@ function getElectionPhase(election: Record<string, unknown>, now = new Date()) {
   if (status === "draft") return "draft";
   if (status === "archived") return "archived";
   if (status === "closed") return "closed";
+  // Dates never reopen a completed or otherwise nonactive election.
+  if (status !== "active") return "closed";
   if (campaignStart && campaignEnd && now < campaignStart) return "campaign_upcoming";
   if (campaignStart && campaignEnd && now >= campaignStart && now < campaignEnd) return "campaign";
   if (campaignEnd && votingStart && now >= campaignEnd && now < votingStart) return "waiting";
@@ -68,12 +70,14 @@ function getElectionPhase(election: Record<string, unknown>, now = new Date()) {
   return status;
 }
 
-function normalizeSelectedVotes(selectedVotes: unknown) {
+type NormalizedVote = { position_id: number; candidate_id: number | null; is_abstain: boolean };
+
+function normalizeSelectedVotes(selectedVotes: unknown): NormalizedVote[] {
   if (!selectedVotes || typeof selectedVotes !== "object") {
     throw new Error("Ballot selections are required.");
   }
 
-  return Object.values(selectedVotes as Record<string, Record<string, unknown>>).flatMap((vote) => {
+  return Object.values(selectedVotes as Record<string, Record<string, unknown>>).flatMap<NormalizedVote>((vote) => {
     const positionId = parsePositiveInteger(vote.position_id, "Position");
     if (vote.is_abstain) {
       return [{
@@ -172,7 +176,7 @@ function scheduleBallotAnchorNudge(
   console.warn("Ballot anchor background nudge scheduled without EdgeRuntime.waitUntil support.", context);
 }
 
-serveWithKandidCors(async (request) => {
+serveWithKandidCors(async (request: Request) => {
   const preflightResponse = handleCorsPreflight(request);
   if (preflightResponse) return preflightResponse;
 
@@ -428,7 +432,8 @@ serveWithKandidCors(async (request) => {
   const { data: positions, error: positionError } = await adminClient
     .from("positions")
     .select("id, max_votes")
-    .eq("election_id", electionId);
+    .eq("election_id", electionId)
+    .eq("status", "active");
 
   if (positionError) {
     return jsonResponse({ error: "Unable to verify ballot positions." }, 500);
