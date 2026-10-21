@@ -38,6 +38,8 @@ export const guardedSupabaseFetch = async (input, init) => {
   const startedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
   const response = import.meta.env.MODE === "development"
     ? await fetchDevelopmentProductionRequest(input, init, globalThis.fetch, {
+      allowBackendAuthorizedAdminCrud: true,
+      allowElection4Recovery: import.meta.env.VITE_ENABLE_ELECTION_4_RECOVERY === "true",
       allowBoardStudentRegistration: isBoardStudentRegistrationEnabled(),
       allowBoardStudentManagement: isBoardStudentManagementEnabled(),
       allowStudentAccountSetup: isStudentAccountSetupEnabled(),

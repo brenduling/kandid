@@ -1,7 +1,7 @@
 export function getBlockchainVerificationStatus(vote) {
   if (vote?.blockchain_anchor_status === "manual_review") return "Needs Review";
-  if (vote?.blockchain_tx_id) return "Verified";
-  if (vote?.vote_hash || vote?.ballot_hash) return "Pending";
+  if (vote?.blockchain_anchor_status === "anchored") return "Verified";
+  if (vote?.blockchain_tx_id || vote?.vote_hash || vote?.ballot_hash) return "Pending";
   return "Missing Hash";
 }
 

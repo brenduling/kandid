@@ -1,0 +1,184 @@
+{
+  "project_ref": "fszgdxqxonqqcrzsnkca",
+  "status": "Prepared and tested locally; production execution requires explicit approval",
+  "production_observed_at_manila": "2026-10-21 06:21:18",
+  "election4": {
+    "organization_id": 2,
+    "academic_term_id": 1,
+    "policy_version": 1,
+    "start_manila": "2026-10-21 01:00:00",
+    "end_manila": "2026-10-21 22:00:00",
+    "active_members": 2,
+    "published_candidates": 2,
+    "rules": 0,
+    "snapshot": 0,
+    "ballots": 0,
+    "votes": 0,
+    "frozen": false
+  },
+  "deployed": {
+    "submission": false,
+    "receipt": false,
+    "atomic_rpc": true,
+    "atomic_rpc_md5": "6b99f18237fbe72cc96cf63c9f1cc8af",
+    "worker": false,
+    "pending_election2_count": 1,
+    "other_currently_votable_election_ids": []
+  },
+  "deployment_scope": [
+    "get-student-ballot-receipt",
+    "submit-vote"
+  ],
+  "required_verify_jwt": true,
+  "recovery_rpc": "public.kandid_recover_election4_electorate()",
+  "local_rollout_flag": "VITE_ENABLE_ELECTION_4_RECOVERY",
+  "flag_activated": false,
+  "previous_reviewed_manifest": {
+    "path": "docs/voting-backend-recovery-manifest.json",
+    "sha256": "884108d64033911482919563f0f58a5e6f65c4df60b7d891143941bdb820b750",
+    "backend_config_hashes_matching": 14
+  },
+  "files": [
+    {
+      "path": "supabase/proposals/election-4-current-window-recovery.sql",
+      "sha256": "3667e39a4319b970b81666b62c20a51344635cf27114bf6f58c86ca8163eb474"
+    },
+    {
+      "path": "src/lib/supabaseClient.js",
+      "sha256": "08c88c91eaf4ecb03f46293d8e5d956e73baa5412203499f9defe2693e1ebb8c"
+    },
+    {
+      "path": "src/utils/voting.js",
+      "sha256": "cbe6726de2d51b9451f92241381ba094a65e83b123536cf803c17b30383e28cc"
+    },
+    {
+      "path": "src/utils/developmentProductionWriteGuard.js",
+      "sha256": "09c78ba3fbd6d408f2884541e555ec142b6c0b6035bec0997e76f9053f763a3c"
+    },
+    {
+      "path": "src/pages/board/ElectionElectoratePanel.jsx",
+      "sha256": "d25837d1e08abdbe6e7051d4bbab235290f53848ff85081dc274d76096c35d24"
+    },
+    {
+      "path": "scripts/kandid-election4-current-window-validation.mjs",
+      "sha256": "dd976175080abc39ea1b903b947d6bf6db467b35911ae8d20eab29a4ecea5968"
+    },
+    {
+      "path": "scripts/kandid-ballot-visibility-browser.mjs",
+      "sha256": "24e9fbb40261ad89663d3f61f8e24939aee321976a96cffd8329f0dee03a1353"
+    },
+    {
+      "path": "tests/election4RecoveryTransport.test.mjs",
+      "sha256": "8b81fa730ede1be5ebcaf2a999aa5a31490a403ea969836fb9cb13b14c59b4c7"
+    },
+    {
+      "path": "tests/fixtures/election3ElectorateProductionContract.json",
+      "sha256": "b335c29de0471dab089c13039b445c38115c421c567e9d09c7ad17c3efbbb40a"
+    },
+    {
+      "path": "tests/fixtures/submitVoteIntegrityProductionContract.json",
+      "sha256": "5727421b11c5a53943d26e45b8701a87f9d045865d4210f27ca9b7128dd5e0dd"
+    },
+    {
+      "path": "docs/election-4-current-window-recovery.md",
+      "sha256": "4a3f0cd0292d7d20265be80ee0aee0fae026b262f8395cf8122e8b62f6d1910a"
+    },
+    {
+      "path": "supabase/functions/submit-vote/index.ts",
+      "sha256": "b59237dd935a00386fae457bae0ce0c179efd4cece36460c390b1a3e6b46c0a0"
+    },
+    {
+      "path": "supabase/functions/submit-vote/deno.json",
+      "sha256": "77f0b01614c9f9e43a65262b47e7fe82f0adddcd1f5b640356c077f03d39d836"
+    },
+    {
+      "path": "supabase/functions/submit-vote/deno.lock",
+      "sha256": "57dd5cd3c5ca59a6c59cdfb9d98fbe3b28f8e6786a5040fc1cbf0a6629004769"
+    },
+    {
+      "path": "supabase/functions/get-student-ballot-receipt/index.ts",
+      "sha256": "cb91334d5d2d9259937a72d0b37158321b0d51ad1cd59b254e83be44f6ab0da5"
+    },
+    {
+      "path": "supabase/functions/get-student-ballot-receipt/deno.json",
+      "sha256": "77f0b01614c9f9e43a65262b47e7fe82f0adddcd1f5b640356c077f03d39d836"
+    },
+    {
+      "path": "supabase/functions/get-student-ballot-receipt/deno.lock",
+      "sha256": "57dd5cd3c5ca59a6c59cdfb9d98fbe3b28f8e6786a5040fc1cbf0a6629004769"
+    },
+    {
+      "path": "supabase/functions/_shared/kandidProductionSecurity.mjs",
+      "sha256": "87a7100ca782092528dc9cd49e7941216fe664ac4a0099f5d44fc9cf476733e2"
+    },
+    {
+      "path": "supabase/functions/_shared/ballotSelection.js",
+      "sha256": "0177ae241b08c944209eecec16dc4ab33cab8a058a51cb37cf4cfc2514f15c0c"
+    },
+    {
+      "path": "supabase/functions/_shared/currentTermEnrollment.js",
+      "sha256": "7ead0e8fc9cd1b78689cf39adcfb020600f655e1e80dfff80f0233c167ba2aa7"
+    },
+    {
+      "path": "supabase/functions/_shared/geofence.js",
+      "sha256": "30879304cd052535abfa5f939c50c514f620c8df6e751d3ca559c150b32baf7d"
+    },
+    {
+      "path": "supabase/config.toml",
+      "sha256": "edc752ef6579bc270e8bf50d5ea339a4cb91985458f8eebc90f2f66a4226dbad"
+    }
+  ],
+  "validation": {
+    "targeted_tests_passed": 99,
+    "workflow_checks_passed": 12,
+    "postgres_integrity_checks_passed": 8,
+    "browser_checks_passed": 10,
+    "browser_widths": [
+      1280,
+      375
+    ],
+    "edge_functions_booted": 2,
+    "offline_http_checks": 8,
+    "lint": "passed",
+    "production_build": "passed",
+    "production_writes": 0,
+    "production_votes": 0,
+    "auth_and_http": "synthetic",
+    "postgres": "17"
+  },
+  "evidence": [
+    {
+      "path": ".tmp/election4-current-window/results.json",
+      "sha256": "6499741f7e7599815e1f63c233f80275a9fe41703f92b132a6e72ed22c48a3b7"
+    },
+    {
+      "path": ".tmp/election4-current-window/browser-results.json",
+      "sha256": "dec307cbd1499fd6354bdb82544a457981bdb7dbba9ab0e4f966468bbc36b537"
+    },
+    {
+      "path": ".tmp/voting-backend-runtime/offline-bundles/validation.json",
+      "sha256": "eda38015b88aaef7d67b518b4a28fa6bc1538f56b8d576bd4e38c8047e250bac"
+    },
+    {
+      "path": ".tmp/election4-current-window/deployed-functions-vote-access-index.ts",
+      "sha256": "ecd8b823c406793cf096db79727ddae044e1d2f481c5983ceebbc657fe2dcc49"
+    },
+    {
+      "path": ".tmp/election4-current-window/deployed-functions-_shared-kandidProductionSecurity.mjs",
+      "sha256": "bb4338939df60d2a363de93a8868df0a6a024390c082172c547bd6602d3b7476"
+    },
+    {
+      "path": ".tmp/election4-current-window/deployed-functions-_shared-voteAccessContracts.mjs",
+      "sha256": "53fd99783073431e5a109177763b34a4570d8e0c051bbb90354b12abc92ca64b"
+    },
+    {
+      "path": ".tmp/election4-current-window/deployed-functions-_shared-legacyVoteAnchorEvidence.mjs",
+      "sha256": "3b32c7595eb0e3b3b9d85b5b91a51e793999fdb7a1967c57764be32b2e7a28b0"
+    }
+  ],
+  "limitations": [
+    "Hosted deployment/source readback, gateway JWT and fresh real-session nonwriting checks remain approval-gated.",
+    "Browser verifies selection and security states; frontend-to-handler-to-SQL-to-receipt integration uses mocked Auth/HTTP with real local PostgreSQL.",
+    "The existing 22:00 Manila cutoff is binding; recovery must abort after expiry."
+  ]
+}

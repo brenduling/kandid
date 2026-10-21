@@ -69,6 +69,7 @@ function resultVisibilityOptionLabel(value) {
 
 export default function BoardElectionSetup({
   editing,
+  saveBlockedReason = "",
   onElectorateLocked,
   form,
   updateForm,
@@ -184,6 +185,11 @@ export default function BoardElectionSetup({
         </nav>
 
         <form className="popup-content board-election-setup-body" onSubmit={handleFormSubmit}>
+          {saveBlockedReason ? (
+            <p className="board-election-edit-restriction" id="board-election-edit-restriction" role="status">
+              {saveBlockedReason}
+            </p>
+          ) : null}
           {step === 0 ? (
             <section className="board-election-setup-section" aria-labelledby="board-election-setup-01">
               <div className="board-election-setup-heading">
@@ -642,8 +648,10 @@ export default function BoardElectionSetup({
               </div>
 
               <p className="board-election-setup-note">
-                Saving stores this election record only. Positions and candidates are
-                configured afterwards in Manage Setup.
+                Saving stores this election record. Activating schedules electorate
+                finalization automatically for ten minutes before voting starts;
+                additional eligibility rules are optional. Positions and candidates
+                are configured afterwards in Manage Setup.
               </p>
               {isEditing ? <ElectionElectoratePanel election={editing} form={form} onLocked={onElectorateLocked} /> : null}
             </section>
@@ -685,7 +693,7 @@ export default function BoardElectionSetup({
                 <ArrowRight size={16} aria-hidden="true" />
               </button>
             ) : (
-              <button type="submit" className="board-election-setup-next" disabled={submitting || coverUploading}>
+              <button type="submit" className="board-election-setup-next" disabled={submitting || coverUploading || Boolean(saveBlockedReason)} aria-describedby={saveBlockedReason ? "board-election-edit-restriction" : undefined}>
                 {submitting ? (
                   <KandidButtonLoader label="Saving..." />
                 ) : (

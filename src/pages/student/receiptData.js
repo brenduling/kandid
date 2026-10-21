@@ -15,7 +15,8 @@ export function getReceiptGroupKey(vote) {
 
 export function getNormalizedBlockchainStatus(record) {
   if (!record) return "unavailable";
-  if (record?.blockchain_tx_id) return "anchored";
+  // The trusted receipt's explicit state confirms anchoring. A transaction ID
+  // identifies an attempt and can exist while confirmation is still pending.
   if (record?.blockchain_anchor_status) return record.blockchain_anchor_status;
   if (record?.vote_hash || record?.ballot_hash) return "pending";
   return "pending";
@@ -36,7 +37,7 @@ export function getBlockchainStatusMeta(record) {
     };
   }
 
-  if (record?.blockchain_tx_id || status === "anchored") {
+  if (status === "anchored") {
     return {
       label: "Blockchain verification complete.",
       className: "verified",
@@ -114,6 +115,8 @@ export function getVerificationCounts(votes) {
 export function getVerificationSummary(votes) {
   const { anchored, total } = getVerificationCounts(votes);
 
+  if (total === 0) return "Verification details unavailable.";
+
   if (anchored === total) {
     return `All ${total} receipt ${total === 1 ? "record has" : "records have"} been verified on Sepolia.`;
   }
@@ -130,7 +133,7 @@ export function getVoteBlockchainDetail(vote) {
 
   if (vote.blockchain_network) parts.push(vote.blockchain_network);
   if (vote.blockchain_block_number) parts.push(`Block ${vote.blockchain_block_number}`);
-  if (vote.blockchain_anchored_at) {
+  if (getNormalizedBlockchainStatus(vote) === "anchored" && vote.blockchain_anchored_at) {
     parts.push(`Anchored ${formatAbsoluteTimestampAsManilaDateTime(vote.blockchain_anchored_at)}`);
   }
 

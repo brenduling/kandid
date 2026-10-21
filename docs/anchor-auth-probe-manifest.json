@@ -1,0 +1,94 @@
+{
+  "revision": 6,
+  "status": "local auth-probe preparation; deployment and live requests not approved by this artifact",
+  "project_ref": "fszgdxqxonqqcrzsnkca",
+  "repository": "brenduling/kandid",
+  "worker": {
+    "path": "supabase/functions/anchor-ballot-hashes/index.ts",
+    "sha256": "4d019c71aac93bc9bcdc861bb7befd3c40fe7a761231426cf6164ba34c86ee11"
+  },
+  "previous_worker_sha256": "32c76ed0e0262ccca129c0117f37193725afee6adeef03171dcdeee26b8d245c",
+  "normal_post_baseline_lf_sha256": "81c35f4c12123238dc32b19bc97eb22268c0934407088dcff8515ab3d4a43ff0",
+  "required_verify_jwt": true,
+  "probe": {
+    "method": "HEAD",
+    "url": "https://fszgdxqxonqqcrzsnkca.supabase.co/functions/v1/anchor-ballot-hashes",
+    "success_status": 204,
+    "success_header": {
+      "X-Kandid-Anchor-Probe": "ok"
+    },
+    "body": null,
+    "reads_only_worker_token": true,
+    "constructs_clients": false,
+    "normal_post_unchanged": true
+  },
+  "supporting_files": [
+    {
+      "path": "tests/anchorAuthProbe.test.mjs",
+      "sha256": "8eec624a232274598d74b7ea764891b57c0fddc724bde1437c9e769c25a3bfc3"
+    },
+    {
+      "path": "tests/anchorExclusions.test.mjs",
+      "sha256": "75be2b175e72cb4d3dad024ec949afa2be4aa7f16ef2fa252c9efabe95553266"
+    },
+    {
+      "path": "scripts/kandid-anchor-exclusions-pg17.mjs",
+      "sha256": "b0752ff920853efc88e78aeb358f520ef738f18d8f2a7ab21ec4cb1d2f120906"
+    },
+    {
+      "path": "docs/anchor-auth-probe.md",
+      "sha256": "3ef368538f5df65eaa420e37d85b615c4558e9b60d105e85c4072693d31009f4"
+    }
+  ],
+  "unchanged_dependencies": [
+    {
+      "path": "supabase/functions/_shared/legacyVoteAnchorEvidence.mjs",
+      "sha256": "78deac5e5ac0c94f81101bf3f7f5157d62cdd63922e94d5e482e3a91fa94e885"
+    },
+    {
+      "path": ".github/workflows/anchor-ballot-hashes.yml",
+      "sha256": "7cbd059928fc99a9a961dea8dc1d2af2ec28511815436378183d2cfa2bb6a2f1"
+    },
+    {
+      "path": "supabase/functions/anchor-ballot-hashes/deno.json",
+      "sha256": "77f0b01614c9f9e43a65262b47e7fe82f0adddcd1f5b640356c077f03d39d836"
+    },
+    {
+      "path": "supabase/functions/anchor-ballot-hashes/deno.lock",
+      "sha256": "23922e74f271083642b5ab1198a395d5456cfb779438e43f7d9e1a18332b77d3"
+    },
+    {
+      "path": "supabase/proposals/anchor-exclude-two-existing-ballots.sql",
+      "sha256": "d8f8c1df8bfa1d8f151987965bf7558c1690f43a15956929599bdbfce2c881c3"
+    }
+  ],
+  "validation": {
+    "status": "passed",
+    "focused_tests": 61,
+    "focused_failures": 0,
+    "local_pg17_worker_checks": 15,
+    "pg_failures": 0,
+    "deno_version": "2.9.6",
+    "deno_type_check": "passed (--frozen)",
+    "actionlint": "passed",
+    "targeted_lint": "passed",
+    "powershell_5_1_procedure_parse": "passed; code not executed",
+    "normal_post_source_reconstruction": "matches entire revision-5 normalized source",
+    "gateway_tests": "synthetic cryptographic model only; hosted gateway not tested",
+    "no_side_effects": "forbidden constructor/network spies and no server configuration reads beyond ANCHOR_WORKER_TOKEN"
+  },
+  "production_deployed": false,
+  "production_worker_invoked": false,
+  "production_secrets_changed": false,
+  "scheduler_activated": false,
+  "local_rollback_artifacts": [
+    {
+      "path": ".tmp/anchor-auth-probe/revision5/index.ts",
+      "sha256": "32c76ed0e0262ccca129c0117f37193725afee6adeef03171dcdeee26b8d245c"
+    },
+    {
+      "path": ".tmp/anchor-auth-probe/revision5/legacyVoteAnchorEvidence.mjs",
+      "sha256": "78deac5e5ac0c94f81101bf3f7f5157d62cdd63922e94d5e482e3a91fa94e885"
+    }
+  ]
+}

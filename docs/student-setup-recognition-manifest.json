@@ -1,0 +1,143 @@
+{
+  "manifest_revision": 2,
+  "status": "LOCAL ONLY - deployment and activation require separate approval",
+  "project_ref": "fszgdxqxonqqcrzsnkca",
+  "function_slug": "resolve-student-login",
+  "verify_jwt": false,
+  "baseline_version": 8,
+  "recognition_contract_version": 2,
+  "dependencies": {
+    "sdk_version": "2.118.0",
+    "sdk_import": "https://esm.sh/@supabase/supabase-js@2.118.0",
+    "shared_unchanged": true
+  },
+  "activation": {
+    "flag": "VITE_ENABLE_VERIFIED_STUDENT_SETUP",
+    "default_enabled": false,
+    "requires_existing_flag": "VITE_ENABLE_STUDENT_ACCOUNT_SETUP"
+  },
+  "deployment_files": [
+    {
+      "path": "supabase/functions/resolve-student-login-recognition-deploy/index.ts",
+      "deployed_name": "functions/resolve-student-login/index.ts",
+      "sha256": "4cbc45350f4e19ff149b5a15f32560ba606b57a4287f0d41d9cc8994b1e6bcd8",
+      "lf_sha256": "4cbc45350f4e19ff149b5a15f32560ba606b57a4287f0d41d9cc8994b1e6bcd8"
+    },
+    {
+      "path": "supabase/functions/_shared/kandidProductionSecurity.mjs",
+      "deployed_name": "functions/_shared/kandidProductionSecurity.mjs",
+      "sha256": "87a7100ca782092528dc9cd49e7941216fe664ac4a0099f5d44fc9cf476733e2",
+      "lf_sha256": "340ebeb85e42e5274d4ae48ca7548e6170957652cb8e1c1161188740ecb5cdeb"
+    }
+  ],
+  "rollback_files": [
+    {
+      "path": "supabase/functions/resolve-student-login-inspect-deploy/index.ts",
+      "deployed_name": "functions/resolve-student-login/index.ts",
+      "sha256": "e79d6efef161760868445c1e54012c08f548ca59f09d2309293a1b9209d13c9a",
+      "lf_sha256": "e79d6efef161760868445c1e54012c08f548ca59f09d2309293a1b9209d13c9a"
+    },
+    {
+      "path": "supabase/functions/_shared/kandidProductionSecurity.mjs",
+      "deployed_name": "functions/_shared/kandidProductionSecurity.mjs",
+      "sha256": "87a7100ca782092528dc9cd49e7941216fe664ac4a0099f5d44fc9cf476733e2",
+      "lf_sha256": "340ebeb85e42e5274d4ae48ca7548e6170957652cb8e1c1161188740ecb5cdeb"
+    }
+  ],
+  "review_files": [
+    {
+      "path": "src/pages/auth/StudentSetup.jsx",
+      "sha256": "cddaf9afd65f650493fc4d560c296119719068dff03b08b33a4b17fde2438165",
+      "lf_sha256": "cddaf9afd65f650493fc4d560c296119719068dff03b08b33a4b17fde2438165"
+    },
+    {
+      "path": "src/pages/auth/StudentSetup.css",
+      "sha256": "5a7daa8ed452e5385ed5dd3094dcab20e829547d55286675ac6bf35b10a46209",
+      "lf_sha256": "f8401d3e241a7636c6afbd63b39d38668f265f64cc0f104d28a11d55628833cc"
+    },
+    {
+      "path": "src/utils/auth.js",
+      "sha256": "c7140d8cd55011ceb68c74afcf7ff5a72e1b51b2304a1fcb218c586116dd5fae",
+      "lf_sha256": "ea1e25cd677bfbf878423d56799ec0de71d3e6779c727967f9b5555679f3cba4"
+    },
+    {
+      "path": "src/utils/studentSetupRecognition.js",
+      "sha256": "bac4fb8b54c5aef1cbc2830e45ba516209d0e5ba0f7d25b0aa0fcb4c7fb84263",
+      "lf_sha256": "bac4fb8b54c5aef1cbc2830e45ba516209d0e5ba0f7d25b0aa0fcb4c7fb84263"
+    },
+    {
+      "path": "src/utils/studentSetupValidation.js",
+      "sha256": "9a5513142213c9fc45c74a70f31f0b9757bec43912901793b08179e114375450",
+      "lf_sha256": "7a1e728c935289e649c425ef3b80453f2f756b92a0172d27ce851d97ae704140"
+    },
+    {
+      "path": "src/utils/studentAccountSetupFeatureGate.js",
+      "sha256": "f2097844f5501688c0ac76cc012e56b88ec3c9bda5ac8965c5a50d2bccd5e3ac",
+      "lf_sha256": "35256ef7c351f288ec9e224a814ef37b98dc2c694f5b52cfd741853edbe911af"
+    },
+    {
+      "path": "tests/studentAuthCaptchaFree.test.mjs",
+      "sha256": "b9adbec43f1c87c3173e985b41654dfd5be00dbf0d10dd3d1d6fb456db0bdaf3",
+      "lf_sha256": "15909ea4e6987130f67affe4650b4f5cd0b701fb404411fb1469c8bc2bb38b0b"
+    },
+    {
+      "path": "tests/studentSetupCompletion.test.mjs",
+      "sha256": "166cb3ee35659817defac82734e0bf9efa9d78a5a18d57350b9152c888cc6ef3",
+      "lf_sha256": "dbdd40045e54d7493c471123f3f71f6cd88b4b45d19b92f940b5707b2796326b"
+    },
+    {
+      "path": "tests/studentSetupValidation.test.mjs",
+      "sha256": "a2635f9aa9c2a1a5759da92d0cbc07fb1bf0d09cefd37ef570c5abd6a03490a6",
+      "lf_sha256": "0fae1bc6ca9db05569043ad0d915bd92525ce867e33cdfb34b1f5edaa757a977"
+    },
+    {
+      "path": "tests/studentSetupInspectionManifest.test.mjs",
+      "sha256": "b6507c830208f67f369b006a3f3645fc0ff2741997bfbbdf76deecdd9e2abd5d",
+      "lf_sha256": "b6507c830208f67f369b006a3f3645fc0ff2741997bfbbdf76deecdd9e2abd5d"
+    },
+    {
+      "path": "tests/studentSetupRecognition.test.mjs",
+      "sha256": "1c8840b9990de192a7fa3a534afd4cc76e36d719ea61ef9c4a94b470fadfb907",
+      "lf_sha256": "1c8840b9990de192a7fa3a534afd4cc76e36d719ea61ef9c4a94b470fadfb907"
+    },
+    {
+      "path": "tests/studentSetupRecognitionManifest.test.mjs",
+      "sha256": "7cb3c497d4835884284d3c9df3517fdb8b901936845fbd17c4e81bc055c7c429",
+      "lf_sha256": "7cb3c497d4835884284d3c9df3517fdb8b901936845fbd17c4e81bc055c7c429"
+    },
+    {
+      "path": "scripts/kandid-student-setup-recognition-browser.mjs",
+      "sha256": "49c7688f1ec210bbc7e49ed12756f963af0f3c93f1dfbaaec6617e92b93bd169",
+      "lf_sha256": "49c7688f1ec210bbc7e49ed12756f963af0f3c93f1dfbaaec6617e92b93bd169"
+    },
+    {
+      "path": "docs/student-setup-recognition-implementation.md",
+      "sha256": "aef3f4c14d5cd503ca1d6fa18a8db70feb2d9094e998773ab6632b9e378ef163",
+      "lf_sha256": "aef3f4c14d5cd503ca1d6fa18a8db70feb2d9094e998773ab6632b9e378ef163"
+    },
+    {
+      "path": "docs/student-setup-verified-recognition-proposal.md",
+      "sha256": "f7008ec4c656cdba1793cded23ab6680b2a302c09f3554519e6b7cd2dc37844e",
+      "lf_sha256": "f7008ec4c656cdba1793cded23ab6680b2a302c09f3554519e6b7cd2dc37844e"
+    }
+  ],
+  "runbook": "docs/student-setup-recognition-implementation.md",
+  "sequence": [
+    "Find Student ID",
+    "Confirm Student Details",
+    "Configure Password",
+    "Verify OTP",
+    "Complete",
+    "Student Login"
+  ],
+  "privacy": {
+    "pre_otp_disclosure": [
+      "full_name",
+      "program",
+      "year_level"
+    ],
+    "tradeoff": "Eligible Student IDs and these three registry fields become discoverable before email ownership verification; existing rate limits cannot eliminate enumeration.",
+    "email_display": false,
+    "password_before_otp": "component draft only; not sent until trusted linking after verified OTP"
+  }
+}

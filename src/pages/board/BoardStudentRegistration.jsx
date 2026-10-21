@@ -289,13 +289,16 @@ export default function BoardStudentRegistration({
       if (applyOutcome(response.data)) return;
       if (response.error || !SUCCESS_OUTCOMES.has(response.data?.outcome) ||
           response.data?.organization_outcome !== "REGISTERED") {
-        showOutcomeError(response.data?.outcome,
+        const outcome = boardStudentRegistrationFailureOutcome(
+          response.data, response.code, response.status, response.error,
+        );
+        showOutcomeError(outcome,
           "Registration couldn't be completed. Check the student record and try again.");
         return;
       }
       await onRegistered();
     } catch {
-      setError("Registration couldn't be completed right now. Try again.");
+      showOutcomeError("REGISTRATION_RESULT_UNKNOWN");
     } finally {
       setBusy(false);
     }

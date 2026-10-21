@@ -224,7 +224,7 @@ test("all twelve formerly wildcard handlers use the shared allowlist and reject 
     assert.match(source, /from "\.\.\/_shared\/kandidProductionSecurity\.mjs"/, names[index]);
     assert.match(source, /handleCorsPreflight\(request\)/, names[index]);
     assert.match(source, /rejectDisallowedOrigin\(request\)/, names[index]);
-    assert.match(source, /serveWithKandidCors\(async \(request\)/, names[index]);
+    assert.match(source, /serveWithKandidCors\(async \(request(?::\s*Request)?\)/, names[index]);
     assert.ok(
       source.indexOf("handleCorsPreflight(request)") < source.indexOf("rejectDisallowedOrigin(request)"),
       `${names[index]} must process preflight before rejecting origins`,

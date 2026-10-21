@@ -148,10 +148,10 @@ test("Board report package extension reuses the canonical helper and CSV has a t
   assert.doesNotMatch(readFileSync("src/utils/boardReports.js", "utf8"), /student_id|student_number|ballot_id|vote_hash/);
 });
 
-test("Board lock UI confirms final recomputation and removes rebuild controls after locking", () => {
+test("Board scheduled-finalization UI distinguishes automatic scheduling and immutable completion", () => {
   assert.match(setup, /disabled=\{electorateLocked\}/);
-  assert.match(electoratePanel, /server will recompute the final count/i);
-  assert.match(electoratePanel, /The electorate could not be locked|Voting cannot open because the electorate was not locked/i);
+  assert.match(electoratePanel, /schedules the electorate freeze automatically/i);
+  assert.match(electoratePanel, /server recomputes the electorate and freezes it atomically/i);
   assert.match(electoratePanel, /locked \? \([\s\S]*?immutable/i);
 });
 

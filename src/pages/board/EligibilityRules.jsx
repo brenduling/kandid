@@ -15,7 +15,7 @@ import { usePrompt } from "../../context/PromptContext";
 import { logAuditEvent } from "../../utils/auditLog";
 import { analyzeDeleteDependencies, dependencyMessage } from "../../utils/deleteGuards";
 import {
-  createEligibilityRuleSubmission, deleteEligibilityRule, eligibilityRuleErrorMessage,
+  createEligibilityRuleSubmission, deleteEligibilityRule, eligibilityRuleErrorMessage, enforcesElectionEligibilityRules,
   loadEligibilityBoardContext, loadEligibilityPrograms, saveEligibilityRuleEdit, validateEligibilityRuleValues,
 } from "../../utils/eligibilityRuleManagement";
 
@@ -174,7 +174,7 @@ function BoardEligibilityRules() {
 
       const { data: orgElections, error: electionError } = await supabase
         .from("elections")
-        .select("id, title, academic_term_id, removed_at")
+        .select("id, title, academic_term_id, removed_at, electorate_policy_version, electorate_frozen_at")
         .eq("organization_id", board.organization_id)
         .order("created_at", { ascending: false });
       if (electionError) throw electionError;
@@ -194,7 +194,9 @@ function BoardEligibilityRules() {
         .select(`
           *,
           elections (
-            title
+            title,
+            electorate_policy_version,
+            electorate_frozen_at
           )
         `)
         .in("election_id", electionIds)
@@ -399,7 +401,11 @@ function BoardEligibilityRules() {
   const draftYears = yearCoverage(draft);
 
   const formTitle = editing ? "Edit Eligibility Rule" : "Add Eligibility Rule";
-  const formSubtitle = editing
+  const hasEnforcedElection = rules.some((rule) => enforcesElectionEligibilityRules(rule.elections));
+  const formElection = elections.find((election) => String(election.id) === String(form.election_id));
+  const formSubtitle = enforcesElectionEligibilityRules(formElection)
+    ? "Optional program, year and SHS restrictions further limit verified term organization members."
+    : editing
     ? `Update the recorded audience for ${editing.elections?.title || "this election"}.`
     : `Record the intended audience for an election under ${orgName}.`;
 
@@ -431,8 +437,9 @@ function BoardEligibilityRules() {
           Define the intended audience for elections under {orgName}.
         </p>
         <p className="board-eligibility-note">
-          Declared audience only. These rules do not grant or restrict voting access,
-          change organization membership, or replace the locked electorate.
+          {hasEnforcedElection
+            ? "Eligibility rules are optional. Without rules, verified active organization members enrolled for the election term form the electorate; saved rules add restrictions."
+            : "Rules describe an optional audience restriction. The installed election policy determines whether saved rules are enforced for voting."}
         </p>
       </header>
 
@@ -472,13 +479,8 @@ function BoardEligibilityRules() {
             orange eyebrow, a serif Level 2 heading and the record count on the
             outer edge, above a 2px rule that opens the section.
 
-            The note is truthful because these rows are not read when a vote is
-            authorized: submit-vote/index.ts:296-311 resolves access through
-            resolve_student_organization_participation, which reads term
-            enrollment and organization membership and never reads
-            eligibility_rules. The only other reader of this table is
-            resultDimensions.js, which uses the rows to seed expected result
-            labels. It stays small supporting copy under the heading.
+            Rules are optional. An election with no rules uses verified active
+            term organization membership under the permanent policy.
           */}
           <div className="board-eligibility-register-head">
             <div>
@@ -498,8 +500,9 @@ function BoardEligibilityRules() {
           </div>
 
           <p className="board-eligibility-note">
-            These rules describe the intended election audience. Vote access is resolved
-            separately from enrollment and organization membership.
+            {hasEnforcedElection
+              ? "These optional restrictions apply on top of verified term enrollment and organization membership. They become read-only when the electorate is finalized."
+              : "These rules describe an optional audience restriction. The active backend policy controls voting eligibility."}
           </p>
 
 {/* A div of articles, not an ordered list: the visible index
@@ -543,6 +546,9 @@ function BoardEligibilityRules() {
                     <p className="board-eligibility-shs">
                       Senior High School {rule.allow_shs ? "included" : "not included"}
                     </p>
+                    {enforcesElectionEligibilityRules(rule.elections) ? (
+                      <p className="board-eligibility-note">Applied as an additional voter restriction; fixed when the electorate is finalized.</p>
+                    ) : null}
                   </div>
 
                   {/* Desktop has room, so the two actions are shown rather than

@@ -1,0 +1,230 @@
+{
+  "columns": [
+    {
+      "name": "id",
+      "type": "integer",
+      "default": "nextval('elections_id_seq'::regclass)",
+      "not_null": true
+    },
+    {
+      "name": "organization_id",
+      "type": "integer",
+      "default": null,
+      "not_null": false
+    },
+    {
+      "name": "title",
+      "type": "character varying(150)",
+      "default": null,
+      "not_null": true
+    },
+    {
+      "name": "start_date",
+      "type": "timestamp without time zone",
+      "default": null,
+      "not_null": false
+    },
+    {
+      "name": "end_date",
+      "type": "timestamp without time zone",
+      "default": null,
+      "not_null": false
+    },
+    {
+      "name": "status",
+      "type": "character varying(50)",
+      "default": "'draft'::character varying",
+      "not_null": false
+    },
+    {
+      "name": "created_at",
+      "type": "timestamp without time zone",
+      "default": "CURRENT_TIMESTAMP",
+      "not_null": false
+    },
+    {
+      "name": "campaign_start",
+      "type": "timestamp without time zone",
+      "default": null,
+      "not_null": false
+    },
+    {
+      "name": "campaign_end",
+      "type": "timestamp without time zone",
+      "default": null,
+      "not_null": false
+    },
+    {
+      "name": "voting_results_visible",
+      "type": "boolean",
+      "default": "false",
+      "not_null": false
+    },
+    {
+      "name": "student_result_visibility",
+      "type": "text",
+      "default": "'after_close'::text",
+      "not_null": true
+    },
+    {
+      "name": "voting_access_mode",
+      "type": "text",
+      "default": "'anywhere'::text",
+      "not_null": true
+    },
+    {
+      "name": "location_label",
+      "type": "text",
+      "default": null,
+      "not_null": false
+    },
+    {
+      "name": "geo_lat",
+      "type": "double precision",
+      "default": null,
+      "not_null": false
+    },
+    {
+      "name": "geo_lng",
+      "type": "double precision",
+      "default": null,
+      "not_null": false
+    },
+    {
+      "name": "geo_radius_meters",
+      "type": "integer",
+      "default": null,
+      "not_null": false
+    },
+    {
+      "name": "results_released_at",
+      "type": "timestamp with time zone",
+      "default": null,
+      "not_null": false
+    },
+    {
+      "name": "results_released_by",
+      "type": "uuid",
+      "default": null,
+      "not_null": false
+    },
+    {
+      "name": "cover_url",
+      "type": "text",
+      "default": null,
+      "not_null": false
+    },
+    {
+      "name": "academic_term_id",
+      "type": "integer",
+      "default": null,
+      "not_null": false
+    },
+    {
+      "name": "electorate_policy_version",
+      "type": "smallint",
+      "default": "1",
+      "not_null": true
+    },
+    {
+      "name": "electorate_frozen_at",
+      "type": "timestamp with time zone",
+      "default": null,
+      "not_null": false
+    },
+    {
+      "name": "electorate_frozen_by",
+      "type": "bigint",
+      "default": null,
+      "not_null": false
+    },
+    {
+      "name": "removed_at",
+      "type": "timestamp with time zone",
+      "default": null,
+      "not_null": false
+    }
+  ],
+  "policies": [
+    {
+      "cmd": "SELECT",
+      "name": "elections_public_read",
+      "qual": "true",
+      "roles": [
+        "anon",
+        "authenticated"
+      ],
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "name": "elections_insert_active_admin_scope",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "with_check": "(EXISTS ( SELECT 1\n   FROM admin_users a\n  WHERE ((a.auth_user_id = auth.uid()) AND ((a.status)::text = 'active'::text) AND (((a.role)::text = 'super_admin'::text) OR (((a.role)::text = 'electoral_board'::text) AND (a.organization_id = elections.organization_id))))))"
+    },
+    {
+      "cmd": "UPDATE",
+      "name": "elections_update_active_admin_scope",
+      "qual": "(EXISTS ( SELECT 1\n   FROM admin_users a\n  WHERE ((a.auth_user_id = auth.uid()) AND ((a.status)::text = 'active'::text) AND (((a.role)::text = 'super_admin'::text) OR (((a.role)::text = 'electoral_board'::text) AND (a.organization_id = elections.organization_id))))))",
+      "roles": [
+        "authenticated"
+      ],
+      "with_check": "(EXISTS ( SELECT 1\n   FROM admin_users a\n  WHERE ((a.auth_user_id = auth.uid()) AND ((a.status)::text = 'active'::text) AND (((a.role)::text = 'super_admin'::text) OR (((a.role)::text = 'electoral_board'::text) AND (a.organization_id = elections.organization_id))))))"
+    },
+    {
+      "cmd": "DELETE",
+      "name": "elections_delete_active_admin_scope",
+      "qual": "(EXISTS ( SELECT 1\n   FROM admin_users a\n  WHERE ((a.auth_user_id = auth.uid()) AND ((a.status)::text = 'active'::text) AND (((a.role)::text = 'super_admin'::text) OR (((a.role)::text = 'electoral_board'::text) AND (a.organization_id = elections.organization_id))))))",
+      "roles": [
+        "authenticated"
+      ],
+      "with_check": null
+    }
+  ],
+  "functions": [
+    {
+      "name": "kandid_assign_election_academic_term",
+      "schema": "private",
+      "definition": "CREATE OR REPLACE FUNCTION private.kandid_assign_election_academic_term()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog'\nAS $function$\nbegin\n  if tg_op = 'UPDATE' then\n    if old.academic_term_id is not null and new.academic_term_id is distinct from old.academic_term_id then\n      raise exception using errcode = '42501',\n        message = 'An election academic term cannot be changed after it is recorded.';\n    end if;\n    return new;\n  end if;\n\n  if new.academic_term_id is null then\n    raise exception using errcode = '22023',\n      message = 'Choose the academic term this election belongs to.';\n  end if;\n  return new;\nend;\n$function$\n"
+    },
+    {
+      "name": "kandid_guard_frozen_electorate",
+      "schema": "private",
+      "definition": "CREATE OR REPLACE FUNCTION private.kandid_guard_frozen_electorate()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog'\nAS $function$\nbegin\n  if tg_op = 'INSERT' then\n    if new.electorate_policy_version <> 1\n       or new.electorate_frozen_at is not null\n       or new.electorate_frozen_by is not null then\n      raise exception using errcode = '42501', message = 'New elections must use the frozen-electorate policy and cannot be pre-locked.';\n    end if;\n    return new;\n  end if;\n\n  if old.electorate_frozen_at is not null and (\n    new.electorate_frozen_at is distinct from old.electorate_frozen_at\n    or new.electorate_frozen_by is distinct from old.electorate_frozen_by\n    or new.electorate_policy_version is distinct from old.electorate_policy_version\n    or new.organization_id is distinct from old.organization_id\n    or new.academic_term_id is distinct from old.academic_term_id\n    or new.start_date is distinct from old.start_date\n    or new.end_date is distinct from old.end_date\n  ) then\n    raise exception using errcode = '42501', message = 'The locked election electorate, term, organization, and voting schedule are immutable.';\n  end if;\n\n  if new.electorate_policy_version is distinct from old.electorate_policy_version then\n    raise exception using errcode = '42501', message = 'Election electorate policy cannot be changed.';\n  end if;\n\n  if old.electorate_frozen_at is null and new.electorate_frozen_at is not null then\n    if pg_catalog.current_setting('kandid.lock_electorate', true) is distinct from 'on'\n       or auth.uid() is null\n       or not exists (\n         select 1 from public.admin_users a\n         where a.id = new.electorate_frozen_by\n           and a.auth_user_id = auth.uid()\n           and a.role = 'electoral_board'\n           and a.status = 'active'\n           and a.organization_id = new.organization_id\n       ) then\n      raise exception using errcode = '42501', message = 'Electorate lock must use the trusted Board operation.';\n    end if;\n  end if;\n\n  if old.electorate_frozen_at is not null\n     and lower(coalesce(old.status, '')) in ('closed', 'archived', 'done')\n     and lower(coalesce(new.status, '')) = 'active' then\n    raise exception using errcode = '42501', message = 'A closed election cannot be reopened.';\n  end if;\n  return new;\nend;\n$function$\n"
+    },
+    {
+      "name": "kandid_guard_result_release_fields",
+      "schema": "public",
+      "definition": "CREATE OR REPLACE FUNCTION public.kandid_guard_result_release_fields()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'pg_catalog'\nAS $function$\nbegin\n  if pg_catalog.current_setting('kandid.allow_result_release_write', true)\n       is distinct from 'on' then\n    if tg_op = 'INSERT'\n       and (new.results_released_at is not null or new.results_released_by is not null) then\n      raise exception using errcode = '42501',\n        message = 'Result finalization must use the trusted contract.';\n    elsif tg_op = 'UPDATE'\n       and (new.results_released_at is distinct from old.results_released_at\n         or new.results_released_by is distinct from old.results_released_by) then\n      raise exception using errcode = '42501',\n        message = 'Result finalization must use the trusted contract.';\n    end if;\n  end if;\n  return new;\nend;\n$function$\n"
+    },
+    {
+      "name": "sync_election_fields",
+      "schema": "public",
+      "definition": "CREATE OR REPLACE FUNCTION public.sync_election_fields()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'pg_catalog'\nAS $function$\r\nbegin\r\n  if new.campaign_end is null and new.start_date is not null then\r\n    new.campaign_end := new.start_date;\r\n  end if;\r\n\r\n  if new.student_result_visibility is null then\r\n    new.student_result_visibility :=\r\n      case\r\n        when coalesce(new.voting_results_visible, false) then 'realtime'\r\n        else 'hidden'\r\n      end;\r\n  end if;\r\n\r\n  new.voting_results_visible := (new.student_result_visibility = 'realtime');\r\n\r\n  return new;\r\nend;\r\n$function$\n"
+    }
+  ],
+  "constraints": [
+    {
+      "name": "elections_electorate_lock_pair_check",
+      "definition": "CHECK (((electorate_frozen_at IS NULL) = (electorate_frozen_by IS NULL)))"
+    },
+    {
+      "name": "elections_electorate_policy_version_check",
+      "definition": "CHECK ((electorate_policy_version = ANY (ARRAY[0, 1])))"
+    },
+    {
+      "name": "elections_student_result_visibility_check",
+      "definition": "CHECK ((student_result_visibility = ANY (ARRAY['realtime'::text, 'after_close'::text, 'manual'::text])))"
+    },
+    {
+      "name": "elections_voting_access_mode_check",
+      "definition": "CHECK ((voting_access_mode = ANY (ARRAY['anywhere'::text, 'onsite_qr'::text, 'precinct_qr'::text, 'batch_qr'::text, 'location_range'::text])))"
+    }
+  ],
+  "project_ref": "fszgdxqxonqqcrzsnkca",
+  "geofence_rpc_absent": true
+}
+

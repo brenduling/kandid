@@ -1,0 +1,109 @@
+{
+  "revision": 1,
+  "project_ref": "fszgdxqxonqqcrzsnkca",
+  "repository": "brenduling/kandid",
+  "status": "local preparation validated; database installation and scheduler activation require separate approval",
+  "prepared_at_utc": "2026-10-21T04:57:42.833Z",
+  "exclusions": [
+    {
+      "ballot_id": "3c5a6c0f-5c69-49d1-bd66-ee4f97383cc1",
+      "election_id": 2,
+      "ballot_hash": "0x6f3aed472bda8be4e04c203070f1941f8cdaea750738aebc8cfc735d646249fc"
+    },
+    {
+      "ballot_id": "a9bb5581-acb0-4c1b-9d7a-b08cf358368c",
+      "election_id": 4,
+      "ballot_hash": "0xf5074400475d07897d657d54903c2edeed6b3d618d472b71393624d50a4f9804"
+    }
+  ],
+  "prepared_files": [
+    {
+      "path": "supabase/proposals/anchor-exclude-two-existing-ballots.sql",
+      "sha256": "d8f8c1df8bfa1d8f151987965bf7558c1690f43a15956929599bdbfce2c881c3"
+    },
+    {
+      "path": "scripts/kandid-anchor-exclusions-pg17.mjs",
+      "sha256": "fcb5e55790d319394cce5b7c5c598f8bfc1c06dc699aa409e06e31aa3aef58a8"
+    },
+    {
+      "path": "tests/anchorExclusions.test.mjs",
+      "sha256": "82ed1446cfba0fb696f0cb8773f2d0fb2f3c8486b3984dd866ea865979e05e2a"
+    },
+    {
+      "path": "supabase/runtime-validation/anchor-exclusions-readonly.sql",
+      "sha256": "c20cd0b7998e75161c433627ae4a4a527eec05058d7c2a4aff5f404457f3a267"
+    },
+    {
+      "path": "docs/anchor-new-ballots-only.md",
+      "sha256": "a7bf3e156db91d9fc0abfd8ceb1c245d5ad56828bdd0188244380da908cb756e"
+    }
+  ],
+  "unchanged_dependencies": [
+    {
+      "path": "supabase/functions/anchor-ballot-hashes/index.ts",
+      "sha256": "32c76ed0e0262ccca129c0117f37193725afee6adeef03171dcdeee26b8d245c"
+    },
+    {
+      "path": "supabase/functions/_shared/legacyVoteAnchorEvidence.mjs",
+      "sha256": "78deac5e5ac0c94f81101bf3f7f5157d62cdd63922e94d5e482e3a91fa94e885"
+    },
+    {
+      "path": ".github/workflows/anchor-ballot-hashes.yml",
+      "sha256": "7cbd059928fc99a9a961dea8dc1d2af2ec28511815436378183d2cfa2bb6a2f1"
+    },
+    {
+      "path": "supabase/migrations/20260913160000_ballot_anchor_worker_rpcs.sql",
+      "sha256": "ac7137fa3e287ba73f5045b8a17f01ce3ade069d34027d849e762ebfd44afc90"
+    },
+    {
+      "path": "tests/fixtures/submitVoteIntegrityProductionContract.json",
+      "sha256": "5727421b11c5a53943d26e45b8701a87f9d045865d4210f27ca9b7128dd5e0dd"
+    }
+  ],
+  "production_readonly_evidence": {
+    "checked_at_manila": "2026-10-21T12:56:31.253843+08:00",
+    "deployed_worker_status": "ACTIVE",
+    "deployed_worker_version": 2,
+    "verify_jwt": true,
+    "retrieved_worker_source_matches_reviewed_revision": 5,
+    "retrieved_worker_and_evidence_helper_hashes_match": true,
+    "published_workflow_blob": "80e1b6c6dfe92c6983e8397b5be2624de04b04f0",
+    "published_workflow_hash_matches": true,
+    "scheduler_enabled": "false",
+    "github_secret_names_present": [
+      "KANDID_ANCHOR_GATEWAY_JWT",
+      "KANDID_ANCHOR_WORKER_TOKEN"
+    ],
+    "old_ballot_groups": 2,
+    "old_grouped_vote_rows": 2,
+    "old_status": "pending",
+    "old_retries": 0,
+    "old_transaction_ids_null": true,
+    "old_claims_null": true,
+    "old_timestamps_and_hashes_unchanged": true,
+    "other_pending_groups": 0,
+    "signer_lease_rows": 0,
+    "exclusion_not_installed": true,
+    "production_secret_values_verified": false,
+    "production_authentication_invocation_performed": false,
+    "configuration_note": "Successful six-secret configuration confirmed by the operator; values not retrieved or compared in this task."
+  },
+  "validation": {
+    "focused_regression_tests": 50,
+    "focused_failures": 0,
+    "local_pg17_worker_checks": 15,
+    "pg_failures": 0,
+    "deno_frozen_type_check": "passed (Deno 2.9.6)",
+    "actionlint": "passed",
+    "targeted_lint": "passed",
+    "chain": "synthetic provider and signer only; no real transactions",
+    "database": "disposable local PostgreSQL 17 only; dropped after tests"
+  },
+  "production_changes_executed": false,
+  "worker_invoked": false,
+  "scheduler_activated": false,
+  "approval_gates": [
+    "A: reviewed exclusion SQL only with worker quiescent and scheduler false",
+    "B: separately approve automatic transactions for nonexcluded legitimate ballots after post-install verification"
+  ]
+}

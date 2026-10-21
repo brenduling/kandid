@@ -1,0 +1,151 @@
+{
+  "revision": 2,
+  "status": "LOCAL_ONLY_NOT_DEPLOYED",
+  "project_ref": "fszgdxqxonqqcrzsnkca",
+  "function_slug": "resolve-student-login",
+  "verify_jwt": false,
+  "baseline_version": 7,
+  "baseline_bundle_sha256": "29dbe4a85e94a425e57dfb89bab3b5f02d7aae1d2213494f8f1b8f5d3ab9a168",
+  "deployment_files": [
+    {
+      "path": "supabase/functions/resolve-student-login-inspect-deploy/index.ts",
+      "bytes": 16659,
+      "sha256": "e79d6efef161760868445c1e54012c08f548ca59f09d2309293a1b9209d13c9a",
+      "lf_sha256": "e79d6efef161760868445c1e54012c08f548ca59f09d2309293a1b9209d13c9a",
+      "deployed_name": "functions/resolve-student-login/index.ts"
+    },
+    {
+      "path": "supabase/functions/_shared/kandidProductionSecurity.mjs",
+      "bytes": 4628,
+      "sha256": "87a7100ca782092528dc9cd49e7941216fe664ac4a0099f5d44fc9cf476733e2",
+      "lf_sha256": "340ebeb85e42e5274d4ae48ca7548e6170957652cb8e1c1161188740ecb5cdeb",
+      "deployed_name": "functions/_shared/kandidProductionSecurity.mjs"
+    }
+  ],
+  "rollback_fixture": "tests/fixtures/studentSetupResolverV7.json",
+  "rollback_files": [
+    {
+      "deployed_name": "functions/resolve-student-login/index.ts",
+      "sha256": "8642d51ffb47ada42696c6aebcfe1a4298fa376e97b41821d49b75cb3b47d0f9",
+      "lf_sha256": "8642d51ffb47ada42696c6aebcfe1a4298fa376e97b41821d49b75cb3b47d0f9"
+    },
+    {
+      "deployed_name": "functions/_shared/kandidProductionSecurity.mjs",
+      "sha256": "340ebeb85e42e5274d4ae48ca7548e6170957652cb8e1c1161188740ecb5cdeb",
+      "lf_sha256": "340ebeb85e42e5274d4ae48ca7548e6170957652cb8e1c1161188740ecb5cdeb"
+    }
+  ],
+  "review_files": [
+    {
+      "path": "tests/fixtures/studentSetupResolverV7.json",
+      "bytes": 21667,
+      "sha256": "395300fc4b8e06b547719377b4e27e3bf0be2ca588a9be848e682507a2becd1e",
+      "lf_sha256": "395300fc4b8e06b547719377b4e27e3bf0be2ca588a9be848e682507a2becd1e"
+    },
+    {
+      "path": "tests/studentAuthCaptchaFree.test.mjs",
+      "bytes": 31886,
+      "sha256": "74a779935eb5d3155ab6f07077a2da9e4bad79df548da31711168c45babdbeeb",
+      "lf_sha256": "e5bdfd7303db277f6459ba711e6c07adcef67c5eee357b34814e5cd0047b8c51"
+    },
+    {
+      "path": "tests/studentSetupValidation.test.mjs",
+      "bytes": 10829,
+      "sha256": "f2279c431b3993e85b32e7fa43be24313806cef774c94d257c86b36fa9d8392b",
+      "lf_sha256": "ba9664325f730691c3a512594962aa51934fcbfb32ae539b5925a1dcf9c0930f"
+    },
+    {
+      "path": "tests/studentSetupInspectionManifest.test.mjs",
+      "bytes": 4395,
+      "sha256": "f2ce26b093a709526963482d6088939a2fca1605c4beb6bb85283c9f47bdb48d",
+      "lf_sha256": "f2ce26b093a709526963482d6088939a2fca1605c4beb6bb85283c9f47bdb48d"
+    },
+    {
+      "path": "src/pages/auth/StudentSetup.jsx",
+      "bytes": 29332,
+      "sha256": "dc2d678604e249d59208b2065397efebd6d95c7343a827b72e8dc2b720b194ee",
+      "lf_sha256": "413d9e9f1264bcf626554d1e37235c3209922596909a0d98da58e11ec4691049"
+    },
+    {
+      "path": "src/utils/auth.js",
+      "bytes": 16318,
+      "sha256": "1c1e9357f048b478c43213b81b0b8a5563a0dcabd96500a657afcfc6dc35d93d",
+      "lf_sha256": "5a14db3b1442de8cb2f248fa63a0f71e7c39f56f1be8e00d0d515f2bff89d1ca"
+    },
+    {
+      "path": "src/utils/studentAccountSetupFeatureGate.js",
+      "bytes": 358,
+      "sha256": "da71499f2bc5a8cc2ae1317caabc0de3a382229e7be0b7d8b06bb0b6eb5f8994",
+      "lf_sha256": "2beaafc0a944c13555791042658e519f1da21f1a1c3017752d4c793ad81b6a34"
+    },
+    {
+      "path": "src/utils/developmentProductionWriteGuard.js",
+      "bytes": 38776,
+      "sha256": "09c78ba3fbd6d408f2884541e555ec142b6c0b6035bec0997e76f9053f763a3c",
+      "lf_sha256": "be067e57f5d5fdad0a2b8b1fba17638327297814ba759bc1c977501e0ff03407"
+    },
+    {
+      "path": "docs/student-setup-inspection-recovery.md",
+      "bytes": 9146,
+      "sha256": "962474afdc51120113bb71e9f01f7001d11e703ee0934a2c06f114a4cc8e7b9d",
+      "lf_sha256": "962474afdc51120113bb71e9f01f7001d11e703ee0934a2c06f114a4cc8e7b9d"
+    },
+    {
+      "path": "tests/studentSetupPinnedSdk.test.ts",
+      "bytes": 6643,
+      "sha256": "ecaa017e98d253abb51cd384d1be355948e474f28595f96d5323c4109e208a27",
+      "lf_sha256": "ecaa017e98d253abb51cd384d1be355948e474f28595f96d5323c4109e208a27"
+    }
+  ],
+  "dependencies": {
+    "sdk_import": "https://esm.sh/@supabase/supabase-js@2.118.0",
+    "sdk_version": "2.118.0",
+    "local_typecheck_resolved_sdk": "2.118.0",
+    "runtime_sdk_tests": "PASS: actual pinned SDK with mocked fetch; no network permissions",
+    "historical_v7_dependency_graph": "unavailable; exact rollback source captured, historical dependency bytes not claimed"
+  },
+  "runtime_effects": {
+    "inspect_setup_student_lookup": false,
+    "inspect_setup_auth_calls": false,
+    "inspect_setup_student_writes": false,
+    "inspect_setup_rate_limit_counter_write": true,
+    "existing_auth_actions": "v7 behavior preserved"
+  },
+  "activation": {
+    "frontend_flag": "VITE_ENABLE_STUDENT_ACCOUNT_SETUP",
+    "default_enabled": false,
+    "production_deployed": false,
+    "approval_required": [
+      "single-function deployment of reviewed manifest revision 2",
+      "bounded live inspection tests that consume rate counters",
+      "local setup activation after backend verification",
+      "any genuine email/account setup test"
+    ]
+  },
+  "validation": {
+    "targeted_tests": {
+      "passed": 70,
+      "failed": 0
+    },
+    "deno_typecheck": "PASS: Deno 2.9.6; type-only source checking, no handler invocation",
+    "deno_lint": "PASS; inherited no-import-prefix convention excluded explicitly",
+    "targeted_eslint": "PASS",
+    "production_build": "PASS",
+    "git_diff_check": "PASS",
+    "production_calls_during_testing": 0,
+    "pinned_sdk_tests": {
+      "passed": 5,
+      "failed": 0,
+      "no_network_permission": true
+    },
+    "final_release_gate": "GO_FOR_DEPLOYMENT_APPROVAL_NOT_DEPLOYED"
+  },
+  "rollback_verification": {
+    "production_status": "ACTIVE",
+    "production_version": 7,
+    "verify_jwt": false,
+    "entrypoint_exact_match": true,
+    "shared_exact_match": true,
+    "production_bundle_sha256": "29dbe4a85e94a425e57dfb89bab3b5f02d7aae1d2213494f8f1b8f5d3ab9a168"
+  }
+}

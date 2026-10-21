@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { stripTypeScriptTypes } from "node:module";
 import { webcrypto } from "node:crypto";
 import { runInNewContext } from "node:vm";
+import { readStudentSetupRecognition } from "../src/utils/studentSetupRecognition.js";
 import {
   KANDID_WEB_ORIGINS, corsHeaders, handleCorsPreflight,
   rejectDisallowedOrigin, withKandidCors,
@@ -11,10 +12,13 @@ import {
 
 // Execute the real handler code with synthetic in-memory services. No production
 // credentials, external network, email delivery or database connection is used.
-const sources = Object.fromEntries(await Promise.all(["resolve-student-login", "link-student-identity", "student-profile-readonly-deploy"].map(async (name) => {
+const sources = Object.fromEntries(await Promise.all(["resolve-student-login", "resolve-student-login-inspect-deploy", "resolve-student-login-recognition-deploy", "link-student-identity", "student-profile-readonly-deploy"].map(async (name) => {
   const source = await readFile(new URL("../supabase/functions/" + name + "/index.ts", import.meta.url), "utf8");
   return [name, stripTypeScriptTypes(source).replace(/^import .*;\r?\n/gm, "")];
 })));
+const resolverV7 = JSON.parse(await readFile(new URL("./fixtures/studentSetupResolverV7.json", import.meta.url), "utf8"));
+sources["resolver-v7-baseline"] = stripTypeScriptTypes(resolverV7.files.find(file => file.name.endsWith("resolve-student-login/index.ts")).content)
+  .replace(/^import .*;\r?\n/gm, "");
 const student = {
   id: 42, student_number: "700001", email: "synthetic.student@example.invalid",
   status: "active", auth_user_id: "synthetic-auth",
@@ -27,12 +31,13 @@ const verification = { action: "verify_access", student_number: student.student_
 const linking = { student_number: student.student_number, setup_mode: true, password: "Synthetic!9" };
 const authorized = { Authorization: "Bearer synthetic-session" };
 
-function harness(name = "resolve-student-login", options = {}) {
+export function harness(name = "resolve-student-login", options = {}) {
   const events = [];
   const pending = [];
   const logs = [];
   const requestedEnv = [];
-  const db = { students: structuredClone(options.students || [student]), admin_users: structuredClone(options.admins || []), student_term_enrollments: [{ student_id: student.id, academic_term_id: 1, program: "BSIT", year_level: 1, enrollment_status: "enrolled" }] };
+  const db = { academic_terms: [{ id: 1, academic_year: "2026-2027", semester: "First", status: "active" }], student_organization_terms: [{student_id:42,academic_term_id:1,organization_id:2,status:"active"}], organizations: [{id:2,name:"Synthetic Student Government"}], students: structuredClone(options.students || [student]), admin_users: structuredClone(options.admins || []), student_term_enrollments: [{ student_id: student.id, academic_term_id: 1, program: "BSIT", year_level: 1, enrollment_status: "enrolled" }] };
+  Object.assign(db, structuredClone(options.tables || {}));
   const users = structuredClone(options.authUsers || [verifiedUser]);
   const env = {
     SUPABASE_URL: "https://synthetic-project.invalid", SUPABASE_ANON_KEY: "synthetic-anon",
@@ -46,15 +51,22 @@ function harness(name = "resolve-student-login", options = {}) {
     let changes;
     let limit = Infinity;
     let single = false;
+    let offset = 0;
+    let counted = false;
     async function execute() {
       record("table", { table, operation: changes ? "update" : "read" });
-      if (options.databaseError) return { data: null, error: { message: "Synthetic database failure" } };
-      const rows = db[table].filter((row) => filters.every((predicate) => predicate(row))).slice(0, limit);
+      if (options.databaseError || options.readErrorTable === table) return { data: null, error: { message: "Synthetic database failure" } };
+      options.beforeRead?.(table, db, events);
+      const matching = db[table].filter((row) => filters.every((predicate) => predicate(row)));
+      const count = matching.length;
+      const rows = matching.slice(offset, offset + Math.min(limit, options.rowCap || Infinity));
       if (changes) rows.forEach((row) => Object.assign(row, changes));
-      return { data: single ? rows[0] : rows, error: null };
+      return { data: structuredClone(single ? rows[0] : rows), error: null, count: counted ? count : null };
     }
     const query = {
-      select() { return query; },
+      select(_columns, settings) { counted = settings?.count === "exact"; return query; },
+      range(start, end) { offset = start; limit = end - start + 1; return query; },
+      in(key, values) { filters.push(row => values.includes(row[key])); return query; },
       eq(key, value) { filters.push((row) => row[key] === value); return query; },
       is(key, value) { filters.push((row) => row[key] === value); return query; },
       not(key, operator, value) { assert.equal(operator, "is"); filters.push((row) => row[key] !== value); return query; },
@@ -133,12 +145,16 @@ function harness(name = "resolve-student-login", options = {}) {
   runInNewContext(sources[name], context, { filename: name + "/index.ts" });
   return {
     events, db, requestedEnv, logs,
-    async invoke(payload, headers = {}) {
+    async invoke(payload, headers = {}, requestOptions = {}) {
       const requestHeaders = new Headers({ Origin: "http://localhost:5174", "Content-Type": "application/json", "cf-connecting-ip": "198.51.100.10" });
       for (const [key, value] of Object.entries(headers)) {
         if (value === null) requestHeaders.delete(key); else requestHeaders.set(key, value);
       }
-      const response = await handler(new Request("https://function.invalid", { method: "POST", headers: requestHeaders, body: JSON.stringify(payload) }));
+      const method = requestOptions.method || "POST";
+      const response = await handler(new Request("https://function.invalid", {
+        method, headers: requestHeaders,
+        body: method === "GET" ? undefined : requestOptions.rawBody ?? JSON.stringify(payload),
+      }));
       await Promise.all(pending);
       return { status: response.status, body: await response.json(), headers: response.headers };
     },
@@ -371,6 +387,127 @@ test("Student ID inspection has identical protected output for known, absent, di
     assert.ok(h.events.some(e => e.kind === "rate" && e.data.args.p_operation === "verify"));
     assert.ok(!h.events.some(e => ["sendOtp", "createUser", "verifyOtp", "passwordUpdate"].includes(e.kind)));
   }
+});
+
+const inspectDeployment = "resolve-student-login-inspect-deploy";
+const inspection = { action: "inspect_setup", student_number: student.student_number };
+
+test("minimal deployment inspection is identical for eligible, unknown, active, disabled and ambiguous records", async () => {
+  const expected = { data: { verification_required: true, student_details: {
+    student_number: student.student_number, details_verified: false,
+    first_name: null, last_name: null, email: null, program: null, year_level: null,
+  } } };
+  for (const students of [
+    [{ ...student, status: "pending", auth_user_id: null }], [], [student],
+    [{ ...student, status: "disabled" }], [student, { ...student, id: 99 }],
+  ]) {
+    const h = harness(inspectDeployment, { students });
+    const before = structuredClone(h.db);
+    // An untrusted bearer header never authorizes identity disclosure.
+    const result = await h.invoke(inspection, { Authorization: "Bearer synthetic-invalid" });
+    assert.equal(result.status, 200);
+    assert.deepEqual(result.body, expected);
+    assert.equal(result.headers.get("Cache-Control"), "no-store");
+    assert.equal(result.headers.get("Access-Control-Allow-Origin"), "http://localhost:5174");
+    assert.deepEqual(h.db, before);
+    assert.deepEqual(h.events.map(event => event.kind), ["rate"]);
+    assert.equal(h.events[0].data.args.p_operation, "verify");
+    assert.deepEqual(h.logs, []);
+  }
+});
+
+test("minimal inspection rejects malformed and forged requests before any service access", async () => {
+  for (const payload of [
+    null, [], { action: "inspect_setup" }, { ...inspection, student_number: "" },
+    { ...inspection, student_number: 12345 }, { ...inspection, student_number: "12x45" },
+    { ...inspection, student_number: "1".repeat(21) },
+    { ...inspection, email: student.email }, { ...inspection, student_id: student.id },
+    { ...inspection, auth_user_id: student.auth_user_id }, { ...inspection, organization_id: 2 },
+    { ...inspection, action: "inspect_setup_admin" },
+  ]) {
+    const h = harness(inspectDeployment);
+    assert.equal((await h.invoke(payload)).status, 401);
+    assert.equal(h.events.length, 0);
+  }
+  for (const origin of [null, "https://hostile.invalid"]) {
+    const h = harness(inspectDeployment);
+    assert.equal((await h.invoke(inspection, { Origin: origin })).status, 403);
+    assert.equal(h.events.length, 0);
+  }
+  for (const requestOptions of [{ rawBody: "{" }, { rawBody: "x".repeat(8193) }, { method: "GET" }]) {
+    const h = harness(inspectDeployment);
+    assert.equal((await h.invoke(inspection, {}, requestOptions)).status, requestOptions.method === "GET" ? 403 : 401);
+    assert.equal(h.events.length, 0);
+  }
+});
+
+test("minimal inspection preserves rate-limit and configuration failures without student disclosure", async () => {
+  for (const [options, headers, status, events] of [
+    [{ rateAllowed: false }, {}, 429, ["rate"]],
+    [{ rateError: true }, {}, 429, ["rate"]],
+    [{ rateThrows: true }, {}, 503, ["rate"]],
+    [{ env: { STUDENT_AUTH_RATE_LIMIT_HMAC_SECRET: "short" } }, {}, 503, []],
+    [{}, { "cf-connecting-ip": null }, 503, []],
+  ]) {
+    const h = harness(inspectDeployment, options);
+    const result = await h.invoke(inspection, headers);
+    assert.equal(result.status, status);
+    assert.deepEqual(h.events.map(event => event.kind), events);
+    assert.equal(result.body.data?.student_details, undefined);
+    assert.ok(!JSON.stringify(result.body).includes(student.email));
+  }
+});
+
+test("minimal deployment leaves all v7 login, email dispatch and OTP verification outcomes unchanged", async () => {
+  const cases = [
+    [credentials, {}], [credentials, { students: [] }],
+    [credentials, { students: [{ ...student, status: "pending", auth_user_id: null }] }],
+    [credentials, { students: [{ ...student, status: "disabled" }] }],
+    [credentials, { badPassword: true }], [credentials, { signInUserId: "foreign" }],
+    [credentials, { rateAllowed: false }], [credentials, { databaseError: true }],
+    [setup, {}], [setup, { students: [], authUsers: [] }],
+    [setup, { students: [{ ...student, status: "pending", auth_user_id: null }], authUsers: [] }],
+    [setup, { students: [{ ...student, status: "pending", auth_user_id: null }] }],
+    [setup, { admins: [{ auth_user_id: student.auth_user_id }] }],
+    [setup, { sendError: true }], [setup, { sendThrows: true }],
+    [verification, {}], [verification, { invalidOtp: true }],
+    [verification, { verifiedUserId: "foreign" }],
+    [verification, { otpUser: { ...verifiedUser, email_confirmed_at: null } }],
+    [{ ...verification, registered_email: "foreign@example.invalid" }, {}],
+    [{ ...verification, verification_code: "bad" }, {}],
+  ];
+  for (const [payload, options] of cases) {
+    const baseline = harness("resolver-v7-baseline", options);
+    const prepared = harness(inspectDeployment, options);
+    const before = await baseline.invoke(payload);
+    const after = await prepared.invoke(payload);
+    assert.equal(after.status, before.status);
+    assert.deepEqual(after.body, before.body);
+    const normalizeEvents = events => events.map(event => event.kind === "delay" ? { kind: "delay" } : event);
+    assert.deepEqual(normalizeEvents(prepared.events), normalizeEvents(baseline.events));
+    assert.deepEqual(prepared.db, baseline.db);
+  }
+});
+
+test("new frontend refuses the historical protected v8 response until recognition deployment", async () => {
+  const source = (await readFile(new URL("../src/utils/auth.js", import.meta.url), "utf8"));
+  const inspectSource = source.slice(source.indexOf("export async function inspectStudentSetup"), source.indexOf("export async function verifyStudentAccessCode")).replace("export ", "");
+  const h = harness(inspectDeployment);
+  const context = {
+    readStudentSetupRecognition,
+    RESOLVE_STUDENT_LOGIN_FUNCTION: "resolve-student-login",
+    supabase: { functions: { async invoke(name, { body }) {
+      assert.equal(name, "resolve-student-login");
+      assert.deepEqual(JSON.parse(JSON.stringify(body)), inspection);
+      const result = await h.invoke(body);
+      return { data: result.body, error: null };
+    } } },
+  };
+  runInNewContext(inspectSource + "\nglobalThis.inspect = inspectStudentSetup;", context);
+  const result = await context.inspect({ studentNumber: student.student_number });
+  assert.ok(result.error);
+  assert.equal(result.data, null);
+  assert.deepEqual(h.events.map(event => event.kind), ["rate"]);
 });
 
 test("failed OTP cannot disclose student details or enrollment history", async () => {

@@ -1,0 +1,10 @@
+# Preserve the reviewed deployment bytes across Windows and Unix checkouts.
+.github/workflows/anchor-ballot-hashes.yml text eol=lf
+.github/workflow-proposals/anchor-ballot-hashes.yml text eol=lf
+supabase/functions/resolve-student-login-recognition-deploy/index.ts text eol=lf
+supabase/functions/resolve-student-login-inspect-deploy/index.ts text eol=lf
+supabase/functions/_shared/kandidProductionSecurity.mjs text eol=crlf
+supabase/functions/_shared/legacyVoteAnchorEvidence.mjs text eol=crlf
+supabase/functions/anchor-ballot-hashes/index.ts text eol=crlf
+supabase/functions/anchor-ballot-hashes/deno.json text eol=lf
+supabase/functions/anchor-ballot-hashes/deno.lock text eol=crlf

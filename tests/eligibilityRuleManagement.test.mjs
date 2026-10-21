@@ -3,7 +3,7 @@ import test from "node:test";
 import { createClient } from "@supabase/supabase-js";
 import {
   createEligibilityRuleSubmission, deleteEligibilityRule, eligibilityRuleConflict,
-  eligibilityRuleErrorMessage, saveEligibilityRuleEdit, validateEligibilityRuleValues,
+  eligibilityRuleErrorMessage, enforcesElectionEligibilityRules, saveEligibilityRuleEdit, validateEligibilityRuleValues,
 } from "../src/utils/eligibilityRuleManagement.js";
 import { fetchDevelopmentProductionRequest, isAllowedDevelopmentProductionRequest as allowed } from "../src/utils/developmentProductionWriteGuard.js";
 
@@ -11,6 +11,18 @@ const origin = "https://fszgdxqxonqqcrzsnkca.supabase.co";
 const values = { election_id: "3", program: " bsit ", min_year_level: "1", max_year_level: "4", allow_shs: false };
 const normalized = { program: "BSIT", min_year_level: 1, max_year_level: 4, allow_shs: false, election_id: 3 };
 const existing = { ...normalized, id: 42 };
+
+test("rule enforcement presentation follows policy metadata rather than election IDs", () => {
+  assert.equal(enforcesElectionEligibilityRules({ id: 3, electorate_policy_version: 1 }), true);
+  assert.equal(enforcesElectionEligibilityRules({ id: 4, electorate_policy_version: 0 }), false);
+  assert.equal(enforcesElectionEligibilityRules({ id: 999, electorate_policy_version: 1 }), true);
+  assert.equal(enforcesElectionEligibilityRules({ id: 3 }), false);
+  assert.match(eligibilityRuleErrorMessage({ code: "42501", message: "Eligibility rules are locked for this election." }), /cannot be changed/);
+});
+
+test("the proposed Year 1 rule retains BSIT, the Year 4 upper bound and SHS exclusion", () => {
+  assert.deepEqual(validateEligibilityRuleValues(values), normalized);
+});
 function harness(options = {}) {
   const calls = [], rows = structuredClone(options.rows || []);
   const profile = { auth_user_id: "trusted-actor", role: "electoral_board", status: "active", organization_id: 2, ...options.profile };
@@ -119,6 +131,17 @@ test("Edit confirms ID and filters election without allowing parent reassignment
   const forged = harness({ rows: [existing] });
   assert.ok((await saveEligibilityRuleEdit(forged.client, { ...existing, election_id: 9 }, values, 2)).error);
   assert.equal(forged.mutations().length, 0);
+});
+
+test("the existing Board edit lowers only Prac Elec's Year 2 minimum to Year 1", async () => {
+  const original = { ...existing, min_year_level: 2 };
+  const h = harness({ rows: [original] });
+  assert.equal((await saveEligibilityRuleEdit(h.client, original, values, 2)).data.id, original.id);
+  assert.equal(h.mutations().length, 1);
+  const request = h.mutations()[0], url = new URL(request.input);
+  assert.equal(url.searchParams.get("id"), "eq.42");
+  assert.equal(url.searchParams.get("election_id"), "eq.3");
+  assert.deepEqual(JSON.parse(request.body), { program: "BSIT", min_year_level: 1, max_year_level: 4, allow_shs: false });
 });
 
 test("Delete preserves historical-delete checks and confirms scoped ID", async () => {

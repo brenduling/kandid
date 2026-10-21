@@ -2625,6 +2625,16 @@
 }
 
 .board-election-removal-warning p { margin: 0; line-height: 1.45; }
+.board-election-edit-restriction {
+  margin: 0 0 1rem;
+  border-left: 3px solid #b95c16;
+  padding: 0.65rem 0.8rem;
+  color: #633b1e;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
 .board-election-password-label { display: block; margin: 1rem 0 0.4rem; font-weight: 700; }
 .board-election-sheet input[name="current-password"] { width: 100%; min-height: 2.8rem; border: 1px solid #77716b; padding: 0.65rem; }
 .board-election-removal-error { margin: 0.55rem 0 0; color: #a3150f; font-size: 0.86rem; }

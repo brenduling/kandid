@@ -364,6 +364,52 @@
 
   .kandid-app-theme .board-student-mobile-actions-menu button:hover { color: var(--kandid-app-orange); }
 
+  /* Board Elections mobile overflow: the same contextual menu pattern as the
+     roster, with a square trigger so it reads as a Kandid control rather than a
+     circular chip. Items are mirrored by the elections-specific rules in
+     Elections.css; only the shared trigger geometry is declared here. */
+  .kandid-app-theme .board-election-mobile-actions-slot {
+    position: relative;
+    grid-column: 4;
+    grid-row: 1;
+    width: 2.75rem;
+    height: 0;
+    align-self: start;
+  }
+
+  .kandid-app-theme .board-election-mobile-actions {
+    display: block;
+    position: relative;
+    width: 100%;
+    height: 0;
+  }
+
+  .kandid-app-theme .board-election-mobile-actions-trigger {
+    position: absolute;
+    top: -0.45rem;
+    right: -0.2rem;
+    display: flex;
+    width: 2.75rem;
+    height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--kandid-app-border-strong);
+    background: var(--kandid-app-paper);
+    color: var(--kandid-app-ink);
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .kandid-app-theme .board-election-mobile-actions-trigger:hover {
+    border-color: var(--kandid-app-ink);
+    background: var(--kandid-app-paper-soft);
+  }
+
+  .kandid-app-theme .board-election-mobile-actions-trigger:focus-visible {
+    outline: 2px solid var(--kandid-app-orange);
+    outline-offset: 2px;
+  }
+
   .kandid-app-theme .board-student-record-actions,
   .kandid-app-theme .board-student-record .board-student-action-group,
   .kandid-app-theme .board-student-record-action,
