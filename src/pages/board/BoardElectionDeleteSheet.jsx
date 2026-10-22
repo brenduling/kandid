@@ -121,7 +121,7 @@ export default function BoardElectionDeleteSheet({
               {error ? <p className="board-election-removal-error" role="alert">{error}</p> : null}
             </form>
           ) : null}
-          {busy ? <p className="board-election-danger-wait">Rechecking your session, permission, password, and current election state.</p> : null}
+          {busy ? <p className="board-election-danger-wait">Rechecking your session, permission, password, and your current election state.</p> : null}
         </div>
 
         <div className="board-election-danger-footer">

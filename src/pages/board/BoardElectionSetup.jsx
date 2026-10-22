@@ -283,7 +283,7 @@ export default function BoardElectionSetup({
                 <div>
                   <h3 id="board-election-setup-02">Schedule</h3>
                   <p>
-                    Campaign is the window candidates are presented. Voting is the window
+                    Campaign is the window were candidates are presented. Voting is the window
                     ballots are accepted.
                   </p>
                 </div>
