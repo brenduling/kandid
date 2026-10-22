@@ -128,7 +128,7 @@ test("isolated setup testing permits only strict OTP actions to the named dispos
     body: JSON.stringify(body),
     allowIsolatedStudentSetupTests: enabled,
   });
-  assert.equal(allowLocalLink({ student_number: "123456", setup_mode: true, password: "Secure!123" }), true);
+  assert.equal(allowLocalLink({ student_number: "123456", setup_mode: true, password: "Secure!123", setup_token: "a".repeat(64) }), true);
   assert.equal(allowLocalLink({ student_number: "123456", setup_mode: true, password: "Secure!123", auth_user_id: "forged" }), false);
   assert.equal(allowLocalLink({ student_number: "123456", setup_mode: true, password: "weak" }), false);
   assert.equal(allowLocalLink({ student_number: "123456", setup_mode: true, password: "Secure!123" }, undefined, false), false);
@@ -148,7 +148,9 @@ test("official Student account setup uses a narrow opt-in gate with exact reques
   assert.equal(allowedWithFlag(resolve, { action: "verify_access", student_number: "123456", verification_code: "012345", email: "forged@example.invalid" }), false);
   assert.equal(allowedWithFlag(resolve, { action: "verify_access", student_number: "123456", verification_code: "012345", registered_email: null }), false);
   assert.equal(allowedWithFlag(resolve, { action: "verify_access", student_number: "123456", registered_email: "student@example.invalid", verification_code: "012345" }), true);
-  assert.equal(allowedWithFlag(link, { student_number: "123456", setup_mode: true, password: "Secure!123" }), true);
+  assert.equal(allowedWithFlag(link, { student_number: "123456", setup_mode: true, password: "Secure!123", setup_token: "a".repeat(64) }), true);
+  assert.equal(allowedWithFlag(link, { student_number: "123456", setup_mode: true, password: "Secure!123" }), false);
+  assert.equal(allowedWithFlag(link, { student_number: "123456", setup_mode: true, password: "Secure!123", setup_token: "forged" }), false);
   assert.equal(allowedWithFlag(resolve, { action: "begin_access", student_number: "123456", registered_email: "attacker@example.invalid" }), false);
   assert.equal(allowedWithFlag(resolve, { action: "verify_access", student_number: "123456", registered_email: "student@example.invalid", verification_code: "bad" }), false);
   assert.equal(allowedWithFlag(link, { student_number: "123456", setup_mode: true, password: "Secure!123", auth_user_id: "forged" }), false);

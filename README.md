@@ -122,6 +122,23 @@ rewrites application routes to the SPA entry point. Supabase database
 migrations and Edge Functions are released separately; a Vercel frontend
 deployment does not apply them.
 
+Ignored local `.env` files are not included in a Git deployment. Configure the
+following in the Vercel project and environment that builds the Git branch:
+
+| Variable | Required configuration |
+| --- | --- |
+| `VITE_SUPABASE_URL` | `https://fszgdxqxonqqcrzsnkca.supabase.co` |
+| `VITE_SUPABASE_KEY` | The official project's public publishable or legacy anon key. `VITE_SUPABASE_ANON_KEY` is not read by Kandid. |
+| `KANDID_SUPABASE_KEY_PROJECT_REF` | `fszgdxqxonqqcrzsnkca`, required when using a publishable key. |
+
+`npm run build` uses Vite's `production` mode for both Vercel Preview and
+Production deployments. Keep that mode and the existing validation unchanged.
+Vercel Preview and Production variable scopes are separate; a branch-specific
+Preview value overrides the general Preview value. Check the failed deployment's
+project, environment and branch before correcting its configuration. Changes
+apply only to subsequent deployments; see
+[Vercel environment variables](https://vercel.com/docs/environment-variables).
+
 ## Vote-registry contract
 
 The Solidity source is in `contracts/KandidVoteRegistry.sol`. Compile it with:

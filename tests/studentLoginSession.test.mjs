@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
 import {runInNewContext} from "node:vm";
 import {isAllowedDevelopmentProductionRequest} from "../src/utils/developmentProductionWriteGuard.js";
+import {readStudentSetupRecognition} from "../src/utils/studentSetupRecognition.js";
 const source=(await readFile(new URL("../src/utils/auth.js",import.meta.url),"utf8")).replace(/^import .*;\r?\n/gm,"").replace(/import\.meta\.env/g,"testEnvironment").replace(/^export /gm,"");
 function harness(options={}) {
  const events=[], storage=options.storage || new Map();
@@ -20,7 +21,7 @@ function harness(options={}) {
   events.push([name,body.action]);
   if(name==="resolve-student-login") {
    if(options.badCredentials) return {data:null,error:{context:{status:401}}};
-   if(body.action==="inspect_setup") return {data:{data:{verification_required:true,student_details:{student_number:body.student_number,details_verified:false,email:"must-not-trust@example.invalid"}}},error:null};
+   if(body.action==="inspect_setup") return {data:{data:{recognition_version:3,student_number:body.student_number,verification_required:true}},error:null};
    return {data:{data:{authenticated:true,session:{access_token:"synthetic",refresh_token:"synthetic"}}},error:null};
   }
   assert.equal(name,"student-profile");
@@ -30,7 +31,7 @@ function harness(options={}) {
  }}
  };
  const local={getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)};
- const context={supabase,testEnvironment:{},clearSessionCache(){},localStorage:local,sessionStorage:local,window:{dispatchEvent(){}},CustomEvent:class{}};
+ const context={supabase,readStudentSetupRecognition,testEnvironment:{},clearSessionCache(){},localStorage:local,sessionStorage:local,window:{dispatchEvent(){}},CustomEvent:class{}};
  runInNewContext(source+"\nglobalThis.api={authenticateStudentByNumber,requireStudentSession,signOutStudentSession,inspectStudentSetup};",context);
  return {api:context.api,events,storage,supabase,switchUser(){user={...user,id:"other-auth"};},profile};
 }
@@ -105,5 +106,5 @@ test("development guard allows exact authenticated profile read but denies write
 test("pre-OTP setup helper strips all unverified personal data",async()=>{
  const h=harness();
  const r=await h.api.inspectStudentSetup({studentNumber:"700001"});
- assert.equal(JSON.stringify(r.data),JSON.stringify({student_number:"700001",details_verified:false}));
+ assert.equal(JSON.stringify(r.data),JSON.stringify({student_number:"700001",verification_required:true}));
 });

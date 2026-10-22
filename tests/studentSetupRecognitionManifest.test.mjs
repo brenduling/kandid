@@ -12,6 +12,8 @@ test("recognition release binds the isolated resolver, unchanged dependency and 
   assert.equal(m.verify_jwt,false);assert.equal(m.baseline_version,8);assert.equal(m.dependencies.sdk_version,"2.118.0");
   assert.deepEqual(m.deployment_files.map(f=>f.deployed_name),["functions/resolve-student-login/index.ts","functions/_shared/kandidProductionSecurity.mjs"]);
   const recovery=JSON.parse(readFileSync("docs/student-setup-frontend-recovery-manifest.json","utf8"));
+  const hardened=JSON.parse(readFileSync("docs/student-setup-security-manifest.json","utf8"));
+  assert.equal(hardened.contract_version,3);
   assert.equal(recovery.reviewed_manifest_lf_sha256,hash(normalize(readFileSync("docs/student-setup-recognition-manifest.json","utf8"))));
   assert.deepEqual(recovery.patched_review_files.map(f=>f.path).sort(),[
     "src/pages/auth/StudentSetup.jsx","src/utils/auth.js","tests/studentSetupRecognitionManifest.test.mjs","scripts/kandid-student-setup-recognition-browser.mjs",
@@ -22,12 +24,13 @@ test("recognition release binds the isolated resolver, unchanged dependency and 
     if(patch)assert.equal(patch.reviewed_lf_sha256,file.lf_sha256,file.path);
     // Git for Windows may convert LF/CRLF (including formerly mixed endings).
     // Normalized hashes preserve every source character; backend bytes stay exact.
-    assert.equal(hash(normalize(readFileSync(file.path,"utf8"))),patch?.lf_sha256 || file.lf_sha256,file.path);
+    const updated=hardened.review_files.find(f=>f.path===file.path);
+    assert.equal(hash(normalize(readFileSync(file.path,"utf8"))),updated?.lf_sha256 || patch?.lf_sha256 || file.lf_sha256,file.path);
     if([...m.deployment_files,...m.rollback_files].includes(file))assert.equal(hash(readFileSync(file.path)),file.sha256,file.path);
   }
   for(const file of recovery.new_frontend_files){
     assert.ok(["src/utils/studentSetupLookupFailure.js","tests/studentSetupLookupFailure.test.mjs"].includes(file.path));
-    assert.equal(hash(normalize(readFileSync(file.path,"utf8"))),file.lf_sha256,file.path);
+    assert.equal(hash(normalize(readFileSync(file.path,"utf8"))),hardened.review_files.find(f=>f.path===file.path)?.lf_sha256 || file.lf_sha256,file.path);
   }
   assert.equal(m.rollback_files[0].lf_sha256,"e79d6efef161760868445c1e54012c08f548ca59f09d2309293a1b9209d13c9a");
   assert.equal(m.activation.default_enabled,false);

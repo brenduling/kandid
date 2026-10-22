@@ -9,7 +9,7 @@ export function getStudentSetupRequestError({
   if (typeof studentNumber !== "string" || !STUDENT_NUMBER_PATTERN.test(studentNumber.trim())) {
     return "Enter a valid Student ID before configuring your password.";
   }
-  if (!passwordValid) return "Meet each password requirement before requesting an OTP.";
+  if (!passwordValid) return "Meet each password requirement before completing account setup.";
   if (!passwordsMatch) return "The passwords do not match. Retype the same password in both fields.";
   return "";
 }

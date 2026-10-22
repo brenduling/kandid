@@ -168,7 +168,8 @@ function isValidStudentSetupPayload(payload) {
 }
 
 function isValidStudentIdentityLinkPayload(payload) {
-  return hasOnlyKeys(payload, new Set(["student_number", "setup_mode", "password"])) &&
+  return hasOnlyKeys(payload, new Set(["student_number", "setup_mode", "password", "setup_token"])) &&
+    typeof payload.setup_token === "string" && /^[0-9a-f]{64}$/.test(payload.setup_token) &&
     typeof payload.student_number === "string" && /^[0-9]{1,20}$/.test(payload.student_number) &&
     payload.setup_mode === true && typeof payload.password === "string" &&
     payload.password.length >= 6 && payload.password.length <= 256 &&

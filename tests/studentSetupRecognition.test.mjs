@@ -16,11 +16,11 @@ const make=options=>harness(artifact,{students:[record],...options});
 const noWrites=h=>assert.ok(!h.events.some(e=>["createUser","passwordUpdate","sendOtp"].includes(e.kind)||e.data?.operation==="update"));
 const noAcademicReads=h=>assert.ok(!h.events.some(e=>["academic_terms","student_term_enrollments","student_organization_terms","organizations"].includes(e.data?.table)));
 
-test("approved pre-OTP disclosure contains exactly full name, program and year, without email or enrollment",async()=>{
+test("historical v9 disclosure stays frozen but the hardened frontend rejects it",async()=>{
   const h=make(),before=structuredClone(h.db);const r=await h.invoke(inspect);
   assert.equal(r.status,200);assert.equal(r.headers.get("cache-control"),"no-store");
   assert.deepEqual(r.body,{data:{recognition_version:2,student_number:record.student_number,student_details:{full_name:"Synthetic Student",program:"BSIT",year_level:1}}});
-  assert.deepEqual(readStudentSetupRecognition(r.body.data,record.student_number),{student_number:record.student_number,full_name:"Synthetic Student",program:"BSIT",year_level:1});
+  assert.equal(readStudentSetupRecognition(r.body.data,record.student_number),null);
   assert.equal(JSON.stringify(r.body).includes(record.email),false);assert.equal(JSON.stringify(r.body).includes("private_notes"),false);
   assert.deepEqual(h.db,before);noWrites(h);noAcademicReads(h);assert.ok(!h.events.some(e=>e.kind==="verifyOtp"));
 });
@@ -93,7 +93,7 @@ test("valid OTP returns an exact Student/Auth admission binding, not more recogn
   assert.equal(r.status,200);assert.equal(r.headers.get("cache-control"),"no-store");
   assert.deepEqual(r.body.data.setup_verification,{contract_version:2,student_number:record.student_number,auth_user_id:user.id,account_state:"pending"});
   assert.deepEqual(Object.keys(r.body.data).sort(),["authenticated","session","setup_verification"]);
-  assert.ok(readStudentSetupVerification(r.body.data.setup_verification,record.student_number,user));
+  assert.equal(readStudentSetupVerification(r.body.data.setup_verification,record.student_number,user),null);
   assert.equal(h.events.find(e=>e.kind==="verifyOtp").data.email,record.email);
   assert.deepEqual(h.db,before);noWrites(h);noAcademicReads(h);
 });

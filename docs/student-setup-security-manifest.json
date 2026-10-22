@@ -1,0 +1,173 @@
+{
+  "manifest_revision": 1,
+  "status": "LOCAL_ONLY_APPROVAL_REQUIRED",
+  "project_ref": "fszgdxqxonqqcrzsnkca",
+  "contract_version": 3,
+  "reviewed_workspace_head": "3b153e57b4e45b618c0cca1c01011f2927276ebd",
+  "server_gate": {
+    "name": "STUDENT_SETUP_SECURITY_ENABLED",
+    "default_enabled": false
+  },
+  "frontend_gates": {
+    "names": [
+      "VITE_ENABLE_STUDENT_ACCOUNT_SETUP",
+      "VITE_ENABLE_VERIFIED_STUDENT_SETUP"
+    ],
+    "default_enabled": false
+  },
+  "functions": [
+    {
+      "slug": "resolve-student-login",
+      "verify_jwt": false
+    },
+    {
+      "slug": "link-student-identity",
+      "verify_jwt": true
+    }
+  ],
+  "deployment_files": [
+    {
+      "path": "supabase/functions/resolve-student-login-secure-deploy/index.ts",
+      "sha256": "b8f2c3ea16e7967636b263da7d12df54faad8f1b768bbcc674be8200dd0f8c3a",
+      "lf_sha256": "b8f2c3ea16e7967636b263da7d12df54faad8f1b768bbcc674be8200dd0f8c3a",
+      "deployed_name": "functions/resolve-student-login/index.ts"
+    },
+    {
+      "path": "supabase/functions/link-student-identity-secure-deploy/index.ts",
+      "sha256": "f2e10a288349fe43316e1a146531f2890e26f096c70f8d4fdbab002818cf7995",
+      "lf_sha256": "f2e10a288349fe43316e1a146531f2890e26f096c70f8d4fdbab002818cf7995",
+      "deployed_name": "functions/link-student-identity/index.ts"
+    },
+    {
+      "path": "supabase/functions/_shared/studentSetupAdmission.ts",
+      "sha256": "973a09158bec9ccd1d5682d282c265ceaafa741e37b5ed76eb96a53569ba4fdd",
+      "lf_sha256": "973a09158bec9ccd1d5682d282c265ceaafa741e37b5ed76eb96a53569ba4fdd",
+      "deployed_name": "functions/_shared/studentSetupAdmission.ts"
+    },
+    {
+      "path": "supabase/functions/_shared/kandidProductionSecurity.mjs",
+      "sha256": "87a7100ca782092528dc9cd49e7941216fe664ac4a0099f5d44fc9cf476733e2",
+      "lf_sha256": "340ebeb85e42e5274d4ae48ca7548e6170957652cb8e1c1161188740ecb5cdeb",
+      "deployed_name": "functions/_shared/kandidProductionSecurity.mjs"
+    }
+  ],
+  "sql_files": [
+    {
+      "path": "supabase/proposals/student-setup-security.sql",
+      "sha256": "d2c2cf8f29cd531dfcf0c1890bea67e7f97dcfcbbe1d1d6cb13cc9a274f7885a",
+      "lf_sha256": "d2c2cf8f29cd531dfcf0c1890bea67e7f97dcfcbbe1d1d6cb13cc9a274f7885a"
+    },
+    {
+      "path": "supabase/proposals/student-setup-security.rollback.sql",
+      "sha256": "677941bc13b31017ed1fd8cc16b7ec1c0f4ee547cc6c10310beed30cb8f44c06",
+      "lf_sha256": "677941bc13b31017ed1fd8cc16b7ec1c0f4ee547cc6c10310beed30cb8f44c06"
+    },
+    {
+      "path": "supabase/proposals/student-setup-security.recover.sql",
+      "sha256": "f324c7ee0cc2c0b54bfa2331fa0a5297facbe7e20b00aa3d6313e2d38162c586",
+      "lf_sha256": "f324c7ee0cc2c0b54bfa2331fa0a5297facbe7e20b00aa3d6313e2d38162c586"
+    }
+  ],
+  "review_files": [
+    {
+      "path": "src/pages/auth/StudentSetup.jsx",
+      "sha256": "9e00cf6bcbce11002740e59fb6f1c98611f863030fed36fff6eb1331138671af",
+      "lf_sha256": "9e00cf6bcbce11002740e59fb6f1c98611f863030fed36fff6eb1331138671af"
+    },
+    {
+      "path": "src/utils/auth.js",
+      "sha256": "9446054f678efa8faad01e5f6ff2784973180629f7e5175ea844eb58a71ef00a",
+      "lf_sha256": "99ff6c92a22f1475d328d241ac5f94aaf0eddc46a9d7808a3c89109841714650"
+    },
+    {
+      "path": "src/utils/studentSetupRecognition.js",
+      "sha256": "e3680900b90bab033c870c31eca421b8ac610a9c376bf15364fc075f430b3a8c",
+      "lf_sha256": "e3680900b90bab033c870c31eca421b8ac610a9c376bf15364fc075f430b3a8c"
+    },
+    {
+      "path": "src/utils/studentSetupValidation.js",
+      "sha256": "bc18d2d0f94d98fea91cfe5f0b71a9fa247f79467ff8618f51b3f9b54017c517",
+      "lf_sha256": "2b6bd4e5528beae725e0e0305eee5945d7388600400461c289411dbcbfca11bc"
+    },
+    {
+      "path": "src/utils/developmentProductionWriteGuard.js",
+      "sha256": "a39264cfffb92e6346381eb0f280fb70b54ae6faeb0656ac89d0c0c3b86f8d7c",
+      "lf_sha256": "dfab808d088597261344750956ac4a41859caa2b110a467b28d40df44ac5c8e8"
+    },
+    {
+      "path": "tests/studentSetupCompletion.test.mjs",
+      "sha256": "2538b499c8750dc553649f20fac14942c0f54e28ac95130f07ce44225bcb072d",
+      "lf_sha256": "17ecd4767244f4bd6450821d27b05889f9df996f7ec07c2b3ef84c5b458d87bb"
+    },
+    {
+      "path": "tests/studentSetupLookupFailure.test.mjs",
+      "sha256": "325a7b487583d82b1ad8d6e9cb6ac942d476165d32c465340d6660583376ab49",
+      "lf_sha256": "325a7b487583d82b1ad8d6e9cb6ac942d476165d32c465340d6660583376ab49"
+    },
+    {
+      "path": "tests/studentSetupRecognition.test.mjs",
+      "sha256": "0539fd2918719d7550abdee20c1f72ef01b051e1e14797aaae5974f32dd2e25d",
+      "lf_sha256": "77fdc370fdfb2675c2cfc853fe425f00ab955efb958da8be78c004a0a8ac8081"
+    },
+    {
+      "path": "tests/studentSetupRecognitionManifest.test.mjs",
+      "sha256": "1472daf434536886c44a86a3cdb78c7c77cb7b61d82b7a61cddebf55c1176ef1",
+      "lf_sha256": "938478090302da5297276f7ea67ad2a6943655c02fc80a3acdb396b74c709a4b"
+    },
+    {
+      "path": "tests/studentSetupValidation.test.mjs",
+      "sha256": "cf84ee73569c4dd42044782e2e5f60e3eb5d489edc13474719a7e691289a6f03",
+      "lf_sha256": "a77e8d47dbb3b46901660c675cdc493512f10f9b02177a21771c3adbfdb19ed5"
+    },
+    {
+      "path": "tests/developmentProductionWriteGuard.test.mjs",
+      "sha256": "40e253603e1589901776256b895d52034964cf49ecf3dd6ea33e6c54e2780600",
+      "lf_sha256": "e63a477a4f2dde6852e971ae43cab9c774e5860b5c28467da9fa1301e10e7927"
+    },
+    {
+      "path": "tests/studentLoginSession.test.mjs",
+      "sha256": "248cad3622a8c3f265f4b051fa171165c1bbe72007ab06fede829b51fffba918",
+      "lf_sha256": "35008166c3adf7922ff9346449292b90b0b677f09010a5a854b24dabbdc9b95a"
+    },
+    {
+      "path": "tests/automaticVoterEligibility.test.mjs",
+      "sha256": "088db59bc0acc4b592c6df1f6d85ff474ca4efc2d0ea024ffe15e8075cad529f",
+      "lf_sha256": "088db59bc0acc4b592c6df1f6d85ff474ca4efc2d0ea024ffe15e8075cad529f"
+    },
+    {
+      "path": "tests/studentSetupSecurity.test.mjs",
+      "sha256": "36bcd400ab0aa9a1366ec306075bdd3a21a8000b272fea554a1cdd8fc29ddbea",
+      "lf_sha256": "36bcd400ab0aa9a1366ec306075bdd3a21a8000b272fea554a1cdd8fc29ddbea"
+    },
+    {
+      "path": "tests/studentSetupSecurityManifest.test.mjs",
+      "sha256": "a4a3dfee87ab91888a7db473e15f8ccf8a02918af120a159be54237fbbc3306e",
+      "lf_sha256": "a4a3dfee87ab91888a7db473e15f8ccf8a02918af120a159be54237fbbc3306e"
+    },
+    {
+      "path": "scripts/kandid-student-setup-security-pg17.mjs",
+      "sha256": "4dc0773539333f68f9094a7b9818f91a5b127228432e8967046834ca9f1b0640",
+      "lf_sha256": "4dc0773539333f68f9094a7b9818f91a5b127228432e8967046834ca9f1b0640"
+    },
+    {
+      "path": "scripts/kandid-student-setup-security-integration.mjs",
+      "sha256": "bb9eac34cf60009946379ba150f0de729499998865836a79c486f9216da06f32",
+      "lf_sha256": "bb9eac34cf60009946379ba150f0de729499998865836a79c486f9216da06f32"
+    },
+    {
+      "path": "scripts/kandid-student-setup-security-browser.mjs",
+      "sha256": "efaa3d1ff7e01b3fbf556bda4bd12013ed7d0ee66ac625576ef0db38bb306a2e",
+      "lf_sha256": "efaa3d1ff7e01b3fbf556bda4bd12013ed7d0ee66ac625576ef0db38bb306a2e"
+    },
+    {
+      "path": "scripts/prepare-student-setup-security-release.mjs",
+      "sha256": "efa2b6316f86a8bd343599b14b68bbb8cd8b5e14054c994d1341e11e9fe6c3bc",
+      "lf_sha256": "efa2b6316f86a8bd343599b14b68bbb8cd8b5e14054c994d1341e11e9fe6c3bc"
+    },
+    {
+      "path": "docs/student-setup-security-release.md",
+      "sha256": "a7a517d8736d151cc2072f581a713276882a2bbf7f2abdf5992db14371dd14ed",
+      "lf_sha256": "a7a517d8736d151cc2072f581a713276882a2bbf7f2abdf5992db14371dd14ed"
+    }
+  ]
+}

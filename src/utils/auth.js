@@ -259,6 +259,7 @@ export async function linkCurrentStudentIdentity({
   studentNumber,
   setupMode = false,
   password,
+  setupToken,
 }) {
   const { data, error } = await supabase.functions.invoke(
     LINK_STUDENT_IDENTITY_FUNCTION,
@@ -267,6 +268,7 @@ export async function linkCurrentStudentIdentity({
         student_number: studentNumber,
         setup_mode: setupMode,
         password,
+        setup_token: setupToken,
       },
     },
   );

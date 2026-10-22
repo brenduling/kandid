@@ -38,13 +38,13 @@ test("OTP verification validates only the code without asking for an email or CA
   assert.match(getStudentOtpFailureMessage({ status: 503 }), /connection/);
 });
 
-test("setup confirms recognition and configures password before OTP, committing only after verified admission", () => {
-  assert.match(setupPage, /const SETUP_STAGES = \[\s*\{ key: "lookup"[\s\S]*?\{ key: "confirm"[\s\S]*?\{ key: "password"[\s\S]*?\{ key: "otp"/);
+test("setup verifies OTP before revealing details or configuring the password", () => {
+  assert.match(setupPage, /const SETUP_STAGES = \[\s*\{ key: "lookup"[\s\S]*?\{ key: "otp"[\s\S]*?\{ key: "confirm"[\s\S]*?\{ key: "password"/);
   const passwordHandler = setupPage.slice(setupPage.indexOf("async function handlePasswordContinue"), setupPage.indexOf("async function completeSetup"));
-  assert.match(passwordHandler, /detailsConfirmed/);assert.match(passwordHandler, /await sendOtp\(\)/);
-  assert.match(passwordHandler, /setStep\("otp"\)/);assert.doesNotMatch(passwordHandler, /completeSetup|linkCurrentStudentIdentity|updateUser/);
+  assert.match(passwordHandler, /detailsConfirmed/);assert.match(passwordHandler, /await completeSetup\(verifiedIdentityRef.current\?\.proof\)/);
+  assert.doesNotMatch(passwordHandler, /sendOtp|linkCurrentStudentIdentity|updateUser/);
   const verifyHandler=setupPage.slice(setupPage.indexOf("async function verifyOtp"),setupPage.indexOf("function handleStudentNumberChange"));
-  assert.match(verifyHandler,/verifyStudentAccessCode[\s\S]*?setup_verification[\s\S]*?await completeSetup\(proof\)/);
+  assert.match(verifyHandler,/verifyStudentAccessCode[\s\S]*?setup_verification[\s\S]*?setStep\("confirm"\)/);
   assert.match(setupPage,/proof\.auth_user_id !== verifiedIdentityRef.current\?\.id/);
   assert.match(setupPage,/disabled=\{!detailsConfirmed\}/);assert.match(setupPage,/OTP_RESEND_COOLDOWN_SECONDS = 60/);
   assert.doesNotMatch(setupPage,/StudentCaptcha|captchaToken|captchaConfigured|Confirm verified password recovery/);

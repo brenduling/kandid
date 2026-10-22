@@ -7,7 +7,7 @@ import { readStudentSetupRecognition } from "../src/utils/studentSetupRecognitio
 
 const source = readFileSync("src/utils/auth.js", "utf8")
   .replace(/^import .*;\r?\n/gm, "").replace(/import\.meta\.env/g, "testEnvironment").replace(/^export /gm, "");
-const valid = { data: { recognition_version: 2, student_number: "700001", student_details: { full_name: "Synthetic Student", program: "BSIT", year_level: 1 } } };
+const valid = { data: { recognition_version: 3, student_number: "700001", verification_required: true } };
 function harness(response, failure) {
   const calls = [];
   const context = { testEnvironment: {}, readStudentSetupRecognition, supabase: { auth: { onAuthStateChange() {} }, functions: { async invoke(name, options) {
@@ -19,11 +19,11 @@ function harness(response, failure) {
   return { calls, inspect: () => context.inspect({ studentNumber: "700001" }) };
 }
 
-test("restored v9 inspection succeeds with the exact recognition allowlist and one request", async () => {
+test("protected v3 inspection succeeds without disclosing existence or student details", async () => {
   const h = harness({ data: valid, error: null });
   const result = await h.inspect();
   assert.equal(result.error, null);
-  assert.deepEqual(result.data, { student_number: "700001", ...valid.data.student_details });
+  assert.deepEqual(result.data, { student_number: "700001", verification_required: true });
   assert.equal(h.calls.length, 1);
   assert.equal(h.calls[0].body.action, "inspect_setup");
   assert.deepEqual(Object.keys(h.calls[0].body).sort(), ["action", "student_number"]);
