@@ -59,12 +59,15 @@ test("pre-auth Student access returns no identity details and keeps ID-to-email 
   assert.doesNotMatch(loginPage, /signInWithPassword|login_email|recoveryCandidate/);
 });
 
-test("setup and recovery disclose no pre-auth profile data and verify only through the trusted email", () => {
+test("setup and recovery disclose only masked pre-auth recognition data and verify only through the trusted email", () => {
   assert.match(auth, /beginStudentAccessVerification/);
   assert.match(auth, /verifyStudentAccessCode/);
   assert.doesNotMatch(setup, /lookupStudentSetupRecord|\.from\("students"\)/);
-  assert.match(setup, /student\?\.details_verified \? student\.email/);
-  assert.match(setup, /Protected until email verification/);
+  assert.doesNotMatch(setup, /details_verified|student\??\.email/);
+  assert.match(setup, /partially masked record for you to confirm/);
+  assert.match(setup, /student-setup-confirm-record/);
+  assert.match(setup, /masked_first_name/);
+  assert.doesNotMatch(setup, /maskedStudent\.(full_name|email|auth_user_id)/);
   assert.match(setup, /verifyStudentAccessCode\(/);
   assert.match(setup, /linkCurrentStudentIdentity\([\s\S]*?setupMode: true/);
   assert.match(setup, /STUDENT_OTP_REQUEST_NOTICE/);

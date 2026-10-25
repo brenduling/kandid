@@ -39,3 +39,9 @@ export function getStudentOtpRetrySeconds(error) {
 
 export const STUDENT_OTP_REQUEST_NOTICE =
   "Request received. Check your registered inbox for a new code. If no new email arrives, delivery may be limited; wait before retrying. Do not reuse a code already verified.";
+
+const YEAR_LEVEL_ORDINALS = { 1: "1st", 2: "2nd", 3: "3rd", 4: "4th", 5: "5th", 6: "6th" };
+
+export function formatStudentSetupYearLevel(value) {
+  return YEAR_LEVEL_ORDINALS[value] ? `${YEAR_LEVEL_ORDINALS[value]} Year` : "Not recorded";
+}

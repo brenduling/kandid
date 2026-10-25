@@ -61,6 +61,7 @@ begin
       or exists(select 1 from public.students x where x.auth_user_id = resolved_uid and x.id <> s.id)) then return null; end if;
   return jsonb_build_object('id',s.id,'student_number',s.student_number,'email',normalized,
     'status',s.status,'auth_user_id',s.auth_user_id,
+    'first_name',nullif(btrim(s.first_name),''),'last_name',nullif(btrim(s.last_name),''),
     'full_name',nullif(concat_ws(' ',nullif(btrim(s.first_name),''),nullif(btrim(s.last_name),'')),''),
     'program',s.program,'year_level',s.year_level);
 end$$;

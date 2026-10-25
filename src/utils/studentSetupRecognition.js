@@ -1,11 +1,20 @@
 const nullableText = value => value === null || typeof value === "string";
 const nullableYear = value => value === null || (Number.isSafeInteger(value) && value >= 1 && value <= 6);
+// Server masking always emits bullets; an unmasked value (or an email-shaped
+// one) in a masked field means the response is not the reviewed contract.
+const nullableMaskedName = value => value === null ||
+  (typeof value === "string" && value.length >= 4 && value.length <= 120 && value.includes("•") && !value.includes("@"));
 
-// Before OTP, the response is identical for every syntactically valid Student ID.
+// Before OTP, only the server-masked recognition fields are accepted. Older
+// contracts, unmasked names, emails, identifiers or extra fields are rejected.
 export function readStudentSetupRecognition(payload, studentNumber) {
-  if (payload?.recognition_version !== 3 || payload.student_number !== studentNumber || payload.verification_required !== true ||
-      Object.keys(payload).sort().join(",") !== "recognition_version,student_number,verification_required") return null;
-  return { student_number: studentNumber, verification_required: true };
+  if (payload?.recognition_version !== 4 || payload.student_number !== studentNumber || payload.verification_required !== true ||
+      Object.keys(payload).sort().join(",") !== "masked_first_name,masked_last_name,program,recognition_version,student_number,verification_required,year_level" ||
+      !nullableMaskedName(payload.masked_first_name) || !nullableMaskedName(payload.masked_last_name) ||
+      !nullableText(payload.program) || !nullableYear(payload.year_level)) return null;
+  return { student_number: studentNumber, verification_required: true,
+    masked_first_name: payload.masked_first_name, masked_last_name: payload.masked_last_name,
+    program: payload.program, year_level: payload.year_level };
 }
 
 // Server OTP admission and a freshly checked SDK user are required to complete.

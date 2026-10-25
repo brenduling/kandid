@@ -31,7 +31,7 @@ function harness(options = {}) {
       async invoke(name, { body }) {
         events.push({ kind: "invoke", name, body });
         if (options.invokeError) return { data: null, error: options.invokeError };
-        if (name === "resolve-student-login" && body.action === "inspect_setup") return {data:{data:{recognition_version:3,student_number:student.student_number,verification_required:true}},error:null};
+        if (name === "resolve-student-login" && body.action === "inspect_setup") return {data:{data:{recognition_version:4,student_number:student.student_number,verification_required:true,masked_first_name:"Sy"+"•".repeat(7),masked_last_name:"S"+"•".repeat(6),program:"BSIT",year_level:1}},error:null};
         if (name === "resolve-student-login" && body.action === "begin_access") return {data:{data:{verification_requested:true}},error:null};
         if (name === "resolve-student-login") return { data: { data: { authenticated: true, session, setup_verification: options.missingDetails ? undefined : {...details, ...options.details} } }, error: null };
         assert.equal(name, "link-student-identity", "setup never relies on the separate profile endpoint");
@@ -134,7 +134,7 @@ test("Proceed to Login closes only the setup session and reports logout failure"
 });
 
 test("lookup and OTP requests never include the configured password or a substituted email",async()=>{
- const h=harness();const r=await h.api.inspectStudentSetup({studentNumber:student.student_number});assert.equal(r.data.verification_required,true);assert.equal(r.data.full_name,undefined);
+ const h=harness();const r=await h.api.inspectStudentSetup({studentNumber:student.student_number});assert.equal(r.data.verification_required,true);assert.equal(r.data.full_name,undefined);assert.equal(r.data.masked_first_name.includes("ynthetic"),false);assert.ok(r.data.masked_last_name.includes("•"));
  await h.api.beginStudentAccessVerification({studentNumber:student.student_number,password:"Ignored!123",email:"ignored@example.invalid"});
  await h.api.verifyStudentAccessCode({studentNumber:student.student_number,code:"012345",password:"Ignored!123"});
  assert.ok(h.events.filter(e=>e.kind==="invoke").every(e=>!("password" in e.body)&&!("email" in e.body)&&!("registered_email" in e.body)));

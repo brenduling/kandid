@@ -21,7 +21,7 @@ function harness(options={}) {
   events.push([name,body.action]);
   if(name==="resolve-student-login") {
    if(options.badCredentials) return {data:null,error:{context:{status:401}}};
-   if(body.action==="inspect_setup") return {data:{data:{recognition_version:3,student_number:body.student_number,verification_required:true}},error:null};
+   if(body.action==="inspect_setup") return {data:{data:{recognition_version:4,student_number:body.student_number,verification_required:true,masked_first_name:"Sy"+"•".repeat(7),masked_last_name:"S"+"•".repeat(6),program:"BSIT",year_level:1}},error:null};
    return {data:{data:{authenticated:true,session:{access_token:"synthetic",refresh_token:"synthetic"}}},error:null};
   }
   assert.equal(name,"student-profile");
@@ -103,8 +103,9 @@ test("development guard allows exact authenticated profile read but denies write
  assert.equal(isAllowedDevelopmentProductionRequest({...base,body:JSON.stringify({action:"profile"})}),true);
  for(const body of [{action:"update_photo"},{action:"profile",student_id:99},{action:"profile",organization_id:99},{}])assert.equal(isAllowedDevelopmentProductionRequest({...base,body:JSON.stringify(body)}),false);
 });
-test("pre-OTP setup helper strips all unverified personal data",async()=>{
+test("pre-OTP setup helper exposes only server-masked recognition fields",async()=>{
  const h=harness();
  const r=await h.api.inspectStudentSetup({studentNumber:"700001"});
- assert.equal(JSON.stringify(r.data),JSON.stringify({student_number:"700001",verification_required:true}));
+ assert.deepEqual(JSON.parse(JSON.stringify(r.data)),{student_number:"700001",verification_required:true,masked_first_name:"Sy"+"•".repeat(7),masked_last_name:"S"+"•".repeat(6),program:"BSIT",year_level:1});
+ assert.equal(JSON.stringify(r.data).includes("ynthetic"),false);
 });

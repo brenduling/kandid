@@ -7,6 +7,7 @@ import {
   getStudentOtpRetrySeconds,
   STUDENT_OTP_REQUEST_NOTICE,
   getStudentSetupRequestError,
+  formatStudentSetupYearLevel,
 } from "../src/utils/studentSetupValidation.js";
 
 const setupPage = await readFile(new URL("../src/pages/auth/StudentSetup.jsx", import.meta.url), "utf8");
@@ -131,4 +132,13 @@ test("OTP has one local validation owner and completion confirms the linked acti
   assert.match(setupPage, /await signOutStudentSetupSession\(\)[\s\S]*?navigate\("\/student-login", \{ replace: true \}\)/);
   const completion = setupPage.slice(setupPage.indexOf("async function completeSetup"), setupPage.indexOf("async function verifyOtp"));
   assert.doesNotMatch(completion, /navigate\(/);
+});
+
+test("year levels render as ordinal labels for masked and full detail panels", () => {
+  assert.equal(formatStudentSetupYearLevel(1), "1st Year");
+  assert.equal(formatStudentSetupYearLevel(2), "2nd Year");
+  assert.equal(formatStudentSetupYearLevel(3), "3rd Year");
+  assert.equal(formatStudentSetupYearLevel(4), "4th Year");
+  assert.equal(formatStudentSetupYearLevel(null), "Not recorded");
+  assert.equal(formatStudentSetupYearLevel(undefined), "Not recorded");
 });

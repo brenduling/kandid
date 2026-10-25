@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.118.0";
-import { setupAdmission, setupRpc, setupTokenHash, newSetupToken, setupDetails, type SetupStudent } from "../_shared/studentSetupAdmission.ts";
+import { setupAdmission, setupRpc, setupTokenHash, newSetupToken, setupDetails, maskedSetupRecognition, type SetupStudent } from "../_shared/studentSetupAdmission.ts";
 import { KANDID_WEB_ORIGINS } from "../_shared/kandidProductionSecurity.mjs";
 
 const APP_ORIGINS = new Set(
@@ -260,8 +260,21 @@ Deno.serve(async (request) => {
   }
 
   if (action === "inspect_setup") {
-    // Uniform, no database recognition read and no pre-OTP student disclosure.
-    return response({data: {recognition_version: 3, student_number: studentNumber, verification_required: true}}, 200, origin);
+    // Masked recognition uses the same authoritative admission contract as OTP
+    // dispatch, verification and linking. Only an admitted pending record
+    // yields masked display fields; unknown, disabled, already-active and
+    // conflicting identities share one generic rejection. Masking happens
+    // here on the server — unmasked names, email and identifiers never leave.
+    let admitted: SetupStudent | null;
+    try { admitted = await setupStudentRecord(adminClient, studentNumber); }
+    catch { return response({error: "Authentication is temporarily unavailable."}, 503, origin); }
+    const remaining = MIN_FAILED_LOGIN_MS - (Date.now() - requestStartedAt);
+    if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining));
+    if (!admitted || admitted.status !== "pending") {
+      return response({error: "Student details unavailable."}, 404, origin);
+    }
+    return response({data: {recognition_version: 4, student_number: studentNumber, verification_required: true,
+      ...maskedSetupRecognition(admitted)}}, 200, origin);
   }
 
   const auth = authClient(supabaseUrl, anonKey);

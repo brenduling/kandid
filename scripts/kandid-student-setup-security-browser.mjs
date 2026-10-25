@@ -29,7 +29,7 @@ try {
   let serial=0,mode="success";
   const pending=new Map(),requests=[],errors=[],localFailures=[],localPaths=[];
   const user={id:"00000000-0000-4000-8000-000000000042",aud:"authenticated",role:"authenticated",email:"synthetic@example.invalid",email_confirmed_at:"2026-10-17T00:00:00Z",app_metadata:{provider:"email",providers:["email"]},user_metadata:{},identities:[]};
-  const details={student_number:"9090909090",full_name:"Synthetic Student",program:"BSIT",year_level:1};
+  const details={student_number:"9090909090",full_name:"Synthetic Student",masked_first_name:"Sy"+"•".repeat(7),masked_last_name:"S"+"•".repeat(6),program:"BSIT",year_level:1};
   let authReads=0;
   const encode=value=>Buffer.from(JSON.stringify(value)).toString("base64url");
   const expiry=Math.floor(Date.now()/1000)+3600;
@@ -74,13 +74,14 @@ try {
           if(mode==="lookup-service")return fulfill(p.requestId,503,{error:"Temporarily unavailable"});
           if(mode==="lookup-transport")return send("Fetch.failRequest",{requestId:p.requestId,errorReason:"ConnectionClosed"});
 
+          if(mode==="unknown")return fulfill(p.requestId,404,{error:"Student details unavailable."});
           if(mode==="old-v8-inspect")return fulfill(p.requestId,200,{data:{verification_required:true,student_details:{student_number:details.student_number,details_verified:false}}});
-          return fulfill(p.requestId,200,{data:{recognition_version:3,student_number:details.student_number,verification_required:true,...(mode==="overbroad-inspect"?{student_details:details}:{})}});
+          return fulfill(p.requestId,200,{data:{recognition_version:4,student_number:details.student_number,verification_required:true,masked_first_name:details.masked_first_name,masked_last_name:details.masked_last_name,program:details.program,year_level:details.year_level,...(mode==="overbroad-inspect"?{student_details:{full_name:details.full_name,program:details.program,year_level:details.year_level}}:{})}});
         }
         if(body.action==="begin_access" && mode==="request-limited")return fulfill(p.requestId,429,{data:{verification_requested:false}});
         if(body.action==="begin_access")return fulfill(p.requestId,202,{data:{verification_requested:true,delivery_confirmed:false,retry_after_seconds:60}});
         assert.equal(body.action,"verify_access");
-        if(["incorrect","expired","unknown"].includes(mode))return fulfill(p.requestId,401,{data:{authenticated:false}});
+        if(["incorrect","expired"].includes(mode))return fulfill(p.requestId,401,{data:{authenticated:false}});
         if(mode==="read-failure")return fulfill(p.requestId,503,{code:"setup_recognition_unavailable"});
         return fulfill(p.requestId,200,{data:{authenticated:true,session,setup_verification:mode==="old-v8-proof"?undefined:{contract_version:3,student_details:{full_name:details.full_name,program:details.program,year_level:details.year_level},setup_token:mode==="existing"?null:"a".repeat(64),expires_at:mode==="existing"?null:Math.floor(Date.now()/1000)+(mode==="expired-proof"?-1:mode==="proof-refresh"?4:300),student_number:mode==="wrong-id"?"700002":details.student_number,auth_user_id:mode==="foreign-proof"?"foreign-auth":user.id,account_state:mode==="existing"?"active":"pending"}}});
       }
@@ -151,10 +152,20 @@ try {
       assert.equal(requests.filter(r=>r.action==="inspect_setup").length,0);
     }else{
       await type("#student-setup-student-id",details.student_number);await click(".student-setup-lookup .student-auth-submit");
-      if(["old-v8-inspect","overbroad-inspect","lookup-rate-limit","lookup-authorization","lookup-service","lookup-transport","request-limited"].includes(mode)){
+      if(["old-v8-inspect","overbroad-inspect","lookup-rate-limit","lookup-authorization","lookup-service","lookup-transport","unknown"].includes(mode)){
         await wait("!!document.querySelector('[role=alert]')");await privateAbsent();
-        assert.equal(requests.filter(r=>r.action==="begin_access").length,mode==="request-limited"?1:0);
+        assert.equal(requests.filter(r=>r.action==="begin_access").length,0);
       }else{
+        await wait("!!document.querySelector('#student-setup-confirm-record')");
+        assert.equal(await value("document.body.textContent.includes('Sy••••')"),true);await privateAbsent();
+        assert.equal(await value("document.querySelector('.student-setup-stage > .student-auth-submit').disabled"),true);
+        assert.equal(requests.filter(r=>r.action==="begin_access").length,0);
+        if(mode==="success")await screenshot('masked-recognition-'+scenario.width);
+        await click("#student-setup-confirm-record");await click(".student-setup-stage > .student-auth-submit");
+        if(mode==="request-limited"){
+          await wait("!!document.querySelector('[role=alert]')");await privateAbsent();
+          assert.equal(requests.filter(r=>r.action==="begin_access").length,1);
+        }else{
         await wait("document.querySelectorAll('[data-student-otp-index]').length===6");
         await privateAbsent();assert.equal(requests.some(r=>r.hasPassword),false);
         assert.equal(await value("document.querySelector('.student-otp-actions button').disabled"),true);
@@ -199,6 +210,7 @@ try {
             }
           }
           assert.equal(requests.filter(r=>r.action==="verify_access").length,1);
+        }
         }
       }
     }

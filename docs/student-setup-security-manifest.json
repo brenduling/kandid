@@ -1,9 +1,9 @@
 {
-  "manifest_revision": 1,
+  "manifest_revision": 2,
   "status": "LOCAL_ONLY_APPROVAL_REQUIRED",
   "project_ref": "fszgdxqxonqqcrzsnkca",
-  "contract_version": 3,
-  "reviewed_workspace_head": "3b153e57b4e45b618c0cca1c01011f2927276ebd",
+  "contract_version": 4,
+  "reviewed_workspace_head": "a61017c40e3ddbdec0e202093d16d79308ab828b",
   "server_gate": {
     "name": "STUDENT_SETUP_SECURITY_ENABLED",
     "default_enabled": false
@@ -28,8 +28,8 @@
   "deployment_files": [
     {
       "path": "supabase/functions/resolve-student-login-secure-deploy/index.ts",
-      "sha256": "b8f2c3ea16e7967636b263da7d12df54faad8f1b768bbcc674be8200dd0f8c3a",
-      "lf_sha256": "b8f2c3ea16e7967636b263da7d12df54faad8f1b768bbcc674be8200dd0f8c3a",
+      "sha256": "fa69d0b4ad76d5f98cf7f66e9b1d6d9b00e3f100298797ad8c5ef2d81a213862",
+      "lf_sha256": "fa69d0b4ad76d5f98cf7f66e9b1d6d9b00e3f100298797ad8c5ef2d81a213862",
       "deployed_name": "functions/resolve-student-login/index.ts"
     },
     {
@@ -40,8 +40,8 @@
     },
     {
       "path": "supabase/functions/_shared/studentSetupAdmission.ts",
-      "sha256": "973a09158bec9ccd1d5682d282c265ceaafa741e37b5ed76eb96a53569ba4fdd",
-      "lf_sha256": "973a09158bec9ccd1d5682d282c265ceaafa741e37b5ed76eb96a53569ba4fdd",
+      "sha256": "54b6d559600d55b2a0cd6ddc966fa2dd9e44b55747d19de695eed5469ed4a1c6",
+      "lf_sha256": "54b6d559600d55b2a0cd6ddc966fa2dd9e44b55747d19de695eed5469ed4a1c6",
       "deployed_name": "functions/_shared/studentSetupAdmission.ts"
     },
     {
@@ -54,8 +54,8 @@
   "sql_files": [
     {
       "path": "supabase/proposals/student-setup-security.sql",
-      "sha256": "d2c2cf8f29cd531dfcf0c1890bea67e7f97dcfcbbe1d1d6cb13cc9a274f7885a",
-      "lf_sha256": "d2c2cf8f29cd531dfcf0c1890bea67e7f97dcfcbbe1d1d6cb13cc9a274f7885a"
+      "sha256": "a783cec552d95117c4849437056e4c264ec849c8cf78c9861cad700da49f7785",
+      "lf_sha256": "a783cec552d95117c4849437056e4c264ec849c8cf78c9861cad700da49f7785"
     },
     {
       "path": "supabase/proposals/student-setup-security.rollback.sql",
@@ -71,8 +71,8 @@
   "review_files": [
     {
       "path": "src/pages/auth/StudentSetup.jsx",
-      "sha256": "9e00cf6bcbce11002740e59fb6f1c98611f863030fed36fff6eb1331138671af",
-      "lf_sha256": "9e00cf6bcbce11002740e59fb6f1c98611f863030fed36fff6eb1331138671af"
+      "sha256": "dacd72c8bc3deb159e9d4c88e545b7afca9d77eb6d03877ebe2d8bcba903c72d",
+      "lf_sha256": "dacd72c8bc3deb159e9d4c88e545b7afca9d77eb6d03877ebe2d8bcba903c72d"
     },
     {
       "path": "src/utils/auth.js",
@@ -81,13 +81,13 @@
     },
     {
       "path": "src/utils/studentSetupRecognition.js",
-      "sha256": "e3680900b90bab033c870c31eca421b8ac610a9c376bf15364fc075f430b3a8c",
-      "lf_sha256": "e3680900b90bab033c870c31eca421b8ac610a9c376bf15364fc075f430b3a8c"
+      "sha256": "1bf49519b4b12fd750c9b4d4737db094a41d12b87cd2ac2d23da592176cb3268",
+      "lf_sha256": "1bf49519b4b12fd750c9b4d4737db094a41d12b87cd2ac2d23da592176cb3268"
     },
     {
       "path": "src/utils/studentSetupValidation.js",
-      "sha256": "bc18d2d0f94d98fea91cfe5f0b71a9fa247f79467ff8618f51b3f9b54017c517",
-      "lf_sha256": "2b6bd4e5528beae725e0e0305eee5945d7388600400461c289411dbcbfca11bc"
+      "sha256": "a8d568f130a8b09093e96b27f1af055d6f302eec4b403d5e6412589e4709307f",
+      "lf_sha256": "a8d568f130a8b09093e96b27f1af055d6f302eec4b403d5e6412589e4709307f"
     },
     {
       "path": "src/utils/developmentProductionWriteGuard.js",
@@ -96,13 +96,13 @@
     },
     {
       "path": "tests/studentSetupCompletion.test.mjs",
-      "sha256": "2538b499c8750dc553649f20fac14942c0f54e28ac95130f07ce44225bcb072d",
-      "lf_sha256": "17ecd4767244f4bd6450821d27b05889f9df996f7ec07c2b3ef84c5b458d87bb"
+      "sha256": "17a4d8214151efd2dbee805e9023c37d693acc4d634bce363a46090446934b27",
+      "lf_sha256": "17a4d8214151efd2dbee805e9023c37d693acc4d634bce363a46090446934b27"
     },
     {
       "path": "tests/studentSetupLookupFailure.test.mjs",
-      "sha256": "325a7b487583d82b1ad8d6e9cb6ac942d476165d32c465340d6660583376ab49",
-      "lf_sha256": "325a7b487583d82b1ad8d6e9cb6ac942d476165d32c465340d6660583376ab49"
+      "sha256": "561a891b0bf3918c5eec5ba219a86ce34431c2179243805a0a6d89cfd90c9b79",
+      "lf_sha256": "561a891b0bf3918c5eec5ba219a86ce34431c2179243805a0a6d89cfd90c9b79"
     },
     {
       "path": "tests/studentSetupRecognition.test.mjs",
@@ -116,8 +116,8 @@
     },
     {
       "path": "tests/studentSetupValidation.test.mjs",
-      "sha256": "cf84ee73569c4dd42044782e2e5f60e3eb5d489edc13474719a7e691289a6f03",
-      "lf_sha256": "a77e8d47dbb3b46901660c675cdc493512f10f9b02177a21771c3adbfdb19ed5"
+      "sha256": "0436bf40c5712410107fab25a33067f6ea844216ecb4b854d06aaac6223cf5ba",
+      "lf_sha256": "0436bf40c5712410107fab25a33067f6ea844216ecb4b854d06aaac6223cf5ba"
     },
     {
       "path": "tests/developmentProductionWriteGuard.test.mjs",
@@ -126,8 +126,8 @@
     },
     {
       "path": "tests/studentLoginSession.test.mjs",
-      "sha256": "248cad3622a8c3f265f4b051fa171165c1bbe72007ab06fede829b51fffba918",
-      "lf_sha256": "35008166c3adf7922ff9346449292b90b0b677f09010a5a854b24dabbdc9b95a"
+      "sha256": "3e36c505b55f75f03de9d3926b39f58e8b018277912ba23fb4485d12082ed6c3",
+      "lf_sha256": "3e36c505b55f75f03de9d3926b39f58e8b018277912ba23fb4485d12082ed6c3"
     },
     {
       "path": "tests/automaticVoterEligibility.test.mjs",
@@ -136,18 +136,18 @@
     },
     {
       "path": "tests/studentSetupSecurity.test.mjs",
-      "sha256": "36bcd400ab0aa9a1366ec306075bdd3a21a8000b272fea554a1cdd8fc29ddbea",
-      "lf_sha256": "36bcd400ab0aa9a1366ec306075bdd3a21a8000b272fea554a1cdd8fc29ddbea"
+      "sha256": "bbf48c10ca8aba361761740d37da345c33e849601c5cc715a24efcadd0d00b93",
+      "lf_sha256": "bbf48c10ca8aba361761740d37da345c33e849601c5cc715a24efcadd0d00b93"
     },
     {
       "path": "tests/studentSetupSecurityManifest.test.mjs",
-      "sha256": "a4a3dfee87ab91888a7db473e15f8ccf8a02918af120a159be54237fbbc3306e",
-      "lf_sha256": "a4a3dfee87ab91888a7db473e15f8ccf8a02918af120a159be54237fbbc3306e"
+      "sha256": "32e9427031895ecbf58f7b2b481c37efdfb5b5f7cd3ef2b5a144ee9a818dcd9e",
+      "lf_sha256": "32e9427031895ecbf58f7b2b481c37efdfb5b5f7cd3ef2b5a144ee9a818dcd9e"
     },
     {
       "path": "scripts/kandid-student-setup-security-pg17.mjs",
-      "sha256": "4dc0773539333f68f9094a7b9818f91a5b127228432e8967046834ca9f1b0640",
-      "lf_sha256": "4dc0773539333f68f9094a7b9818f91a5b127228432e8967046834ca9f1b0640"
+      "sha256": "65128495bfe5bcac01f44d43f338572886f4cb39195f8fed510104dcadfb66e4",
+      "lf_sha256": "65128495bfe5bcac01f44d43f338572886f4cb39195f8fed510104dcadfb66e4"
     },
     {
       "path": "scripts/kandid-student-setup-security-integration.mjs",
@@ -156,18 +156,23 @@
     },
     {
       "path": "scripts/kandid-student-setup-security-browser.mjs",
-      "sha256": "efaa3d1ff7e01b3fbf556bda4bd12013ed7d0ee66ac625576ef0db38bb306a2e",
-      "lf_sha256": "efaa3d1ff7e01b3fbf556bda4bd12013ed7d0ee66ac625576ef0db38bb306a2e"
+      "sha256": "b570b12903bd8cf9d23366e49a900ed6bcd4031fce6fb8e1c5f8a62fe5e69d65",
+      "lf_sha256": "b570b12903bd8cf9d23366e49a900ed6bcd4031fce6fb8e1c5f8a62fe5e69d65"
     },
     {
       "path": "scripts/prepare-student-setup-security-release.mjs",
-      "sha256": "efa2b6316f86a8bd343599b14b68bbb8cd8b5e14054c994d1341e11e9fe6c3bc",
-      "lf_sha256": "efa2b6316f86a8bd343599b14b68bbb8cd8b5e14054c994d1341e11e9fe6c3bc"
+      "sha256": "d13c5bd3f40f6cc45d7a466ee37f55b7638e3e75da7eeb10e1844052af4c3214",
+      "lf_sha256": "d13c5bd3f40f6cc45d7a466ee37f55b7638e3e75da7eeb10e1844052af4c3214"
     },
     {
       "path": "docs/student-setup-security-release.md",
       "sha256": "a7a517d8736d151cc2072f581a713276882a2bbf7f2abdf5992db14371dd14ed",
       "lf_sha256": "a7a517d8736d151cc2072f581a713276882a2bbf7f2abdf5992db14371dd14ed"
+    },
+    {
+      "path": "docs/student-setup-masked-recognition-readiness-2026-10-26.md",
+      "sha256": "c92d4c7e14caddf35b1b1a547a08784e88e15b24b1e7947dcdf58b2276fd8d85",
+      "lf_sha256": "c92d4c7e14caddf35b1b1a547a08784e88e15b24b1e7947dcdf58b2276fd8d85"
     }
   ]
 }

@@ -45,6 +45,9 @@ check('only service role executes admission/proof/claim/finalization RPCs',()=>{
  for(const role of ['anon','authenticated','service_role'])sql(`set role ${role};select * from private.student_setup_proofs;`,false);
 });
 check('pending identity remains setup eligible without verified current-term enrollment',()=>assert.equal(JSON.parse(admission()).id,42));
+check('admission exposes exact stored first/last names to the server for masked recognition',()=>{
+ const record=JSON.parse(admission());assert.equal(record.first_name,'Synthetic');assert.equal(record.last_name,'Student');assert.equal(record.full_name,'Synthetic Student');
+});
 check('duplicate pending normalized email is rejected by admission, issuance and claim',()=>{
  issue(1);sql(`insert into public.students values(43,'700002','synthetic@example.invalid','pending',null,null,null,null,null);`);
  assert.equal(admission(),'');assert.equal(issue(2),null);assert.equal(claim(1),null);reset();

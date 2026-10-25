@@ -4,6 +4,7 @@ type RpcClient = { rpc(name: string, args: Record<string, unknown>): PromiseLike
 export type SetupStudent = {
   id: number; student_number: string; email: string; status: "pending" | "active";
   auth_user_id: string | null; full_name: string | null; program: string | null; year_level: number | null;
+  first_name?: string | null; last_name?: string | null;
 };
 export async function setupRpc(client: RpcClient, name: string, args: Record<string, unknown>) {
   const { data, error } = await client.rpc(name, args);
@@ -27,4 +28,33 @@ export function newSetupToken() {
 }
 export function setupDetails(record: SetupStudent) {
   return { full_name: record.full_name, program: record.program, year_level: record.year_level };
+}
+// Pre-OTP recognition masking, applied server-side only. The result must never
+// contain a complete name part: at most the first two characters of the first
+// name and the first character of the last name are visible, every name part
+// keeps at least three mask bullets, and a one-character part is never shown.
+function maskNamePart(value: unknown, preferredVisible: number): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().replace(/\s+/g, " ");
+  if (!normalized) return null;
+  const chars = [...normalized];
+  if (chars.length === 1) return "••••";
+  const visible = chars.length <= 3 ? 1 : Math.min(preferredVisible, chars.length - 1);
+  return chars.slice(0, visible).join("") + "•".repeat(Math.max(chars.length - visible, 3));
+}
+export function maskedSetupRecognition(record: SetupStudent) {
+  let firstName = typeof record.first_name === "string" ? record.first_name : null;
+  let lastName = typeof record.last_name === "string" ? record.last_name : null;
+  if (firstName === null && lastName === null && typeof record.full_name === "string") {
+    // Compatibility with admission records that expose only the combined name.
+    const tokens = record.full_name.trim().split(/\s+/).filter(Boolean);
+    firstName = tokens[0] || null;
+    lastName = tokens.length > 1 ? tokens[tokens.length - 1] : null;
+  }
+  return {
+    masked_first_name: maskNamePart(firstName, 2),
+    masked_last_name: maskNamePart(lastName, 1),
+    program: record.program,
+    year_level: record.year_level,
+  };
 }

@@ -4,7 +4,7 @@ import {readFileSync,mkdirSync,copyFileSync,writeFileSync} from 'node:fs';
 import {join,resolve,dirname} from 'node:path';
 import {createHash,randomBytes} from 'node:crypto';
 const manifest=JSON.parse(readFileSync('docs/student-setup-security-manifest.json','utf8'));
-assert.equal(manifest.project_ref,'fszgdxqxonqqcrzsnkca');assert.equal(manifest.contract_version,3);
+assert.equal(manifest.project_ref,'fszgdxqxonqqcrzsnkca');assert.equal(manifest.contract_version,4);
 const hash=x=>createHash('sha256').update(x).digest('hex');
 for(const file of [...manifest.deployment_files,...manifest.sql_files,...manifest.review_files]){
  assert.ok(!/(^|\/)\.env|node_modules|^\.tmp\//.test(file.path));

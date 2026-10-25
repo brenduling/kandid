@@ -9,10 +9,10 @@ import {KANDID_WEB_ORIGINS,corsHeaders,handleCorsPreflight,rejectDisallowedOrigi
 
 const compile=path=>stripTypeScriptTypes(readFileSync(path,'utf8')).replace(/^import .*;\r?\n/gm,'').replace(/^export /gm,'');
 const helper={crypto:webcrypto,TextEncoder};
-runInNewContext(compile('supabase/functions/_shared/studentSetupAdmission.ts')+'\nglobalThis.helpers={setupAdmission,setupRpc,setupTokenHash,newSetupToken,setupDetails};',helper);
+runInNewContext(compile('supabase/functions/_shared/studentSetupAdmission.ts')+'\nglobalThis.helpers={setupAdmission,setupRpc,setupTokenHash,newSetupToken,setupDetails,maskedSetupRecognition};',helper);
 const sources=Object.fromEntries(['resolve-student-login','link-student-identity'].map(name=>[name,compile(`supabase/functions/${name}-secure-deploy/index.ts`)]));
 const user={id:'00000000-0000-4000-8000-000000000042',email:'synthetic@example.invalid',email_confirmed_at:'2026-10-22T00:00:00Z'};
-const student={id:42,student_number:'700001',email:user.email,status:'pending',auth_user_id:null,full_name:'Synthetic Student',program:'BSIT',year_level:1};
+const student={id:42,student_number:'700001',email:user.email,status:'pending',auth_user_id:null,full_name:'Synthetic Student',first_name:'Synthetic',last_name:'Student',program:'BSIT',year_level:1};
 const setup={student_number:student.student_number,setup_mode:true,password:'Synthetic!123',setup_token:'a'.repeat(64)};
 const clone=x=>JSON.parse(JSON.stringify(x));
 function harness(name='resolve-student-login',options={}){
@@ -27,7 +27,7 @@ function harness(name='resolve-student-login',options={}){
   async rpc(name,args){events.push(name);
    if(name==='kandid_consume_student_auth_rate_limit')return {data:options.rateAllowed!==false,error:null};
    if(options.rpcError)return {data:null,error:{}};
-   if(name==='kandid_student_setup_admission_v1')return {data:options.ineligible?null:student,error:null};
+   if(name==='kandid_student_setup_admission_v1')return {data:options.ineligible?null:(options.admissionStudent||student),error:null};
    if(name==='kandid_student_setup_issue_v1')return {data:options.ineligible?null:{account_state:options.active?'active':'pending',student,expires_at:Math.floor(Date.now()/1000)+300},error:null};
    assert.equal(args.p_auth_user_id,user.id);assert.equal(args.p_expected_email,user.email);assert.match(args.p_proof_hash,/^[a-f0-9]{64}$/);
    if(name==='kandid_student_setup_claim_v1'){
@@ -47,13 +47,38 @@ function harness(name='resolve-student-login',options={}){
  runInNewContext(name==='legacy-login'?compile('supabase/functions/resolve-student-login-recognition-deploy/index.ts'):sources[name],ctx);
  return {events,async invoke(body,authorized=true){const r=await handler(new Request('https://synthetic.invalid/function',{method:'POST',headers:{Origin:'http://localhost:5174','Content-Type':'application/json','cf-connecting-ip':'198.51.100.4',...(authorized?{Authorization:'Bearer synthetic-session'}:{})},body:JSON.stringify(body)}));return {status:r.status,body:await r.json(),headers:r.headers};}};
 }
-test('pre-OTP recognition has no identity/existence response or admission read',async()=>{
- for(const ineligible of [false,true]){
-  const h=harness(undefined,{ineligible});const r=await h.invoke({action:'inspect_setup',student_number:'700001'},false);
-  assert.equal(r.status,200);assert.deepEqual(clone(r.body),{data:{recognition_version:3,student_number:'700001',verification_required:true}});
-  assert.deepEqual(h.events,['kandid_consume_student_auth_rate_limit']);assert.equal(r.headers.get('cache-control'),'no-store');
-  assert.ok(readStudentSetupRecognition(r.body.data,'700001'));
+test('pre-OTP recognition returns only server-masked fields for an admitted pending record',async()=>{
+ const h=harness();const r=await h.invoke({action:'inspect_setup',student_number:'700001'},false);
+ assert.equal(r.status,200);assert.equal(r.headers.get('cache-control'),'no-store');
+ assert.deepEqual(clone(r.body),{data:{recognition_version:4,student_number:'700001',verification_required:true,
+  masked_first_name:'Sy'+'•'.repeat(7),masked_last_name:'S'+'•'.repeat(6),program:'BSIT',year_level:1}});
+ assert.deepEqual(h.events,['kandid_consume_student_auth_rate_limit','kandid_student_setup_admission_v1']);
+ const serialized=JSON.stringify(r.body);
+ for(const secret of [user.email,'ynthetic','Student','full_name','auth_user_id'])assert.equal(serialized.includes(secret),false,secret);
+ assert.ok(readStudentSetupRecognition(r.body.data,'700001'));
+});
+test('pre-OTP recognition gives one generic rejection for ineligible and already-active records',async()=>{
+ let baseline;
+ for(const options of [{ineligible:true},{admissionStudent:{...student,status:'active',auth_user_id:user.id}}]){
+  const h=harness(undefined,options);const r=await h.invoke({action:'inspect_setup',student_number:'700001'},false);
+  assert.equal(r.status,404);assert.equal(r.headers.get('cache-control'),'no-store');
+  if(baseline)assert.deepEqual(clone(r.body),baseline);baseline=clone(r.body);
+  assert.equal(r.body.data,undefined);assert.equal(readStudentSetupRecognition(r.body.data,'700001'),null);
+  assert.ok(!JSON.stringify(r.body).includes('Synthetic'));
  }
+});
+test('server masking never returns a complete name part and handles edge names',()=>{
+ const m=record=>clone(helper.helpers.maskedSetupRecognition(record));
+ assert.deepEqual(m({first_name:'Brendo',last_name:'Manlapaz',program:'BSIT',year_level:4}),
+  {masked_first_name:'Br'+'•'.repeat(4),masked_last_name:'M'+'•'.repeat(7),program:'BSIT',year_level:4});
+ assert.deepEqual(m({first_name:'Maria Clara',last_name:'Dela Cruz',program:'BSED',year_level:2}),
+  {masked_first_name:'Ma'+'•'.repeat(9),masked_last_name:'D'+'•'.repeat(8),program:'BSED',year_level:2});
+ assert.deepEqual(m({first_name:'Jo',last_name:'Uy',program:'BSBA',year_level:1}),
+  {masked_first_name:'J'+'•'.repeat(3),masked_last_name:'U'+'•'.repeat(3),program:'BSBA',year_level:1});
+ assert.deepEqual(m({first_name:'A',last_name:null,program:null,year_level:null}),
+  {masked_first_name:'•'.repeat(4),masked_last_name:null,program:null,year_level:null});
+ assert.deepEqual(m({first_name:null,last_name:null,full_name:'José Peña',program:'BSCS',year_level:3}),
+  {masked_first_name:'Jo'+'•'.repeat(3),masked_last_name:'P'+'•'.repeat(3),program:'BSCS',year_level:3});
 });
 test('uniform setup dispatch uses authoritative admission and never writes password',async()=>{
  for(const ineligible of [false,true]){

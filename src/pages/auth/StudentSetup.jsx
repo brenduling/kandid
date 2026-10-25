@@ -30,6 +30,7 @@ import {
   getStudentOtpRetrySeconds,
   STUDENT_OTP_REQUEST_NOTICE,
   getStudentSetupRequestError,
+  formatStudentSetupYearLevel,
 } from "../../utils/studentSetupValidation";
 import { isStudentAccountSetupEnabled, isVerifiedStudentSetupEnabled } from "../../utils/studentAccountSetupFeatureGate";
 import { getStudentSetupLookupFailure } from "../../utils/studentSetupLookupFailure";
@@ -53,7 +54,9 @@ const PASSWORD_RULE_LABELS = {
 };
 
 function SetupProgress({ step }) {
-  const activeStep = step === "existing" ? "otp" : step;
+  // Masked-record confirmation belongs to the Student ID phase; the OTP phase
+  // starts only once the student confirms and requests the code.
+  const activeStep = step === "existing" ? "otp" : step === "recognize" ? "lookup" : step;
   const activeIndex = step === "success" ? SETUP_STAGES.length : SETUP_STAGES.findIndex((stage) => stage.key === activeStep);
 
   return (
@@ -78,6 +81,8 @@ function StudentSetup() {
   const navigate = useNavigate();
   const [studentNumber, setStudentNumber] = useState(location.state?.studentNumber || "");
   const [student, setStudent] = useState(null);
+  const [maskedStudent, setMaskedStudent] = useState(null);
+  const [maskedConfirmed, setMaskedConfirmed] = useState(false);
   const [detailsConfirmed, setDetailsConfirmed] = useState(false);
   const [step, setStep] = useState("lookup");
   const [password, setPassword] = useState("");
@@ -110,6 +115,9 @@ function StudentSetup() {
   const passwordStrength = useMemo(() => getPasswordStrength(password), [password]);
   const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword;
   const otpValue = otpDigits.join("");
+  // Before OTP verification only the masked record exists; afterwards the
+  // verified full record replaces it. OTP requests always use this number.
+  const setupStudentNumber = student?.student_number || maskedStudent?.student_number || "";
 
   async function loadStudentRecord(number, isActive = () => true) {
     const requestId = lookupRequestRef.current + 1;
@@ -141,12 +149,14 @@ function StudentSetup() {
       setSetupError(failure.message);
       return;
     }
-    setStudent(result.data);
+    // Show only the server-masked record first. No OTP is requested until the
+    // student explicitly confirms the masked record is theirs.
+    setStudent(null);
+    setMaskedStudent(result.data);
+    setMaskedConfirmed(false);
     setDetailsConfirmed(false);
     setOtpNotice("");
-    const requested = await sendOtp(normalized);
-    if (!isActive() || lookupRequestRef.current !== requestId) return;
-    if (requested) setStep("otp");
+    setStep("recognize");
     setPassword("");
     setConfirmPassword("");
     setOtpDigits(Array(OTP_LENGTH).fill(""));
@@ -185,6 +195,8 @@ function StudentSetup() {
     verifiedIdentityRef.current = null;
     setVerificationExpiresAt(0);
     setStudent(null);
+    setMaskedStudent(null);
+    setMaskedConfirmed(false);
     setDetailsConfirmed(false);
     setPassword("");
     setConfirmPassword("");
@@ -222,6 +234,8 @@ function StudentSetup() {
     verifiedIdentityRef.current = null;
     setVerificationExpiresAt(0);
     setStudent(null);
+    setMaskedStudent(null);
+    setMaskedConfirmed(false);
     setDetailsConfirmed(false);
     setPassword("");
     setConfirmPassword("");
@@ -236,7 +250,7 @@ function StudentSetup() {
     await loadStudentRecord(studentNumber);
   }
 
-  const sendOtp = useCallback(async (number = student?.student_number) => {
+  const sendOtp = useCallback(async (number = setupStudentNumber) => {
     if (dispatchInFlightRef.current || resendCooldown > 0 || loading || verifyingOtp) return false;
     setSetupError("");
     if (!number) {
@@ -275,7 +289,7 @@ function StudentSetup() {
     setResendCooldown(Math.min(3600, Math.max(OTP_RESEND_COOLDOWN_SECONDS, Number(requestResult?.data?.retry_after_seconds) || 0)));
     setOtpNotice(STUDENT_OTP_REQUEST_NOTICE);
     return true;
-  }, [student?.student_number, resendCooldown, loading, verifyingOtp, recognitionEnabled]);
+  }, [setupStudentNumber, resendCooldown, loading, verifyingOtp, recognitionEnabled]);
 
   async function handlePasswordContinue(event) {
     event.preventDefault();
@@ -339,7 +353,7 @@ function StudentSetup() {
   async function verifyOtp(event) {
     event.preventDefault();
     if (verificationInFlightRef.current || loading || sendingOtp) return;
-    if (!student) {
+    if (!setupStudentNumber) {
       setSetupError("Enter your Student ID before verifying OTP.");
       return;
     }
@@ -359,7 +373,7 @@ function StudentSetup() {
 
     try {
       const verificationResult = await verifyStudentAccessCode({
-        studentNumber: student.student_number,
+        studentNumber: setupStudentNumber,
         code: otpValue,
       });
       if (setupRequestRef.current !== requestId) return;
@@ -382,10 +396,12 @@ function StudentSetup() {
       const expiresAt = proof.account_state === "pending"
         ? Math.min(Number(verificationResult.data.session.expires_at), proof.expires_at)
         : Number(verificationResult.data.session.expires_at);
-      if (proof?.student_number === student.student_number && proof.auth_user_id === verifiedUser?.id && expiresAt * 1000 > Date.now()) {
+      if (proof?.student_number === setupStudentNumber && proof.auth_user_id === verifiedUser?.id && expiresAt * 1000 > Date.now()) {
         verifiedIdentityRef.current = { id: verifiedUser.id, email: verifiedUser.email.trim().toLowerCase(), expiresAt, proof };
         setVerificationExpiresAt(expiresAt);
         setStudent({student_number:proof.student_number,...proof.student_details});
+        setMaskedStudent(null);
+        setMaskedConfirmed(false);
         if (proof.account_state === "active") {
           setPassword("");
           setConfirmPassword("");
@@ -419,6 +435,8 @@ function StudentSetup() {
     setNotFound(false);
     setSetupError("");
     setStudent(null);
+    setMaskedStudent(null);
+    setMaskedConfirmed(false);
     setDetailsConfirmed(false);
   }
 
@@ -486,7 +504,7 @@ function StudentSetup() {
       <form noValidate onSubmit={handleCheckStudent} className="student-setup-stage student-setup-lookup">
         <div className="student-setup-stage-intro">
           <h3>Find your Student ID.</h3>
-          <p>Enter your Student ID to request email verification. Student details appear only after OTP verification.</p>
+          <p>Enter your Student ID. We will show a partially masked record for you to confirm before a verification code is sent to your registered email.</p>
         </div>
 
         <div className="student-auth-fields">
@@ -503,7 +521,7 @@ function StudentSetup() {
           </label>
 
           <button disabled={loading || sendingOtp || !recognitionEnabled || resendCooldown > 0} className="student-auth-submit">
-            {loading || sendingOtp ? <KandidButtonLoader label="Requesting verification..." /> : <>Find Student ID <ArrowRight size={18} aria-hidden="true" /></>}
+            {loading || sendingOtp ? <KandidButtonLoader label="Finding record..." /> : <>Find Student ID <ArrowRight size={18} aria-hidden="true" /></>}
           </button>
         </div>
 
@@ -520,7 +538,7 @@ function StudentSetup() {
           </div>
         ) : null}
         {setupError ? (
-          <div className={`student-setup-feedback ${setupError.includes("unavailable for setup") ? "is-blocked" : "is-error"}`} role="alert">
+          <div className={`student-setup-feedback ${lookupFailure?.kind === "unavailable" ? "is-blocked" : "is-error"}`} role="alert">
             <strong>{lookupFailure?.title || "Student ID check unavailable"}</strong>
             <p>{setupError}</p>
           </div>
@@ -541,7 +559,7 @@ function StudentSetup() {
     return <section className="student-setup-identity" aria-label="Read-only Student details">
       <div className="student-setup-section-head"><span>Student details</span><p><ShieldCheck size={14} aria-hidden="true" /> Read only</p></div>
       <dl className="student-setup-identity-grid">
-        {[["Student full name", student.full_name || "Not recorded"], ["Program", student.program || "Not recorded"], ["Year level", student.year_level || "Not recorded"]].map(([label, value]) =>
+        {[["Student full name", student.full_name || "Not recorded"], ["Program", student.program || "Not recorded"], ["Year level", formatStudentSetupYearLevel(student.year_level)]].map(([label, value]) =>
           <div className="student-setup-identity-item" key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
       </dl>
     </section>;
@@ -574,6 +592,50 @@ function StudentSetup() {
       </label>
       {setupError ? <div className="student-setup-feedback is-error" role="alert"><p>{setupError}</p></div> : null}
       <button type="button" className="student-auth-submit" disabled={!detailsConfirmed} onClick={continueToPassword}>Configure Password <ArrowRight size={18} aria-hidden="true" /></button>
+      <button type="button" className="student-auth-setup-link" onClick={changeStudentId}>Use a Different Student ID</button>
+    </section>;
+  }
+
+  function renderMaskedIdentityPanel() {
+    if (!maskedStudent) return null;
+    const maskedName = [maskedStudent.masked_first_name, maskedStudent.masked_last_name].filter(Boolean).join(" ") || "Not recorded";
+    return <section className="student-setup-identity" aria-label="Masked Student record">
+      <div className="student-setup-section-head"><span>Record on file</span><p><ShieldCheck size={14} aria-hidden="true" /> Masked</p></div>
+      <dl className="student-setup-identity-grid">
+        {[["Name on record", maskedName], ["Program", maskedStudent.program || "Not recorded"], ["Year level", formatStudentSetupYearLevel(maskedStudent.year_level)]].map(([label, value]) =>
+          <div className="student-setup-identity-item" key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+      </dl>
+    </section>;
+  }
+
+  async function confirmMaskedRecord() {
+    if (!maskedStudent || sendingOtp || loading) return;
+    if (!maskedConfirmed) {
+      setSetupError("Confirm that this record belongs to you before we send a verification code.");
+      return;
+    }
+    const generation = lookupRequestRef.current;
+    const requested = await sendOtp(maskedStudent.student_number);
+    if (lookupRequestRef.current !== generation) return;
+    if (requested) setStep("otp");
+  }
+
+  function renderRecognizeStep() {
+    return <section className="student-setup-stage student-setup-flow">
+      <div className="student-setup-stage-intro">
+        <h3>Is this your record?</h3>
+        <p>For privacy, only part of the name on record is shown. Confirm it is yours and we will send a verification code to the email address registered for this Student ID. Your full details appear only after you verify the code.</p>
+      </div>
+      {renderMaskedIdentityPanel()}
+      <label className="student-setup-confirm-ownership">
+        <input id="student-setup-confirm-record" type="checkbox" checked={maskedConfirmed} onChange={event => { setMaskedConfirmed(event.target.checked); setSetupError(""); }} />
+        <span>I confirm this record belongs to me.</span>
+      </label>
+      {setupError ? <div className="student-setup-feedback is-error" role="alert"><p>{setupError}</p></div> : null}
+      <button type="button" className="student-auth-submit" disabled={!maskedConfirmed || sendingOtp || loading || resendCooldown > 0} onClick={confirmMaskedRecord}>
+        {sendingOtp ? <KandidButtonLoader label="Sending code..." /> : <>Send Verification Code <ArrowRight size={18} aria-hidden="true" /></>}
+      </button>
+      {resendCooldown > 0 ? <p role="status">Wait {resendCooldown}s before requesting a code.</p> : null}
       <button type="button" className="student-auth-setup-link" onClick={changeStudentId}>Use a Different Student ID</button>
     </section>;
   }
@@ -830,9 +892,10 @@ function StudentSetup() {
       <div className="student-auth-card student-setup-card kandid-auth-form-card">
         <SetupProgress step={step} />
         {step === "lookup" ? renderLookupStep() : null}
+        {step === "recognize" && maskedStudent ? renderRecognizeStep() : null}
         {step === "confirm" && student ? renderConfirmationStep() : null}
         {step === "password" && student && detailsConfirmed ? renderPasswordStep() : null}
-        {step === "otp" && student ? renderOtpStep() : null}
+        {step === "otp" && setupStudentNumber ? renderOtpStep() : null}
         {step === "existing" && student ? <section className="student-setup-stage student-setup-success">
           {renderIdentityPanel()}
           <h3>Your account is already active.</h3>

@@ -11,7 +11,7 @@ export function getStudentSetupLookupFailure(error) {
     return { kind: "authorization", title: "Student ID check denied", message: "This check could not be authorized. Refresh the page or contact the Electoral Board." };
   }
   if (status === 404) {
-    return { kind: "unavailable", title: "Student details unavailable", message: "These details are unavailable for setup. Check the Student ID or contact the Electoral Board." };
+    return { kind: "unavailable", title: "Student details unavailable", message: "Setup can't start for that Student ID. Check the number; if your account is already activated, return to login. Otherwise contact the Electoral Board." };
   }
   if (status >= 400) {
     return { kind: "service", title: "Student ID service unavailable", message: "The Student ID service could not complete this check. Try again later or contact the Electoral Board." };

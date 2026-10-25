@@ -7,7 +7,8 @@ import { readStudentSetupRecognition } from "../src/utils/studentSetupRecognitio
 
 const source = readFileSync("src/utils/auth.js", "utf8")
   .replace(/^import .*;\r?\n/gm, "").replace(/import\.meta\.env/g, "testEnvironment").replace(/^export /gm, "");
-const valid = { data: { recognition_version: 3, student_number: "700001", verification_required: true } };
+const valid = { data: { recognition_version: 4, student_number: "700001", verification_required: true,
+  masked_first_name: "Sy" + "•".repeat(7), masked_last_name: "S" + "•".repeat(6), program: "BSIT", year_level: 1 } };
 function harness(response, failure) {
   const calls = [];
   const context = { testEnvironment: {}, readStudentSetupRecognition, supabase: { auth: { onAuthStateChange() {} }, functions: { async invoke(name, options) {
@@ -19,11 +20,15 @@ function harness(response, failure) {
   return { calls, inspect: () => context.inspect({ studentNumber: "700001" }) };
 }
 
-test("protected v3 inspection succeeds without disclosing existence or student details", async () => {
+test("masked v4 inspection succeeds and carries only server-masked fields", async () => {
   const h = harness({ data: valid, error: null });
   const result = await h.inspect();
   assert.equal(result.error, null);
-  assert.deepEqual(result.data, { student_number: "700001", verification_required: true });
+  assert.deepEqual(result.data, { student_number: "700001", verification_required: true,
+    masked_first_name: valid.data.masked_first_name, masked_last_name: valid.data.masked_last_name,
+    program: "BSIT", year_level: 1 });
+  assert.equal(result.data.full_name, undefined);
+  assert.equal(result.data.email, undefined);
   assert.equal(h.calls.length, 1);
   assert.equal(h.calls[0].body.action, "inspect_setup");
   assert.deepEqual(Object.keys(h.calls[0].body).sort(), ["action", "student_number"]);
@@ -31,7 +36,13 @@ test("protected v3 inspection succeeds without disclosing existence or student d
 
 test("v8, malformed, overbroad and mismatched success payloads fail as contract errors without retries", async () => {
   for (const data of [null, { data: { verification_required: true } }, { data: { ...valid.data, student_number: "700002" } },
-    { data: { ...valid.data, student_details: { ...valid.data.student_details, email: "private@example.invalid" } } }]) {
+    { data: { recognition_version: 3, student_number: "700001", verification_required: true } },
+    { data: { recognition_version: 2, student_number: "700001", student_details: { full_name: "Synthetic Student", program: "BSIT", year_level: 1 } } },
+    { data: { ...valid.data, masked_first_name: "Synthetic" } },
+    { data: { ...valid.data, masked_last_name: "student@example.invalid" } },
+    { data: { ...valid.data, year_level: 99 } },
+    { data: { ...valid.data, email: "private@example.invalid" } },
+    { data: { ...valid.data, student_details: { email: "private@example.invalid" } } }]) {
     const h = harness({ data, error: null });
     const r = await h.inspect();
     assert.equal(r.data, null);
